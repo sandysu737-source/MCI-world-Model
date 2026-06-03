@@ -3,7 +3,7 @@
 
 用于建模记忆间的因果概率依赖关系，支持：
 1. 有向无环图 (DAG) 结构
-2. 条件概率表 (CPT) 
+2. 条件概率表 (CPT)
 3. 因果强度推断
 4. 概率传播与推理
 5. 信念传播 (Belief Propagation)
@@ -11,19 +11,19 @@
 对外暴露：BayesianNetwork
 """
 
-from typing import Dict, List, Optional, Set, Tuple, Any, Callable
-from dataclasses import dataclass, field
-from collections import defaultdict, deque
-import math
 import json
+import math
 import time
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from typing import Any
 
-from .bayesian import BetaDistribution, BayesianEngine
-
+from .bayesian import BayesianEngine, BetaDistribution
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class ProbabilisticEdge:
@@ -36,6 +36,7 @@ class ProbabilisticEdge:
 
     使用两个独立的 Beta 分布分别估计这两种情况的概率。
     """
+
     parent_id: str
     child_id: str
     # P(child | parent=positive)
@@ -70,13 +71,12 @@ class ProbabilisticEdge:
                 self.pos_given_pos.alpha += weight
             else:
                 self.pos_given_pos.beta += weight
+        elif child_state:
+            self.pos_given_neg.alpha += weight
         else:
-            if child_state:
-                self.pos_given_neg.alpha += weight
-            else:
-                self.pos_given_neg.beta += weight
+            self.pos_given_neg.beta += weight
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "parent_id": self.parent_id,
             "child_id": self.child_id,
@@ -99,20 +99,21 @@ class NetworkNode:
     - 入边/出边列表
     - 马尔可夫毯 (Markov Blanket)
     """
+
     node_id: str
     label: str = ""
     belief: BetaDistribution = field(default_factory=BetaDistribution.uniform)
 
     # 图结构
-    parents: Set[str] = field(default_factory=set)
-    children: Set[str] = field(default_factory=set)
+    parents: set[str] = field(default_factory=set)
+    children: set[str] = field(default_factory=set)
 
     # 元信息
-    node_type: str = "memory"   # "memory" | "event" | "concept" | "hypothesis"
-    metadata: Dict = field(default_factory=dict)
+    node_type: str = "memory"  # "memory" | "event" | "concept" | "hypothesis"
+    metadata: dict = field(default_factory=dict)
 
     @property
-    def markov_blanket(self) -> Set[str]:
+    def markov_blanket(self) -> set[str]:
         """
         马尔可夫毯 = 父节点 ∪ 子节点 ∪ 子节点的父节点
 
@@ -123,7 +124,7 @@ class NetworkNode:
         # 注：这里需要在网络层面计算，节点只提供基础集合
         return blanket
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "node_id": self.node_id,
             "label": self.label,
@@ -137,6 +138,7 @@ class NetworkNode:
 # ============================================================
 # 信念传播引擎
 # ============================================================
+
 
 class BeliefPropagator:
     """
@@ -157,11 +159,8 @@ class BeliefPropagator:
         self._damping = damping
 
     def infer(
-        self,
-        network: 'BayesianNetwork',
-        query_nodes: List[str],
-        evidence: Dict[str, bool] = None
-    ) -> Dict[str, BetaDistribution]:
+        self, network: "BayesianNetwork", query_nodes: list[str], evidence: dict[str, bool] | None = None
+    ) -> dict[str, BetaDistribution]:
         """
         给定证据，推断查询节点的后验概率
 
@@ -181,7 +180,7 @@ class BeliefPropagator:
 
         # 初始化消息
         # message[(from_node, to_node)] = BetaDistribution
-        messages: Dict[Tuple[str, str], BetaDistribution] = {}
+        messages: dict[tuple[str, str], BetaDistribution] = {}
 
         # 迭代消息传递
         for iteration in range(self._max_iterations):
@@ -233,12 +232,12 @@ class BeliefPropagator:
 
     def _collect_incoming(
         self,
-        network: 'BayesianNetwork',
+        network: "BayesianNetwork",
         node_id: str,
         exclude_neighbor: str,
-        messages: Dict[Tuple[str, str], BetaDistribution],
-        evidence: Dict[str, bool]
-    ) -> List[BetaDistribution]:
+        messages: dict[tuple[str, str], BetaDistribution],
+        evidence: dict[str, bool],
+    ) -> list[BetaDistribution]:
         """收集来自其他邻居的传入消息"""
         incoming = []
         for neighbor_id in network.get_neighbors(node_id):
@@ -260,11 +259,11 @@ class BeliefPropagator:
 
     def _compute_message(
         self,
-        network: 'BayesianNetwork',
+        network: "BayesianNetwork",
         from_node: str,
         to_node: str,
-        incoming: List[BetaDistribution],
-        evidence: Dict[str, bool]
+        incoming: list[BetaDistribution],
+        evidence: dict[str, bool],
     ) -> BetaDistribution:
         """计算从 from_node 到 to_node 的消息"""
         # 自身的先验信念
@@ -289,32 +288,25 @@ class BeliefPropagator:
         edge = network.get_edge(from_node, to_node)
         if edge:
             # P(to=pos | from) = P(to=pos|from=pos)*P(from=pos) + P(to=pos|from=neg)*P(from=neg)
-            prob_to = (
-                edge.pos_given_pos.mean * combined.mean +
-                edge.pos_given_neg.mean * (1 - combined.mean)
+            prob_to = edge.pos_given_pos.mean * combined.mean + edge.pos_given_neg.mean * (
+                1 - combined.mean
             )
             strength = max(combined.effective_sample_size * prob_to, 2.0)
-            return BetaDistribution(
-                alpha=prob_to * strength,
-                beta=(1 - prob_to) * strength
-            )
+            return BetaDistribution(alpha=prob_to * strength, beta=(1 - prob_to) * strength)
 
         return combined
 
     def _compute_marginal(
         self,
-        network: 'BayesianNetwork',
+        network: "BayesianNetwork",
         node_id: str,
-        messages: Dict[Tuple[str, str], BetaDistribution],
-        evidence: Dict[str, bool]
+        messages: dict[tuple[str, str], BetaDistribution],
+        evidence: dict[str, bool],
     ) -> BetaDistribution:
         """计算节点的后验边缘概率"""
         if node_id in evidence:
             val = evidence[node_id]
-            return BetaDistribution(
-                alpha=100.0 if val else 1.0,
-                beta=1.0 if val else 100.0
-            )
+            return BetaDistribution(alpha=100.0 if val else 1.0, beta=1.0 if val else 100.0)
 
         node = network._nodes.get(node_id)
         own_belief = node.belief if node else BetaDistribution.uniform()
@@ -342,6 +334,7 @@ class BeliefPropagator:
 # 贝叶斯网络
 # ============================================================
 
+
 class BayesianNetwork:
     """
     贝叶斯网络 - 对外唯一接口
@@ -357,12 +350,12 @@ class BayesianNetwork:
 
     def __init__(self, name: str = "default"):
         self.name = name
-        self._nodes: Dict[str, NetworkNode] = {}
-        self._edges: Dict[Tuple[str, str], ProbabilisticEdge] = {}
+        self._nodes: dict[str, NetworkNode] = {}
+        self._edges: dict[tuple[str, str], ProbabilisticEdge] = {}
         self._propagator = BeliefPropagator()
 
         # 与 BayesianEngine 联动
-        self._bayesian_engine: Optional[BayesianEngine] = None
+        self._bayesian_engine: BayesianEngine | None = None
 
     def set_bayesian_engine(self, engine: BayesianEngine):
         """关联贝叶斯引擎（用于自动同步信念状态）"""
@@ -376,7 +369,7 @@ class BayesianNetwork:
         label: str = "",
         node_type: str = "memory",
         prior_belief: float = 0.5,
-        metadata: Dict = None
+        metadata: dict | None = None,
     ) -> NetworkNode:
         """
         添加节点
@@ -400,7 +393,7 @@ class BayesianNetwork:
             label=label,
             belief=belief,
             node_type=node_type,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
         self._nodes[node_id] = node
         return node
@@ -410,7 +403,7 @@ class BayesianNetwork:
         parent_id: str,
         child_id: str,
         edge_type: str = "causal",
-        initial_strength: float = 0.5
+        initial_strength: float = 0.5,
     ) -> ProbabilisticEdge:
         """
         添加有向边 parent → child
@@ -462,10 +455,7 @@ class BayesianNetwork:
             return
 
         # 移除所有关联边
-        edges_to_remove = [
-            (p, c) for (p, c) in self._edges
-            if p == node_id or c == node_id
-        ]
+        edges_to_remove = [(p, c) for (p, c) in self._edges if node_id in (p, c)]
         for key in edges_to_remove:
             self._remove_edge_internal(*key)
 
@@ -512,24 +502,24 @@ class BayesianNetwork:
 
         return False
 
-    def get_node(self, node_id: str) -> Optional[NetworkNode]:
+    def get_node(self, node_id: str) -> NetworkNode | None:
         return self._nodes.get(node_id)
 
-    def get_edge(self, parent_id: str, child_id: str) -> Optional[ProbabilisticEdge]:
+    def get_edge(self, parent_id: str, child_id: str) -> ProbabilisticEdge | None:
         return self._edges.get((parent_id, child_id))
 
-    def get_neighbors(self, node_id: str) -> Set[str]:
+    def get_neighbors(self, node_id: str) -> set[str]:
         """获取节点的所有邻居"""
         node = self._nodes.get(node_id)
         if not node:
             return set()
         return node.parents | node.children
 
-    def get_parents(self, node_id: str) -> Set[str]:
+    def get_parents(self, node_id: str) -> set[str]:
         node = self._nodes.get(node_id)
         return node.parents if node else set()
 
-    def get_children(self, node_id: str) -> Set[str]:
+    def get_children(self, node_id: str) -> set[str]:
         node = self._nodes.get(node_id)
         return node.children if node else set()
 
@@ -541,7 +531,7 @@ class BayesianNetwork:
         child_id: str,
         parent_state: bool,
         child_state: bool,
-        weight: float = 1.0
+        weight: float = 1.0,
     ):
         """
         观测父-子状态对，更新条件概率表
@@ -569,10 +559,7 @@ class BayesianNetwork:
                 else:
                     node.belief.beta += weight * 0.5
 
-    def batch_observe(
-        self,
-        observations: List[Dict]
-    ):
+    def batch_observe(self, observations: list[dict]):
         """批量观测"""
         for obs in observations:
             self.observe(
@@ -580,12 +567,12 @@ class BayesianNetwork:
                 child_id=obs["child_id"],
                 parent_state=obs.get("parent_state", True),
                 child_state=obs.get("child_state", True),
-                weight=obs.get("weight", 1.0)
+                weight=obs.get("weight", 1.0),
             )
 
     # ---- 推理查询 ----
 
-    def query_causal_strength(self, parent_id: str, child_id: str) -> Optional[Dict]:
+    def query_causal_strength(self, parent_id: str, child_id: str) -> dict | None:
         """查询因果强度"""
         edge = self.get_edge(parent_id, child_id)
         if not edge:
@@ -598,14 +585,12 @@ class BayesianNetwork:
             "causal_strength": edge.causal_strength,
             "relative_risk": edge.relative_risk,
             "evidence_count": edge.evidence_count,
-            "edge_type": edge.edge_type
+            "edge_type": edge.edge_type,
         }
 
     def infer_posterior(
-        self,
-        query_nodes: List[str],
-        evidence: Dict[str, bool] = None
-    ) -> Dict[str, BetaDistribution]:
+        self, query_nodes: list[str], evidence: dict[str, bool] | None = None
+    ) -> dict[str, BetaDistribution]:
         """
         给定证据，推断查询节点的后验概率
 
@@ -621,10 +606,8 @@ class BayesianNetwork:
         return self._propagator.infer(self, query_nodes, evidence)
 
     def most_probable_explanation(
-        self,
-        evidence: Dict[str, bool] = None,
-        candidate_nodes: List[str] = None
-    ) -> Dict[str, Any]:
+        self, evidence: dict[str, bool] | None = None, candidate_nodes: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         最可能解释 (MPE)
 
@@ -643,10 +626,7 @@ class BayesianNetwork:
         evidence = evidence or {}
 
         if candidate_nodes is None:
-            candidate_nodes = [
-                nid for nid in self._nodes
-                if nid not in evidence
-            ]
+            candidate_nodes = [nid for nid in self._nodes if nid not in evidence]
 
         # 计算每个候选节点的后验概率
         posteriors = self._propagator.infer(self, candidate_nodes, evidence)
@@ -665,15 +645,12 @@ class BayesianNetwork:
         return {
             "states": states,
             "log_probability": total_log_prob,
-            "posteriors": {nid: p.to_dict() for nid, p in posteriors.items()}
+            "posteriors": {nid: p.to_dict() for nid, p in posteriors.items()},
         }
 
     def sensitivity_analysis(
-        self,
-        query_node: str,
-        evidence_node: str,
-        steps: int = 11
-    ) -> List[Dict]:
+        self, query_node: str, evidence_node: str, steps: int = 11
+    ) -> list[dict]:
         """
         敏感性分析
 
@@ -701,19 +678,17 @@ class BayesianNetwork:
             posteriors = self._propagator.infer(self, [query_node], temp_evidence)
             query_post = posteriors.get(query_node)
 
-            results.append({
-                "evidence_prob": p,
-                "query_posterior_mean": query_post.mean if query_post else None,
-                "query_posterior_std": query_post.std if query_post else None,
-            })
+            results.append(
+                {
+                    "evidence_prob": p,
+                    "query_posterior_mean": query_post.mean if query_post else None,
+                    "query_posterior_std": query_post.std if query_post else None,
+                }
+            )
 
         return results
 
-    def find_most_influential_parents(
-        self,
-        node_id: str,
-        top_k: int = 5
-    ) -> List[Dict]:
+    def find_most_influential_parents(self, node_id: str, top_k: int = 5) -> list[dict]:
         """
         找出对目标节点影响最大的父节点
 
@@ -740,11 +715,8 @@ class BayesianNetwork:
     # ---- 因果链分析 ----
 
     def trace_causal_chain(
-        self,
-        cause_node: str,
-        effect_node: str,
-        max_depth: int = 5
-    ) -> List[Dict]:
+        self, cause_node: str, effect_node: str, max_depth: int = 5
+    ) -> list[dict]:
         """
         追踪因果链（BFS）
 
@@ -755,14 +727,11 @@ class BayesianNetwork:
         """
         chains = []
 
-        def backtrack(current: str, path: List[str], cumulative_strength: float):
+        def backtrack(current: str, path: list[str], cumulative_strength: float):
             if len(path) > max_depth:
                 return
             if current == effect_node:
-                chains.append({
-                    "path": list(path),
-                    "chain_strength": cumulative_strength
-                })
+                chains.append({"path": list(path), "chain_strength": cumulative_strength})
                 return
 
             node = self._nodes.get(current)
@@ -773,11 +742,7 @@ class BayesianNetwork:
                 if child not in path:
                     edge = self.get_edge(current, child)
                     edge_strength = abs(edge.causal_strength) if edge else 0.1
-                    backtrack(
-                        child,
-                        path + [child],
-                        cumulative_strength * max(edge_strength, 0.01)
-                    )
+                    backtrack(child, [*path, child], cumulative_strength * max(edge_strength, 0.01))
 
         backtrack(cause_node, [cause_node], 1.0)
 
@@ -787,7 +752,7 @@ class BayesianNetwork:
 
     # ---- 统计与分析 ----
 
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> dict:
         """获取网络统计信息"""
         total_nodes = len(self._nodes)
         total_edges = len(self._edges)
@@ -804,8 +769,7 @@ class BayesianNetwork:
             "edge_count": total_edges,
             "edge_type_distribution": dict(edge_types),
             "mean_causal_strength": (
-                sum(causal_strengths) / len(causal_strengths)
-                if causal_strengths else 0.0
+                sum(causal_strengths) / len(causal_strengths) if causal_strengths else 0.0
             ),
             "max_causal_strength": max(causal_strengths) if causal_strengths else 0.0,
             "is_dag": not self._has_cycle(),
@@ -814,7 +778,7 @@ class BayesianNetwork:
     def _has_cycle(self) -> bool:
         """检测网络中是否存在环路（使用 DFS）"""
         WHITE, GRAY, BLACK = 0, 1, 2
-        color = {nid: WHITE for nid in self._nodes}
+        color = dict.fromkeys(self._nodes, WHITE)
 
         def dfs(node_id: str) -> bool:
             color[node_id] = GRAY
@@ -828,42 +792,37 @@ class BayesianNetwork:
             return False
 
         for nid in self._nodes:
-            if color[nid] == WHITE:
-                if dfs(nid):
-                    return True
+            if color[nid] == WHITE and dfs(nid):
+                return True
         return False
 
     # ---- 持久化 ----
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """序列化"""
         return {
             "name": self.name,
             "nodes": {nid: n.to_dict() for nid, n in self._nodes.items()},
             "edges": {f"{p}→{c}": e.to_dict() for (p, c), e in self._edges.items()},
-            "statistics": self.get_statistics()
+            "statistics": self.get_statistics(),
         }
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     @classmethod
-    def from_dict(cls, d: Dict) -> 'BayesianNetwork':
+    def from_dict(cls, d: dict) -> "BayesianNetwork":
         net = cls(name=d.get("name", "default"))
         # 恢复节点
         for nid, nd in d.get("nodes", {}).items():
             net.add_node(
-                node_id=nid,
-                label=nd.get("label", ""),
-                node_type=nd.get("node_type", "memory")
+                node_id=nid, label=nd.get("label", ""), node_type=nd.get("node_type", "memory")
             )
         # 恢复边
         for key, ed in d.get("edges", {}).items():
             parent, child = key.split("→")
             edge = net.add_edge(
-                parent_id=parent,
-                child_id=child,
-                edge_type=ed.get("edge_type", "causal")
+                parent_id=parent, child_id=child, edge_type=ed.get("edge_type", "causal")
             )
             edge.pos_given_pos = BetaDistribution.from_dict(ed["pos_given_pos"])
             edge.pos_given_neg = BetaDistribution.from_dict(ed["pos_given_neg"])
@@ -871,7 +830,7 @@ class BayesianNetwork:
         return net
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'BayesianNetwork':
+    def from_json(cls, json_str: str) -> "BayesianNetwork":
         return cls.from_dict(json.loads(json_str))
 
     def reset(self):

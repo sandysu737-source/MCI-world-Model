@@ -56,18 +56,18 @@ class InterventionResult:
     - 干预方法标识
     """
 
-    intervention: str = ""              # do 干预描述 (如 "do(X=1.5)")
-    target: str = ""                    # 目标变量
-    ate: float = 0.0                    # 平均处理效应
+    intervention: str = ""  # do 干预描述 (如 "do(X=1.5)")
+    target: str = ""  # 目标变量
+    ate: float = 0.0  # 平均处理效应
     confidence_interval: tuple[float, float] = (0.0, 0.0)  # 95% CI
-    ci_level: float = 0.95             # 置信水平
+    ci_level: float = 0.95  # 置信水平
     adjustment_set: list[str] = field(default_factory=list)  # 调整变量
-    method: str = "none"               # "backdoor" | "frontdoor" | "direct" | "none"
-    p_value: float = 1.0               # 双尾 p-value
+    method: str = "none"  # "backdoor" | "frontdoor" | "direct" | "none"
+    p_value: float = 1.0  # 双尾 p-value
     effect_direction: str = "unknown"  # "positive" | "negative" | "neutral"
     effect_magnitude: str = "unknown"  # "large" | "medium" | "small" | "negligible"
-    sample_size: int = 0               # 有效样本量
-    note: str = ""                     # 附加说明
+    sample_size: int = 0  # 有效样本量
+    note: str = ""  # 附加说明
 
     def to_dict(self) -> dict:
         return {
@@ -285,7 +285,7 @@ class DoCalculus:
         parents = self._graph.get_parents(X)
 
         # 过滤掉 Y 本身和重复
-        adjustment_set = [p for p in parents if p != Y and p != X]
+        adjustment_set = [p for p in parents if p not in (Y, X)]
 
         return adjustment_set if adjustment_set else None
 
@@ -385,7 +385,7 @@ class DoCalculus:
 
             y_expected = 0.0
             for zi, z_val in enumerate(z_unique):
-                mask = (z_data == z_val)
+                mask = z_data == z_val
                 y_cond = np.mean(y_data[mask]) if np.any(mask) else 0.0
                 y_expected += y_cond * z_probs[zi]
 
@@ -412,15 +412,25 @@ class DoCalculus:
             p_value = 1.0
 
         return self._build_result(
-            X=X, Y=Y, x_value=x_value, x_baseline=x_baseline,
-            ate=ate, ci=(ci_lower, ci_upper),
-            adjustment_set=Z_set, method="backdoor",
-            p_value=p_value, sample_size=n_samples,
+            X=X,
+            Y=Y,
+            x_value=x_value,
+            x_baseline=x_baseline,
+            ate=ate,
+            ci=(ci_lower, ci_upper),
+            adjustment_set=Z_set,
+            method="backdoor",
+            p_value=p_value,
+            sample_size=n_samples,
         )
 
     def _backdoor_simulated(
-        self, X: str, Y: str, Z_set: list[str],
-        x_value: float, x_baseline: float,
+        self,
+        X: str,
+        Y: str,
+        Z_set: list[str],
+        x_value: float,
+        x_baseline: float,
     ) -> InterventionResult:
         """
         基于因果图生成模拟数据的后门调整。
@@ -501,19 +511,23 @@ class DoCalculus:
         ate_boots = []
         for _ in range(200):
             idx = self._rng.randint(0, n_sim, n_sim)
-            ate_boots.append(
-                np.mean(sim_data[idx, Y_idx])
-                - np.mean(sim_data[:, Y_idx])
-            )
+            ate_boots.append(np.mean(sim_data[idx, Y_idx]) - np.mean(sim_data[:, Y_idx]))
         se = np.std(ate_boots)
         z_alpha = norm.ppf(0.975)
         ci = (ate - z_alpha * se, ate + z_alpha * se)
         p_value = 2.0 * (1.0 - norm.cdf(abs(ate) / max(se, 1e-10)))
 
         return self._build_result(
-            X=X, Y=Y, x_value=x_value, x_baseline=x_baseline,
-            ate=ate, ci=ci, adjustment_set=Z_set,
-            method="backdoor", p_value=p_value, sample_size=n_sim,
+            X=X,
+            Y=Y,
+            x_value=x_value,
+            x_baseline=x_baseline,
+            ate=ate,
+            ci=ci,
+            adjustment_set=Z_set,
+            method="backdoor",
+            p_value=p_value,
+            sample_size=n_sim,
             note="simulated_data",
         )
 
@@ -590,9 +604,11 @@ class DoCalculus:
                     if np.sum(joint) < 3:
                         continue
                     y_cond = np.mean(y_data[joint])
-                    p_m = np.mean(m_given_x >= m_disc[k]) - np.mean(
-                        m_given_x >= m_disc[k + 1]
-                    ) if k < len(m_disc) - 2 else 1.0 / len(m_disc)
+                    p_m = (
+                        np.mean(m_given_x >= m_disc[k]) - np.mean(m_given_x >= m_disc[k + 1])
+                        if k < len(m_disc) - 2
+                        else 1.0 / len(m_disc)
+                    )
                     y_expected += y_cond * p_m * x_probs[xi]
 
             y_do_total += y_expected
@@ -609,14 +625,25 @@ class DoCalculus:
         p_value = 2.0 * (1.0 - norm.cdf(abs(ate) / max(se, 1e-10)))
 
         return self._build_result(
-            X=X, Y=Y, x_value=x_value, x_baseline=x_baseline,
-            ate=ate, ci=ci, adjustment_set=M_set,
-            method="frontdoor", p_value=p_value, sample_size=n_samples,
+            X=X,
+            Y=Y,
+            x_value=x_value,
+            x_baseline=x_baseline,
+            ate=ate,
+            ci=ci,
+            adjustment_set=M_set,
+            method="frontdoor",
+            p_value=p_value,
+            sample_size=n_samples,
         )
 
     def _frontdoor_simulated(
-        self, X: str, Y: str, M_set: list[str],
-        x_value: float, x_baseline: float,
+        self,
+        X: str,
+        Y: str,
+        M_set: list[str],
+        x_value: float,
+        x_baseline: float,
     ) -> InterventionResult:
         """
         基于模拟数据的前门调整。
@@ -668,9 +695,16 @@ class DoCalculus:
         p_value = 2.0 * (1.0 - norm.cdf(abs(ate) / max(se, 1e-10)))
 
         return self._build_result(
-            X=X, Y=Y, x_value=x_value, x_baseline=x_baseline,
-            ate=ate, ci=ci, adjustment_set=M_set,
-            method="frontdoor", p_value=p_value, sample_size=n_sim,
+            X=X,
+            Y=Y,
+            x_value=x_value,
+            x_baseline=x_baseline,
+            ate=ate,
+            ci=ci,
+            adjustment_set=M_set,
+            method="frontdoor",
+            p_value=p_value,
+            sample_size=n_sim,
             note="simulated_data_(do-intervention)",
         )
 
@@ -785,16 +819,27 @@ class DoCalculus:
             p_value = 2.0 * (1.0 - norm.cdf(abs(ate) / max(se, 1e-10)))
 
             return self._build_result(
-                X=X, Y=Y, x_value=x_value, x_baseline=x_baseline,
-                ate=ate, ci=ci, adjustment_set=[],
-                method="direct", p_value=p_value, sample_size=n,
+                X=X,
+                Y=Y,
+                x_value=x_value,
+                x_baseline=x_baseline,
+                ate=ate,
+                ci=ci,
+                adjustment_set=[],
+                method="direct",
+                p_value=p_value,
+                sample_size=n,
                 note="no_adjustment_(confounded_estimate)",
             )
 
         return InterventionResult.empty(method="direct")
 
     def _direct_effect_simulated(
-        self, X: str, Y: str, x_value: float, x_baseline: float,
+        self,
+        X: str,
+        Y: str,
+        x_value: float,
+        x_baseline: float,
     ) -> InterventionResult:
         """模拟数据的直接效应。"""
         n_sim = 500
@@ -843,9 +888,16 @@ class DoCalculus:
         p_value = 2.0 * (1.0 - norm.cdf(abs(ate) / max(se, 1e-10)))
 
         return self._build_result(
-            X=X, Y=Y, x_value=x_value, x_baseline=x_baseline,
-            ate=ate, ci=ci, adjustment_set=[],
-            method="direct", p_value=p_value, sample_size=n_sim,
+            X=X,
+            Y=Y,
+            x_value=x_value,
+            x_baseline=x_baseline,
+            ate=ate,
+            ci=ci,
+            adjustment_set=[],
+            method="direct",
+            p_value=p_value,
+            sample_size=n_sim,
             note="simulated_do-intervention_(no_adjustment)",
         )
 
@@ -944,7 +996,8 @@ class DoCalculus:
         if len(result) < n:
             logger.warning(
                 "因果图含环/不连通: 已处理节点 %d / 总节点 %d，返回 None (F4-P1-1)",
-                len(result), n,
+                len(result),
+                n,
             )
             return None
 

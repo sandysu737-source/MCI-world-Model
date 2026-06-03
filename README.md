@@ -51,26 +51,34 @@ cg = CausalGraph(
     edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")],
 )
 
-# 干预推理：do(X = 1)
+# Pearl Backdoor 调整：do(X=1) vs do(X=0)，调整集 = {Z}
 dc = DoCalculus(cg)
-effect = dc.intervene("X", value=1, target="Y")
-print(f"ATE = {effect.ate:.4f}")
+result = dc.backdoor_adjustment(X="X", Y="Y", Z_set=["Z"])
+print(f"ATE = {result.ate:.4f}  (调整集: {result.adjustment_set}, method={result.method})")
 ```
 
 ### 2️⃣ JEPA World Modeling — 世界建模
 
 ```python
+from mci_world_model import MCIWorldModel
 from mci_world_model.sdk import (
-    JEPADataset, JEPAEncoder, JEPAPredictor, JEPATrainer,
+    JEPADataset, JEPAEncoder, IdentityPredictor, JEPATrainer,
 )
 
-# 数据 → 编码器 → 预测器
-dataset = JEPADataset(X, edges, num_nodes)
-encoder = JEPAEncoder(in_dim=64, hidden_dim=128, out_dim=32)
-predictor = JEPAPredictor(in_dim=32, hidden_dim=64, out_dim=32)
+# 1) 时序状态序列 → 训练对
+states = [wm.initialize()]  # CausalWorldModelState 列表（按 timestamp 排序）
+dataset = JEPADataset.from_states(states, window_size=2)
 
-trainer = JEPATrainer(encoder, predictor, lr=1e-3)
-trainer.fit(dataset, epochs=100)
+# 2) 编码器（依赖世界模型）+ 预测器（具体子类，3 选 1）
+encoder = JEPAEncoder(MCIWorldModel())
+predictor = IdentityPredictor()  # 或 EnergyPropagationPredictor() / BeliefPropagationPredictor()
+
+# 3) 训练器：α 能量损失权重 / β 一致性损失权重
+trainer = JEPATrainer(
+    encoder, predictor, dataset,
+    alpha_energy=0.1, beta_cons=0.05,
+)
+stats = trainer.train(n_epochs=10, learning_rate=1e-3)
 ```
 
 ### 3️⃣ Energy Center — 能量中心三才合一
@@ -113,9 +121,8 @@ pip install -e ".[dev]"
 
 ```python
 from mci_world_model.sdk import (
-    MCIWorldModel, CausalWorldModelState,
+    MCIWorldModel,
     CausalGraph, DoCalculus, CounterfactualEngine,
-    JEPAEncoder, GNNPredictor, JEPATrainer,
     SIGReg,
 )
 
@@ -128,19 +135,19 @@ cg = CausalGraph(
     edges=[("天气", "心情"), ("天气", "出行"), ("心情", "效率"), ("出行", "效率")],
 )
 
-# 3. 干预推理：天气 = 阴天
+# 3. Pearl 干预推理：ATE(天气 → 效率)
 dc = DoCalculus(cg)
-effect = dc.intervene("天气", value="阴天", target="效率")
-print(f"do(天气=阴天) → E[效率] = {effect.ate:.3f}")
+result = dc.estimate_ate("天气", "效率")
+print(f"ATE(天气 → 效率) = {result.ate:.3f}  (method={result.method})")
 
-# 4. 反事实推理：如果当时是晴天，效率会怎样
-cf = CounterfactualEngine(cg)
-counterfactual = cf.imagine(
-    factual={"天气": "雨天"},
-    intervention={"天气": "晴天"},
+# 4. Pearl 反事实推理：do(天气=晴天) 当观察=雨天 时，效率会怎样
+cf = CounterfactualEngine.from_causal_graph(cg)
+counterfactual = cf.query(
+    evidence={"天气": 0.0},       # 事实证据：雨天 (0.0)
+    do_x={"天气": 1.0},            # 反事实干预：晴天 (1.0)
     target="效率",
 )
-print(f"反事实: P(效率 | 天气=晴天, 观察=雨天) = {counterfactual.probability:.3f}")
+print(f"反事实: E[效率 | do(天气=晴天), 观察=雨天] = {counterfactual.counterfactual_value:.3f}")
 ```
 
 ---

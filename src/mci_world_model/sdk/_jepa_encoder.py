@@ -111,8 +111,8 @@ class JEPAEncoder:
     def _collect_evidence(self, memories: list[dict]) -> list[dict]:
         """通过 EvidenceCollector 预处理记忆。"""
         try:
-            from mci_world_model._sys.evidence import EvidenceCollector
             from mci_world_model._sys.bayesian import BayesianEngine
+            from mci_world_model._sys.evidence import EvidenceCollector
 
             engine = BayesianEngine()
             collector = EvidenceCollector(engine)
@@ -134,6 +134,7 @@ class JEPAEncoder:
         """通过 TemporalSystem 标注时间信息。"""
         try:
             from mci_world_model._sys.chrono import TemporalSystem
+
             ts = TemporalSystem()
             for mem in memories:
                 timestamp = mem.get("timestamp", "")
@@ -166,9 +167,7 @@ class JEPAEncoder:
         )
 
         # ── 1. 预处理: 实体提取 + 节点特征 ──
-        X, node_index, node_names = preprocess_memories_to_features(
-            self._wm, memories
-        )
+        X, node_index, _node_names = preprocess_memories_to_features(self._wm, memories)
 
         if X.shape[0] == 0:
             return CausalWorldModelState.empty()
@@ -232,7 +231,9 @@ class JEPAEncoder:
         from mci_world_model.sdk._jepa_gat_encoder import preprocess_memories_to_features
 
         X, node_index, _ = preprocess_memories_to_features(
-            self._wm, memories, state=state,
+            self._wm,
+            memories,
+            state=state,
         )
         if X.shape[0] == 0:
             return np.zeros((0, 0)), {}

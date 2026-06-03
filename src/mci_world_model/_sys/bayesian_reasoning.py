@@ -7,27 +7,19 @@
 对外暴露：BayesianReasoningSystem
 """
 
-from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass, field
-from collections import defaultdict
+import json
 import math
 import time
-import json
 
-from .bayesian import (
-    BayesianEngine,
-    BetaDistribution,
-    LikelihoodFunctions,
-    BayesianBelief
-)
-from .bayesian_network import BayesianNetwork, BeliefPropagator
-from .evidence import EvidenceCollector, EvidenceRecord, SourceProfile
-from .states import BeliefTracker, BayesianBeliefTracker
-
+from .bayesian import BayesianEngine
+from .bayesian_network import BayesianNetwork
+from .evidence import EvidenceCollector
+from .states import BayesianBeliefTracker
 
 # ============================================================
 # 预测增强
 # ============================================================
+
 
 class BayesianPredictor:
     """
@@ -43,22 +35,19 @@ class BayesianPredictor:
         self,
         engine: BayesianEngine = None,
         network: BayesianNetwork = None,
-        evidence: EvidenceCollector = None
+        evidence: EvidenceCollector = None,
     ):
         self._engine = engine or BayesianEngine()
         self._network = network or BayesianNetwork()
         self._evidence = evidence or EvidenceCollector(self._engine)
 
         # 预测历史（用于校准）
-        self._prediction_history: List[Dict] = []
-        self._calibration_curve: List[Tuple[float, float]] = []  # (predicted, actual)
+        self._prediction_history: list[dict] = []
+        self._calibration_curve: list[tuple[float, float]] = []  # (predicted, actual)
 
     def predict_event_probability(
-        self,
-        event_id: str,
-        context_evidence: Dict[str, bool] = None,
-        use_network: bool = True
-    ) -> Dict:
+        self, event_id: str, context_evidence: dict[str, bool] | None = None, use_network: bool = True
+    ) -> dict:
         """
         预测事件概率
 
@@ -83,11 +72,13 @@ class BayesianPredictor:
         if belief and belief.posterior.effective_sample_size > 2:
             prob_direct = belief.posterior.mean
             uncert_direct = belief.posterior.std
-            sources.append({
-                "source": "direct_belief",
-                "probability": prob_direct,
-                "weight": min(1.0, belief.posterior.effective_sample_size / 10)
-            })
+            sources.append(
+                {
+                    "source": "direct_belief",
+                    "probability": prob_direct,
+                    "weight": min(1.0, belief.posterior.effective_sample_size / 10),
+                }
+            )
             probability = prob_direct
             uncertainty = uncert_direct
 
@@ -99,11 +90,9 @@ class BayesianPredictor:
             if posterior and posterior.effective_sample_size > 2:
                 prob_net = posterior.mean
                 uncert_net = posterior.std
-                sources.append({
-                    "source": "bayesian_network",
-                    "probability": prob_net,
-                    "weight": 0.5
-                })
+                sources.append(
+                    {"source": "bayesian_network", "probability": prob_net, "weight": 0.5}
+                )
 
                 # 融合：加权平均
                 if len(sources) == 2:
@@ -117,11 +106,13 @@ class BayesianPredictor:
         if context_evidence:
             evidence_str = self._evidence.compute_evidence_strength(event_id)
             if evidence_str["evidence_count"] > 0:
-                sources.append({
-                    "source": "recent_evidence",
-                    "weighted_ratio": evidence_str["weighted_ratio"],
-                    "weight": 0.3
-                })
+                sources.append(
+                    {
+                        "source": "recent_evidence",
+                        "weighted_ratio": evidence_str["weighted_ratio"],
+                        "weight": 0.3,
+                    }
+                )
 
         # 校准
         if self._calibration_curve:
@@ -129,7 +120,7 @@ class BayesianPredictor:
 
         ci_95 = (
             max(0.0, probability - 1.96 * uncertainty),
-            min(1.0, probability + 1.96 * uncertainty)
+            min(1.0, probability + 1.96 * uncertainty),
         )
 
         return {
@@ -138,15 +129,10 @@ class BayesianPredictor:
             "uncertainty": uncertainty,
             "ci_95": ci_95,
             "sources": sources,
-            "confidence_level": self._assess_confidence(uncertainty)
+            "confidence_level": self._assess_confidence(uncertainty),
         }
 
-    def record_prediction_outcome(
-        self,
-        event_id: str,
-        predicted_prob: float,
-        actual_outcome: bool
-    ):
+    def record_prediction_outcome(self, event_id: str, predicted_prob: float, actual_outcome: bool):
         """
         记录预测结果以校准模型
 
@@ -155,23 +141,22 @@ class BayesianPredictor:
             predicted_prob: 预测的概率
             actual_outcome: 实际结果
         """
-        self._prediction_history.append({
-            "event_id": event_id,
-            "predicted_prob": predicted_prob,
-            "actual_outcome": actual_outcome,
-            "timestamp": time.time(),
-            "correct": (predicted_prob >= 0.5) == actual_outcome
-        })
+        self._prediction_history.append(
+            {
+                "event_id": event_id,
+                "predicted_prob": predicted_prob,
+                "actual_outcome": actual_outcome,
+                "timestamp": time.time(),
+                "correct": (predicted_prob >= 0.5) == actual_outcome,
+            }
+        )
 
         # 更新校准曲线
         self._calibration_curve.append((predicted_prob, float(actual_outcome)))
 
         # 反馈到引擎
         self._engine.observe(
-            belief_id=event_id,
-            success=actual_outcome,
-            weight=0.5,
-            source="prediction_outcome"
+            belief_id=event_id, success=actual_outcome, weight=0.5, source="prediction_outcome"
         )
 
     def _calibrate(self, raw_prob: float) -> float:
@@ -208,7 +193,7 @@ class BayesianPredictor:
         else:
             return "very_low"
 
-    def get_calibration_report(self) -> Dict:
+    def get_calibration_report(self) -> dict:
         """获取校准报告"""
         if len(self._prediction_history) < 5:
             return {"status": "insufficient_data", "count": len(self._prediction_history)}
@@ -234,16 +219,19 @@ class BayesianPredictor:
             "brier_score": brier,
             "calibration_bias": calibration_bias,
             "status": (
-                "well_calibrated" if abs(calibration_bias) < 0.1
-                else "overconfident" if calibration_bias > 0.1
+                "well_calibrated"
+                if abs(calibration_bias) < 0.1
+                else "overconfident"
+                if calibration_bias > 0.1
                 else "underconfident"
-            )
+            ),
         }
 
 
 # ============================================================
 # 推理建议引擎
 # ============================================================
+
 
 class BayesianAdvisor:
     """
@@ -259,7 +247,7 @@ class BayesianAdvisor:
         self,
         engine: BayesianEngine = None,
         network: BayesianNetwork = None,
-        predictor: BayesianPredictor = None
+        predictor: BayesianPredictor = None,
     ):
         self._engine = engine or BayesianEngine()
         self._network = network or BayesianNetwork()
@@ -268,9 +256,9 @@ class BayesianAdvisor:
     def value_of_information(
         self,
         target_belief_id: str,
-        candidate_evidence_sources: List[str],
-        decision_threshold: float = 0.7
-    ) -> List[Dict]:
+        candidate_evidence_sources: list[str],
+        decision_threshold: float = 0.7,
+    ) -> list[dict]:
         """
         计算信息的预期价值 (Expected Value of Information, EVoI)
 
@@ -291,7 +279,6 @@ class BayesianAdvisor:
         if not current_belief:
             return results
 
-        current_uncertainty = current_belief.posterior.std
         current_mean = current_belief.posterior.mean
 
         for source_id in candidate_evidence_sources:
@@ -307,31 +294,36 @@ class BayesianAdvisor:
             evoi = causal_strength * source_uncertainty * (1 - abs(current_mean - 0.5) * 2)
 
             # 考虑获取该证据的成本（来源可靠性越低，成本越高）
-            source_reliability = self._predictor._evidence.get_source_reliability(source_id) if hasattr(self._predictor, '_evidence') else 0.7
+            source_reliability = (
+                self._predictor._evidence.get_source_reliability(source_id)
+                if hasattr(self._predictor, "_evidence")
+                else 0.7
+            )
             net_voi = evoi * source_reliability
 
-            results.append({
-                "source_id": source_id,
-                "causal_strength": causal_strength,
-                "value_of_information": net_voi,
-                "current_uncertainty_reduction": evoi,
-                "source_reliability": source_reliability,
-                "recommendation": (
-                    "强烈建议收集" if net_voi > 0.3
-                    else "建议收集" if net_voi > 0.15
-                    else "可选收集" if net_voi > 0.05
-                    else "可暂缓"
-                )
-            })
+            results.append(
+                {
+                    "source_id": source_id,
+                    "causal_strength": causal_strength,
+                    "value_of_information": net_voi,
+                    "current_uncertainty_reduction": evoi,
+                    "source_reliability": source_reliability,
+                    "recommendation": (
+                        "强烈建议收集"
+                        if net_voi > 0.3
+                        else "建议收集"
+                        if net_voi > 0.15
+                        else "可选收集"
+                        if net_voi > 0.05
+                        else "可暂缓"
+                    ),
+                }
+            )
 
         results.sort(key=lambda x: x["value_of_information"], reverse=True)
         return results
 
-    def recommend_actions(
-        self,
-        belief_id: str,
-        action_options: List[Dict] = None
-    ) -> List[Dict]:
+    def recommend_actions(self, belief_id: str, action_options: list[dict] | None = None) -> list[dict]:
         """
         基于后验概率推荐行动
 
@@ -352,14 +344,30 @@ class BayesianAdvisor:
         if not action_options:
             # 默认行动选项
             action_options = [
-                {"name": "confident_action", "if_true": 1.0, "if_false": -0.5,
-                 "description": "当信念置信度高时执行"},
-                {"name": "cautious_action", "if_true": 0.5, "if_false": -0.2,
-                 "description": "谨慎行动"},
-                {"name": "wait_and_collect", "if_true": 0.1, "if_false": 0.1,
-                 "description": "等待更多证据"},
-                {"name": "avoid_action", "if_true": -0.5, "if_false": 1.0,
-                 "description": "当信念为假时执行"},
+                {
+                    "name": "confident_action",
+                    "if_true": 1.0,
+                    "if_false": -0.5,
+                    "description": "当信念置信度高时执行",
+                },
+                {
+                    "name": "cautious_action",
+                    "if_true": 0.5,
+                    "if_false": -0.2,
+                    "description": "谨慎行动",
+                },
+                {
+                    "name": "wait_and_collect",
+                    "if_true": 0.1,
+                    "if_false": 0.1,
+                    "description": "等待更多证据",
+                },
+                {
+                    "name": "avoid_action",
+                    "if_true": -0.5,
+                    "if_false": 1.0,
+                    "description": "当信念为假时执行",
+                },
             ]
 
         results = []
@@ -368,26 +376,28 @@ class BayesianAdvisor:
 
             # 风险 = 期望收益的方差
             variance = (
-                prob * (action["if_true"] - expected_utility) ** 2 +
-                (1 - prob) * (action["if_false"] - expected_utility) ** 2
+                prob * (action["if_true"] - expected_utility) ** 2
+                + (1 - prob) * (action["if_false"] - expected_utility) ** 2
             )
 
-            results.append({
-                "action_name": action["name"],
-                "description": action.get("description", ""),
-                "expected_utility": expected_utility,
-                "risk": math.sqrt(variance),
-                "recommended": expected_utility > 0,
-                "confidence": min(1.0, max(0.0, expected_utility / (abs(expected_utility) + math.sqrt(variance))))
-            })
+            results.append(
+                {
+                    "action_name": action["name"],
+                    "description": action.get("description", ""),
+                    "expected_utility": expected_utility,
+                    "risk": math.sqrt(variance),
+                    "recommended": expected_utility > 0,
+                    "confidence": min(
+                        1.0,
+                        max(0.0, expected_utility / (abs(expected_utility) + math.sqrt(variance))),
+                    ),
+                }
+            )
 
         results.sort(key=lambda x: x["expected_utility"], reverse=True)
         return results
 
-    def uncertainty_reduction_plan(
-        self,
-        top_k: int = 5
-    ) -> List[Dict]:
+    def uncertainty_reduction_plan(self, top_k: int = 5) -> list[dict]:
         """
         不确定性降序计划
 
@@ -403,19 +413,23 @@ class BayesianAdvisor:
             # 不确定性高 + 影响大 + 证据不足 → 高优先级
             priority = uncertainty * impact_factor / (math.log(evidence_strength + 1) + 1)
 
-            plan.append({
-                "belief_id": belief_id,
-                "uncertainty": uncertainty,
-                "confidence": belief.posterior.mean,
-                "evidence_strength": evidence_strength,
-                "impact_factor": impact_factor,
-                "priority": priority,
-                "suggestion": (
-                    "急需更多证据" if priority > 0.3
-                    else "建议补充证据" if priority > 0.15
-                    else "证据相对充足"
-                )
-            })
+            plan.append(
+                {
+                    "belief_id": belief_id,
+                    "uncertainty": uncertainty,
+                    "confidence": belief.posterior.mean,
+                    "evidence_strength": evidence_strength,
+                    "impact_factor": impact_factor,
+                    "priority": priority,
+                    "suggestion": (
+                        "急需更多证据"
+                        if priority > 0.3
+                        else "建议补充证据"
+                        if priority > 0.15
+                        else "证据相对充足"
+                    ),
+                }
+            )
 
         plan.sort(key=lambda x: x["priority"], reverse=True)
         return plan[:top_k]
@@ -424,6 +438,7 @@ class BayesianAdvisor:
 # ============================================================
 # 统一推理系统
 # ============================================================
+
 
 class BayesianReasoningSystem:
     """
@@ -478,11 +493,11 @@ class BayesianReasoningSystem:
         self.evidence_collector = EvidenceCollector(bayesian_engine=self.engine)
         self.predictor = (
             BayesianPredictor(self.engine, self.network, self.evidence_collector)
-            if enable_predictor else None
+            if enable_predictor
+            else None
         )
         self.advisor = (
-            BayesianAdvisor(self.engine, self.network, self.predictor)
-            if enable_advisor else None
+            BayesianAdvisor(self.engine, self.network, self.predictor) if enable_advisor else None
         )
 
     # ---- 信念管理 ----
@@ -491,22 +506,22 @@ class BayesianReasoningSystem:
         self,
         belief_id: str,
         content: str = "",
-        prior: float = None,
+        prior: float | None = None,
         category: str = "general",
-        tags: List[str] = None
-    ) -> Dict:
+        tags: list[str] | None = None,
+    ) -> dict:
         """注册新信念"""
         belief = self.engine.register_belief(
             belief_id=belief_id,
             content_summary=content,
             prior_belief=prior,
             category=category,
-            tags=tags or []
+            tags=tags or [],
         )
         self.tracker.initialize(belief_id)
         return belief.to_dict()
 
-    def get_belief(self, belief_id: str) -> Optional[Dict]:
+    def get_belief(self, belief_id: str) -> dict | None:
         """获取信念详细信息"""
         belief = self.engine.get_belief(belief_id)
         return belief.to_dict() if belief else None
@@ -521,7 +536,7 @@ class BayesianReasoningSystem:
         source_type: str = "user_feedback",
         weight: float = 1.0,
         context: str = "",
-    ) -> Dict:
+    ) -> dict:
         """收集证据并更新后验（含贝叶斯网络传播）"""
         record = self.evidence_collector.collect(
             belief_id=belief_id,
@@ -547,10 +562,7 @@ class BayesianReasoningSystem:
                 # 使用信念传播推断所有邻居的后验
                 evidence = {belief_id: positive}
                 try:
-                    posteriors = self.network.infer_posterior(
-                        list(neighbors),
-                        evidence
-                    )
+                    posteriors = self.network.infer_posterior(list(neighbors), evidence)
                     # 将传播结果写入引擎
                     for neighbor_id, posterior in posteriors.items():
                         neighbor_belief = self.engine.get_belief(neighbor_id)
@@ -569,15 +581,17 @@ class BayesianReasoningSystem:
                                 # 更新信念（保持方向一致）
                                 if fused_mean > existing_mean:
                                     self.engine.observe(
-                                        neighbor_id, success=True,
+                                        neighbor_id,
+                                        success=True,
                                         weight=network_w * 0.3,
-                                        source=f"network_propagation_from_{belief_id}"
+                                        source=f"network_propagation_from_{belief_id}",
                                     )
                                 elif fused_mean < existing_mean:
                                     self.engine.observe(
-                                        neighbor_id, success=False,
+                                        neighbor_id,
+                                        success=False,
                                         weight=network_w * 0.3,
-                                        source=f"network_propagation_from_{belief_id}"
+                                        source=f"network_propagation_from_{belief_id}",
                                     )
                 except Exception:
                     pass  # 网络推断失败时静默回退
@@ -591,11 +605,7 @@ class BayesianReasoningSystem:
             "stage": belief.get_stage() if belief else "unknown",
         }
 
-    def verify_evidence(
-        self,
-        evidence_id: str,
-        was_correct: bool
-    ):
+    def verify_evidence(self, evidence_id: str, was_correct: bool):
         """验证证据（反馈闭环）"""
         self.evidence_collector.verify_evidence(evidence_id, was_correct)
 
@@ -606,18 +616,18 @@ class BayesianReasoningSystem:
         cause_id: str,
         effect_id: str,
         initial_strength: float = 0.5,
-        edge_type: str = "causal"
-    ) -> Dict:
+        edge_type: str = "causal",
+    ) -> dict:
         """添加因果关系边"""
         if self.network is None:
             return {"error": "Network module not enabled"}
 
         try:
-            edge = self.network.add_edge(
+            self.network.add_edge(
                 parent_id=cause_id,
                 child_id=effect_id,
                 edge_type=edge_type,
-                initial_strength=initial_strength
+                initial_strength=initial_strength,
             )
             return {
                 "status": "created",
@@ -634,8 +644,8 @@ class BayesianReasoningSystem:
         effect_id: str,
         cause_state: bool,
         effect_state: bool,
-        weight: float = 1.0
-    ) -> Dict:
+        weight: float = 1.0,
+    ) -> dict:
         """观测因果关系证据"""
         if self.network is None:
             return {"error": "Network module not enabled"}
@@ -646,7 +656,7 @@ class BayesianReasoningSystem:
 
     # ---- 推理查询 ----
 
-    def query(self, belief_id: str) -> Dict:
+    def query(self, belief_id: str) -> dict:
         """
         查询信念的完整贝叶斯状态
 
@@ -677,41 +687,24 @@ class BayesianReasoningSystem:
             "hypothesis_test": self.engine.hypothesis_test(belief_id),
         }
 
-    def predict(
-        self,
-        event_id: str,
-        context: Dict[str, bool] = None
-    ) -> Dict:
+    def predict(self, event_id: str, context: dict[str, bool] | None = None) -> dict:
         """贝叶斯预测"""
         if self.predictor is None:
             return {"error": "Predictor module not enabled"}
-        return self.predictor.predict_event_probability(
-            event_id, context_evidence=context
-        )
+        return self.predictor.predict_event_probability(event_id, context_evidence=context)
 
-    def record_outcome(
-        self,
-        event_id: str,
-        predicted_prob: float,
-        actual_outcome: bool
-    ):
+    def record_outcome(self, event_id: str, predicted_prob: float, actual_outcome: bool):
         """记录预测结果以校准"""
         if self.predictor:
-            self.predictor.record_prediction_outcome(
-                event_id, predicted_prob, actual_outcome
-            )
+            self.predictor.record_prediction_outcome(event_id, predicted_prob, actual_outcome)
 
-    def recommend(self, belief_id: str, actions: List[Dict] = None) -> List[Dict]:
+    def recommend(self, belief_id: str, actions: list[dict] | None = None) -> list[dict]:
         """获取行动建议"""
         if self.advisor is None:
             return [{"error": "Advisor module not enabled"}]
         return self.advisor.recommend_actions(belief_id, actions)
 
-    def value_of_info(
-        self,
-        target_id: str,
-        sources: List[str]
-    ) -> List[Dict]:
+    def value_of_info(self, target_id: str, sources: list[str]) -> list[dict]:
         """计算信息价值"""
         if self.advisor is None:
             return [{"error": "Advisor module not enabled"}]
@@ -719,7 +712,7 @@ class BayesianReasoningSystem:
 
     # ---- 诊断与报告 ----
 
-    def get_diagnostic_report(self) -> Dict:
+    def get_diagnostic_report(self) -> dict:
         """获取完整诊断报告"""
         return {
             "system": {
@@ -730,9 +723,7 @@ class BayesianReasoningSystem:
             "engine": self.engine.get_statistics(),
             "network": self.network.get_statistics() if self.network else None,
             "evidence": self.evidence_collector.get_statistics(),
-            "calibration": (
-                self.predictor.get_calibration_report() if self.predictor else None
-            ),
+            "calibration": (self.predictor.get_calibration_report() if self.predictor else None),
             "top_beliefs": self.engine.get_top_beliefs(5),
             "most_uncertain": self.engine.get_uncertain_beliefs(5),
             "source_rankings": self.evidence_collector.get_source_rankings(),
@@ -741,7 +732,7 @@ class BayesianReasoningSystem:
             ),
         }
 
-    def get_accuracy_metrics(self) -> Dict:
+    def get_accuracy_metrics(self) -> dict:
         """
         获取准确度度量指标
 
@@ -770,14 +761,15 @@ class BayesianReasoningSystem:
             "sharpness": sum(c * (1 - c) for c in confidences) / len(confidences),
             "high_confidence_ratio": sum(1 for c in confidences if c >= 0.8) / len(confidences),
             "calibration": (
-                self.predictor.get_calibration_report() if self.predictor
+                self.predictor.get_calibration_report()
+                if self.predictor
                 else {"status": "predictor_disabled"}
             ),
         }
 
     # ---- 持久化 ----
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "engine": self.engine.to_dict(),
@@ -789,7 +781,7 @@ class BayesianReasoningSystem:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
     @classmethod
-    def from_dict(cls, d: Dict) -> 'BayesianReasoningSystem':
+    def from_dict(cls, d: dict) -> "BayesianReasoningSystem":
         system = cls(
             name=d.get("name", "default"),
             enable_network=bool(d.get("network")),
@@ -804,7 +796,7 @@ class BayesianReasoningSystem:
         return system
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'BayesianReasoningSystem':
+    def from_json(cls, json_str: str) -> "BayesianReasoningSystem":
         return cls.from_dict(json.loads(json_str))
 
     def reset(self):

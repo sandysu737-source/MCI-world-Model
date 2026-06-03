@@ -87,14 +87,11 @@ class JEPADataset:
 
         # 过滤无效状态
         valid_states: list[CausalWorldModelState] = [
-            s for s in states
-            if isinstance(s, CausalWorldModelState) and s.causal_edges
+            s for s in states if isinstance(s, CausalWorldModelState) and s.causal_edges
         ]
 
         if len(valid_states) < 2:
-            logger.warning(
-                "有效状态不足（%d < 2），无法构造 JEPA 训练对", len(valid_states)
-            )
+            logger.warning("有效状态不足（%d < 2），无法构造 JEPA 训练对", len(valid_states))
             return cls(pairs=[], n_states=len(valid_states), n_pairs=0)
 
         pairs: list[tuple] = []
@@ -102,7 +99,10 @@ class JEPADataset:
             s_t = valid_states[i]
             s_t1 = valid_states[i + 1]
             # 确保每个状态至少有最小记忆数
-            if s_t.n_memories >= min_memories_per_window and s_t1.n_memories >= min_memories_per_window:
+            if (
+                s_t.n_memories >= min_memories_per_window
+                and s_t1.n_memories >= min_memories_per_window
+            ):
                 pairs.append((s_t, s_t1))
 
         distances: list[float] = []
@@ -115,9 +115,12 @@ class JEPADataset:
         max_d = float(np.max(distances)) if distances else 0.0
 
         logger.info(
-            "JEPADataset: %d 状态 → %d 训练对, "
-            "avg_distance=%.4f [%.4f, %.4f]",
-            len(valid_states), len(pairs), avg_d, min_d, max_d,
+            "JEPADataset: %d 状态 → %d 训练对, avg_distance=%.4f [%.4f, %.4f]",
+            len(valid_states),
+            len(pairs),
+            avg_d,
+            min_d,
+            max_d,
         )
 
         return cls(
@@ -210,8 +213,10 @@ class JEPADataset:
         memory_pairs: list[tuple] = []
         state_pairs: list[tuple] = []
         for i in range(len(states) - 1):
-            if states[i].n_memories >= min_memories_per_window and \
-               states[i + 1].n_memories >= min_memories_per_window:
+            if (
+                states[i].n_memories >= min_memories_per_window
+                and states[i + 1].n_memories >= min_memories_per_window
+            ):
                 memory_pairs.append((memory_batches[i], memory_batches[i + 1]))
                 state_pairs.append((states[i], states[i + 1]))
         result.memory_pairs = memory_pairs

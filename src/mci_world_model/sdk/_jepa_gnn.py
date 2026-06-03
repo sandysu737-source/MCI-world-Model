@@ -33,6 +33,7 @@ su-memory v4.0.0 M2 — GNN Predictor
 from __future__ import annotations
 
 import logging
+import threading
 from collections import OrderedDict
 
 import numpy as np
@@ -84,6 +85,7 @@ class GNNPredictor(JEPAPredictor):
 
         # ── 前向缓存（训练模式）──
         self._cache: dict = {}
+        self._cache_lock = threading.Lock()
 
         # ── 训练统计 ──
         self._train_steps: int = 0
@@ -154,7 +156,8 @@ class GNNPredictor(JEPAPredictor):
         """
         A, X, node_index = self._extract_graph(state)
         if A.shape[0] == 0:
-            self._cache = {"empty": True}
+            with self._cache_lock:
+                self._cache = {"empty": True}
             return CausalWorldModelState()
 
         # 类型提升（float64 保证梯度精度）
@@ -162,39 +165,42 @@ class GNNPredictor(JEPAPredictor):
         X = X.astype(np.float64)
 
         # ── 前向传播 ──
-        Y = A @ X @ self.W1 + X @ self.W2           # [N, H]
-        H = np.maximum(Y, 0.0)                        # relu
-        Z = H @ self.W3 @ H.T                        # [N, N]
-        Z_clipped = np.clip(Z, -15.0, 15.0)          # 数值稳定
-        A_pred = 1.0 / (1.0 + np.exp(-Z_clipped))    # sigmoid
+        Y = A @ X @ self.W1 + X @ self.W2  # [N, H]
+        H = np.maximum(Y, 0.0)  # relu
+        Z = H @ self.W3 @ H.T  # [N, N]
+        Z_clipped = np.clip(Z, -15.0, 15.0)  # 数值稳定
+        A_pred = 1.0 / (1.0 + np.exp(-Z_clipped))  # sigmoid
 
         # ── 缓存中间值 ──
-        self._cache = {
-            "empty": False,
-            "A_input": A,
-            "X_input": X,
-            "Y": Y,
-            "H": H,
-            "Z": Z,
-            "A_pred": A_pred,
-            "node_index": node_index,
-            "node_names": list(node_index.keys()),
-        }
+        with self._cache_lock:
+            self._cache = {
+                "empty": False,
+                "A_input": A,
+                "X_input": X,
+                "Y": Y,
+                "H": H,
+                "Z": Z,
+                "A_pred": A_pred,
+                "node_index": node_index,
+                "node_names": list(node_index.keys()),
+            }
 
         self._prediction_count += 1
         return self._build_state(A_pred.astype(np.float32), node_index, state)
 
     def get_predicted_adj(self) -> np.ndarray | None:
         """返回最近一次 training_predict 的预测邻接矩阵。"""
-        if self._cache.get("empty", True):
-            return None
-        return self._cache["A_pred"]
+        with self._cache_lock:
+            if self._cache.get("empty", True):
+                return None
+            return self._cache["A_pred"]
 
     def get_node_index(self) -> dict[str, int] | None:
         """返回最近一次 training_predict 的节点索引。"""
-        if self._cache.get("empty", True):
-            return None
-        return self._cache["node_index"]
+        with self._cache_lock:
+            if self._cache.get("empty", True):
+                return None
+            return self._cache["node_index"]
 
     def compute_gradients(
         self,
@@ -211,15 +217,16 @@ class GNNPredictor(JEPAPredictor):
         Returns:
             {"loss": float, "grads": {"W1": ..., "W2": ..., "W3": ...}}
         """
-        cache = self._cache
+        with self._cache_lock:
+            cache = self._cache.copy()
         if cache.get("empty", True):
             return {"loss": 0.0, "grads": {"W1": self.W1 * 0, "W2": self.W2 * 0, "W3": self.W3 * 0}}
 
         A_pred = cache["A_pred"]
-        H_mat  = cache["H"]
-        Y_mat  = cache["Y"]
-        A_in   = cache["A_input"]
-        X_in   = cache["X_input"]
+        H_mat = cache["H"]
+        Y_mat = cache["Y"]
+        A_in = cache["A_input"]
+        X_in = cache["X_input"]
         W1, W2, W3 = self.W1, self.W2, self.W3
 
         A_target = np.asarray(A_target, dtype=np.float64)
@@ -227,12 +234,12 @@ class GNNPredictor(JEPAPredictor):
 
         # ── MSE 损失 ──
         diff = A_pred - A_target
-        mse = float(np.mean(diff ** 2))
+        mse = float(np.mean(diff**2))
 
         # ── L2 正则 ──
         l2 = 0.0
         if self._l2_reg > 0:
-            l2 = self._l2_reg * (float(np.sum(W1 ** 2)) + float(np.sum(W2 ** 2)) + float(np.sum(W3 ** 2)))
+            l2 = self._l2_reg * (float(np.sum(W1**2)) + float(np.sum(W2**2)) + float(np.sum(W3**2)))
 
         loss = mse + l2
 
@@ -323,7 +330,8 @@ class GNNPredictor(JEPAPredictor):
         return A_pred.astype(np.float32)
 
     def _extract_graph(
-        self, state: CausalWorldModelState,
+        self,
+        state: CausalWorldModelState,
     ) -> tuple[np.ndarray, np.ndarray, dict[str, int]]:
         """从状态提取邻接矩阵、节点特征、节点索引。"""
         A = state.to_adjacency_matrix()
@@ -378,10 +386,7 @@ class GNNPredictor(JEPAPredictor):
         )
 
     def __repr__(self) -> str:
-        return (
-            f"GNNPredictor(hidden_dim={self._hidden_dim}, "
-            f"train_steps={self._train_steps})"
-        )
+        return f"GNNPredictor(hidden_dim={self._hidden_dim}, train_steps={self._train_steps})"
 
 
 # =============================================================================
@@ -409,7 +414,7 @@ def align_adjacency(
     n = len(target_node_index)
     adj = np.zeros((n, n), dtype=np.float64)
 
-    source_index = state._build_node_index()
+    state._build_node_index()
 
     for e in state.causal_edges:
         cause = state._get_node_name(e, "cause")

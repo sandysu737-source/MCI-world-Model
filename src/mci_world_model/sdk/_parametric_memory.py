@@ -63,10 +63,17 @@ class ParametricMemoryConfig:
     lora_rank: int = 64  # r
     lora_alpha: int = 128  # α
     lora_dropout: float = 0.05
-    lora_target_modules: list[str] = field(default_factory=lambda: [
-        "q_proj", "k_proj", "v_proj", "o_proj",
-        "gate_proj", "up_proj", "down_proj",
-    ])
+    lora_target_modules: list[str] = field(
+        default_factory=lambda: [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ]
+    )
 
     # ── 量化 ──
     quant_bits: int = 4  # 4-bit NormalFloat
@@ -123,6 +130,7 @@ class ParametricMemoryConfig:
 @dataclass
 class TrainingSample:
     """单条训练样本（instruction-tuning 格式）。"""
+
     instruction: str
     input_text: str
     output_text: str
@@ -184,7 +192,7 @@ class ParametricMemory:
         try:
             import mlx.core as mx  # noqa: F401
             from mlx_lm import load
-            from mlx_lm.utils import generate_step  # noqa: F401
+            from mlx_lm.utils import generate_step
 
             logger.info("正在加载 MLX 量化模型: %s", self.config.base_model)
             self._model, self._tokenizer = load(self.config.base_model)
@@ -202,7 +210,7 @@ class ParametricMemory:
     def _load_torch_model(self) -> bool:
         """加载 PyTorch 量化模型（回退方案）。"""
         try:
-            import torch  # noqa: F401
+            import torch
             from transformers import (
                 AutoModelForCausalLM,
                 AutoTokenizer,
@@ -212,7 +220,9 @@ class ParametricMemory:
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.bfloat16 if self.config.use_bfloat16 else torch.float16,
+                bnb_4bit_compute_dtype=torch.bfloat16
+                if self.config.use_bfloat16
+                else torch.float16,
                 bnb_4bit_use_double_quant=self.config.use_double_quant,
             )
 
@@ -318,7 +328,9 @@ class ParametricMemory:
 
         logger.info(
             "训练数据准备完成: %d 条样本 (跳过 %d 条), 平均置信度 %.4f",
-            n, skipped, report["avg_confidence"],
+            n,
+            skipped,
+            report["avg_confidence"],
         )
         return n, report
 
@@ -365,7 +377,8 @@ class ParametricMemory:
         if len(self._training_data) < self.config.min_training_pairs:
             logger.warning(
                 "训练数据不足: %d 条 (最低 %d 条)，训练可能效果不佳",
-                len(self._training_data), self.config.min_training_pairs,
+                len(self._training_data),
+                self.config.min_training_pairs,
             )
 
         if self.config.use_mlx:
@@ -387,12 +400,14 @@ class ParametricMemory:
             import mlx.core as mx  # noqa: F401
             from mlx_lm import lora, tuner  # noqa: F401
 
-            if self._model is None:
-                if not self.load_base_model():
-                    return {"error": "model_load_failed", "backend": "mlx"}
+            if self._model is None and not self.load_base_model():
+                return {"error": "model_load_failed", "backend": "mlx"}
 
-            logger.info("开始 MLX QLoRA 训练 (rank=%d, batch=%d)...",
-                        self.config.lora_rank, self.config.batch_size)
+            logger.info(
+                "开始 MLX QLoRA 训练 (rank=%d, batch=%d)...",
+                self.config.lora_rank,
+                self.config.batch_size,
+            )
 
             # ── 准备训练数据 ──
             train_data = self.get_training_format()
@@ -419,8 +434,7 @@ class ParametricMemory:
 
             for step in range(n_steps):
                 batch_texts = train_texts[
-                    step * self.config.batch_size:
-                    (step + 1) * self.config.batch_size
+                    step * self.config.batch_size : (step + 1) * self.config.batch_size
                 ]
                 # (实际训练中这里使用 mlx.nn.value_and_grad + optimizer.step)
                 # 当前为桩实现，记录预期逻辑
@@ -428,7 +442,7 @@ class ParametricMemory:
                 losses.append(loss)
 
                 if (step + 1) % self.config.logging_steps == 0:
-                    avg_loss = sum(losses[-self.config.logging_steps:]) / self.config.logging_steps
+                    avg_loss = sum(losses[-self.config.logging_steps :]) / self.config.logging_steps
                     logger.info("MLX Step %d/%d | Loss: %.6f", step + 1, n_steps, avg_loss)
 
             avg_loss = float(np.mean(losses)) if losses else 0.0
@@ -464,12 +478,14 @@ class ParametricMemory:
                 prepare_model_for_kbit_training,
             )
 
-            if self._model is None:
-                if not self.load_base_model():
-                    return {"error": "model_load_failed", "backend": "torch"}
+            if self._model is None and not self.load_base_model():
+                return {"error": "model_load_failed", "backend": "torch"}
 
-            logger.info("开始 Torch QLoRA 训练 (rank=%d, batch=%d)...",
-                        self.config.lora_rank, self.config.batch_size)
+            logger.info(
+                "开始 Torch QLoRA 训练 (rank=%d, batch=%d)...",
+                self.config.lora_rank,
+                self.config.batch_size,
+            )
 
             # ── PEFT 配置 ──
             self._model = prepare_model_for_kbit_training(self._model)
@@ -484,8 +500,11 @@ class ParametricMemory:
             self._model = get_peft_model(self._model, peft_config)
 
             trainable_params = sum(p.numel() for p in self._model.parameters() if p.requires_grad)
-            logger.info("可训练参数: %d (%.1f%% of base)", trainable_params,
-                        100 * trainable_params / 1_500_000_000)
+            logger.info(
+                "可训练参数: %d (%.1f%% of base)",
+                trainable_params,
+                100 * trainable_params / 1_500_000_000,
+            )
 
             # ── 训练数据 ──
             train_data = self.get_training_format()
@@ -493,7 +512,7 @@ class ParametricMemory:
             self._energy_loss = energy_loss_fn
 
             # ── 训练循环 (桩实现) ──
-            losses = [0.5 * (0.99 ** i) for i in range(n_steps)]
+            losses = [0.5 * (0.99**i) for i in range(n_steps)]
             avg_loss = float(np.mean(losses))
 
             self._is_trained = True
@@ -512,12 +531,10 @@ class ParametricMemory:
             logger.error("Torch 训练失败: %s", e)
             return {"error": str(e), "backend": "torch"}
 
-    def _simulated_training_step(
-        self, batch: list[str], step: int, total_steps: int
-    ) -> float:
+    def _simulated_training_step(self, batch: list[str], step: int, total_steps: int) -> float:
         """模拟训练步骤（用于 MLX 桩实现）。"""
         # 递减损失函数
-        return 0.5 * (0.99 ** step) + np.random.uniform(-0.01, 0.01)
+        return 0.5 * (0.99**step) + np.random.uniform(-0.01, 0.01)
 
     def _estimate_trainable_params(self) -> int:
         """估算 LoRA 可训练参数量。"""
@@ -561,16 +578,16 @@ class ParametricMemory:
 
         # 拒绝路径穿越
         if ".." in _osp.normpath(expanded).split(_osp.sep):
-            raise ValueError(
-                f"adapter path traversal not allowed: {path!r} (resolved: {abs_path})"
-            )
+            raise ValueError(f"adapter path traversal not allowed: {path!r} (resolved: {abs_path})")
 
         # 展开允许根目录
         allowed_roots = [_osp.abspath(_osp.expanduser(r)) for r in cls._ALLOWED_ADAPTER_ROOTS]
 
         # 兼容旧用法：项目根目录或 CWD 也允许（向后兼容）
         cwd = _osp.abspath(_osp.getcwd())
-        project_root_marker = _osp.abspath(_osp.dirname(_osp.dirname(_osp.dirname(_osp.dirname(__file__)))))
+        project_root_marker = _osp.abspath(
+            _osp.dirname(_osp.dirname(_osp.dirname(_osp.dirname(__file__))))
+        )
         allowed_roots.extend([cwd, project_root_marker])
 
         # 检查 abs_path 是否在任一允许根目录下
@@ -631,8 +648,7 @@ class ParametricMemory:
                 json.dump(self._training_stats, f, indent=2)
 
             # (实际保存 adapter 权重: mx.save_safetensors(...))
-            logger.info("MLX adapter 已保存到: %s (%d 训练样本)",
-                        path, len(self._training_data))
+            logger.info("MLX adapter 已保存到: %s (%d 训练样本)", path, len(self._training_data))
             return True
         except ImportError:
             # 保存配置即使无 MLX runtime
@@ -696,8 +712,9 @@ class ParametricMemory:
                 self.load_base_model()
 
             # (实际加载 adapter 权重)
-            logger.info("adapter 加载成功: %s (version=%s)",
-                        path, adapter_config.get("version", "unknown"))
+            logger.info(
+                "adapter 加载成功: %s (version=%s)", path, adapter_config.get("version", "unknown")
+            )
             self._is_trained = True
             return True
         except Exception as e:
@@ -753,28 +770,24 @@ class ParametricMemory:
                 }
             ]
 
-    def _predict_mlx(
-        self, prompt: str, top_k: int, max_tokens: int
-    ) -> list[dict]:
+    def _predict_mlx(self, prompt: str, top_k: int, max_tokens: int) -> list[dict]:
         """MLX 推理。"""
         # (桩实现 — 实际使用 mlx_lm.generate)
         return [
             {
-                "effect": f"[MLX 参数化预测 #{i+1}]: 基于因果先验的效应推断",
+                "effect": f"[MLX 参数化预测 #{i + 1}]: 基于因果先验的效应推断",
                 "confidence": round(0.8 - i * 0.15, 3),
                 "energy_relation": "enhance" if i == 0 else "neutral",
             }
             for i in range(min(top_k, 3))
         ]
 
-    def _predict_torch(
-        self, prompt: str, top_k: int, max_tokens: int
-    ) -> list[dict]:
+    def _predict_torch(self, prompt: str, top_k: int, max_tokens: int) -> list[dict]:
         """Torch 推理。"""
         # (桩实现 — 实际使用 model.generate)
         return [
             {
-                "effect": f"[Torch 参数化预测 #{i+1}]: 基于因果先验的效应推断",
+                "effect": f"[Torch 参数化预测 #{i + 1}]: 基于因果先验的效应推断",
                 "confidence": round(0.8 - i * 0.15, 3),
                 "energy_relation": "enhance" if i == 0 else "neutral",
             }

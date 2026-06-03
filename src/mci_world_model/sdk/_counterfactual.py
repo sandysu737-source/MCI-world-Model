@@ -82,8 +82,8 @@ class CounterfactualResult:
     noise_terms: dict[str, float] = field(default_factory=dict)
 
     # ── 必然性/充分性 (Monte Carlo 估计) ──
-    pn: float = -1.0   # Probability of Necessity (-1 = 未计算)
-    ps: float = -1.0   # Probability of Sufficiency
+    pn: float = -1.0  # Probability of Necessity (-1 = 未计算)
+    ps: float = -1.0  # Probability of Sufficiency
     pns: float = -1.0  # Probability of Necessity and Sufficiency
 
     # ── 元信息 ──
@@ -168,9 +168,7 @@ class StructuralEquationModel:
         self.node_names = list(node_names)
         self.noise_std = float(noise_std)
         if not (0 < self.noise_std < np.inf):
-            raise ValueError(
-                f"noise_std must be positive and finite, got {noise_std}"
-            )
+            raise ValueError(f"noise_std must be positive and finite, got {noise_std}")
         self._n_nodes = len(node_names)
         self._node_idx = {name: i for i, name in enumerate(node_names)}
         self._rng = np.random.RandomState(seed)
@@ -600,7 +598,7 @@ class CounterfactualEngine:
         cf_samples = np.zeros(n_cf_samples)
         for s in range(n_cf_samples):
             cf_data_sample = mutilated_sem.simulate_with_intervention(
-                noise=noise_samples[s:s+1],
+                noise=noise_samples[s : s + 1],
                 n_samples=1,
             )
             cf_samples[s] = cf_data_sample[0, target_idx]
@@ -617,7 +615,10 @@ class CounterfactualEngine:
         pn = ps = pns = -1.0
         if compute_pns and len(do_x) == 1:
             pn, ps, pns = self._compute_pns(
-                evidence, do_x, target, n_mc=min(n_mc, 300),
+                evidence,
+                do_x,
+                target,
+                n_mc=min(n_mc, 300),
             )
 
         # ── 构建结果 ──
@@ -631,8 +632,7 @@ class CounterfactualEngine:
             ci_95=(round(ci_95[0], 6), round(ci_95[1], 6)),
             individual_effect=round(float(individual_effect), 6),
             noise_terms={
-                name: round(float(noise_factual[idx]), 6)
-                for name, idx in self._node_idx.items()
+                name: round(float(noise_factual[idx]), 6) for name, idx in self._node_idx.items()
             },
             pn=pn,
             ps=ps,
@@ -690,7 +690,7 @@ class CounterfactualEngine:
         if effect_threshold is None:
             effect_threshold = self._sem.noise_std * 0.2
 
-        x_name = list(do_x.keys())[0]
+        x_name = next(iter(do_x.keys()))
 
         # ── 事实世界模拟 (多次采样未观测噪声) ──
         noise_samples = self._sem.abduce(evidence, n_samples=n_mc)
@@ -715,7 +715,7 @@ class CounterfactualEngine:
         cf_samples = np.zeros(n_mc)
         for s in range(n_mc):
             cf_data = mutilated_sem.simulate_with_intervention(
-                noise=noise_samples[s:s+1],
+                noise=noise_samples[s : s + 1],
                 n_samples=1,
             )
             cf_samples[s] = cf_data[0, target_idx]
@@ -737,7 +737,7 @@ class CounterfactualEngine:
         ps_samples = np.zeros(n_mc)
         for s in range(n_mc):
             ps_data = mutilated_factual.simulate_with_intervention(
-                noise=noise_samples[s:s+1],
+                noise=noise_samples[s : s + 1],
                 n_samples=1,
             )
             ps_samples[s] = ps_data[0, target_idx]
@@ -747,10 +747,12 @@ class CounterfactualEngine:
         ps = float(n_ps) / n_mc
 
         # ── PNS: P(Y_x ≈ y, Y_{x'} ≠ y) ──
-        n_pns = int(np.sum(
-            (np.abs(ps_samples - y_factual) <= effect_threshold) &
-            (np.abs(cf_samples - y_factual) > effect_threshold)
-        ))
+        n_pns = int(
+            np.sum(
+                (np.abs(ps_samples - y_factual) <= effect_threshold)
+                & (np.abs(cf_samples - y_factual) > effect_threshold)
+            )
+        )
         pns = float(n_pns) / n_mc
 
         return (pn, ps, pns)

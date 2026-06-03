@@ -39,23 +39,26 @@ logger = logging.getLogger(__name__)
 # SynthesizedQAPair
 # ==========================================================================
 
+
 @dataclass
 class SynthesizedQAPair:
     """合成的因果 QA 对"""
+
     cause_text: str
     effect_text: str
-    cause_entity: str              # 原因实体
-    effect_entity: str             # 结果实体
-    reflection_depth: int          # 反射深度 (1=直连, 2=单跳, 3=双跳)
-    energy_relation: str           # 能量关系 (enhance/suppress/same/neutral)
-    confidence: float              # BayesianCausal 后验置信度
-    source_memory_ids: list[str]   # 来源记忆 ID
-    qa_pair_id: str                # 合成 QA 对唯一 ID
+    cause_entity: str  # 原因实体
+    effect_entity: str  # 结果实体
+    reflection_depth: int  # 反射深度 (1=直连, 2=单跳, 3=双跳)
+    energy_relation: str  # 能量关系 (enhance/suppress/same/neutral)
+    confidence: float  # BayesianCausal 后验置信度
+    source_memory_ids: list[str]  # 来源记忆 ID
+    qa_pair_id: str  # 合成 QA 对唯一 ID
 
 
 # ==========================================================================
 # ReflectionSynthesizer
 # ==========================================================================
+
 
 class ReflectionSynthesizer:
     """
@@ -72,26 +75,58 @@ class ReflectionSynthesizer:
 
     # 实体识别模式 (中文)
     ENTITY_INDICATORS = [
-        "上涨", "下降", "增长", "减少", "提升", "降低",
-        "突破", "创", "宣布", "发布", "实施", "落地",
-        "执行", "完成", "启动",
+        "上涨",
+        "下降",
+        "增长",
+        "减少",
+        "提升",
+        "降低",
+        "突破",
+        "创",
+        "宣布",
+        "发布",
+        "实施",
+        "落地",
+        "执行",
+        "完成",
+        "启动",
     ]
 
     # 因果指示词 (MEMO Step 1)
     CAUSAL_MARKERS = [
-        "导致", "因为", "因此", "所以", "使得", "促使", "带动",
-        "引起", "引发", "造成", "带来", "产生", "推动",
+        "导致",
+        "因为",
+        "因此",
+        "所以",
+        "使得",
+        "促使",
+        "带动",
+        "引起",
+        "引发",
+        "造成",
+        "带来",
+        "产生",
+        "推动",
     ]
 
     # 数值提取模式
-    NUMERIC_PATTERN = re.compile(
-        r"([\d]+(?:\.[\d]+)?)\s*(%|倍|成|个百分点|点|万|亿|个)?"
-    )
+    NUMERIC_PATTERN = re.compile(r"([\d]+(?:\.[\d]+)?)\s*(%|倍|成|个百分点|点|万|亿|个)?")
     # 中文数字
     CN_NUMERIC = {
-        "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
-        "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-        "百": 100, "千": 1000, "万": 10000, "亿": 100000000,
+        "一": 1,
+        "二": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+        "百": 100,
+        "千": 1000,
+        "万": 10000,
+        "亿": 100000000,
     }
 
     def __init__(
@@ -120,9 +155,7 @@ class ReflectionSynthesizer:
     # Step 1: Fact Extraction
     # ────────────────────────────────────────────────
 
-    def extract_facts(
-        self, memories: list[dict]
-    ) -> list[dict]:
+    def extract_facts(self, memories: list[dict]) -> list[dict]:
         """
         从记忆列表中提取实体、数值、属性和因果指示词。
         """
@@ -131,14 +164,16 @@ class ReflectionSynthesizer:
             content = mem.get("content", "")
             if not content:
                 continue
-            facts.append({
-                "memory_id": mem.get("id", ""),
-                "content": content,
-                "entities": self._extract_entities(content),
-                "numerics": self._extract_numerics(content),
-                "causals": self._extract_causal_indicators(content),
-                "energy_type": self._infer_energy_type_from_content(content),
-            })
+            facts.append(
+                {
+                    "memory_id": mem.get("id", ""),
+                    "content": content,
+                    "entities": self._extract_entities(content),
+                    "numerics": self._extract_numerics(content),
+                    "causals": self._extract_causal_indicators(content),
+                    "energy_type": self._infer_energy_type_from_content(content),
+                }
+            )
         return facts
 
     def _extract_entities(self, content: str) -> list[str]:
@@ -188,7 +223,7 @@ class ReflectionSynthesizer:
             unit = m.group(2) or ""
             # 方向推断: 查看附近的动词
             start = max(0, m.start() - 6)
-            prefix = content[start:m.start()]
+            prefix = content[start : m.start()]
             if any(w in prefix for w in ["上涨", "增长", "提升", "增", "升", "突破"]):
                 direction = "+"
             elif any(w in prefix for w in ["下降", "减少", "降低", "降", "减"]):
@@ -209,11 +244,13 @@ class ReflectionSynthesizer:
                     direction = "-"
                 else:
                     direction = "~"
-                numerics.append({
-                    "value": cn_val,
-                    "unit": "cn",
-                    "direction": direction,
-                })
+                numerics.append(
+                    {
+                        "value": cn_val,
+                        "unit": "cn",
+                        "direction": direction,
+                    }
+                )
 
         return numerics
 
@@ -225,9 +262,7 @@ class ReflectionSynthesizer:
     # Step 4: Entity Surfacing
     # ────────────────────────────────────────────────
 
-    def surface_entities(
-        self, facts: list[dict]
-    ) -> dict[str, list[str]]:
+    def surface_entities(self, facts: list[dict]) -> dict[str, list[str]]:
         """
         为每个实体发现相关的跨文档事实 (果→因 反向查找)。
 
@@ -272,9 +307,7 @@ class ReflectionSynthesizer:
     # Step 5: Cross-document Causal Synthesis
     # ────────────────────────────────────────────────
 
-    def synthesize_causal_pairs(
-        self, facts: list[dict]
-    ) -> list[SynthesizedQAPair]:
+    def synthesize_causal_pairs(self, facts: list[dict]) -> list[SynthesizedQAPair]:
         """
         跨文档因果合成。
 
@@ -293,9 +326,7 @@ class ReflectionSynthesizer:
         for _etype, group_facts in groups.items():
             if len(group_facts) < 2:
                 continue
-            sampled = self._rng.sample(
-                group_facts, min(20, len(group_facts))
-            )
+            sampled = self._rng.sample(group_facts, min(20, len(group_facts)))
             for i in range(len(sampled)):
                 for j in range(i + 1, len(sampled)):
                     if len(pairs) >= self.max_pairs:
@@ -308,12 +339,8 @@ class ReflectionSynthesizer:
         for etype_a in groups:
             enhanced = self._get_enhanced_element(etype_a)
             if enhanced and enhanced in groups:
-                sa = self._rng.sample(
-                    groups[etype_a], min(10, len(groups[etype_a]))
-                )
-                sb = self._rng.sample(
-                    groups[enhanced], min(10, len(groups[enhanced]))
-                )
+                sa = self._rng.sample(groups[etype_a], min(10, len(groups[etype_a])))
+                sb = self._rng.sample(groups[enhanced], min(10, len(groups[enhanced])))
                 for fa in sa:
                     for fb in sb:
                         if len(pairs) >= self.max_pairs:
@@ -324,9 +351,7 @@ class ReflectionSynthesizer:
 
         return self._sort_by_confidence(pairs)
 
-    def _try_synthesize(
-        self, fact_a: dict, fact_b: dict
-    ) -> SynthesizedQAPair | None:
+    def _try_synthesize(self, fact_a: dict, fact_b: dict) -> SynthesizedQAPair | None:
         """
         尝试从两个事实合成因果 QA 对。
 
@@ -482,9 +507,7 @@ class ReflectionSynthesizer:
 
         return prior
 
-    def run_pipeline(
-        self, memories: list[dict]
-    ) -> tuple[list[SynthesizedQAPair], np.ndarray]:
+    def run_pipeline(self, memories: list[dict]) -> tuple[list[SynthesizedQAPair], np.ndarray]:
         """
         完整合成流水线。
 
@@ -500,9 +523,7 @@ class ReflectionSynthesizer:
     # v3.6.0 本地训练: 训练数据质量报告
     # ────────────────────────────────────────────────
 
-    def training_data_report(
-        self, pairs: list[SynthesizedQAPair]
-    ) -> dict:
+    def training_data_report(self, pairs: list[SynthesizedQAPair]) -> dict:
         """
         生成训练数据质量报告。
 
@@ -549,10 +570,7 @@ class ReflectionSynthesizer:
 
         # v3.6.0 本地训练就绪判断
         ready = (
-            total >= 3000
-            and avg_conf >= 0.4
-            and diversity_score >= 0.6
-            and above_threshold >= 2000
+            total >= 3000 and avg_conf >= 0.4 and diversity_score >= 0.6 and above_threshold >= 2000
         )
 
         return {
@@ -611,8 +629,10 @@ class ReflectionSynthesizer:
     def _get_enhanced_element(self, element: str) -> str | None:
         """获取 '生' 关系的目标元素。"""
         mapping = {
-            "wood": "fire", "fire": "earth",
-            "earth": "metal", "metal": "water",
+            "wood": "fire",
+            "fire": "earth",
+            "earth": "metal",
+            "metal": "water",
             "water": "wood",
         }
         return mapping.get(element)
@@ -620,8 +640,10 @@ class ReflectionSynthesizer:
     def _get_suppressed_element(self, element: str) -> str | None:
         """获取 '克' 关系的目标元素。"""
         mapping = {
-            "wood": "earth", "fire": "metal",
-            "earth": "water", "metal": "wood",
+            "wood": "earth",
+            "fire": "metal",
+            "earth": "water",
+            "metal": "wood",
             "water": "fire",
         }
         return mapping.get(element)
@@ -648,6 +670,7 @@ class ReflectionSynthesizer:
 # ==========================================================================
 # 工具函数
 # ==========================================================================
+
 
 def _hash_pair_id(cause: str, effect: str) -> str:
     """生成因果对的唯一哈希 ID。"""

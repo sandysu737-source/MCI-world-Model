@@ -79,11 +79,12 @@ class GaussianDAG:
                 content = mem.get("content", "")
                 # 中文字符提取
                 for ch in content:
-                    if '\u4e00' <= ch <= '\u9fff':
+                    if "\u4e00" <= ch <= "\u9fff":
                         vocab_set.add(ch)
                 # 英文单词提取 (至少 2 个字符)
                 import re
-                words = re.findall(r'[a-zA-Z]{2,}', content.lower())
+
+                words = re.findall(r"[a-zA-Z]{2,}", content.lower())
                 vocab_set.update(words)
             self._vocab = sorted(vocab_set)
 
@@ -129,9 +130,9 @@ class GaussianDAG:
         Args:
             prior: TopologicalEnergyMatrix 或 np.ndarray
         """
-        if hasattr(prior, 'to_flat_vector'):
+        if hasattr(prior, "to_flat_vector"):
             self._parametric_prior = prior.to_flat_vector().reshape(5, 5)
-        elif hasattr(prior, 'matrix'):
+        elif hasattr(prior, "matrix"):
             self._parametric_prior = np.asarray(prior.matrix, dtype=np.float32)
         else:
             self._parametric_prior = np.asarray(prior, dtype=np.float32)
@@ -166,14 +167,15 @@ class GaussianDAG:
             tokens = set()
             for k in [2, 3]:
                 for j in range(len(content) - k + 1):
-                    tokens.add(content[j:j + k])
+                    tokens.add(content[j : j + k])
             # 中文字符
             for ch in content:
-                if '\u4e00' <= ch <= '\u9fff':
+                if "\u4e00" <= ch <= "\u9fff":
                     tokens.add(ch)
             # 英文单词 (至少 2 个字符)
             import re
-            words = re.findall(r'[a-zA-Z]{2,}', content.lower())
+
+            words = re.findall(r"[a-zA-Z]{2,}", content.lower())
             tokens.update(words)
 
             for token in tokens:
@@ -230,7 +232,7 @@ class GaussianDAG:
 
         # 偏相关系数
         num = r_xy - r_xz * r_yz
-        denom = np.sqrt((1 - r_xz ** 2) * (1 - r_yz ** 2))
+        denom = np.sqrt((1 - r_xz**2) * (1 - r_yz**2))
 
         if abs(denom) < 1e-10:
             return (0.0, 1.0)  # 退化情况
@@ -260,9 +262,7 @@ class GaussianDAG:
     # 能量先验加权
     # -----------------------------------------------------------------
 
-    def energy_prior_boost(
-        self, mem_a: dict, mem_b: dict, base_conf: float
-    ) -> tuple[float, str]:
+    def energy_prior_boost(self, mem_a: dict, mem_b: dict, base_conf: float) -> tuple[float, str]:
         """
         能量先验交叉验证。
 
@@ -293,6 +293,7 @@ class GaussianDAG:
                 RelationType,
                 analyze_relation,
             )
+
             relation = analyze_relation(etype_a, etype_b)
 
             if relation.relation == RelationType.ENHANCE:
@@ -322,12 +323,14 @@ class GaussianDAG:
                 for prefix in ["element_", "wuxing_"]:
                     try:
                         node = self._energy_bus.get_node(f"{prefix}{etype}")
-                        if node and mem_id in str(getattr(node, 'memory_ids', [])):
+                        if node and mem_id in str(getattr(node, "memory_ids", [])):
                             return etype
                     except Exception as e:
                         logger.debug(
                             "_infer_energy_type: failed to query energy_bus node %s%s: %s",
-                            prefix, etype, e,
+                            prefix,
+                            etype,
+                            e,
                         )
 
         # 3. 基于内容的启发式推断 (hash 映射保证一致性)
@@ -409,20 +412,23 @@ class GaussianDAG:
                         from mci_world_model._sys._energy_relations import (
                             analyze_relation,
                         )
+
                         rel = analyze_relation(mem_etype_a, mem_etype_b)
                         energy_rel = rel.relation.value
                     except ImportError:
                         pass
 
-                edges.append({
-                    "cause_idx": i if rho > 0 else j,
-                    "effect_idx": j if rho > 0 else i,
-                    "rho": round(rho, 4),
-                    "p_value": round(p_value, 4),
-                    "confidence": round(conf, 4),
-                    "verdict": verdict,
-                    "energy_relation": energy_rel,
-                })
+                edges.append(
+                    {
+                        "cause_idx": i if rho > 0 else j,
+                        "effect_idx": j if rho > 0 else i,
+                        "rho": round(rho, 4),
+                        "p_value": round(p_value, 4),
+                        "confidence": round(conf, 4),
+                        "verdict": verdict,
+                        "energy_relation": energy_rel,
+                    }
+                )
 
         # 按置信度降序
         edges.sort(key=lambda e: e["confidence"], reverse=True)
@@ -437,9 +443,7 @@ class GaussianDAG:
                     prior_val = self._reflection_prior[i, j]
                     if prior_val > 0.1:
                         # 先验与偏相关加权融合
-                        edge["confidence"] = round(
-                            edge["confidence"] * 0.7 + prior_val * 0.3, 4
-                        )
+                        edge["confidence"] = round(edge["confidence"] * 0.7 + prior_val * 0.3, 4)
                         edge["reflection_boosted"] = True
                         edge["reflection_prior"] = round(float(prior_val), 4)
 
@@ -474,7 +478,9 @@ class GaussianDAG:
             for edge in edges:
                 eid = f"{edge['cause_idx']}_{edge['effect_idx']}"
                 posterior = self._bayesian.causal_hypothesis_test(
-                    eid, edge["rho"], self._n_effective,
+                    eid,
+                    edge["rho"],
+                    self._n_effective,
                     edge.get("energy_relation"),
                 )
                 edge["posterior_mean"] = posterior["posterior_mean"]
@@ -489,9 +495,7 @@ class GaussianDAG:
     # 混淆因子检测
     # -----------------------------------------------------------------
 
-    def detect_confounder(
-        self, mem_a_idx: int, mem_b_idx: int, candidate_z_idx: int
-    ) -> dict:
+    def detect_confounder(self, mem_a_idx: int, mem_b_idx: int, candidate_z_idx: int) -> dict:
         """
         检测候选变量 Z 是否为 X↔Y 的混淆因子。
 
@@ -606,11 +610,11 @@ class FourierCausal:
 
     # 内置五行周期先验 (归一化频率)
     ELEMENT_PERIOD_HINTS = {
-        "wood": 0.25,     # T=4 → f=0.25 (春生)
-        "fire": 0.25,     # T=4 → f=0.25 (夏长)
+        "wood": 0.25,  # T=4 → f=0.25 (春生)
+        "fire": 0.25,  # T=4 → f=0.25 (夏长)
         "earth": 0.1667,  # T=6 → f≈0.1667 (长夏/过渡)
-        "metal": 0.25,    # T=4 → f=0.25 (秋收)
-        "water": 0.25,    # T=4 → f=0.25 (冬藏)
+        "metal": 0.25,  # T=4 → f=0.25 (秋收)
+        "water": 0.25,  # T=4 → f=0.25 (冬藏)
     }
 
     def __init__(self, energy_bus=None):
@@ -714,7 +718,7 @@ class FourierCausal:
         # FFT
         fft_result = np.fft.rfft(centered)
         magnitudes = np.abs(fft_result)
-        power = magnitudes ** 2
+        power = magnitudes**2
         total_power = np.sum(power) + 1e-10
 
         # 频率轴
@@ -749,7 +753,11 @@ class FourierCausal:
         #    0 = 全集中在 2 个频率 (周期规律) → 正常
         #    1 = 能量完全分散 (宽带噪声) → 异常
         sorted_power = np.sort(power[1:])[::-1] if len(power) > 1 else np.array([0])
-        top2_power = np.sum(sorted_power[:2]) if len(sorted_power) >= 2 else (sorted_power[0] if len(sorted_power) > 0 else 0)
+        top2_power = (
+            np.sum(sorted_power[:2])
+            if len(sorted_power) >= 2
+            else (sorted_power[0] if len(sorted_power) > 0 else 0)
+        )
         spectral_spread = max(0.0, 1.0 - top2_power / (total_power - dc_power + 1e-10))
 
         # ② 幅值因子: 只有有意义的波动才值得关注
@@ -809,13 +817,15 @@ class FourierCausal:
             if decomp.get("error"):
                 continue
             if decomp["anomaly_score"] >= threshold:
-                events.append({
-                    "element": etype,
-                    "anomaly_score": decomp["anomaly_score"],
-                    "dominant_freq": decomp["dominant_freq"],
-                    "high_freq_ratio": decomp["high_freq_ratio"],
-                    "n_samples": decomp["n_samples"],
-                })
+                events.append(
+                    {
+                        "element": etype,
+                        "anomaly_score": decomp["anomaly_score"],
+                        "dominant_freq": decomp["dominant_freq"],
+                        "high_freq_ratio": decomp["high_freq_ratio"],
+                        "n_samples": decomp["n_samples"],
+                    }
+                )
         events.sort(key=lambda e: e["anomaly_score"], reverse=True)
         return events
 
@@ -823,9 +833,7 @@ class FourierCausal:
     # 双元素频域相干性
     # -----------------------------------------------------------------
 
-    def cross_spectral_coherence(
-        self, etype_a: str, etype_b: str
-    ) -> dict:
+    def cross_spectral_coherence(self, etype_a: str, etype_b: str) -> dict:
         """
         双元素频域相干性分析。
 
@@ -884,11 +892,11 @@ class FourierCausal:
 
         # 同步频段判定
         if dominant_shared_freq <= 0.1:
-            sync_band = "low"    # 低频同步 → 周期混淆风险
+            sync_band = "low"  # 低频同步 → 周期混淆风险
         elif dominant_shared_freq <= 0.3:
             sync_band = "mid"
         else:
-            sync_band = "high"   # 高频同步 → 可能是因果共振
+            sync_band = "high"  # 高频同步 → 可能是因果共振
 
         return {
             "coherence": round(mean_coherence, 4),
@@ -901,9 +909,7 @@ class FourierCausal:
     # 周期混淆过滤
     # -----------------------------------------------------------------
 
-    def filter_periodic_noise(
-        self, corr_matrix: np.ndarray, cutoff: float = 0.8
-    ) -> np.ndarray:
+    def filter_periodic_noise(self, corr_matrix: np.ndarray, cutoff: float = 0.8) -> np.ndarray:
         """
         滤除周期混淆的相关系数矩阵。
 
@@ -929,18 +935,13 @@ class FourierCausal:
                     continue
 
                 # 低频同步 + 高相干性 = 周期混淆
-                if (
-                    coherence["sync_band"] == "low"
-                    and coherence["coherence"] > cutoff
-                ):
+                if coherence["sync_band"] == "low" and coherence["coherence"] > cutoff:
                     filtered[i, j] = 0.0
                     filtered[j, i] = 0.0
 
         return filtered
 
-    def filter_periodic_edges(
-        self, edges: list[dict], dag: GaussianDAG
-    ) -> list[dict]:
+    def filter_periodic_edges(self, edges: list[dict], dag: GaussianDAG) -> list[dict]:
         """
         对 GaussianDAG 发现的因果边进行频域过滤。
 
@@ -1083,12 +1084,12 @@ class GaussianDistribution:
     @property
     def variance(self) -> float:
         """后验方差。"""
-        return self.sigma ** 2
+        return self.sigma**2
 
     @property
     def precision(self) -> float:
         """后验精度 τ = 1/σ²。"""
-        return 1.0 / (self.sigma ** 2 + 1e-10)
+        return 1.0 / (self.sigma**2 + 1e-10)
 
     def pdf(self, x: float) -> float:
         """概率密度函数值。"""
@@ -1147,11 +1148,13 @@ class GaussianDistribution:
         if n <= 0:
             return self
 
-        prior_precision = 1.0 / (self.sigma ** 2 + 1e-10)
-        likelihood_precision = n / (sample_std ** 2 + 1e-10)
+        prior_precision = 1.0 / (self.sigma**2 + 1e-10)
+        likelihood_precision = n / (sample_std**2 + 1e-10)
         posterior_precision = prior_precision + likelihood_precision
 
-        self.mu = (self.mu * prior_precision + sample_mean * likelihood_precision) / posterior_precision
+        self.mu = (
+            self.mu * prior_precision + sample_mean * likelihood_precision
+        ) / posterior_precision
         self.sigma = 1.0 / math.sqrt(posterior_precision)
         self.n_observations += n
 
@@ -1200,10 +1203,10 @@ class BayesianCausal:
 
     # 能量关系 → 先验参数映射
     ENERGY_PRIORS = {
-        "enhance":    {"mu": 0.3, "sigma": 0.5},   # 生 → 正向预期
-        "suppress":   {"mu": 0.0, "sigma": 0.3},   # 克 → 保守
-        "same":       {"mu": 0.15, "sigma": 0.5},   # 同 → 弱正向
-        "neutral":    {"mu": 0.0, "sigma": 1.0},    # 无 → 无信息
+        "enhance": {"mu": 0.3, "sigma": 0.5},  # 生 → 正向预期
+        "suppress": {"mu": 0.0, "sigma": 0.3},  # 克 → 保守
+        "same": {"mu": 0.15, "sigma": 0.5},  # 同 → 弱正向
+        "neutral": {"mu": 0.0, "sigma": 1.0},  # 无 → 无信息
     }
 
     BF_THRESHOLDS = {
@@ -1294,10 +1297,7 @@ class BayesianCausal:
         prior_at_zero = prior.pdf(0.0)
         post_at_zero = posterior.pdf(0.0)
 
-        if post_at_zero > 1e-15:
-            bayes_factor = prior_at_zero / post_at_zero
-        else:
-            bayes_factor = float("inf")
+        bayes_factor = prior_at_zero / post_at_zero if post_at_zero > 1e-15 else float("inf")
 
         # 防止 BF 过大溢出
         if bayes_factor > 1e6:
@@ -1324,7 +1324,9 @@ class BayesianCausal:
             "posterior_mean": round(posterior.mu, 6),
             "posterior_std": round(posterior.sigma, 6),
             "credible_interval_95": (round(ci[0], 6), round(ci[1], 6)),
-            "bayes_factor": bayes_factor if bayes_factor == float("inf") else round(bayes_factor, 4),
+            "bayes_factor": bayes_factor
+            if bayes_factor == float("inf")
+            else round(bayes_factor, 4),
             "conclusion": conclusion,
             "energy_prior_used": energy_relation or "none",
         }
@@ -1392,14 +1394,16 @@ class BayesianCausal:
         }
 
         for test in self._test_history:
-            summary["edges"].append({
-                "id": test["edge_id"],
-                "conclusion": test["conclusion"],
-                "posterior_mean": test["posterior_mean"],
-                "bayes_factor": (
-                    test["bayes_factor"] if test["bayes_factor"] != float("inf") else "inf"
-                ),
-            })
+            summary["edges"].append(
+                {
+                    "id": test["edge_id"],
+                    "conclusion": test["conclusion"],
+                    "posterior_mean": test["posterior_mean"],
+                    "bayes_factor": (
+                        test["bayes_factor"] if test["bayes_factor"] != float("inf") else "inf"
+                    ),
+                }
+            )
 
             if "strong" in test["conclusion"]:
                 summary["n_strong_causal"] += 1

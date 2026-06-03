@@ -235,13 +235,12 @@ class EnergyConsistencyLoss:
 
                 # 确定边类型
                 rel = topo.edge_types.get((i, j), "neutral")
-                if rel in ("enhance", "suppress"):
-                    edge_type = rel
-                else:
-                    edge_type = "other"
+                edge_type = rel if rel in ("enhance", "suppress") else "other"
 
                 # 边惩罚权重
-                weight = self.edge_penalty_multiplier if edge_type in ("enhance", "suppress") else 1.0
+                weight = (
+                    self.edge_penalty_multiplier if edge_type in ("enhance", "suppress") else 1.0
+                )
 
                 # L1 距离
                 diff = abs(pred_val - target_val)
@@ -398,7 +397,6 @@ class EnergyConsistencyLoss:
             "final_energy_loss": round(float(energy_vals[-1]), 6),
         }
 
-
     # -----------------------------------------------------------------
     # v4.0.0 JEPA: N×N 图结构能量损失
     # -----------------------------------------------------------------
@@ -424,11 +422,6 @@ class EnergyConsistencyLoss:
         Returns:
             (energy_loss, diagnostics)
         """
-        try:
-            from mci_world_model._sys._energy_relations import is_enhancing, is_suppressing
-        except ImportError:
-            return 0.0, {"note": "energy_relations_unavailable"}
-
         if not pred_state.causal_edges:
             return 0.0, {"n_edges": 0}
 
@@ -442,10 +435,10 @@ class EnergyConsistencyLoss:
             rho = edge.get("rho", 0.0)
 
             if energy_rel == "enhance" and rho < 0.3:
-                violations += (0.3 - rho)
+                violations += 0.3 - rho
                 n_enhance_violations += 1
             elif energy_rel == "suppress" and rho > 0.7:
-                violations += (rho - 0.7)
+                violations += rho - 0.7
                 n_suppress_violations += 1
 
         energy_loss = violations / max(n_edges, 1)
@@ -539,7 +532,7 @@ def build_energy_matrix_from_energy_bus(energy_bus) -> TopologicalEnergyMatrix:
                 i = matrix.state_index[src]
                 j = matrix.state_index[dst]
                 base = matrix.matrix[i, j]
-                runtime_influence = (intensities.get(src, 0.5) * intensities.get(dst, 0.5))
+                runtime_influence = intensities.get(src, 0.5) * intensities.get(dst, 0.5)
                 matrix.matrix[i, j] = float(base * 0.7 + runtime_influence * 0.3)
     except Exception as e:
         logger.warning("从 EnergyBus 构建能量矩阵失败: %s，使用标准矩阵", e)

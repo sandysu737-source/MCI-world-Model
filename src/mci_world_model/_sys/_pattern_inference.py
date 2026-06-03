@@ -10,29 +10,31 @@ Core: Three Principles (constancy / transformation / simplification)
       Primary/Response/Active component system
 """
 
-from enum import Enum
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
-
+from enum import Enum
 
 # ============================================================
 # Eight Trigram Base Types
 # ============================================================
 
+
 class SemanticType(Enum):
     """Semantic system type definitions"""
-    CAT_CREATIVE = 0   # Creative/Generative
-    CAT_LAKE = 1       # Lake/Open
-    CAT_LIGHT = 2      # Light/Illumination
-    CAT_THUNDER = 3    # Thunder/Activation
-    CAT_WIND = 4       # Wind/Penetration
-    CAT_ABYSS = 5      # Abyss/Depth
-    CAT_MOUNTAIN = 6   # Mountain/Stillness
+
+    CAT_CREATIVE = 0  # Creative/Generative
+    CAT_LAKE = 1  # Lake/Open
+    CAT_LIGHT = 2  # Light/Illumination
+    CAT_THUNDER = 3  # Thunder/Activation
+    CAT_WIND = 4  # Wind/Penetration
+    CAT_ABYSS = 5  # Abyss/Depth
+    CAT_MOUNTAIN = 6  # Mountain/Stillness
     CAT_RECEPTIVE = 7  # Receptive/Sustaining
 
     @property
     def name_en(self) -> str:
-        return ["Creative", "Lake", "Light", "Thunder", "Wind", "Abyss", "Mountain", "Receptive"][self.value]
+        return ["Creative", "Lake", "Light", "Thunder", "Wind", "Abyss", "Mountain", "Receptive"][
+            self.value
+        ]
 
     @property
     def energy_type(self) -> str:
@@ -44,16 +46,25 @@ class SemanticType(Enum):
 
     @property
     def characteristic(self) -> str:
-        return ["strength", "joy", "clarity", "movement", "infiltration", "danger", "stillness", "receptivity"][self.value]
+        return [
+            "strength",
+            "joy",
+            "clarity",
+            "movement",
+            "infiltration",
+            "danger",
+            "stillness",
+            "receptivity",
+        ][self.value]
 
     @property
-    def enhance(self) -> 'SemanticType':
+    def enhance(self) -> "SemanticType":
         """Energy enhancement relationships"""
         mapping = {0: 2, 2: 5, 5: 7, 7: 3, 3: 0, 1: 0, 4: 3, 6: 5}
         return SemanticType(mapping.get(self.value, 0))
 
     @property
-    def suppress(self) -> 'SemanticType':
+    def suppress(self) -> "SemanticType":
         """Energy suppression relationships"""
         mapping = {0: 4, 2: 1, 5: 0, 3: 7, 7: 5, 4: 2, 6: 0, 1: 6}
         return SemanticType(mapping.get(self.value, 0))
@@ -89,43 +100,115 @@ POST_SEMANTIC_MAP = {
 # ============================================================
 
 PATTERN_NAMES = [
-    "Qian", "Kun", "Zhun", "Meng", "Xu", "Song", "Shi", "Bi",
-    "XiaoXu", "Lv", "Tai", "Pi", "TongRen", "DaYou", "Qian", "Yu",
-    "Sui", "Gu", "Lin", "Guan", "ShiKe", "Bi", "Bo", "Fu",
-    "WuWang", "DaXu", "Yi", "DaGuo", "Kan", "Li", "Xian", "Heng",
-    "Dun", "DaZhuang", "Jin", "MingYi", "JiaRen", "Kui", "Jian", "Xie",
-    "Sun", "Yi", "Guai", "Gou", "Cui", "Sheng", "Kun", "Jing",
-    "Ge", "Ding", "Zhen", "Gen", "Jian", "GuiMei", "Feng", "Lv",
-    "Xun", "Dui", "Huan", "Jie", "ZhongFu", "XiaoGuo", "JiJi", "WeiJi"
+    "Qian",
+    "Kun",
+    "Zhun",
+    "Meng",
+    "Xu",
+    "Song",
+    "Shi",
+    "Bi",
+    "XiaoXu",
+    "Lv",
+    "Tai",
+    "Pi",
+    "TongRen",
+    "DaYou",
+    "Qian",
+    "Yu",
+    "Sui",
+    "Gu",
+    "Lin",
+    "Guan",
+    "ShiKe",
+    "Bi",
+    "Bo",
+    "Fu",
+    "WuWang",
+    "DaXu",
+    "Yi",
+    "DaGuo",
+    "Kan",
+    "Li",
+    "Xian",
+    "Heng",
+    "Dun",
+    "DaZhuang",
+    "Jin",
+    "MingYi",
+    "JiaRen",
+    "Kui",
+    "Jian",
+    "Xie",
+    "Sun",
+    "Yi",
+    "Guai",
+    "Gou",
+    "Cui",
+    "Sheng",
+    "Kun",
+    "Jing",
+    "Ge",
+    "Ding",
+    "Zhen",
+    "Gen",
+    "Jian",
+    "GuiMei",
+    "Feng",
+    "Lv",
+    "Xun",
+    "Dui",
+    "Huan",
+    "Jie",
+    "ZhongFu",
+    "XiaoGuo",
+    "JiJi",
+    "WeiJi",
 ]
 
 # Complete 64-pattern upper/lower mapping (from encoders.py)
-from .encoders import HEXAGRAM_TRIGRAMS_BELOW, HEXAGRAM_TRIGRAMS_ABOVE
+from .encoders import HEXAGRAM_TRIGRAMS_ABOVE, HEXAGRAM_TRIGRAMS_BELOW
 
 # Three-dimensional calculus resolver for TrigramType→SemanticType mapping
 # Uses integration across NAJIA, PRIOR, POST dimensions with weighted voting
 # Replaces direct SemanticType() cast which had 25% accuracy (only indices 0,6 matched)
 _TRIGRAM_RESOLVER = None
 
+
 def _get_trigram_resolver():
     """Lazy-load the three-dimensional resolver to avoid circular imports."""
     global _TRIGRAM_RESOLVER
     if _TRIGRAM_RESOLVER is None:
         from ._dimension_map import TaijiMapper
+
         _TRIGRAM_RESOLVER = TaijiMapper()
     return _TRIGRAM_RESOLVER
+
 
 def _build_hexagram_trigrams():
     """Build complete 64-pattern upper/lower mapping using 3D calculus fusion."""
     result = []
     for i in range(64):
         # Resolve via three-dimensional weighted voting (integration/differentiation/gradient)
-        upper_result = _get_trigram_resolver().resolve_trigram_to_semantic(HEXAGRAM_TRIGRAMS_ABOVE[i])
-        lower_result = _get_trigram_resolver().resolve_trigram_to_semantic(HEXAGRAM_TRIGRAMS_BELOW[i])
-        upper = SemanticType(upper_result.primary) if upper_result.primary is not None else SemanticType.CAT_CREATIVE
-        lower = SemanticType(lower_result.primary) if lower_result.primary is not None else SemanticType.CAT_CREATIVE
+        upper_result = _get_trigram_resolver().resolve_trigram_to_semantic(
+            HEXAGRAM_TRIGRAMS_ABOVE[i]
+        )
+        lower_result = _get_trigram_resolver().resolve_trigram_to_semantic(
+            HEXAGRAM_TRIGRAMS_BELOW[i]
+        )
+        upper = (
+            SemanticType(upper_result.primary)
+            if upper_result.primary is not None
+            else SemanticType.CAT_CREATIVE
+        )
+        lower = (
+            SemanticType(lower_result.primary)
+            if lower_result.primary is not None
+            else SemanticType.CAT_CREATIVE
+        )
         result.append((upper, lower))
     return result
+
 
 HEXAGRAM_TRIGRAMS = _build_hexagram_trigrams()
 
@@ -134,9 +217,11 @@ HEXAGRAM_TRIGRAMS = _build_hexagram_trigrams()
 # Component System
 # ============================================================
 
+
 @dataclass
 class ComponentPosition:
     """Component position information"""
+
     index: int
     name: str
     polarity: str
@@ -147,8 +232,9 @@ class ComponentPosition:
 class Pattern:
     """64-pattern object"""
 
-    def __init__(self, number: int, upper: SemanticType, lower: SemanticType,
-                 pattern_name: str = ""):
+    def __init__(
+        self, number: int, upper: SemanticType, lower: SemanticType, pattern_name: str = ""
+    ):
         self.number = number
         self.upper = upper
         self.lower = lower
@@ -162,9 +248,9 @@ class Pattern:
     @property
     def pattern_type(self) -> str:
         """Pattern classification"""
-        if self.upper == SemanticType.CAT_CREATIVE or self.lower == SemanticType.CAT_CREATIVE:
+        if SemanticType.CAT_CREATIVE in (self.upper, self.lower):
             return "CreativeSystem"
-        if self.upper == SemanticType.CAT_RECEPTIVE or self.lower == SemanticType.CAT_RECEPTIVE:
+        if SemanticType.CAT_RECEPTIVE in (self.upper, self.lower):
             return "ReceptiveSystem"
         return "Other"
 
@@ -205,17 +291,22 @@ def create_pattern(upper_idx: int, lower_idx: int) -> Pattern:
 def get_heavenly_stem(pattern: Pattern) -> str:
     """Get pattern's heavenly stem assignment"""
     stem_map = {
-        SemanticType.CAT_CREATIVE: "Jia", SemanticType.CAT_LAKE: "Ding",
-        SemanticType.CAT_LIGHT: "Ji", SemanticType.CAT_THUNDER: "Geng",
-        SemanticType.CAT_WIND: "Xin", SemanticType.CAT_ABYSS: "Wu",
-        SemanticType.CAT_MOUNTAIN: "Bing", SemanticType.CAT_RECEPTIVE: "Gui",
+        SemanticType.CAT_CREATIVE: "Jia",
+        SemanticType.CAT_LAKE: "Ding",
+        SemanticType.CAT_LIGHT: "Ji",
+        SemanticType.CAT_THUNDER: "Geng",
+        SemanticType.CAT_WIND: "Xin",
+        SemanticType.CAT_ABYSS: "Wu",
+        SemanticType.CAT_MOUNTAIN: "Bing",
+        SemanticType.CAT_RECEPTIVE: "Gui",
     }
     return stem_map.get(pattern.upper, "Jia")
 
 
 @dataclass
-class TrigramInfo:
-    """Internal pattern information - inherent development"""
+class TrigramContext:
+    """Internal pattern information - inherent development (renamed from TrigramInfo to avoid clash with sdk's TrigramInfo in mci_world_model._sys._category_core)"""
+
     upper: SemanticType
     lower: SemanticType
     name: str
@@ -224,6 +315,7 @@ class TrigramInfo:
 # ============================================================
 # Three Principles Encoding
 # ============================================================
+
 
 class FrameworkRule:
     """Three principles - constancy/transformation/simplification"""
@@ -249,13 +341,14 @@ class FrameworkRule:
 @dataclass
 class MemoryPattern:
     """Memory's semantic framework annotation"""
+
     pattern: Pattern
     primary_yao: int
     responding_yao: int
-    active_components: List[int]
+    active_components: list[int]
     current_pattern: Pattern
-    internal_pattern: Optional[Pattern]
-    resulting_pattern: Optional[Pattern]
+    internal_pattern: Pattern | None
+    resulting_pattern: Pattern | None
 
     def get_trend(self) -> str:
         """Get transformation trend"""
@@ -265,29 +358,32 @@ class MemoryPattern:
 
     def get_state(self) -> str:
         """Get current state"""
-        return f"{self.pattern.energy_type} energy {'active' if self.active_components else 'stable'}"
+        return (
+            f"{self.pattern.energy_type} energy {'active' if self.active_components else 'stable'}"
+        )
 
 
 # ============================================================
 # Primary/Response Component Calculation
 # ============================================================
 
-def _trigram_to_bits(t: SemanticType) -> List[int]:
+
+def _trigram_to_bits(t: SemanticType) -> list[int]:
     """Trigram to 3-bit binary (prior sequence)"""
     bits_map = {
-        SemanticType.CAT_CREATIVE: [1,1,1],
-        SemanticType.CAT_LAKE:  [0,1,1],
-        SemanticType.CAT_LIGHT:   [1,0,1],
-        SemanticType.CAT_THUNDER: [0,0,1],
-        SemanticType.CAT_WIND:  [1,1,0],
-        SemanticType.CAT_ABYSS:  [0,1,0],
-        SemanticType.CAT_MOUNTAIN:  [1,0,0],
-        SemanticType.CAT_RECEPTIVE:  [0,0,0],
+        SemanticType.CAT_CREATIVE: [1, 1, 1],
+        SemanticType.CAT_LAKE: [0, 1, 1],
+        SemanticType.CAT_LIGHT: [1, 0, 1],
+        SemanticType.CAT_THUNDER: [0, 0, 1],
+        SemanticType.CAT_WIND: [1, 1, 0],
+        SemanticType.CAT_ABYSS: [0, 1, 0],
+        SemanticType.CAT_MOUNTAIN: [1, 0, 0],
+        SemanticType.CAT_RECEPTIVE: [0, 0, 0],
     }
-    return bits_map.get(t, [0,0,0])
+    return bits_map.get(t, [0, 0, 0])
 
 
-def compute_shi_ying(upper: SemanticType, lower: SemanticType) -> Tuple[int, int]:
+def compute_shi_ying(upper: SemanticType, lower: SemanticType) -> tuple[int, int]:
     """
     Calculate primary and responding component positions
 
@@ -317,7 +413,7 @@ def compute_shi_ying(upper: SemanticType, lower: SemanticType) -> Tuple[int, int
     return (shi, ying)
 
 
-def predict_active_components(pattern_index: int, query_context: str = "") -> List[int]:
+def predict_active_components(pattern_index: int, query_context: str = "") -> list[int]:
     """
     Predict active component positions
 
@@ -364,17 +460,17 @@ def _get_yao_line(pattern_index: int, yao_pos: int) -> int:
     return 0
 
 
-def _bits_to_trigram(bits: List[int]) -> SemanticType:
+def _bits_to_trigram(bits: list[int]) -> SemanticType:
     """3-bit binary to trigram"""
     bits_map = {
-        (1,1,1): SemanticType.CAT_CREATIVE,
-        (0,1,1): SemanticType.CAT_LAKE,
-        (1,0,1): SemanticType.CAT_LIGHT,
-        (0,0,1): SemanticType.CAT_THUNDER,
-        (1,1,0): SemanticType.CAT_WIND,
-        (0,1,0): SemanticType.CAT_ABYSS,
-        (1,0,0): SemanticType.CAT_MOUNTAIN,
-        (0,0,0): SemanticType.CAT_RECEPTIVE,
+        (1, 1, 1): SemanticType.CAT_CREATIVE,
+        (0, 1, 1): SemanticType.CAT_LAKE,
+        (1, 0, 1): SemanticType.CAT_LIGHT,
+        (0, 0, 1): SemanticType.CAT_THUNDER,
+        (1, 1, 0): SemanticType.CAT_WIND,
+        (0, 1, 0): SemanticType.CAT_ABYSS,
+        (1, 0, 0): SemanticType.CAT_MOUNTAIN,
+        (0, 0, 0): SemanticType.CAT_RECEPTIVE,
     }
     return bits_map.get(tuple(bits), SemanticType.CAT_RECEPTIVE)
 
@@ -387,7 +483,7 @@ def _find_pattern_by_trigrams(upper: SemanticType, lower: SemanticType) -> int:
     return 0
 
 
-def _compute_internal_trigrams(pattern_index: int) -> Tuple[SemanticType, SemanticType]:
+def _compute_internal_trigrams(pattern_index: int) -> tuple[SemanticType, SemanticType]:
     """Compute internal pattern (positions 2-3-4 as lower, 3-4-5 as upper)"""
     upper, lower = HEXAGRAM_TRIGRAMS[pattern_index]
     upper_bits = _trigram_to_bits(upper)
@@ -402,7 +498,7 @@ def _compute_internal_trigrams(pattern_index: int) -> Tuple[SemanticType, Semant
     return (internal_upper, internal_lower)
 
 
-def _compute_resulting_pattern(pattern_index: int, active_components: List[int]) -> int:
+def _compute_resulting_pattern(pattern_index: int, active_components: list[int]) -> int:
     """Compute resulting pattern (polarity swap of active components)"""
     if not active_components:
         return pattern_index
@@ -424,6 +520,7 @@ def _compute_resulting_pattern(pattern_index: int, active_components: List[int])
 # ============================================================
 # SemanticFramework Three-Layer Inference Engine
 # ============================================================
+
 
 class PatternInference:
     """
@@ -469,9 +566,9 @@ class PatternInference:
             resulting_pattern=resulting_pattern,
         )
 
-    def three_layer_retrieve(self, query_index: int,
-                              candidate_indices: List[int],
-                              top_k: int = 8) -> List[Dict]:
+    def three_layer_retrieve(
+        self, query_index: int, candidate_indices: list[int], top_k: int = 8
+    ) -> list[dict]:
         """
         Three-layer inference retrieval
 
@@ -495,9 +592,7 @@ class PatternInference:
             if current_score == 0:
                 q_upper, q_lower = HEXAGRAM_TRIGRAMS[query_idx]
                 c_upper, c_lower = HEXAGRAM_TRIGRAMS[cidx]
-                if q_upper == c_upper:
-                    current_score = 0.4
-                elif q_lower == c_lower:
+                if q_upper == c_upper or q_lower == c_lower:
                     current_score = 0.4
                 # Same energy type
                 elif query_my.pattern.energy_type == cand_my.pattern.energy_type:
@@ -509,7 +604,11 @@ class PatternInference:
                 internal_score = 1.0
             elif query_my.internal_pattern and query_my.internal_pattern.number == cidx:
                 internal_score = 0.8
-            elif cand_my.internal_pattern and query_my.internal_pattern and cand_my.internal_pattern.number == query_my.internal_pattern.number:
+            elif (
+                cand_my.internal_pattern
+                and query_my.internal_pattern
+                and cand_my.internal_pattern.number == query_my.internal_pattern.number
+            ):
                 internal_score = 0.5
 
             # Resulting layer: candidate's resulting = query's current (or reverse)
@@ -518,7 +617,11 @@ class PatternInference:
                 resulting_score = 1.0
             elif query_my.resulting_pattern and query_my.resulting_pattern.number == cidx:
                 resulting_score = 0.8
-            elif cand_my.resulting_pattern and query_my.resulting_pattern and cand_my.resulting_pattern.number == query_my.resulting_pattern.number:
+            elif (
+                cand_my.resulting_pattern
+                and query_my.resulting_pattern
+                and cand_my.resulting_pattern.number == query_my.resulting_pattern.number
+            ):
                 resulting_score = 0.5
 
             total = 0.5 * current_score + 0.3 * internal_score + 0.2 * resulting_score
@@ -529,37 +632,48 @@ class PatternInference:
             if cand_my.resulting_pattern:
                 trend += f"->{cand_my.resulting_pattern.name}"
 
-            results.append({
-                "index": cidx,
-                "score": round(total, 4),
-                "layer_scores": {
-                    "current": round(current_score, 4),
-                    "internal": round(internal_score, 4),
-                    "resulting": round(resulting_score, 4),
-                },
-                "trend": trend,
-            })
+            results.append(
+                {
+                    "index": cidx,
+                    "score": round(total, 4),
+                    "layer_scores": {
+                        "current": round(current_score, 4),
+                        "internal": round(internal_score, 4),
+                        "resulting": round(resulting_score, 4),
+                    },
+                    "trend": trend,
+                }
+            )
 
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]
 
-    def get_trend_analysis(self, memory_pattern: MemoryPattern) -> Dict:
+    def get_trend_analysis(self, memory_pattern: MemoryPattern) -> dict:
         """
         Get memory's trend analysis
         """
         my = memory_pattern
-        current = {"name": my.current_pattern.name, "energy_type": my.current_pattern.energy_type,
-                    "type": my.current_pattern.pattern_type}
+        current = {
+            "name": my.current_pattern.name,
+            "energy_type": my.current_pattern.energy_type,
+            "type": my.current_pattern.pattern_type,
+        }
 
         internal = None
         if my.internal_pattern:
-            internal = {"name": my.internal_pattern.name, "energy_type": my.internal_pattern.energy_type,
-                        "type": my.internal_pattern.pattern_type}
+            internal = {
+                "name": my.internal_pattern.name,
+                "energy_type": my.internal_pattern.energy_type,
+                "type": my.internal_pattern.pattern_type,
+            }
 
         future = None
         if my.resulting_pattern:
-            future = {"name": my.resulting_pattern.name, "energy_type": my.resulting_pattern.energy_type,
-                       "type": my.resulting_pattern.pattern_type}
+            future = {
+                "name": my.resulting_pattern.name,
+                "energy_type": my.resulting_pattern.energy_type,
+                "type": my.resulting_pattern.pattern_type,
+            }
 
         state = my.get_state()
 

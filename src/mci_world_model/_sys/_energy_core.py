@@ -12,23 +12,23 @@ providing comprehensive functionality for:
 Architecture: Human Layer (Ren) - Energy System
 """
 
+import sys
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
 
 # Import enums from _enums.py
-from ._enums import EnergyType, EnergyRelation, StrengthState, EnergyPattern
+from ._enums import EnergyPattern, EnergyRelation, EnergyType, StrengthState
 
 # Import energy mappings from _terms.py
 from ._terms import (
-    ENERGY_ENHANCE,
-    ENERGY_SUPPRESS,
-    ENERGY_SEASON,
-    ENERGY_DIRECTION,
     ENERGY_COLOR,
-    ENERGY_ORGAN,
-    ENERGY_TASTE,
+    ENERGY_DIRECTION,
     ENERGY_EMOTION,
+    ENERGY_ENHANCE,
     ENERGY_INDUSTRY,
+    ENERGY_ORGAN,
+    ENERGY_SEASON,
+    ENERGY_SUPPRESS,
+    ENERGY_TASTE,
 )
 
 # Import from causal.py for compatibility
@@ -37,6 +37,7 @@ from ._terms import (
 # ============================================================
 # Data Structures
 # ============================================================
+
 
 @dataclass
 class EnergyState:
@@ -48,6 +49,7 @@ class EnergyState:
         strength: The strength state (WANG/XIANG/XIU/QIU/SI)
         intensity: Energy intensity value (0.0 - 1.0)
     """
+
     energy_type: EnergyType
     strength: StrengthState
     intensity: float
@@ -73,13 +75,14 @@ class EnergyBalanceResult:
         dominant: The dominant energy type
         suggestions: List of adjustment suggestions
     """
+
     status: str
     pattern: EnergyPattern
-    ratios: Dict[str, float]
+    ratios: dict[str, float]
     dominant: str
-    suggestions: List[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary representation."""
         return {
             "status": self.status,
@@ -101,6 +104,7 @@ class EnergyFlow:
         relation: Type of relation (ENHANCE/SUPPRESS/OVERCONSTRAINT/REVERSE)
         intensity: Flow intensity (0.0 - 1.0)
     """
+
     source: EnergyType
     target: EnergyType
     relation: EnergyRelation
@@ -113,6 +117,7 @@ class EnergyFlow:
 # ============================================================
 # Energy Core Engine
 # ============================================================
+
 
 class EnergyCore:
     """
@@ -147,51 +152,123 @@ class EnergyCore:
 
     # Monthly strength table (旺相休囚死)
     # Key: branch index (0-11), Value: [木, 火, 土, 金, 水] strength states
-    MONTHLY_STRENGTH: Dict[int, List[StrengthState]] = {
+    MONTHLY_STRENGTH: dict[int, list[StrengthState]] = {
         # 子 (0) - water: water WANG, wood XIANG, fire QIU, earth SI, metal XIU
-        0: [StrengthState.XIANG, StrengthState.XIU, StrengthState.SI, StrengthState.XIU, StrengthState.WANG],
+        0: [
+            StrengthState.XIANG,
+            StrengthState.XIU,
+            StrengthState.SI,
+            StrengthState.XIU,
+            StrengthState.WANG,
+        ],
         # 丑 (1) - earth: earth XIANG
-        1: [StrengthState.XIU, StrengthState.XIANG, StrengthState.XIANG, StrengthState.XIU, StrengthState.XIANG],
+        1: [
+            StrengthState.XIU,
+            StrengthState.XIANG,
+            StrengthState.XIANG,
+            StrengthState.XIU,
+            StrengthState.XIANG,
+        ],
         # 寅 (2) - wood: wood WANG
-        2: [StrengthState.WANG, StrengthState.XIANG, StrengthState.XIU, StrengthState.QIU, StrengthState.SI],
+        2: [
+            StrengthState.WANG,
+            StrengthState.XIANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+            StrengthState.SI,
+        ],
         # 卯 (3) - wood: wood WANG
-        3: [StrengthState.WANG, StrengthState.XIANG, StrengthState.XIU, StrengthState.QIU, StrengthState.SI],
+        3: [
+            StrengthState.WANG,
+            StrengthState.XIANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+            StrengthState.SI,
+        ],
         # 辰 (4) - earth: earth WANG
-        4: [StrengthState.XIU, StrengthState.XIU, StrengthState.WANG, StrengthState.XIU, StrengthState.QIU],
+        4: [
+            StrengthState.XIU,
+            StrengthState.XIU,
+            StrengthState.WANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+        ],
         # 巳 (5) - fire: fire WANG
-        5: [StrengthState.SI, StrengthState.WANG, StrengthState.XIANG, StrengthState.XIU, StrengthState.QIU],
+        5: [
+            StrengthState.SI,
+            StrengthState.WANG,
+            StrengthState.XIANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+        ],
         # 午 (6) - fire: fire WANG
-        6: [StrengthState.SI, StrengthState.WANG, StrengthState.XIANG, StrengthState.XIU, StrengthState.QIU],
+        6: [
+            StrengthState.SI,
+            StrengthState.WANG,
+            StrengthState.XIANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+        ],
         # 未 (7) - earth: earth WANG
-        7: [StrengthState.XIU, StrengthState.XIU, StrengthState.WANG, StrengthState.XIU, StrengthState.QIU],
+        7: [
+            StrengthState.XIU,
+            StrengthState.XIU,
+            StrengthState.WANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+        ],
         # 申 (8) - metal: metal WANG
-        8: [StrengthState.QIU, StrengthState.SI, StrengthState.XIU, StrengthState.WANG, StrengthState.XIANG],
+        8: [
+            StrengthState.QIU,
+            StrengthState.SI,
+            StrengthState.XIU,
+            StrengthState.WANG,
+            StrengthState.XIANG,
+        ],
         # 酉 (9) - metal: metal WANG
-        9: [StrengthState.QIU, StrengthState.SI, StrengthState.XIU, StrengthState.WANG, StrengthState.XIANG],
+        9: [
+            StrengthState.QIU,
+            StrengthState.SI,
+            StrengthState.XIU,
+            StrengthState.WANG,
+            StrengthState.XIANG,
+        ],
         # 戌 (10) - earth: earth WANG
-        10: [StrengthState.XIU, StrengthState.XIU, StrengthState.WANG, StrengthState.XIU, StrengthState.QIU],
+        10: [
+            StrengthState.XIU,
+            StrengthState.XIU,
+            StrengthState.WANG,
+            StrengthState.XIU,
+            StrengthState.QIU,
+        ],
         # 亥 (11) - water: water WANG, wood XIANG
-        11: [StrengthState.XIANG, StrengthState.QIU, StrengthState.SI, StrengthState.XIU, StrengthState.WANG],
+        11: [
+            StrengthState.XIANG,
+            StrengthState.QIU,
+            StrengthState.SI,
+            StrengthState.XIU,
+            StrengthState.WANG,
+        ],
     }
 
     # Energy strength multipliers
     STRENGTH_MULTIPLIER = {
-        StrengthState.WANG: 1.2,   # Strongest
+        StrengthState.WANG: 1.2,  # Strongest
         StrengthState.XIANG: 1.0,  # Balanced
-        StrengthState.XIU: 0.8,    # Rested
-        StrengthState.QIU: 0.5,    # Confined
-        StrengthState.SI: 0.3,     # Weakest
+        StrengthState.XIU: 0.8,  # Rested
+        StrengthState.QIU: 0.5,  # Confined
+        StrengthState.SI: 0.3,  # Weakest
     }
 
     # Balance thresholds
     BALANCE_THRESHOLD_HIGH = 0.35  # Above this = dominant
-    BALANCE_THRESHOLD_LOW = 0.10   # Below this = deficient
+    BALANCE_THRESHOLD_LOW = 0.10  # Below this = deficient
 
     # Energy flow coefficients
-    ENHANCE_FLOW_RATE = 0.15       # Enhancement transfer rate
-    SUPPRESS_FLOW_RATE = -0.10     # Suppression reduction rate
-    OVERCONSTRAINT_RATE = -0.20   # Overconstraint severe reduction
-    REVERSE_RATE = 0.08           # Reverse reaction minor enhancement
+    ENHANCE_FLOW_RATE = 0.15  # Enhancement transfer rate
+    SUPPRESS_FLOW_RATE = -0.10  # Suppression reduction rate
+    OVERCONSTRAINT_RATE = -0.20  # Overconstraint severe reduction
+    REVERSE_RATE = 0.08  # Reverse reaction minor enhancement
 
     def __init__(self):
         """Initialize the Energy Core Engine."""
@@ -203,7 +280,7 @@ class EnergyCore:
         self._enhance_relations = self._build_bidirectional_enhance()
         self._suppress_relations = self._build_bidirectional_suppress()
 
-    def _build_bidirectional_enhance(self) -> Dict[str, str]:
+    def _build_bidirectional_enhance(self) -> dict[str, str]:
         """Build bidirectional enhance relationship mapping."""
         result = {}
         for src, tgt in ENERGY_ENHANCE.items():
@@ -211,7 +288,7 @@ class EnergyCore:
             result[tgt] = self._enhance_reverse.get(src, "")
         return result
 
-    def _build_bidirectional_suppress(self) -> Dict[str, str]:
+    def _build_bidirectional_suppress(self) -> dict[str, str]:
         """Build bidirectional (mutual) suppress relationship mapping."""
         result = {}
         for src, tgt in ENERGY_SUPPRESS.items():
@@ -226,8 +303,11 @@ class EnergyCore:
         normalized = energy.lower()
         # Backward compatibility: old five-element naming → new standard naming
         _old_to_new = {
-            "wood": "semantic", "fire": "causal", "earth": "spacetime",
-            "metal": "generative", "water": "trust",
+            "wood": "semantic",
+            "fire": "causal",
+            "earth": "spacetime",
+            "metal": "generative",
+            "water": "trust",
         }
         return _old_to_new.get(normalized, normalized)
 
@@ -285,9 +365,7 @@ class EnergyCore:
         e2 = self._normalize_energy(e2)
 
         # Bidirectional suppression - if either suppresses the other
-        if ENERGY_SUPPRESS.get(e1) == e2 or ENERGY_SUPPRESS.get(e2) == e1:
-            return True
-        return False
+        return bool(ENERGY_SUPPRESS.get(e1) == e2 or ENERGY_SUPPRESS.get(e2) == e1)
 
     def get_overconstraint_relation(self, e1: str, e2: str) -> bool:
         """
@@ -329,15 +407,15 @@ class EnergyCore:
         # Reverse is when the suppressed element counter-attacks
         # In five elements: wood controls earth but earth can reverse against wood
         reverse_pairs = [
-            ("spacetime", "semantic"),    # spacetime reverses against semantic
-            ("trust", "spacetime"),       # trust reverses against spacetime
-            ("causal", "trust"),          # causal reverses against trust
-            ("generative", "causal"),     # generative reverses against causal
-            ("semantic", "generative"),   # semantic reverses against generative
+            ("spacetime", "semantic"),  # spacetime reverses against semantic
+            ("trust", "spacetime"),  # trust reverses against spacetime
+            ("causal", "trust"),  # causal reverses against trust
+            ("generative", "causal"),  # generative reverses against causal
+            ("semantic", "generative"),  # semantic reverses against generative
         ]
         return (e1, e2) in reverse_pairs
 
-    def analyze_interaction(self, e1: str, e2: str) -> List[EnergyRelation]:
+    def analyze_interaction(self, e1: str, e2: str) -> list[EnergyRelation]:
         """
         Analyze all interactions between two energy types.
 
@@ -362,9 +440,7 @@ class EnergyCore:
             return relations
 
         # Check enhancement
-        if self.get_enhance_relation(e1, e2):
-            relations.append(EnergyRelation.ENHANCE)
-        elif self.get_enhance_relation(e2, e1):
+        if self.get_enhance_relation(e1, e2) or self.get_enhance_relation(e2, e1):
             relations.append(EnergyRelation.ENHANCE)
 
         # Check suppression
@@ -385,11 +461,7 @@ class EnergyCore:
     # Strength State Methods
     # ============================================================
 
-    def get_energy_state(
-        self,
-        energy_type: str,
-        month_branch: int
-    ) -> EnergyState:
+    def get_energy_state(self, energy_type: str, month_branch: int) -> EnergyState:
         """
         Get the energy state for a given energy type and month.
 
@@ -423,13 +495,9 @@ class EnergyCore:
         intensity = self.STRENGTH_MULTIPLIER.get(strength, 1.0)
 
         # Map to EnergyType enum (idx matches EnergyType enum order)
-        return EnergyState(
-            energy_type=EnergyType(idx),
-            strength=strength,
-            intensity=intensity
-        )
+        return EnergyState(energy_type=EnergyType(idx), strength=strength, intensity=intensity)
 
-    def get_strength_from_branch(self, branch: int) -> Dict[str, StrengthState]:
+    def get_strength_from_branch(self, branch: int) -> dict[str, StrengthState]:
         """
         Get strength states for all energy types in a given month.
 
@@ -447,16 +515,13 @@ class EnergyCore:
             raise ValueError(f"Invalid branch: {branch}. Must be 0-11.")
 
         strengths = self.MONTHLY_STRENGTH[branch]
-        return {
-            self.ENERGY_ORDER[i]: strengths[i]
-            for i in range(len(self.ENERGY_ORDER))
-        }
+        return {self.ENERGY_ORDER[i]: strengths[i] for i in range(len(self.ENERGY_ORDER))}
 
     # ============================================================
     # Balance Analysis Methods
     # ============================================================
 
-    def analyze_balance(self, energies: Dict[str, float]) -> EnergyBalanceResult:
+    def analyze_balance(self, energies: dict[str, float]) -> EnergyBalanceResult:
         """
         Analyze the energy balance state.
 
@@ -502,10 +567,10 @@ class EnergyCore:
             pattern=pattern,
             ratios=ratios,
             dominant=dominant,
-            suggestions=suggestions
+            suggestions=suggestions,
         )
 
-    def _determine_pattern(self, ratios: Dict[str, float]) -> EnergyPattern:
+    def _determine_pattern(self, ratios: dict[str, float]) -> EnergyPattern:
         """Determine the energy pattern based on ratios."""
         max_ratio = max(ratios.values())
         min_ratio = min(ratios.values())
@@ -533,7 +598,7 @@ class EnergyCore:
         # Default to coordination pattern
         return EnergyPattern.PEI_HE
 
-    def _has_regulation_potential(self, ratios: Dict[str, float]) -> bool:
+    def _has_regulation_potential(self, ratios: dict[str, float]) -> bool:
         """Check if the energy distribution has regulation potential."""
         # Check if there are both strong and weak energies that can regulate each other
         for e1 in self.ENERGY_ORDER:
@@ -543,11 +608,7 @@ class EnergyCore:
                         return True
         return False
 
-    def _generate_balance_suggestions(
-        self,
-        ratios: Dict[str, float],
-        dominant: str
-    ) -> List[str]:
+    def _generate_balance_suggestions(self, ratios: dict[str, float], dominant: str) -> list[str]:
         """Generate suggestions for energy balance adjustment."""
         suggestions = []
 
@@ -559,17 +620,13 @@ class EnergyCore:
             for e in deficient:
                 generator = self._enhance_reverse.get(e)
                 if generator:
-                    suggestions.append(
-                        f"建议增强{e}能量，通过{generator}能量转化补充"
-                    )
+                    suggestions.append(f"建议增强{e}能量，通过{generator}能量转化补充")
 
         # Check for over-dominance
         if ratios.get(dominant, 0) > 0.45:
             suppressor = ENERGY_SUPPRESS.get(dominant)
             if suppressor:
-                suggestions.append(
-                    f"注意{dominant}能量过旺，建议适当增强{suppressor}能量进行制约"
-                )
+                suggestions.append(f"注意{dominant}能量过旺，建议适当增强{suppressor}能量进行制约")
 
         # General balance suggestions
         if not suggestions:
@@ -582,10 +639,8 @@ class EnergyCore:
     # ============================================================
 
     def apply_balance_rules(
-        self,
-        energies: Dict[str, float],
-        pattern: EnergyPattern
-    ) -> Dict[str, float]:
+        self, energies: dict[str, float], pattern: EnergyPattern
+    ) -> dict[str, float]:
         """
         Apply balance rules based on the energy pattern.
 
@@ -629,7 +684,7 @@ class EnergyCore:
 
         return result
 
-    def _apply_regulation(self, energies: Dict[str, float]) -> Dict[str, float]:
+    def _apply_regulation(self, energies: dict[str, float]) -> dict[str, float]:
         """Apply regulation rules for ZHI_HUA pattern."""
         result = energies.copy()
 
@@ -642,7 +697,7 @@ class EnergyCore:
 
         return result
 
-    def _apply_reinforcement(self, energies: Dict[str, float]) -> Dict[str, float]:
+    def _apply_reinforcement(self, energies: dict[str, float]) -> dict[str, float]:
         """Apply reinforcement for FAN_WANG pattern."""
         result = energies.copy()
 
@@ -654,7 +709,7 @@ class EnergyCore:
 
         return result
 
-    def _apply_coordination(self, energies: Dict[str, float]) -> Dict[str, float]:
+    def _apply_coordination(self, energies: dict[str, float]) -> dict[str, float]:
         """Apply coordination for PEI_HE pattern."""
         result = energies.copy()
 
@@ -672,10 +727,8 @@ class EnergyCore:
     # ============================================================
 
     def simulate_energy_flow(
-        self,
-        energies: Dict[str, float],
-        steps: int = 10
-    ) -> List[Dict[str, float]]:
+        self, energies: dict[str, float], steps: int = 10
+    ) -> list[dict[str, float]]:
         """
         Simulate energy flow over multiple steps.
 
@@ -696,7 +749,7 @@ class EnergyCore:
 
         return history
 
-    def _calculate_flow_step(self, energies: Dict[str, float]) -> Dict[str, float]:
+    def _calculate_flow_step(self, energies: dict[str, float]) -> dict[str, float]:
         """Calculate one step of energy flow."""
         result = energies.copy()
 
@@ -723,7 +776,7 @@ class EnergyCore:
     # Utility Methods
     # ============================================================
 
-    def get_energy_attributes(self, energy_type: str) -> Dict:
+    def get_energy_attributes(self, energy_type: str) -> dict:
         """
         Get complete attributes for an energy type.
 
@@ -752,9 +805,7 @@ class EnergyCore:
         }
 
     def calculate_compatibility(
-        self,
-        energies1: Dict[str, float],
-        energies2: Dict[str, float]
+        self, energies1: dict[str, float], energies2: dict[str, float]
     ) -> float:
         """
         Calculate compatibility score between two energy distributions.
@@ -795,7 +846,9 @@ class EnergyCore:
 
                 # Same energy type
                 if e1 == e2:
-                    score += min(norm1.get(e1, 0), norm2.get(e2, 0)) / max(norm1.get(e1, 0.001), norm2.get(e2, 0.001))
+                    score += min(norm1.get(e1, 0), norm2.get(e2, 0)) / max(
+                        norm1.get(e1, 0.001), norm2.get(e2, 0.001)
+                    )
                     continue
 
                 # Enhancement relationship
@@ -808,7 +861,7 @@ class EnergyCore:
 
         return max(0.0, min(1.0, score / max_score * 2))
 
-    def get_energy_cycle(self) -> List[Tuple[str, str]]:
+    def get_energy_cycle(self) -> list[tuple[str, str]]:
         """
         Get the five elements generation cycle.
 
@@ -817,7 +870,7 @@ class EnergyCore:
         """
         return [(k, v) for k, v in ENERGY_ENHANCE.items()]
 
-    def get_control_cycle(self) -> List[Tuple[str, str]]:
+    def get_control_cycle(self) -> list[tuple[str, str]]:
         """
         Get the five elements control cycle.
 
@@ -826,7 +879,7 @@ class EnergyCore:
         """
         return [(k, v) for k, v in ENERGY_SUPPRESS.items()]
 
-    def get_opposing_pair(self, energy: str) -> Tuple[str, str]:
+    def get_opposing_pair(self, energy: str) -> tuple[str, str]:
         """
         Get the opposing energy pair for a given energy.
 
@@ -837,15 +890,13 @@ class EnergyCore:
             Tuple of (enhance_target, suppress_target)
         """
         energy = self._normalize_energy(energy)
-        return (
-            ENERGY_ENHANCE.get(energy, ""),
-            ENERGY_SUPPRESS.get(energy, "")
-        )
+        return (ENERGY_ENHANCE.get(energy, ""), ENERGY_SUPPRESS.get(energy, ""))
 
 
 # ============================================================
 # Testing
 # ============================================================
+
 
 def test_energy_core():
     """Run test cases for the Energy Core module."""
@@ -880,12 +931,12 @@ def test_energy_core():
     # Test 2: Suppression relations (bidirectional per task requirements)
     print("\n[TEST 2] Suppression Relations")
     test_cases = [
-        ("wood", "earth", True),     # 木克土
-        ("earth", "wood", True),     # 土克木 (bidirectional)
-        ("earth", "water", True),    # 土克水
-        ("water", "earth", True),    # 水克土 (bidirectional)
-        ("water", "fire", True),     # 水克火
-        ("fire", "water", True),     # 火克水 (bidirectional)
+        ("wood", "earth", True),  # 木克土
+        ("earth", "wood", True),  # 土克木 (bidirectional)
+        ("earth", "water", True),  # 土克水
+        ("water", "earth", True),  # 水克土 (bidirectional)
+        ("water", "fire", True),  # 水克火
+        ("fire", "water", True),  # 火克水 (bidirectional)
     ]
 
     for e1, e2, expected in test_cases:
@@ -900,15 +951,15 @@ def test_energy_core():
     # Test 3: Energy states (旺相休囚死)
     print("\n[TEST 3] Energy States by Month (旺相休囚死)")
     test_cases = [
-        ("wood", 2, StrengthState.WANG),   # 寅月木旺
-        ("wood", 3, StrengthState.WANG),   # 卯月木旺
-        ("fire", 5, StrengthState.WANG),   # 巳月火旺
-        ("fire", 6, StrengthState.WANG),   # 午月火旺
+        ("wood", 2, StrengthState.WANG),  # 寅月木旺
+        ("wood", 3, StrengthState.WANG),  # 卯月木旺
+        ("fire", 5, StrengthState.WANG),  # 巳月火旺
+        ("fire", 6, StrengthState.WANG),  # 午月火旺
         ("earth", 4, StrengthState.WANG),  # 辰月土旺
         ("metal", 8, StrengthState.WANG),  # 申月金旺
         ("metal", 9, StrengthState.WANG),  # 酉月金旺
         ("water", 0, StrengthState.WANG),  # 子月水旺
-        ("water", 11, StrengthState.WANG), # 亥月水旺
+        ("water", 11, StrengthState.WANG),  # 亥月水旺
     ]
 
     for energy, branch, expected_strength in test_cases:
@@ -918,7 +969,9 @@ def test_energy_core():
             tests_passed += 1
         else:
             tests_failed += 1
-        print(f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]")
+        print(
+            f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]"
+        )
 
     # Test 4: Intensity calculation
     print("\n[TEST 4] Intensity Calculation")
@@ -929,7 +982,9 @@ def test_energy_core():
         tests_passed += 1
     else:
         tests_failed += 1
-    print(f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]")
+    print(
+        f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]"
+    )
 
     # Test 5: Balance analysis
     print("\n[TEST 5] Balance Analysis")
@@ -989,4 +1044,4 @@ def test_energy_core():
 
 if __name__ == "__main__":
     success = test_energy_core()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

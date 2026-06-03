@@ -52,67 +52,120 @@ __brand__ = "MCI"
 
 # 顶层统一入口：从 _sys 与 sdk 暴露关键能力
 from mci_world_model._sys import (
-    # 能量中心（v3.5.0 三才合一）
-    YinYang,
-    ThreePowers,
-    FourSymbols,
-    EnergyCore,
-    EnergyBus,
-    # 时空感知
-    TemporalCore,
-    StemBranchCode,
-    TemporalSystem,
-    # 64 卦推断
-    TrigramCore,
-    PatternInference,
-    # 因果引擎
-    CausalEngine,
-    CategoryCausalEngine,
     # 贝叶斯系统
     BayesianNetwork,
-    BayesianReasoner,
+    BayesianReasoningSystem,
+    # 因果引擎
+    CategoryCausalEngine,
+    CognitiveGap,
+    EnergyBus,
+    EnergyCore,
+    FourSymbols,
+    KnowledgeAging,
     # 元认知
     MetaCognition,
-    CognitiveGap,
-    KnowledgeAging,
+    PatternInference,
+    StemBranchCode,
+    # 时空感知
+    TemporalCore,
+    TemporalSystem,
+    ThreePowers,
+    # 64 卦推断
+    TrigramCore,
+    # 能量中心（v3.5.0 三才合一）
+    YinYang,
 )
-
 from mci_world_model.sdk import (
-    # V3.0.0 核心
-    MCIWorldModel,
-    CausalWorldModelState,
-    # Pearl 三层
-    DoCalculus,
-    CausalGraph,
-    CounterfactualEngine,
-    BayesianCausal,
-    FourierCausal,
-    GaussianDAG,
-    # JEPA 全套
-    JEPAEncoder,
-    GNNPredictor,
-    JEPATrainer,
-    JEPADataset,
-    JEPAGATEncoder,
-    # SIGReg
-    SIGReg,
-    apply_sigreg_to_index,
     # 贝叶斯增强
     BayesianAugmenter,
+    BayesianCausal,
+    CausalEngine,
+    CausalGraph,
+    CausalWorldModelState,
+    CounterfactualEngine,
+    # Pearl 三层
+    DoCalculus,
     # 能量一致性
     EnergyConsistencyLoss,
-    TopologicalEnergyMatrix,
+    FourierCausal,
+    GaussianDAG,
+    GNNPredictor,
+    IdentityPredictor,
+    JEPADataset,
+    # JEPA 全套
+    JEPAEncoder,
+    JEPAPredictor,
+    JEPATrainer,
+    # V3.0.0 核心
+    MCIWorldModel,
     # 参数化记忆
     ParametricMemory,
     ParametricMemoryConfig,
     # Reflection QA
     ReflectionSynthesizer,
+    # SIGReg
+    SIGReg,
     SynthesizedQAPair,
+    TopologicalEnergyMatrix,
+    apply_sigreg_to_index,
 )
 
 __all__ = [
-    "__version__",
-    "__project__",
+    # sdk — 贝叶斯增强
+    "BayesianAugmenter",
+    "BayesianCausal",
+    # _sys — 贝叶斯系统
+    "BayesianNetwork",
+    "BayesianReasoningSystem",
+    # _sys — 因果引擎
+    "CategoryCausalEngine",
+    "CausalEngine",
+    "CausalGraph",
+    "CausalWorldModelState",
+    "CognitiveGap",
+    "CounterfactualEngine",
+    # sdk — Pearl 三层
+    "DoCalculus",
+    "EnergyBus",
+    # sdk — 能量一致性
+    "EnergyConsistencyLoss",
+    "EnergyCore",
+    "FourSymbols",
+    "FourierCausal",
+    "GNNPredictor",
+    "GaussianDAG",
+    "IdentityPredictor",
+    "JEPADataset",
+    # sdk — JEPA 全套
+    "JEPAEncoder",
+    "JEPAPredictor",
+    "JEPATrainer",
+    "KnowledgeAging",
+    # sdk — V3.0.0 核心
+    "MCIWorldModel",
+    # _sys — 元认知
+    "MetaCognition",
+    # sdk — 参数化记忆
+    "ParametricMemory",
+    "ParametricMemoryConfig",
+    "PatternInference",
+    # sdk — Reflection QA
+    "ReflectionSynthesizer",
+    # sdk — SIGReg
+    "SIGReg",
+    "StemBranchCode",
+    "SynthesizedQAPair",
+    # _sys — 时空感知
+    "TemporalCore",
+    "TemporalSystem",
+    "ThreePowers",
+    "TopologicalEnergyMatrix",
+    # _sys — 64 卦推断
+    "TrigramCore",
+    # _sys — 能量中心
+    "YinYang",
     "__brand__",
-    # 上面显式导出的所有符号
+    "__project__",
+    "__version__",
+    "apply_sigreg_to_index",
 ]

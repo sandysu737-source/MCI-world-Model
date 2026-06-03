@@ -77,14 +77,10 @@ class SIGReg:
         """
         z = embeddings.copy().astype(np.float64)
         if z.ndim != 2:
-            raise ValueError(
-                f"embeddings 必须是 2D 数组 (n, d), 当前 shape={embeddings.shape}"
-            )
+            raise ValueError(f"embeddings 必须是 2D 数组 (n, d), 当前 shape={embeddings.shape}")
         n, d = z.shape
         if n == 0 or d == 0:
-            raise ValueError(
-                f"embeddings 维度不能为 0, 当前 shape={embeddings.shape}"
-            )
+            raise ValueError(f"embeddings 维度不能为 0, 当前 shape={embeddings.shape}")
 
         # n<2 时协方差退化，跳过白化仅做 L2 归一化
         if n < 2:
@@ -159,6 +155,7 @@ class SIGReg:
 # FAISS 集成工具
 # ============================================================
 
+
 def apply_sigreg_to_index(
     index: faiss.Index,
     embeddings: np.ndarray,
@@ -180,15 +177,14 @@ def apply_sigreg_to_index(
     import faiss
 
     if embeddings.ndim != 2:
-        raise ValueError(
-            f"embeddings 必须是 2D 数组, 当前 shape={embeddings.shape}"
-        )
+        raise ValueError(f"embeddings 必须是 2D 数组, 当前 shape={embeddings.shape}")
     d_emb = embeddings.shape[1]
     d_idx = index.d
     if d_emb != d_idx:
         logger.warning(
             "嵌入维度(%d)与索引维度(%d)不匹配, 将重建索引",
-            d_emb, d_idx,
+            d_emb,
+            d_idx,
         )
 
     sigreg = SIGReg(lambda_reg=lambda_reg)
@@ -206,6 +202,7 @@ def apply_sigreg_to_index(
 # ============================================================
 # Self-test
 # ============================================================
+
 
 def _self_test():
     """Quick self-test for SIGReg."""

@@ -164,7 +164,8 @@ class EnergyPropagationPredictor(JEPAPredictor):
     def _init_energy_system(self):
         """延迟加载能量系统组件。"""
         try:
-            from mci_world_model._sys._energy_bus import EnergyBus, create_complete_energy_network
+            from mci_world_model._sys._energy_bus import create_complete_energy_network
+
             self._energy_bus = create_complete_energy_network()
         except Exception as e:
             logger.debug("EnergyBus 初始化失败（回退到轻量模式）: %s", e)
@@ -241,6 +242,7 @@ class BeliefPropagationPredictor(JEPAPredictor):
             return
         try:
             from mci_world_model._sys.bayesian import BayesianEngine
+
             self._engine = BayesianEngine()
         except Exception as e:
             logger.debug("BayesianEngine 初始化失败: %s", e)

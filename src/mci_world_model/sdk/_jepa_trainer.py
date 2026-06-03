@@ -95,16 +95,19 @@ class JEPATrainer:
         self.alpha_energy = alpha_energy
         self.beta_cons = beta_cons
         self._stats = JEPATrainingStats(
-            alpha_energy=alpha_energy, beta_cons=beta_cons,
+            alpha_energy=alpha_energy,
+            beta_cons=beta_cons,
         )
         self._is_gnn = self._detect_gnn()
         self._is_e2e = self._detect_e2e()
 
     def _detect_gnn(self) -> bool:
         """检测预测器是否支持可微训练（M2 GNN）。"""
-        return hasattr(self.predictor, 'training_predict') and \
-               hasattr(self.predictor, 'compute_gradients') and \
-               hasattr(self.predictor, 'apply_gradients')
+        return (
+            hasattr(self.predictor, "training_predict")
+            and hasattr(self.predictor, "compute_gradients")
+            and hasattr(self.predictor, "apply_gradients")
+        )
 
     def _detect_e2e(self) -> bool:
         """
@@ -116,7 +119,7 @@ class JEPATrainer:
         """
         if self.encoder is None:
             return False
-        return hasattr(self.encoder, 'training_encode') and self._is_gnn
+        return hasattr(self.encoder, "training_encode") and self._is_gnn
 
     @property
     def stats(self) -> JEPATrainingStats:
@@ -158,13 +161,19 @@ class JEPATrainer:
         for epoch in range(n_epochs):
             epoch_losses: list[float] = []
 
-            if self._is_e2e and hasattr(ds, 'memory_pairs') and ds.memory_pairs:
+            if self._is_e2e and hasattr(ds, "memory_pairs") and ds.memory_pairs:
                 # ── M3: 端到端 (GAT + GNN) ──
-                has_state_cache = hasattr(ds, 'state_pairs') and ds.state_pairs
+                has_state_cache = hasattr(ds, "state_pairs") and ds.state_pairs
                 for idx, (mem_t, mem_t1) in enumerate(ds.memory_pairs):
                     s_t1 = ds.pairs[idx][1] if idx < len(ds.pairs) else None
-                    s_t = ds.state_pairs[idx][0] if has_state_cache and idx < len(ds.state_pairs) else None
-                    loss = self._train_e2e_step(mem_t, mem_t1, s_t1, s_t=s_t, learning_rate=learning_rate)
+                    s_t = (
+                        ds.state_pairs[idx][0]
+                        if has_state_cache and idx < len(ds.state_pairs)
+                        else None
+                    )
+                    loss = self._train_e2e_step(
+                        mem_t, mem_t1, s_t1, s_t=s_t, learning_rate=learning_rate
+                    )
                     epoch_losses.append(loss)
             else:
                 for s_t, s_t1 in ds.pairs:
@@ -177,18 +186,18 @@ class JEPATrainer:
             avg_loss = float(np.mean(epoch_losses)) if epoch_losses else float("inf")
             self._stats.loss_history.append(avg_loss)
 
-            if avg_loss < self._stats.min_loss:
-                self._stats.min_loss = avg_loss
+            self._stats.min_loss = min(self._stats.min_loss, avg_loss)
 
             logger.info(
                 "JEPA Epoch %d/%d | Loss: %.6f | Min: %.6f%s",
-                epoch + 1, n_epochs, avg_loss, self._stats.min_loss,
+                epoch + 1,
+                n_epochs,
+                avg_loss,
+                self._stats.min_loss,
                 " [E2E]" if self._is_e2e else (" [GNN]" if self._is_gnn else ""),
             )
 
-        self._stats.final_loss = (
-            self._stats.loss_history[-1] if self._stats.loss_history else 0.0
-        )
+        self._stats.final_loss = self._stats.loss_history[-1] if self._stats.loss_history else 0.0
         self._stats.n_epochs = n_epochs
         self._stats.n_pairs = len(ds)
 
@@ -280,7 +289,7 @@ class JEPATrainer:
 
         # ── 2. 用 A_enc 构建临时状态传给 GNN ──
         # 从 node_index 构建 node_names
-        node_names = sorted(node_index.keys(), key=lambda k: node_index[k])
+        sorted(node_index.keys(), key=lambda k: node_index[k])
         from mci_world_model.sdk._jepa_gat_encoder import features_to_state
 
         template_state = s_t1 if s_t1 else CausalWorldModelState()
@@ -361,11 +370,6 @@ class JEPATrainer:
 
         对 pred 中的每条边，用 _sys/_energy_relations.py 判定是否违反增强/抑制模式。
         """
-        try:
-            from mci_world_model._sys._energy_relations import is_enhancing, is_suppressing
-        except ImportError:
-            return 0.0
-
         if not s_pred.causal_edges:
             return 0.0
 
@@ -373,8 +377,8 @@ class JEPATrainer:
         n_edges = len(s_pred.causal_edges)
 
         for edge in s_pred.causal_edges:
-            cause = edge.get("cause", "")
-            effect = edge.get("effect", "")
+            edge.get("cause", "")
+            edge.get("effect", "")
             energy_rel = edge.get("energy_relation", "neutral")
             rho = edge.get("rho", 0.0)
 

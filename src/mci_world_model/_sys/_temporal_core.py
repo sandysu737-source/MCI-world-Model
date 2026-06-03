@@ -19,24 +19,24 @@ Architecture: Sky Layer (Tian) - Temporal System
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Dict
-from ._enums import TimeStem, TimeBranch, BranchRelation
-from ._terms import (
-    STEM_HE_MAP,
-    STEM_CHONG_MAP,
-    BRANCH_HE_MAP,
-    BRANCH_CHONG_MAP,
-    BRANCH_SANHE_MAP,
-    BRANCH_HIDDEN_STEM_MAP,
-    TIME_STEMS,
-    TIME_BRANCHES,
-    TIME_BRANCH_ENERGY,
-)
 
+from ._enums import BranchRelation, TimeBranch, TimeStem
+from ._terms import (
+    BRANCH_CHONG_MAP,
+    BRANCH_HE_MAP,
+    BRANCH_HIDDEN_STEM_MAP,
+    BRANCH_SANHE_MAP,
+    STEM_CHONG_MAP,
+    STEM_HE_MAP,
+    TIME_BRANCH_ENERGY,
+    TIME_BRANCHES,
+    TIME_STEMS,
+)
 
 # =============================================================================
 # Data Structures
 # =============================================================================
+
 
 @dataclass
 class StemBranchCode:
@@ -58,6 +58,7 @@ class StemBranchCode:
         >>> code.polarity
         'yang'
     """
+
     stem: TimeStem
     branch: TimeBranch
     cycle_index: int  # 0-59
@@ -91,7 +92,7 @@ class StemBranchCode:
         return f"{TIME_STEMS[self.stem.value]}{TIME_BRANCHES[self.branch.value]}"
 
     @property
-    def hidden_stems(self) -> List[TimeStem]:
+    def hidden_stems(self) -> list[TimeStem]:
         """
         Get the hidden stems (Earthly Branches藏干) within this branch.
 
@@ -130,25 +131,26 @@ class StemBranchCode:
 # =============================================================================
 
 # Branch to primary energy (本气) mapping
-BRANCH_PRIMARY_ENERGY: Dict[TimeBranch, str] = {
-    TimeBranch.ZI: "water",     # 子 - yang water
-    TimeBranch.CHOU: "earth",   # 丑 - yin earth
-    TimeBranch.YIN: "wood",     # 寅 - yang wood
-    TimeBranch.MAO: "wood",     # 卯 - yin wood
-    TimeBranch.CHEN: "earth",   # 辰 - yang earth
-    TimeBranch.SI: "fire",      # 巳 - yin fire
-    TimeBranch.WU: "fire",      # 午 - yang fire
-    TimeBranch.WEI: "earth",    # 未 - yin earth
-    TimeBranch.SHEN: "metal",   # 申 - yang metal
-    TimeBranch.YOU: "metal",    # 酉 - yin metal
-    TimeBranch.XU: "earth",     # 戌 - yang earth
-    TimeBranch.HAI: "water",    # 亥 - yin water
+BRANCH_PRIMARY_ENERGY: dict[TimeBranch, str] = {
+    TimeBranch.ZI: "water",  # 子 - yang water
+    TimeBranch.CHOU: "earth",  # 丑 - yin earth
+    TimeBranch.YIN: "wood",  # 寅 - yang wood
+    TimeBranch.MAO: "wood",  # 卯 - yin wood
+    TimeBranch.CHEN: "earth",  # 辰 - yang earth
+    TimeBranch.SI: "fire",  # 巳 - yin fire
+    TimeBranch.WU: "fire",  # 午 - yang fire
+    TimeBranch.WEI: "earth",  # 未 - yin earth
+    TimeBranch.SHEN: "metal",  # 申 - yang metal
+    TimeBranch.YOU: "metal",  # 酉 - yin metal
+    TimeBranch.XU: "earth",  # 戌 - yang earth
+    TimeBranch.HAI: "water",  # 亥 - yin water
 }
 
 
 # =============================================================================
 # Core Engine
 # =============================================================================
+
 
 class TemporalCore:
     """
@@ -176,11 +178,11 @@ class TemporalCore:
 
     def __init__(self):
         """Initialize the temporal core engine."""
-        self._cycle: List[Tuple[TimeStem, TimeBranch]] = self._build_cycle()
+        self._cycle: list[tuple[TimeStem, TimeBranch]] = self._build_cycle()
         # Build reverse lookup: (stem, branch) -> index
-        self._cycle_index_map: Dict[Tuple[int, int], int] = self._build_index_map()
+        self._cycle_index_map: dict[tuple[int, int], int] = self._build_index_map()
 
-    def _build_cycle(self) -> List[Tuple[TimeStem, TimeBranch]]:
+    def _build_cycle(self) -> list[tuple[TimeStem, TimeBranch]]:
         """
         Build the sixty-cycle (Sixty Cycle) sequence.
 
@@ -197,7 +199,7 @@ class TemporalCore:
             cycle.append((stem, branch))
         return cycle
 
-    def _build_index_map(self) -> Dict[Tuple[int, int], int]:
+    def _build_index_map(self) -> dict[tuple[int, int], int]:
         """
         Build reverse lookup map from (stem_value, branch_value) to cycle index.
 
@@ -277,7 +279,7 @@ class TemporalCore:
         """
         return self._cycle_index_map.get((stem.value, branch.value), -1)
 
-    def analyze_stem_relation(self, s1: TimeStem, s2: TimeStem) -> Optional[BranchRelation]:
+    def analyze_stem_relation(self, s1: TimeStem, s2: TimeStem) -> BranchRelation | None:
         """
         Analyze the relationship between two heavenly stems.
 
@@ -315,7 +317,7 @@ class TemporalCore:
 
         return None
 
-    def analyze_branch_relation(self, b1: TimeBranch, b2: TimeBranch) -> List[BranchRelation]:
+    def analyze_branch_relation(self, b1: TimeBranch, b2: TimeBranch) -> list[BranchRelation]:
         """
         Analyze all relationships between two earthly branches.
 
@@ -391,10 +393,7 @@ class TemporalCore:
             return True
 
         # 丑戌未 (丑-戌, 戌-丑, 丑-未, 未-丑, 戌-未, 未-戌)
-        if (v1, v2) in [(1, 10), (10, 1), (1, 7), (7, 1), (10, 7), (7, 10)]:
-            return True
-
-        return False
+        return (v1, v2) in [(1, 10), (10, 1), (1, 7), (7, 1), (10, 7), (7, 10)]
 
     def _is_liu_hai(self, b1: TimeBranch, b2: TimeBranch) -> bool:
         """
@@ -412,14 +411,14 @@ class TemporalCore:
         """
         # Define Liu Hai pairs
         liu_hai_pairs = [
-            (0, 7),   # 子-未
-            (7, 0),   # 未-子
-            (1, 6),   # 丑-午
-            (6, 1),   # 午-丑
-            (2, 5),   # 寅-巳
-            (5, 2),   # 巳-寅
-            (3, 4),   # 卯-辰
-            (4, 3),   # 辰-卯
+            (0, 7),  # 子-未
+            (7, 0),  # 未-子
+            (1, 6),  # 丑-午
+            (6, 1),  # 午-丑
+            (2, 5),  # 寅-巳
+            (5, 2),  # 巳-寅
+            (3, 4),  # 卯-辰
+            (4, 3),  # 辰-卯
             (8, 11),  # 申-亥
             (11, 8),  # 亥-申
             (9, 10),  # 酉-戌
@@ -443,16 +442,22 @@ class TemporalCore:
         """
         # Define Po pairs
         po_pairs = [
-            (0, 9), (9, 0),   # 子-酉
-            (2, 11), (11, 2), # 寅-亥
-            (3, 6), (6, 3),   # 卯-午
-            (4, 1), (1, 4),   # 辰-丑
-            (5, 8), (8, 5),   # 巳-申, 申-巳
-            (10, 3), (3, 10), # 戌-卯
+            (0, 9),
+            (9, 0),  # 子-酉
+            (2, 11),
+            (11, 2),  # 寅-亥
+            (3, 6),
+            (6, 3),  # 卯-午
+            (4, 1),
+            (1, 4),  # 辰-丑
+            (5, 8),
+            (8, 5),  # 巳-申, 申-巳
+            (10, 3),
+            (3, 10),  # 戌-卯
         ]
         return (b1.value, b2.value) in po_pairs
 
-    def get_hidden_stems(self, branch: TimeBranch) -> List[TimeStem]:
+    def get_hidden_stems(self, branch: TimeBranch) -> list[TimeStem]:
         """
         Get the hidden stems (藏干) within an earthly branch.
 
@@ -502,8 +507,9 @@ class TemporalCore:
         diff = abs(idx1 - idx2)
         return min(diff, 60 - diff)
 
-    def is_same_trigram(self, code1: StemBranchCode, code2: StemBranchCode,
-                        code3: Optional[StemBranchCode] = None) -> Tuple[bool, Optional[str]]:
+    def is_same_trigram(
+        self, code1: StemBranchCode, code2: StemBranchCode, code3: StemBranchCode | None = None
+    ) -> tuple[bool, str | None]:
         """
         Check if one or more codes form a San He (三合局) trigram.
 
@@ -550,7 +556,7 @@ class TemporalCore:
 
         return False, None
 
-    def is_same_trigram_set(self, codes: List[StemBranchCode]) -> Tuple[bool, Optional[str]]:
+    def is_same_trigram_set(self, codes: list[StemBranchCode]) -> tuple[bool, str | None]:
         """
         Check if a list of codes form a San He (三合局) trigram.
 
@@ -601,8 +607,18 @@ class TemporalCore:
         Returns:
             Energy type: 'wood', 'fire', 'earth', 'metal', 'water'
         """
-        energies = ["wood", "wood", "fire", "fire", "earth", "earth",
-                   "metal", "metal", "water", "water"]
+        energies = [
+            "wood",
+            "wood",
+            "fire",
+            "fire",
+            "earth",
+            "earth",
+            "metal",
+            "metal",
+            "water",
+            "water",
+        ]
         return energies[stem.value]
 
     def is_stem_yang(self, stem: TimeStem) -> bool:
@@ -629,7 +645,7 @@ class TemporalCore:
         """
         return branch.value % 2 == 0
 
-    def get_san_he_branches(self, energy_type: str) -> List[TimeBranch]:
+    def get_san_he_branches(self, energy_type: str) -> list[TimeBranch]:
         """
         Get the three branches that form a San He trigram for a given energy type.
 
@@ -659,6 +675,7 @@ class TemporalCore:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def create_stem_branch(stem_idx: int, branch_idx: int) -> StemBranchCode:
     """
@@ -697,6 +714,7 @@ def get_cycle_name(index: int) -> str:
 # =============================================================================
 # Test Suite
 # =============================================================================
+
 
 def _run_tests():
     """Run built-in test cases."""
@@ -831,27 +849,34 @@ def _run_tests():
 
     # 寅藏甲丙戊
     stems = tc.get_hidden_stems(TimeBranch.YIN)
-    test("寅藏甲丙戊 (YIN hidden JIA, BING, WU)",
-         len(stems) == 3 and
-         TimeStem.JIA in stems and TimeStem.BING in stems and TimeStem.WU in stems)
+    test(
+        "寅藏甲丙戊 (YIN hidden JIA, BING, WU)",
+        len(stems) == 3
+        and TimeStem.JIA in stems
+        and TimeStem.BING in stems
+        and TimeStem.WU in stems,
+    )
 
     # 亥藏壬甲
     stems = tc.get_hidden_stems(TimeBranch.HAI)
-    test("亥藏壬甲 (HAI hidden REN, JIA)",
-         len(stems) == 2 and
-         TimeStem.REN in stems and TimeStem.JIA in stems)
+    test(
+        "亥藏壬甲 (HAI hidden REN, JIA)",
+        len(stems) == 2 and TimeStem.REN in stems and TimeStem.JIA in stems,
+    )
 
     code = tc.create_code(0, 0)  # 甲子
-    test("StemBranchCode.hidden_stems property",
-         len(code.hidden_stems) == 1 and code.hidden_stems[0] == TimeStem.REN)
+    test(
+        "StemBranchCode.hidden_stems property",
+        len(code.hidden_stems) == 1 and code.hidden_stems[0] == TimeStem.REN,
+    )
 
     print("\n[6] San He (三合局) Trigram Tests")
     print("-" * 40)
 
     # 申子辰 - 水局
-    code_sh = tc.create_code(6, 8)   # 庚申
-    code_zi = tc.create_code(8, 0)   # 壬子
-    code_ch = tc.create_code(4, 4)   # 戊辰
+    code_sh = tc.create_code(6, 8)  # 庚申
+    code_zi = tc.create_code(8, 0)  # 壬子
+    code_ch = tc.create_code(4, 4)  # 戊辰
 
     is_tri, energy = tc.is_same_trigram(code_sh, code_zi, code_ch)
     test("申子辰合水局 (SHEN-ZI-CHEN)", is_tri and energy == "water")
@@ -861,25 +886,25 @@ def _run_tests():
     test("申子同属水局 (partial)", is_tri and energy == "water")
 
     # 亥卯未 - 木局
-    code_h = tc.create_code(8, 11)   # 壬亥
-    code_m = tc.create_code(1, 3)    # 乙卯
-    code_w = tc.create_code(5, 7)    # 己未
+    code_h = tc.create_code(8, 11)  # 壬亥
+    code_m = tc.create_code(1, 3)  # 乙卯
+    code_w = tc.create_code(5, 7)  # 己未
 
     is_tri, energy = tc.is_same_trigram(code_h, code_m, code_w)
     test("亥卯未合木局 (HAI-MAO-WEI)", is_tri and energy == "wood")
 
     # 寅午戌 - 火局
-    code_y = tc.create_code(0, 2)    # 甲寅
-    code_w = tc.create_code(3, 6)    # 丁午
-    code_x = tc.create_code(4, 10)   # 戊戌
+    code_y = tc.create_code(0, 2)  # 甲寅
+    code_w = tc.create_code(3, 6)  # 丁午
+    code_x = tc.create_code(4, 10)  # 戊戌
 
     is_tri, energy = tc.is_same_trigram(code_y, code_w, code_x)
     test("寅午戌合火局 (YIN-WU-XU)", is_tri and energy == "fire")
 
     # 巳酉丑 - 金局
-    code_s = tc.create_code(2, 5)    # 丙巳
-    code_y = tc.create_code(7, 9)    # 辛酉
-    code_c = tc.create_code(5, 1)    # 己丑
+    code_s = tc.create_code(2, 5)  # 丙巳
+    code_y = tc.create_code(7, 9)  # 辛酉
+    code_c = tc.create_code(5, 1)  # 己丑
 
     is_tri, energy = tc.is_same_trigram(code_s, code_y, code_c)
     test("巳酉丑合金局 (SI-YOU-CHOU)", is_tri and energy == "metal")
@@ -922,18 +947,22 @@ def _run_tests():
     print("-" * 40)
 
     branches = tc.get_san_he_branches("water")
-    test("水局三合: 申子辰",
-         len(branches) == 3 and
-         TimeBranch.SHEN in branches and
-         TimeBranch.ZI in branches and
-         TimeBranch.CHEN in branches)
+    test(
+        "水局三合: 申子辰",
+        len(branches) == 3
+        and TimeBranch.SHEN in branches
+        and TimeBranch.ZI in branches
+        and TimeBranch.CHEN in branches,
+    )
 
     branches = tc.get_san_he_branches("wood")
-    test("木局三合: 亥卯未",
-         len(branches) == 3 and
-         TimeBranch.HAI in branches and
-         TimeBranch.MAO in branches and
-         TimeBranch.WEI in branches)
+    test(
+        "木局三合: 亥卯未",
+        len(branches) == 3
+        and TimeBranch.HAI in branches
+        and TimeBranch.MAO in branches
+        and TimeBranch.WEI in branches,
+    )
 
     print("\n" + "=" * 60)
     print(f"Test Results: {passed} passed, {failed} failed")

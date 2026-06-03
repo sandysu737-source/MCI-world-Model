@@ -39,38 +39,33 @@ BayesianAugmenter — 贝叶斯推理串联增强包装器
     EnhancedOutput {original, bayesian, comparison}
 """
 
-from typing import Dict, List, Optional, Tuple, Any, Set
-from dataclasses import dataclass, field
-from collections import defaultdict
-import time
 import json
+import logging
 import math
+import time
+from dataclasses import dataclass, field
+from typing import Any
 
-from mci_world_model._sys.bayesian import (
-    BayesianEngine,
-    BetaDistribution,
-    LikelihoodFunctions,
-)
-from mci_world_model._sys.bayesian_network import BayesianNetwork
-from mci_world_model._sys.evidence import EvidenceCollector
-from mci_world_model._sys.bayesian_reasoning import BayesianReasoningSystem, BayesianPredictor
-from mci_world_model._sys.states import BayesianBeliefTracker
+logger = logging.getLogger(__name__)
 
+from mci_world_model._sys.bayesian_reasoning import BayesianReasoningSystem
 
 # ============================================================
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class ComparisonDelta:
     """双路径对比差异"""
+
     field: str
     original_value: Any
     bayesian_value: Any
     difference_description: str = ""
     improvement_indicator: str = ""  # "positive" | "negative" | "neutral"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "field": self.field,
             "original_value": self.original_value,
@@ -83,12 +78,13 @@ class ComparisonDelta:
 @dataclass
 class EnhancedOutput:
     """增强输出 — 同时包含原始和贝叶斯结果"""
-    original: Dict              # 原始系统输出
-    bayesian: Dict             # 贝叶斯增强输出
-    comparisons: List[ComparisonDelta]  # 差异列表
-    meta: Dict = field(default_factory=dict)  # 元信息
 
-    def to_dict(self) -> Dict:
+    original: dict  # 原始系统输出
+    bayesian: dict  # 贝叶斯增强输出
+    comparisons: list[ComparisonDelta]  # 差异列表
+    meta: dict = field(default_factory=dict)  # 元信息
+
+    def to_dict(self) -> dict:
         return {
             "original_result": self.original,
             "bayesian_result": self.bayesian,
@@ -100,8 +96,9 @@ class EnhancedOutput:
 @dataclass
 class AccuracyRecord:
     """准确度追踪记录"""
+
     timestamp: float
-    method: str              # "original" | "bayesian"
+    method: str  # "original" | "bayesian"
     query: str
     predicted_value: float
     actual_value: float
@@ -113,6 +110,7 @@ class AccuracyRecord:
 # BayesianAugmenter
 # ============================================================
 
+
 class BayesianAugmenter:
     """
     贝叶斯推理串联增强器
@@ -122,19 +120,19 @@ class BayesianAugmenter:
     使用方式:
         >>> from mci_world_model.sdk.lite_pro import SuMemoryLitePro
         >>> from mci_world_model.sdk.bayesian_augmenter import BayesianAugmenter
-        >>> 
+        >>>
         >>> client = SuMemoryLitePro()
         >>> augmenter = BayesianAugmenter(client)
-        >>> 
+        >>>
         >>> # 双路径查询
         >>> result = augmenter.query("投资回报")
         >>> print(result.original)    # 原始结果
         >>> print(result.bayesian)    # 贝叶斯增强结果
         >>> print(result.comparisons) # 差异分析
-        >>> 
+        >>>
         >>> # 反馈验证
         >>> augmenter.feedback(query="投资回报", expected_memory_ids=["mem_abc"])
-        >>> 
+        >>>
         >>> # 查看准确度报告
         >>> report = augmenter.get_accuracy_report()
     """
@@ -176,23 +174,25 @@ class BayesianAugmenter:
         self.predictor = self._brs.predictor
 
         # 准确度追踪 — F6-P1-1: 加 LRU 容量上限，防止无界增长
-        self._accuracy_records: List[AccuracyRecord] = []
+        self._accuracy_records: list[AccuracyRecord] = []
         self._max_accuracy_records = 1000  # LRU 环形缓冲区容量
         self._feedback_count = 0
 
         # 自动同步配置
         self._enable_auto_sync = enable_auto_sync
-        self._synced_memory_ids: Set[str] = set()
+        self._synced_memory_ids: set[str] = set()
 
         # 如果启用自动同步，hook client 的 add 方法
         if enable_auto_sync:
             self._hook_client_add()
 
         if verbose:
-            print(f"[BayesianAugmenter] 初始化完成 "
-                  f"(网络={'启用' if enable_network else '禁用'}, "
-                  f"预测={'启用' if enable_predictor else '禁用'}, "
-                  f"自动同步={'启用' if enable_auto_sync else '禁用'})")
+            logger.info(
+                "BayesianAugmenter 初始化完成 (网络=%s, 预测=%s, 自动同步=%s)",
+                "启用" if enable_network else "禁用",
+                "启用" if enable_predictor else "禁用",
+                "启用" if enable_auto_sync else "禁用",
+            )
 
     def _hook_client_add(self):
         """Hook client.add() 以自动同步记忆到贝叶斯系统"""
@@ -203,14 +203,18 @@ class BayesianAugmenter:
 
             # 同步到贝叶斯系统
             content = args[0] if args else kwargs.get("content", "")
-            metadata = kwargs.get("metadata", {}) if "metadata" in kwargs else (args[1] if len(args) > 1 else {})
+            metadata = (
+                kwargs.get("metadata", {})
+                if "metadata" in kwargs
+                else (args[1] if len(args) > 1 else {})
+            )
 
             if memory_id and memory_id not in self._synced_memory_ids:
                 try:
                     self._sync_memory_to_bayesian(memory_id, content, metadata)
                 except Exception as e:
                     if self._verbose:
-                        print(f"[BayesianAugmenter] 同步失败: {e}")
+                        logger.warning("BayesianAugmenter 同步失败: %s", e)
                 self._synced_memory_ids.add(memory_id)
 
             return memory_id
@@ -218,7 +222,7 @@ class BayesianAugmenter:
         self._client.add = augmented_add
         self._original_add = original_add
 
-    def _sync_memory_to_bayesian(self, memory_id: str, content: str, metadata: Dict = None):
+    def _sync_memory_to_bayesian(self, memory_id: str, content: str, metadata: dict | None = None):
         """将记忆同步到贝叶斯系统"""
         metadata = metadata or {}
 
@@ -244,18 +248,13 @@ class BayesianAugmenter:
     def _vlog(self, msg: str):
         """Verbose 日志"""
         if self._verbose:
-            print(f"[BayesianAugmenter] {msg}")
+            logger.info("BayesianAugmenter %s", msg)
 
     # ================================================================
     # 双路径查询 — query()
     # ================================================================
 
-    def query(
-        self,
-        query: str,
-        top_k: int = 5,
-        **kwargs
-    ) -> EnhancedOutput:
+    def query(self, query: str, top_k: int = 5, **kwargs) -> EnhancedOutput:
         """
         双路径查询
 
@@ -274,9 +273,7 @@ class BayesianAugmenter:
         bayesian_results = self._bayesian_query(query, top_k, original_results)
 
         # ── 对比分析 ──
-        comparisons = self._compare_query_results(
-            query, original_results, bayesian_results
-        )
+        comparisons = self._compare_query_results(query, original_results, bayesian_results)
 
         return EnhancedOutput(
             original={"results": original_results, "count": len(original_results)},
@@ -291,15 +288,10 @@ class BayesianAugmenter:
                 "top_k": top_k,
                 "method": "dual_path_query",
                 "timestamp": time.time(),
-            }
+            },
         )
 
-    def _bayesian_query(
-        self,
-        query: str,
-        top_k: int,
-        original_results: List[Dict]
-    ) -> List[Dict]:
+    def _bayesian_query(self, query: str, top_k: int, original_results: list[dict]) -> list[dict]:
         """贝叶斯增强查询"""
         results = []
 
@@ -319,35 +311,36 @@ class BayesianAugmenter:
                 # （保留原始检索信号，用贝叶斯信念修正）
                 fused_score = original_score * 0.6 + bayesian_confidence * 0.4
 
-                results.append({
-                    **item,
-                    "bayesian_confidence": bayesian_confidence,
-                    "bayesian_uncertainty": bayesian_uncertainty,
-                    "credible_interval_95": list(belief.posterior.credible_interval(0.95)),
-                    "evidence_strength": belief.posterior.effective_sample_size,
-                    "stage": belief.get_stage(),
-                    "score": fused_score,  # 覆盖得分
-                    "original_score": original_score,
-                })
+                results.append(
+                    {
+                        **item,
+                        "bayesian_confidence": bayesian_confidence,
+                        "bayesian_uncertainty": bayesian_uncertainty,
+                        "credible_interval_95": list(belief.posterior.credible_interval(0.95)),
+                        "evidence_strength": belief.posterior.effective_sample_size,
+                        "stage": belief.get_stage(),
+                        "score": fused_score,  # 覆盖得分
+                        "original_score": original_score,
+                    }
+                )
             else:
                 # 无贝叶斯信息，保持原始
-                results.append({
-                    **item,
-                    "bayesian_confidence": None,
-                    "bayesian_uncertainty": None,
-                    "stage": "no_bayesian_data",
-                })
+                results.append(
+                    {
+                        **item,
+                        "bayesian_confidence": None,
+                        "bayesian_uncertainty": None,
+                        "stage": "no_bayesian_data",
+                    }
+                )
 
         # 按融合得分重新排序
         results.sort(key=lambda x: x.get("score", x.get("original_score", 0)), reverse=True)
         return results[:top_k]
 
     def _compare_query_results(
-        self,
-        query: str,
-        original: List[Dict],
-        bayesian: List[Dict]
-    ) -> List[ComparisonDelta]:
+        self, query: str, original: list[dict], bayesian: list[dict]
+    ) -> list[ComparisonDelta]:
         """对比原始和贝叶斯查询结果"""
         comparisons = []
 
@@ -358,33 +351,41 @@ class BayesianAugmenter:
         # Top-1 是否一致
         if orig_ids and bayes_ids:
             top1_same = orig_ids[0] == bayes_ids[0]
-            comparisons.append(ComparisonDelta(
-                field="top1_match",
-                original_value=orig_ids[0],
-                bayesian_value=bayes_ids[0],
-                difference_description="一致" if top1_same else "贝叶斯重新排序, Top-1 不同",
-                improvement_indicator="neutral" if top1_same else "positive"
-            ))
+            comparisons.append(
+                ComparisonDelta(
+                    field="top1_match",
+                    original_value=orig_ids[0],
+                    bayesian_value=bayes_ids[0],
+                    difference_description="一致" if top1_same else "贝叶斯重新排序, Top-1 不同",
+                    improvement_indicator="neutral" if top1_same else "positive",
+                )
+            )
 
         # 排序变化
-        changed = sum(1 for i, bid in enumerate(bayes_ids) if i < len(orig_ids) and orig_ids[i] != bid)
-        comparisons.append(ComparisonDelta(
-            field="ranking_changes",
-            original_value=f"{len(original)} results",
-            bayesian_value=f"{changed} ranking changes in top-{min(len(bayesian), len(original))}",
-            difference_description=f"贝叶斯调整了 {changed} 个结果的排序",
-            improvement_indicator="positive" if changed > 0 else "neutral"
-        ))
+        changed = sum(
+            1 for i, bid in enumerate(bayes_ids) if i < len(orig_ids) and orig_ids[i] != bid
+        )
+        comparisons.append(
+            ComparisonDelta(
+                field="ranking_changes",
+                original_value=f"{len(original)} results",
+                bayesian_value=f"{changed} ranking changes in top-{min(len(bayesian), len(original))}",
+                difference_description=f"贝叶斯调整了 {changed} 个结果的排序",
+                improvement_indicator="positive" if changed > 0 else "neutral",
+            )
+        )
 
         # 有贝叶斯增强的结果数
         bayes_enhanced = sum(1 for r in bayesian if r.get("bayesian_confidence") is not None)
-        comparisons.append(ComparisonDelta(
-            field="bayesian_enhanced_count",
-            original_value=0,
-            bayesian_value=bayes_enhanced,
-            difference_description=f"{bayes_enhanced}/{len(bayesian)} 结果有贝叶斯置信度增强",
-            improvement_indicator="positive" if bayes_enhanced > 0 else "neutral"
-        ))
+        comparisons.append(
+            ComparisonDelta(
+                field="bayesian_enhanced_count",
+                original_value=0,
+                bayesian_value=bayes_enhanced,
+                difference_description=f"{bayes_enhanced}/{len(bayesian)} 结果有贝叶斯置信度增强",
+                improvement_indicator="positive" if bayes_enhanced > 0 else "neutral",
+            )
+        )
 
         return comparisons
 
@@ -392,12 +393,7 @@ class BayesianAugmenter:
     # 双路径预测 — predict()
     # ================================================================
 
-    def predict(
-        self,
-        query: str = None,
-        top_k: int = 3,
-        **kwargs
-    ) -> EnhancedOutput:
+    def predict(self, query: str | None = None, top_k: int = 3, **kwargs) -> EnhancedOutput:
         """
         双路径预测
 
@@ -430,15 +426,10 @@ class BayesianAugmenter:
                 "top_k": top_k,
                 "method": "dual_path_predict",
                 "timestamp": time.time(),
-            }
+            },
         )
 
-    def _bayesian_predict(
-        self,
-        query: str,
-        top_k: int,
-        original: Dict
-    ) -> Dict:
+    def _bayesian_predict(self, query: str, top_k: int, original: dict) -> dict:
         """贝叶斯增强预测"""
         results = {}
 
@@ -457,27 +448,38 @@ class BayesianAugmenter:
                 belief = self.engine.get_or_create(belief_id, content_summary=pred_content)
 
                 # 贝叶斯增强的置信度
-                bayes_conf = belief.posterior.mean if belief.posterior.effective_sample_size > 2 else pred_confidence
-                bayes_uncert = belief.posterior.std if belief.posterior.effective_sample_size > 2 else None
+                bayes_conf = (
+                    belief.posterior.mean
+                    if belief.posterior.effective_sample_size > 2
+                    else pred_confidence
+                )
+                bayes_uncert = (
+                    belief.posterior.std if belief.posterior.effective_sample_size > 2 else None
+                )
 
-                ci = belief.posterior.credible_interval(0.95) if belief.posterior.effective_sample_size > 2 else None
+                ci = (
+                    belief.posterior.credible_interval(0.95)
+                    if belief.posterior.effective_sample_size > 2
+                    else None
+                )
 
-                enhanced_events.append({
-                    **pred,
-                    "original_confidence": pred_confidence,
-                    "bayesian_confidence": bayes_conf,
-                    "bayesian_uncertainty": bayes_uncert,
-                    "credible_interval_95": list(ci) if ci else None,
-                    "confidence_delta": bayes_conf - pred_confidence,
-                    "stage": belief.get_stage(),
-                })
+                enhanced_events.append(
+                    {
+                        **pred,
+                        "original_confidence": pred_confidence,
+                        "bayesian_confidence": bayes_conf,
+                        "bayesian_uncertainty": bayes_uncert,
+                        "credible_interval_95": list(ci) if ci else None,
+                        "confidence_delta": bayes_conf - pred_confidence,
+                        "stage": belief.get_stage(),
+                    }
+                )
 
             results["event_predictions"] = enhanced_events
-        else:
-            # 使用贝叶斯预测器直接预测
-            if query:
-                pred_result = self.predictor.predict_event_probability(query)
-                results["bayesian_prediction"] = pred_result
+        # 使用贝叶斯预测器直接预测
+        elif query:
+            pred_result = self.predictor.predict_event_probability(query)
+            results["bayesian_prediction"] = pred_result
 
         # 校准报告
         if self.predictor:
@@ -487,11 +489,8 @@ class BayesianAugmenter:
         return results
 
     def _compare_predictions(
-        self,
-        query: str,
-        original: Dict,
-        bayesian: Dict
-    ) -> List[ComparisonDelta]:
+        self, query: str, original: dict, bayesian: dict
+    ) -> list[ComparisonDelta]:
         """对比预测结果"""
         comparisons = []
 
@@ -502,28 +501,31 @@ class BayesianAugmenter:
                 bayes_conf = pred.get("bayesian_confidence", 0)
                 delta = pred.get("confidence_delta", 0)
 
-                comparisons.append(ComparisonDelta(
-                    field=f"prediction_confidence:{pred.get('content', '')[:30]}",
-                    original_value=orig_conf,
-                    bayesian_value=bayes_conf,
-                    difference_description=(
-                        f"贝叶斯{'上调' if delta > 0 else '下调'}置信度 {abs(delta):.3f}"
-                    ),
-                    improvement_indicator="positive" if abs(delta) > 0.05 else "neutral"
-                ))
+                comparisons.append(
+                    ComparisonDelta(
+                        field=f"prediction_confidence:{pred.get('content', '')[:30]}",
+                        original_value=orig_conf,
+                        bayesian_value=bayes_conf,
+                        difference_description=(
+                            f"贝叶斯{'上调' if delta > 0 else '下调'}置信度 {abs(delta):.3f}"
+                        ),
+                        improvement_indicator="positive" if abs(delta) > 0.05 else "neutral",
+                    )
+                )
 
         # 是否有不确定性量化
         has_uncertainty = any(
-            p.get("bayesian_uncertainty") is not None
-            for p in bayesian.get("event_predictions", [])
+            p.get("bayesian_uncertainty") is not None for p in bayesian.get("event_predictions", [])
         )
-        comparisons.append(ComparisonDelta(
-            field="uncertainty_quantification",
-            original_value=False,
-            bayesian_value=has_uncertainty,
-            difference_description="原始预测无不确定性量化，贝叶斯提供标准差和置信区间",
-            improvement_indicator="positive" if has_uncertainty else "neutral"
-        ))
+        comparisons.append(
+            ComparisonDelta(
+                field="uncertainty_quantification",
+                original_value=False,
+                bayesian_value=has_uncertainty,
+                difference_description="原始预测无不确定性量化，贝叶斯提供标准差和置信区间",
+                improvement_indicator="positive" if has_uncertainty else "neutral",
+            )
+        )
 
         return comparisons
 
@@ -531,12 +533,7 @@ class BayesianAugmenter:
     # 双路径推理 — reason()
     # ================================================================
 
-    def reason(
-        self,
-        query: str,
-        max_hops: int = 3,
-        **kwargs
-    ) -> EnhancedOutput:
+    def reason(self, query: str, max_hops: int = 3, **kwargs) -> EnhancedOutput:
         """
         双路径推理
 
@@ -569,15 +566,10 @@ class BayesianAugmenter:
                 "max_hops": max_hops,
                 "method": "dual_path_reason",
                 "timestamp": time.time(),
-            }
+            },
         )
 
-    def _bayesian_reason(
-        self,
-        query: str,
-        max_hops: int,
-        original: Dict
-    ) -> Dict:
+    def _bayesian_reason(self, query: str, max_hops: int, original: dict) -> dict:
         """贝叶斯增强推理"""
         results = {}
 
@@ -591,22 +583,26 @@ class BayesianAugmenter:
             belief = self.engine.get_belief(mem_id)
 
             if belief:
-                memory_beliefs.append({
-                    "memory_id": mem_id,
-                    "content": item.get("content", ""),
-                    "confidence": belief.posterior.mean,
-                    "uncertainty": belief.posterior.std,
-                    "credible_interval_95": list(belief.posterior.credible_interval(0.95)),
-                    "stage": belief.get_stage(),
-                    "evidence_strength": belief.posterior.effective_sample_size,
-                })
+                memory_beliefs.append(
+                    {
+                        "memory_id": mem_id,
+                        "content": item.get("content", ""),
+                        "confidence": belief.posterior.mean,
+                        "uncertainty": belief.posterior.std,
+                        "credible_interval_95": list(belief.posterior.credible_interval(0.95)),
+                        "stage": belief.get_stage(),
+                        "evidence_strength": belief.posterior.effective_sample_size,
+                    }
+                )
             else:
-                memory_beliefs.append({
-                    "memory_id": mem_id,
-                    "content": item.get("content", ""),
-                    "confidence": None,
-                    "stage": "no_bayesian_data",
-                })
+                memory_beliefs.append(
+                    {
+                        "memory_id": mem_id,
+                        "content": item.get("content", ""),
+                        "confidence": None,
+                        "stage": "no_bayesian_data",
+                    }
+                )
 
         results["memory_beliefs"] = memory_beliefs
 
@@ -617,27 +613,31 @@ class BayesianAugmenter:
             causal_chains = []
 
             for i, node_a in enumerate(related_nodes):
-                for node_b in related_nodes[i + 1:]:
+                for node_b in related_nodes[i + 1 :]:
                     # 检查双向因果强度
                     strength_ab = self.network.query_causal_strength(node_a, node_b)
                     strength_ba = self.network.query_causal_strength(node_b, node_a)
 
                     if strength_ab and strength_ab.get("evidence_count", 0) > 0:
-                        causal_chains.append({
-                            "from": node_a,
-                            "to": node_b,
-                            "strength": strength_ab["causal_strength"],
-                            "relative_risk": strength_ab["relative_risk"],
-                            "evidence_count": strength_ab["evidence_count"],
-                        })
+                        causal_chains.append(
+                            {
+                                "from": node_a,
+                                "to": node_b,
+                                "strength": strength_ab["causal_strength"],
+                                "relative_risk": strength_ab["relative_risk"],
+                                "evidence_count": strength_ab["evidence_count"],
+                            }
+                        )
                     if strength_ba and strength_ba.get("evidence_count", 0) > 0:
-                        causal_chains.append({
-                            "from": node_b,
-                            "to": node_a,
-                            "strength": strength_ba["causal_strength"],
-                            "relative_risk": strength_ba["relative_risk"],
-                            "evidence_count": strength_ba["evidence_count"],
-                        })
+                        causal_chains.append(
+                            {
+                                "from": node_b,
+                                "to": node_a,
+                                "strength": strength_ba["causal_strength"],
+                                "relative_risk": strength_ba["relative_risk"],
+                                "evidence_count": strength_ba["evidence_count"],
+                            }
+                        )
 
             # 按因果强度排序
             causal_chains.sort(key=lambda x: abs(x["strength"]), reverse=True)
@@ -649,8 +649,7 @@ class BayesianAugmenter:
             results["original_confidence"] = original_confidence
             # 基于相关记忆的平均后验置信度
             bayes_confidences = [
-                b["confidence"] for b in memory_beliefs
-                if b["confidence"] is not None
+                b["confidence"] for b in memory_beliefs if b["confidence"] is not None
             ]
             if bayes_confidences:
                 results["bayesian_confidence"] = sum(bayes_confidences) / len(bayes_confidences)
@@ -663,11 +662,8 @@ class BayesianAugmenter:
         return results
 
     def _compare_reasoning(
-        self,
-        query: str,
-        original: Dict,
-        bayesian: Dict
-    ) -> List[ComparisonDelta]:
+        self, query: str, original: dict, bayesian: dict
+    ) -> list[ComparisonDelta]:
         """对比推理结果"""
         comparisons = []
 
@@ -676,36 +672,42 @@ class BayesianAugmenter:
         bayes_conf = bayesian.get("bayesian_confidence")
         if orig_conf is not None and bayes_conf is not None:
             delta = bayes_conf - orig_conf
-            comparisons.append(ComparisonDelta(
-                field="reasoning_confidence",
-                original_value=orig_conf,
-                bayesian_value=bayes_conf,
-                difference_description=(
-                    f"贝叶斯{'上调' if delta > 0 else '下调'}推理置信度 {abs(delta):.3f}"
-                ),
-                improvement_indicator="positive"
-            ))
+            comparisons.append(
+                ComparisonDelta(
+                    field="reasoning_confidence",
+                    original_value=orig_conf,
+                    bayesian_value=bayes_conf,
+                    difference_description=(
+                        f"贝叶斯{'上调' if delta > 0 else '下调'}推理置信度 {abs(delta):.3f}"
+                    ),
+                    improvement_indicator="positive",
+                )
+            )
 
         # 因果链是否存在
         causal_chains = bayesian.get("causal_chains", [])
-        comparisons.append(ComparisonDelta(
-            field="causal_chain_count",
-            original_value="无因果链",
-            bayesian_value=f"{len(causal_chains)} 条概率化因果链",
-            difference_description="贝叶斯网络补充了因果强度量化",
-            improvement_indicator="positive" if causal_chains else "neutral"
-        ))
+        comparisons.append(
+            ComparisonDelta(
+                field="causal_chain_count",
+                original_value="无因果链",
+                bayesian_value=f"{len(causal_chains)} 条概率化因果链",
+                difference_description="贝叶斯网络补充了因果强度量化",
+                improvement_indicator="positive" if causal_chains else "neutral",
+            )
+        )
 
         # 记忆信念覆盖
         memory_beliefs = bayesian.get("memory_beliefs", [])
         with_beliefs = sum(1 for m in memory_beliefs if m.get("confidence") is not None)
-        comparisons.append(ComparisonDelta(
-            field="belief_coverage",
-            original_value="无信念覆盖",
-            bayesian_value=f"{with_beliefs}/{len(memory_beliefs)} 记忆有贝叶斯信念",
-            difference_description=f"为 {with_beliefs} 条记忆提供了概率化信念状态",
-            improvement_indicator="positive" if with_beliefs > 0 else "neutral"
-        ))
+        comparisons.append(
+            ComparisonDelta(
+                field="belief_coverage",
+                original_value="无信念覆盖",
+                bayesian_value=f"{with_beliefs}/{len(memory_beliefs)} 记忆有贝叶斯信念",
+                difference_description=f"为 {with_beliefs} 条记忆提供了概率化信念状态",
+                improvement_indicator="positive" if with_beliefs > 0 else "neutral",
+            )
+        )
 
         return comparisons
 
@@ -716,11 +718,11 @@ class BayesianAugmenter:
     def feedback(
         self,
         query: str,
-        expected_memory_ids: List[str] = None,
-        expected_outcome: bool = None,
-        is_correct: bool = None,
-        ground_truth_value: float = None,
-    ) -> Dict:
+        expected_memory_ids: list[str] | None = None,
+        expected_outcome: bool | None = None,
+        is_correct: bool | None = None,
+        ground_truth_value: float | None = None,
+    ) -> dict:
         """
         用户反馈 — 闭合贝叶斯更新回路
 
@@ -753,7 +755,7 @@ class BayesianAugmenter:
                     success=True,
                     weight=1.0,
                     source="user_feedback",
-                    note=f"Relevant to: {query}"
+                    note=f"Relevant to: {query}",
                 )
 
             # 获取之前查询的结果，将未命中的标记为负面证据
@@ -767,7 +769,7 @@ class BayesianAugmenter:
                             success=False,
                             weight=0.3,  # 未命中证据权重较低
                             source="user_feedback",
-                            note=f"Not relevant to: {query}"
+                            note=f"Not relevant to: {query}",
                         )
             except Exception:
                 pass
@@ -796,35 +798,40 @@ class BayesianAugmenter:
             error_original = abs(original_prob - ground_truth_value)
             error_bayesian = abs(bayesian_prob - ground_truth_value)
 
-            self._accuracy_records.append(AccuracyRecord(
-                timestamp=time.time(),
-                method="original",
-                query=query,
-                predicted_value=original_prob,
-                actual_value=ground_truth_value,
-                error=original_prob - ground_truth_value,
-                absolute_error=error_original,
-            ))
-            self._accuracy_records.append(AccuracyRecord(
-                timestamp=time.time(),
-                method="bayesian",
-                query=query,
-                predicted_value=bayesian_prob,
-                actual_value=ground_truth_value,
-                error=bayesian_prob - ground_truth_value,
-                absolute_error=error_bayesian,
-            ))
+            self._accuracy_records.append(
+                AccuracyRecord(
+                    timestamp=time.time(),
+                    method="original",
+                    query=query,
+                    predicted_value=original_prob,
+                    actual_value=ground_truth_value,
+                    error=original_prob - ground_truth_value,
+                    absolute_error=error_original,
+                )
+            )
+            self._accuracy_records.append(
+                AccuracyRecord(
+                    timestamp=time.time(),
+                    method="bayesian",
+                    query=query,
+                    predicted_value=bayesian_prob,
+                    actual_value=ground_truth_value,
+                    error=bayesian_prob - ground_truth_value,
+                    absolute_error=error_bayesian,
+                )
+            )
             # F6-P1-1: LRU 容量修剪 — 保留最近 max_accuracy_records 条
             if len(self._accuracy_records) > self._max_accuracy_records:
-                self._accuracy_records = self._accuracy_records[-self._max_accuracy_records:]
+                self._accuracy_records = self._accuracy_records[-self._max_accuracy_records :]
 
             result["accuracy"] = {
                 "original_error": error_original,
                 "bayesian_error": error_bayesian,
                 "improvement": (
                     (error_original - error_bayesian) / max(error_original, 0.001) * 100
-                    if error_original > 0 else 0
-                )
+                    if error_original > 0
+                    else 0
+                ),
             }
 
         # 3. 预测校准反馈
@@ -849,7 +856,7 @@ class BayesianAugmenter:
     # 准确度报告
     # ================================================================
 
-    def get_accuracy_report(self) -> Dict:
+    def get_accuracy_report(self) -> dict:
         """
         获取双路径准确度对比报告
 
@@ -871,20 +878,20 @@ class BayesianAugmenter:
                     "total_records": 0,
                     "improvement_pct": 0,
                     "verdict": "尚无反馈数据",
-                    "recommendation": "对若干查询调用 augmenter.feedback() 来收集对比数据"
+                    "recommendation": "对若干查询调用 augmenter.feedback() 来收集对比数据",
                 },
                 "message": "尚无反馈数据。使用 feedback() 方法提供验证数据。",
-                "suggestion": "对若干查询调用 augmenter.feedback() 来收集对比数据。"
+                "suggestion": "对若干查询调用 augmenter.feedback() 来收集对比数据。",
             }
 
         original_records = [r for r in self._accuracy_records if r.method == "original"]
         bayesian_records = [r for r in self._accuracy_records if r.method == "bayesian"]
 
-        def compute_stats(records: List[AccuracyRecord]) -> Dict:
+        def compute_stats(records: list[AccuracyRecord]) -> dict:
             if not records:
                 return {}
             mae = sum(r.absolute_error for r in records) / len(records)
-            mse = sum(r.error ** 2 for r in records) / len(records)
+            mse = sum(r.error**2 for r in records) / len(records)
             rmse = math.sqrt(mse)
             errors = sorted([r.absolute_error for r in records])
 
@@ -893,7 +900,11 @@ class BayesianAugmenter:
                 "mae": mae,
                 "rmse": rmse,
                 "median_error": errors[len(errors) // 2] if errors else 0,
-                "p90_error": errors[int(len(errors) * 0.9)] if len(errors) >= 10 else errors[-1] if errors else 0,
+                "p90_error": errors[int(len(errors) * 0.9)]
+                if len(errors) >= 10
+                else errors[-1]
+                if errors
+                else 0,
                 "mean_bias": sum(r.error for r in records) / len(records),
             }
 
@@ -902,7 +913,8 @@ class BayesianAugmenter:
 
         improvement = (
             (orig_stats.get("mae", 0) - bayes_stats.get("mae", 0))
-            / max(orig_stats.get("mae", 0.001), 0.001) * 100
+            / max(orig_stats.get("mae", 0.001), 0.001)
+            * 100
         )
 
         # 判定置信度
@@ -931,9 +943,7 @@ class BayesianAugmenter:
             "bayesian_stats": bayes_stats,
             "engine_stats": self.engine.get_statistics(),
             "network_stats": self.network.get_statistics() if self.network else None,
-            "calibration": (
-                self.predictor.get_calibration_report() if self.predictor else None
-            ),
+            "calibration": (self.predictor.get_calibration_report() if self.predictor else None),
         }
 
     def print_accuracy_report(self):
@@ -953,21 +963,31 @@ class BayesianAugmenter:
         orig = report["original_stats"]
         bayes = report["bayesian_stats"]
 
-        print(f"\n  📈 总体: {summary['total_feedback']} 次反馈, {summary['total_records']} 条准确度记录")
+        print(
+            f"\n  📈 总体: {summary['total_feedback']} 次反馈, {summary['total_records']} 条准确度记录"
+        )
         print(f"\n  {'指标':<15} {'原始':>10} {'贝叶斯':>10} {'改善':>10}")
-        print(f"  {'─'*15} {'─'*10} {'─'*10} {'─'*10}")
-        print(f"  {'MAE':<15} {orig.get('mae', 0):>10.4f} {bayes.get('mae', 0):>10.4f} {summary['improvement_pct']:>+9.1f}%")
+        print(f"  {'─' * 15} {'─' * 10} {'─' * 10} {'─' * 10}")
+        print(
+            f"  {'MAE':<15} {orig.get('mae', 0):>10.4f} {bayes.get('mae', 0):>10.4f} {summary['improvement_pct']:>+9.1f}%"
+        )
         print(f"  {'RMSE':<15} {orig.get('rmse', 0):>10.4f} {bayes.get('rmse', 0):>10.4f}")
-        print(f"  {'Median Error':<15} {orig.get('median_error', 0):>10.4f} {bayes.get('median_error', 0):>10.4f}")
-        print(f"  {'P90 Error':<15} {orig.get('p90_error', 0):>10.4f} {bayes.get('p90_error', 0):>10.4f}")
-        print(f"  {'Bias':<15} {orig.get('mean_bias', 0):>10.4f} {bayes.get('mean_bias', 0):>10.4f}")
+        print(
+            f"  {'Median Error':<15} {orig.get('median_error', 0):>10.4f} {bayes.get('median_error', 0):>10.4f}"
+        )
+        print(
+            f"  {'P90 Error':<15} {orig.get('p90_error', 0):>10.4f} {bayes.get('p90_error', 0):>10.4f}"
+        )
+        print(
+            f"  {'Bias':<15} {orig.get('mean_bias', 0):>10.4f} {bayes.get('mean_bias', 0):>10.4f}"
+        )
 
         print(f"\n  🎯 判定: {summary['verdict']}")
         print(f"  💡 建议: {summary['recommendation']}")
 
         if report.get("calibration") and report["calibration"].get("status") != "insufficient_data":
             cal = report["calibration"]
-            print(f"\n  📏 预测校准:")
+            print("\n  📏 预测校准:")
             print(f"     状态: {cal.get('status', 'N/A')}")
             print(f"     Brier Score: {cal.get('brier_score', 0):.4f}")
             print(f"     校准偏置: {cal.get('calibration_bias', 0):.4f}")
@@ -978,11 +998,7 @@ class BayesianAugmenter:
     # 批量对比验证
     # ================================================================
 
-    def run_validation_suite(
-        self,
-        test_queries: List[Dict],
-        verbose: bool = True
-    ) -> Dict:
+    def run_validation_suite(self, test_queries: list[dict], verbose: bool = True) -> dict:
         """
         运行批量对比验证
 
@@ -1015,27 +1031,37 @@ class BayesianAugmenter:
                 ground_truth_value=tc.get("ground_truth_value"),
             )
 
-            results.append({
-                "query": query,
-                "top1_match": (
-                    result.original["results"][0]["memory_id"]
-                    if result.original["results"] else None
-                ),
-                "bayesian_top1": (
-                    result.bayesian["results"][0]["memory_id"]
-                    if result.bayesian["results"] else None
-                ),
-                "expected": tc.get("expected_memory_ids", [None])[0] if tc.get("expected_memory_ids") else None,
-                "original_correct": (
-                    result.original["results"][0]["memory_id"] in tc.get("expected_memory_ids", [])
-                    if result.original["results"] and tc.get("expected_memory_ids") else None
-                ),
-                "bayesian_correct": (
-                    result.bayesian["results"][0]["memory_id"] in tc.get("expected_memory_ids", [])
-                    if result.bayesian["results"] and tc.get("expected_memory_ids") else None
-                ),
-                "feedback": feedback,
-            })
+            results.append(
+                {
+                    "query": query,
+                    "top1_match": (
+                        result.original["results"][0]["memory_id"]
+                        if result.original["results"]
+                        else None
+                    ),
+                    "bayesian_top1": (
+                        result.bayesian["results"][0]["memory_id"]
+                        if result.bayesian["results"]
+                        else None
+                    ),
+                    "expected": tc.get("expected_memory_ids", [None])[0]
+                    if tc.get("expected_memory_ids")
+                    else None,
+                    "original_correct": (
+                        result.original["results"][0]["memory_id"]
+                        in tc.get("expected_memory_ids", [])
+                        if result.original["results"] and tc.get("expected_memory_ids")
+                        else None
+                    ),
+                    "bayesian_correct": (
+                        result.bayesian["results"][0]["memory_id"]
+                        in tc.get("expected_memory_ids", [])
+                        if result.bayesian["results"] and tc.get("expected_memory_ids")
+                        else None
+                    ),
+                    "feedback": feedback,
+                }
+            )
 
         # 统计
         orig_correct = sum(1 for r in results if r["original_correct"] is True)
@@ -1050,8 +1076,12 @@ class BayesianAugmenter:
             print("=" * 60)
             print(f"\n  测试用例: {len(test_queries)}")
             if total_tested > 0:
-                print(f"  原始 Top-1 准确率: {orig_correct}/{total_tested} ({orig_correct/total_tested*100:.1f}%)")
-                print(f"  贝叶斯 Top-1 准确率: {bayes_correct}/{total_tested} ({bayes_correct/total_tested*100:.1f}%)")
+                print(
+                    f"  原始 Top-1 准确率: {orig_correct}/{total_tested} ({orig_correct / total_tested * 100:.1f}%)"
+                )
+                print(
+                    f"  贝叶斯 Top-1 准确率: {bayes_correct}/{total_tested} ({bayes_correct / total_tested * 100:.1f}%)"
+                )
                 improv = (bayes_correct - orig_correct) / max(total_tested, 1) * 100
                 print(f"  准确率差异: {improv:+.1f}%")
             print(f"\n  误差改善: {report.get('summary', {}).get('improvement_pct', 0):+.1f}%")
@@ -1061,8 +1091,12 @@ class BayesianAugmenter:
             "results": results,
             "summary": {
                 "test_count": len(test_queries),
-                "original_accuracy": orig_correct / max(total_tested, 1) if total_tested > 0 else None,
-                "bayesian_accuracy": bayes_correct / max(total_tested, 1) if total_tested > 0 else None,
+                "original_accuracy": orig_correct / max(total_tested, 1)
+                if total_tested > 0
+                else None,
+                "bayesian_accuracy": bayes_correct / max(total_tested, 1)
+                if total_tested > 0
+                else None,
             },
             "accuracy_report": report,
         }
@@ -1085,7 +1119,7 @@ class BayesianAugmenter:
     # 持久化
     # ================================================================
 
-    def save_state(self, path: str = None) -> str:
+    def save_state(self, path: str | None = None) -> str:
         """保存贝叶斯增强器状态"""
         path = path or f"bayesian_augmenter_state_{int(time.time())}.json"
         state = {
@@ -1111,7 +1145,7 @@ class BayesianAugmenter:
 
     def load_state(self, path: str):
         """恢复贝叶斯增强器状态"""
-        with open(path, "r") as f:
+        with open(path) as f:
             state = json.load(f)
 
         self._brs = BayesianReasoningSystem.from_dict(state.get("brs", {}))
@@ -1120,9 +1154,7 @@ class BayesianAugmenter:
         self.evidence = self._brs.evidence_collector
         self.predictor = self._brs.predictor
 
-        self._accuracy_records = [
-            AccuracyRecord(**r) for r in state.get("accuracy_records", [])
-        ]
+        self._accuracy_records = [AccuracyRecord(**r) for r in state.get("accuracy_records", [])]
         self._feedback_count = state.get("feedback_count", 0)
         self._synced_memory_ids = set(state.get("synced_ids", []))
 

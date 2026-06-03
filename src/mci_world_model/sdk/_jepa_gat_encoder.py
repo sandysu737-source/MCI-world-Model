@@ -29,9 +29,12 @@ su-memory v4.0.0 M3 — GAT Encoder
 from __future__ import annotations
 
 import logging
+import threading
 from collections import OrderedDict
 
 import numpy as np
+
+from mci_world_model.sdk._world_model import CausalWorldModelState
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +80,7 @@ class GATEncoder:
 
         # ── 前向缓存 ──
         self._cache: dict = {}
+        self._cache_lock = threading.Lock()
 
         # ── 统计 ──
         self._train_steps: int = 0
@@ -123,14 +127,14 @@ class GATEncoder:
             A_enc: [N, N] 边预测邻接矩阵 (float32)
         """
         X = np.asarray(X, dtype=np.float64)
-        N, D = X.shape
-        if D != self._input_dim:
+        _N, D = X.shape
+        if self._input_dim != D:
             raise ValueError(f"输入维度 {D} != {self._input_dim}")
 
         scale = np.sqrt(float(self._key_dim))
-        Q = X @ self.W_q              # [N, K]
-        K = X @ self.W_k              # [N, K]
-        S = Q @ K.T / scale           # [N, N]
+        Q = X @ self.W_q  # [N, K]
+        K = X @ self.W_k  # [N, K]
+        S = Q @ K.T / scale  # [N, N]
         S_clipped = np.clip(S, -15.0, 15.0)
         A_enc = 1.0 / (1.0 + np.exp(-S_clipped))
 
@@ -152,7 +156,7 @@ class GATEncoder:
             A_enc: [N, N] 边预测邻接矩阵 (float64)
         """
         X = np.asarray(X, dtype=np.float64)
-        N, D = X.shape
+        _N, _D = X.shape
 
         scale = np.sqrt(float(self._key_dim))
         Q = X @ self.W_q
@@ -161,13 +165,14 @@ class GATEncoder:
         S_clipped = np.clip(S, -15.0, 15.0)
         A_enc = 1.0 / (1.0 + np.exp(-S_clipped))
 
-        self._cache = {
-            "X": X,
-            "Q": Q,
-            "K": K,
-            "S": S,
-            "A_enc": A_enc,
-        }
+        with self._cache_lock:
+            self._cache = {
+                "X": X,
+                "Q": Q,
+                "K": K,
+                "S": S,
+                "A_enc": A_enc,
+            }
 
         self._forward_count += 1
         return A_enc
@@ -192,13 +197,13 @@ class GATEncoder:
         Returns:
             {"W_q": ..., "W_k": ..., "loss_component": ...}
         """
-        cache = self._cache
+        with self._cache_lock:
+            cache = self._cache.copy()
         if not cache:
             return {"W_q": np.zeros_like(self.W_q), "W_k": np.zeros_like(self.W_k)}
 
         dA = np.asarray(dA, dtype=np.float64)
         A_enc = A_enc if A_enc is not None else cache["A_enc"]
-        S = cache["S"]
         Q = cache["Q"]
         K = cache["K"]
         X = cache["X"]
@@ -242,21 +247,26 @@ class GATEncoder:
         Returns:
             {"loss": float, "mse": float, "W_q": ..., "W_k": ...}
         """
-        cache = self._cache
+        with self._cache_lock:
+            cache = self._cache.copy()
         if not cache:
-            return {"loss": 0.0, "mse": 0.0,
-                    "W_q": np.zeros_like(self.W_q), "W_k": np.zeros_like(self.W_k)}
+            return {
+                "loss": 0.0,
+                "mse": 0.0,
+                "W_q": np.zeros_like(self.W_q),
+                "W_k": np.zeros_like(self.W_k),
+            }
 
         A_enc = cache["A_enc"]
         A_target = np.asarray(A_target, dtype=np.float64)
         N = A_enc.shape[0]
 
         diff = A_enc - A_target
-        mse = float(np.mean(diff ** 2))
+        mse = float(np.mean(diff**2))
 
         l2 = 0.0
         if self._l2_reg > 0:
-            l2 = self._l2_reg * (float(np.sum(self.W_q ** 2)) + float(np.sum(self.W_k ** 2)))
+            l2 = self._l2_reg * (float(np.sum(self.W_q**2)) + float(np.sum(self.W_k**2)))
 
         loss = mse + l2
 
@@ -293,9 +303,10 @@ class GATEncoder:
 
     def get_attention_scores(self) -> np.ndarray | None:
         """返回缓存中的注意力得分 S = Q @ K^T / √d_k。"""
-        if not self._cache:
-            return None
-        return self._cache.get("S")
+        with self._cache_lock:
+            if not self._cache:
+                return None
+            return self._cache.get("S")
 
     def to_adjacency_matrix(
         self,
@@ -318,10 +329,7 @@ class GATEncoder:
         return A_thresh
 
     def __repr__(self) -> str:
-        return (
-            f"GATEncoder(dim={self._input_dim}, key={self._key_dim}, "
-            f"steps={self._train_steps})"
-        )
+        return f"GATEncoder(dim={self._input_dim}, key={self._key_dim}, steps={self._train_steps})"
 
 
 # =============================================================================
@@ -362,7 +370,7 @@ def preprocess_memories_to_features(
     else:
         state = world_model.discover(memories, verbose=False)
 
-    X = state.to_node_feature_matrix()      # [N, 8]
+    X = state.to_node_feature_matrix()  # [N, 8]
     node_index = state._build_node_index()
     node_names = list(node_index.keys())
 
@@ -373,7 +381,7 @@ def features_to_state(
     A_enc: np.ndarray,
     node_index: dict[str, int],
     template_state,
-) -> "CausalWorldModelState":
+) -> CausalWorldModelState:
     """
     从 GAT 编码器的输出重建 CausalWorldModelState。
 

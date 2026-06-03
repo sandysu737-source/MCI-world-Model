@@ -316,12 +316,8 @@ class CausalWorldModelState:
             dist_structure = 0.0
 
         # ── 3. 能量守恒差异 ──
-        self_total_energy = sum(
-            abs(e.get("rho", 0.0)) for e in self.causal_edges
-        )
-        other_total_energy = sum(
-            abs(e.get("rho", 0.0)) for e in other.causal_edges
-        )
+        self_total_energy = sum(abs(e.get("rho", 0.0)) for e in self.causal_edges)
+        other_total_energy = sum(abs(e.get("rho", 0.0)) for e in other.causal_edges)
         max_energy = max(self_total_energy, other_total_energy, 1e-10)
         dist_energy = abs(self_total_energy - other_total_energy) / max_energy
 
@@ -349,8 +345,16 @@ class CausalWorldModelState:
                 if all_keys:
                     diffs = []
                     for k in all_keys:
-                        sc = getattr(self_states.get(k), "confidence", 0.5) if isinstance(self_states.get(k), object) else 0.5
-                        oc = getattr(other_states.get(k), "confidence", 0.5) if isinstance(other_states.get(k), object) else 0.5
+                        sc = (
+                            getattr(self_states.get(k), "confidence", 0.5)
+                            if isinstance(self_states.get(k), object)
+                            else 0.5
+                        )
+                        oc = (
+                            getattr(other_states.get(k), "confidence", 0.5)
+                            if isinstance(other_states.get(k), object)
+                            else 0.5
+                        )
                         diffs.append(abs(sc - oc))
                     dist_belief = sum(diffs) / len(diffs) if diffs else 0.0
             except Exception:
@@ -361,9 +365,7 @@ class CausalWorldModelState:
         causal_weight = alpha_edges + alpha_structure + alpha_energy
         total_weight = causal_weight
         distance = (
-            alpha_edges * dist_edges
-            + alpha_structure * dist_structure
-            + alpha_energy * dist_energy
+            alpha_edges * dist_edges + alpha_structure * dist_structure + alpha_energy * dist_energy
         )
         if has_temporal:
             total_weight += alpha_temporal
@@ -512,6 +514,7 @@ class MCIWorldModel:
                     FourierCausal,
                     GaussianDAG,
                 )
+
                 report["modules"]["causal_pipeline"] = "available"
             except ImportError:
                 report["modules"]["causal_pipeline"] = "unavailable"
@@ -522,6 +525,7 @@ class MCIWorldModel:
                 from mci_world_model.sdk._reflection_synthesizer import (
                     ReflectionSynthesizer,  # noqa: F401
                 )
+
                 report["modules"]["reflection_qa"] = "available"
             except ImportError:
                 report["modules"]["reflection_qa"] = "unavailable"
@@ -529,22 +533,25 @@ class MCIWorldModel:
             # ── 检查 SIGReg ──
             try:
                 from mci_world_model.sdk._sigreg import SIGReg  # noqa: F401
+
                 report["modules"]["sigreg"] = "available"
             except ImportError:
                 report["modules"]["sigreg"] = "unavailable"
 
             # ── v4.0.0 JEPA: 检查编码器 ──
             try:
-                from mci_world_model.sdk._jepa_encoder import JEPAEncoder  # noqa: F401
+                from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
                 report["modules"]["jepa_encoder"] = "available"
             except ImportError:
                 report["modules"]["jepa_encoder"] = "unavailable"
 
             # ── v4.0.0 JEPA: 检查预测器 ──
             try:
-                from mci_world_model.sdk._jepa_predictor import (  # noqa: F401
+                from mci_world_model.sdk._jepa_predictor import (
                     BeliefPropagationPredictor,
                 )
+
                 report["modules"]["jepa_predictor"] = "available"
             except ImportError:
                 report["modules"]["jepa_predictor"] = "unavailable"
@@ -552,6 +559,7 @@ class MCIWorldModel:
             # ── v4.0.0 M2: 检查 GNN 预测器 ──
             try:
                 from mci_world_model.sdk._jepa_gnn import GNNPredictor  # noqa: F401
+
                 report["modules"]["jepa_gnn"] = "available"
             except ImportError:
                 report["modules"]["jepa_gnn"] = "unavailable"
@@ -561,6 +569,7 @@ class MCIWorldModel:
                 from mci_world_model.sdk._energy_loss import (
                     EnergyConsistencyLoss,
                 )
+
                 report["modules"]["energy_loss"] = "available"
                 self._energy_loss = EnergyConsistencyLoss()
             except ImportError:
@@ -570,6 +579,7 @@ class MCIWorldModel:
             if report["modules"]["jepa_encoder"] == "available":
                 try:
                     from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
                     self._jepa_encoder = JEPAEncoder(self)
                     report["jepa_encoder"] = "initialized"
                 except Exception as e:
@@ -581,6 +591,7 @@ class MCIWorldModel:
                     from mci_world_model.sdk._jepa_predictor import (
                         BeliefPropagationPredictor,
                     )
+
                     self._jepa_predictor = BeliefPropagationPredictor()
                     report["jepa_predictor"] = "initialized"
                 except Exception as e:
@@ -666,8 +677,9 @@ class MCIWorldModel:
                 # ── Reflection Prior ──
                 try:
                     from mci_world_model.sdk._reflection_synthesizer import (
-                        ReflectionSynthesizer,  # noqa: F401
+                        ReflectionSynthesizer,
                     )
+
                     syn = ReflectionSynthesizer(
                         energy_bus=energy_bus,
                         min_confidence=0.4,
@@ -704,15 +716,9 @@ class MCIWorldModel:
                 self._state.parametric_enhanced = use_parametric
 
                 # ── 统计 ──
-                self._state.n_confirmed = sum(
-                    1 for e in edges if e.get("verdict") == "confirmed"
-                )
-                self._state.n_novel = sum(
-                    1 for e in edges if e.get("verdict") == "novel"
-                )
-                self._state.n_suppressed = sum(
-                    1 for e in edges if e.get("verdict") == "suppressed"
-                )
+                self._state.n_confirmed = sum(1 for e in edges if e.get("verdict") == "confirmed")
+                self._state.n_novel = sum(1 for e in edges if e.get("verdict") == "novel")
+                self._state.n_suppressed = sum(1 for e in edges if e.get("verdict") == "suppressed")
 
                 # ── 活跃状态 ──
                 active = set()
@@ -722,13 +728,16 @@ class MCIWorldModel:
                 self._state.active_states = active
 
                 from datetime import datetime
+
                 self._state.timestamp = datetime.now().isoformat()
 
                 if verbose:
                     logger.info(
                         "因果发现完成: %d 条边 (确认: %d, 新发现: %d, 抑制: %d)",
-                        len(edges), self._state.n_confirmed,
-                        self._state.n_novel, self._state.n_suppressed,
+                        len(edges),
+                        self._state.n_confirmed,
+                        self._state.n_novel,
+                        self._state.n_suppressed,
                     )
 
             except ImportError as e:
@@ -770,6 +779,7 @@ class MCIWorldModel:
 
         try:
             from mci_world_model.sdk._causal import CausalEngine
+
             engine = CausalEngine(min_confidence=0.4)
             effects = engine.predict_effects(cause, memories, top_k=top_k)
             return effects
@@ -813,9 +823,11 @@ class MCIWorldModel:
 
         try:
             # 0. 检测 M3 模式
-            is_m3 = (self._jepa_encoder is not None and
-                     hasattr(self._jepa_encoder, '_differentiable') and
-                     self._jepa_encoder._differentiable)
+            is_m3 = (
+                self._jepa_encoder is not None
+                and hasattr(self._jepa_encoder, "_differentiable")
+                and self._jepa_encoder._differentiable
+            )
 
             # 1. 编码: 记忆 → 因果图状态
             state = self._jepa_encoder.encode(memories)
@@ -827,8 +839,7 @@ class MCIWorldModel:
             predictions = []
             if state.causal_edges and next_state.causal_edges:
                 current_edge_keys = {
-                    (e.get("cause", ""), e.get("effect", ""))
-                    for e in state.causal_edges
+                    (e.get("cause", ""), e.get("effect", "")) for e in state.causal_edges
                 }
                 for edge in next_state.causal_edges:
                     ee = edge.get("effect", "")
@@ -837,20 +848,21 @@ class MCIWorldModel:
                     if cause.lower() in ec.lower() or cause.lower() in ee.lower():
                         key = (ec, ee)
                         is_new = key not in current_edge_keys
-                        predictions.append({
-                            "effect": ee,
-                            "confidence": edge.get("confidence", 0.5) * (1.1 if is_new else 0.9),
-                            "energy_relation": edge.get("energy_relation", "neutral"),
-                            "cause": ec,
-                            "verdict": edge.get("verdict", "predicted"),
-                            "_mode": "m3_gat_gnn" if is_m3 else "jepa_baseline",
-                        })
+                        predictions.append(
+                            {
+                                "effect": ee,
+                                "confidence": edge.get("confidence", 0.5)
+                                * (1.1 if is_new else 0.9),
+                                "energy_relation": edge.get("energy_relation", "neutral"),
+                                "cause": ec,
+                                "verdict": edge.get("verdict", "predicted"),
+                                "_mode": "m3_gat_gnn" if is_m3 else "jepa_baseline",
+                            }
+                        )
 
             # 按置信度排序
             predictions.sort(key=lambda x: x["confidence"], reverse=True)
-            return predictions[:top_k] if predictions else self.predict_effect(
-                cause, top_k=top_k
-            )
+            return predictions[:top_k] if predictions else self.predict_effect(cause, top_k=top_k)
 
         except Exception as e:
             logger.error("JEPA 预测失败: %s，回退到检索路径", e)
@@ -920,14 +932,16 @@ class MCIWorldModel:
             # 3. 提取预测边
             predictions = []
             for edge in next_state.causal_edges:
-                predictions.append({
-                    "cause": edge.get("cause", ""),
-                    "effect": edge.get("effect", ""),
-                    "rho": edge.get("rho", 0.0),
-                    "confidence": edge.get("confidence", 0.5),
-                    "verdict": edge.get("verdict", "predicted"),
-                    "energy_relation": edge.get("energy_relation", "neutral"),
-                })
+                predictions.append(
+                    {
+                        "cause": edge.get("cause", ""),
+                        "effect": edge.get("effect", ""),
+                        "rho": edge.get("rho", 0.0),
+                        "confidence": edge.get("confidence", 0.5),
+                        "verdict": edge.get("verdict", "predicted"),
+                        "energy_relation": edge.get("energy_relation", "neutral"),
+                    }
+                )
 
             predictions.sort(key=lambda x: abs(x["rho"]), reverse=True)
             return predictions[:top_k]
@@ -971,23 +985,27 @@ class MCIWorldModel:
             effect_key = r.get("effect", "")
             if effect_key not in seen_effects:
                 seen_effects.add(effect_key)
-                fused.append({
-                    "effect": effect_key,
-                    "confidence": r.get("confidence", 0.5) * parametric_weight,
-                    "source": "jepa",
-                    "energy_relation": r.get("energy_relation", "neutral"),
-                })
+                fused.append(
+                    {
+                        "effect": effect_key,
+                        "confidence": r.get("confidence", 0.5) * parametric_weight,
+                        "source": "jepa",
+                        "energy_relation": r.get("energy_relation", "neutral"),
+                    }
+                )
 
         for r in retrieval_results:
             content = r.get("content", "")
             if content not in seen_effects:
                 seen_effects.add(content)
-                fused.append({
-                    "effect": content,
-                    "confidence": r.get("confidence", 0.5) * retrieval_weight,
-                    "source": "retrieval",
-                    "causal_type": r.get("causal_type", ""),
-                })
+                fused.append(
+                    {
+                        "effect": content,
+                        "confidence": r.get("confidence", 0.5) * retrieval_weight,
+                        "source": "retrieval",
+                        "causal_type": r.get("causal_type", ""),
+                    }
+                )
 
         fused.sort(key=lambda x: x["confidence"], reverse=True)
         return fused[:top_k]
@@ -1009,13 +1027,14 @@ class MCIWorldModel:
         if not self._state or not self._state.causal_edges:
             return None
         from mci_world_model.sdk._do_calculus import DoCalculus
-        n_nodes = max(
-            max(e.get("cause_idx", 0), e.get("effect_idx", 0))
-            for e in self._state.causal_edges
-        ) + 1
-        return DoCalculus.build_from_gaussian_dag(
-            self._state.causal_edges, n_nodes
+
+        n_nodes = (
+            max(
+                max(e.get("cause_idx", 0), e.get("effect_idx", 0)) for e in self._state.causal_edges
+            )
+            + 1
         )
+        return DoCalculus.build_from_gaussian_dag(self._state.causal_edges, n_nodes)
 
     # ────────────────────────────────────────────────
     # Pearl do-operator 干预（v3.7.0 完整实现）
@@ -1061,6 +1080,7 @@ class MCIWorldModel:
                 if self._do_calculus is None:
                     try:
                         from mci_world_model.sdk._do_calculus import DoCalculus
+
                         self._do_calculus = DoCalculus()
                     except ImportError:
                         return {
@@ -1071,32 +1091,32 @@ class MCIWorldModel:
         # ── 从因果边构建 CausalGraph ──
         try:
             from mci_world_model.sdk._do_calculus import CausalGraph
+
             cg = self._build_causal_graph_from_state()
             if cg is None:
                 cg = CausalGraph(
-                    nodes=list(do_x.keys()) + [target],
+                    nodes=[*list(do_x.keys()), target],
                     edges=[],
                 )
         except Exception:
             logger.warning("CausalGraph 构建失败，回退到默认空图", exc_info=True)
             cg = CausalGraph(
-                nodes=list(do_x.keys()) + [target],
+                nodes=[*list(do_x.keys()), target],
                 edges=[],
             )
 
         self._do_calculus.set_graph(cg)
 
         # ── 执行干预分析 ──
-        x_name = list(do_x.keys())[0]
-        x_value = float(list(do_x.values())[0])
+        x_name = next(iter(do_x.keys()))
+        x_value = float(next(iter(do_x.values())))
 
         # F2-P0-1: 拒绝 NaN/Inf 干预值 — 保证浮点边界洁污不污染下游计算
         if not np.isfinite(x_value):
             return {
                 "status": "error",
                 "message": (
-                    f"intervention value must be finite (NaN/Inf rejected), "
-                    f"got: x_value={x_value}"
+                    f"intervention value must be finite (NaN/Inf rejected), got: x_value={x_value}"
                 ),
             }
 
@@ -1183,13 +1203,16 @@ class MCIWorldModel:
                     if self._do_calculus is None:
                         try:
                             from mci_world_model.sdk._do_calculus import DoCalculus
+
                             self._do_calculus = DoCalculus()
                         except ImportError:
                             return {
-                                "nde": 0.0, "nie": 0.0, "te": 0.0,
-                        "mediator": None,
-                        "note": "do_calculus_unavailable",
-                    }
+                                "nde": 0.0,
+                                "nie": 0.0,
+                                "te": 0.0,
+                                "mediator": None,
+                                "note": "do_calculus_unavailable",
+                            }
 
             # 尝试从因果图中识别中介
             if self._state and self._state.causal_edges:
@@ -1201,14 +1224,14 @@ class MCIWorldModel:
                     else:
                         mediator = None
                 except Exception:
-                    logger.warning(
-                        "中介变量识别失败，回退为无中介", exc_info=True
-                    )
+                    logger.warning("中介变量识别失败，回退为无中介", exc_info=True)
                     mediator = None
 
         if mediator is None:
             return {
-                "nde": 0.0, "nie": 0.0, "te": 0.0,
+                "nde": 0.0,
+                "nie": 0.0,
+                "te": 0.0,
                 "mediator": None,
                 "note": "no_mediator_identified",
             }
@@ -1311,11 +1334,7 @@ class MCIWorldModel:
         # ── 从因果图构建 CausalGraph ──
         cg = self._build_causal_graph_from_state()
         if cg is None:
-            all_nodes = (
-                list(evidence.keys())
-                + list(do_x.keys())
-                + [target]
-            )
+            all_nodes = list(evidence.keys()) + list(do_x.keys()) + [target]
             cg = CausalGraph(nodes=list(set(all_nodes)), edges=[])
 
         # ── 构建反事实引擎并查询 ──
@@ -1384,32 +1403,30 @@ class MCIWorldModel:
             "summary": summary,
         }
 
-    def _trace_causal_chains(
-        self, query: str, max_depth: int
-    ) -> list[dict]:
+    def _trace_causal_chains(self, query: str, max_depth: int) -> list[dict]:
         """追踪因果链。"""
         chains = []
         # 简单的关键词匹配追溯
         for edge in self._state.causal_edges:
             if "cause_idx" in edge and "effect_idx" in edge:
                 # 基于索引的边 — 需要映射回文本
-                chains.append({
-                    "path": [
-                        f"节点 {edge['cause_idx']}",
-                        f"→ 节点 {edge['effect_idx']}",
-                    ],
-                    "confidence": edge.get("confidence", 0.5),
-                    "verdict": edge.get("verdict", "unknown"),
-                    "energy_relation": edge.get("energy_relation", "neutral"),
-                    "depth": 1,
-                })
+                chains.append(
+                    {
+                        "path": [
+                            f"节点 {edge['cause_idx']}",
+                            f"→ 节点 {edge['effect_idx']}",
+                        ],
+                        "confidence": edge.get("confidence", 0.5),
+                        "verdict": edge.get("verdict", "unknown"),
+                        "energy_relation": edge.get("energy_relation", "neutral"),
+                        "depth": 1,
+                    }
+                )
 
         chains.sort(key=lambda c: c["confidence"], reverse=True)
         return chains
 
-    def _generate_explanation_summary(
-        self, chains: list[dict], query: str
-    ) -> str:
+    def _generate_explanation_summary(self, chains: list[dict], query: str) -> str:
         """生成可读解释摘要。"""
         if not chains:
             return f"未找到与「{query}」相关的因果链。"
@@ -1425,8 +1442,7 @@ class MCIWorldModel:
 
         top_chain = chains[0]
         parts.append(
-            f"最高置信度链 (置信度: {top_chain['confidence']:.2f}): "
-            f"{' → '.join(top_chain['path'])}"
+            f"最高置信度链 (置信度: {top_chain['confidence']:.2f}): {' → '.join(top_chain['path'])}"
         )
 
         return " ".join(parts)
@@ -1460,18 +1476,19 @@ class MCIWorldModel:
         if dataset is None and qa_pairs is not None:
             try:
                 from mci_world_model.sdk._jepa_dataset import JEPADataset
+
                 # 从 QA 对提取记忆并构造数据集
                 memories = []
                 for qa in qa_pairs:
                     if isinstance(qa, dict):
-                        memories.append({
-                            "content": qa.get("question", ""),
-                            "answer": qa.get("answer", ""),
-                        })
+                        memories.append(
+                            {
+                                "content": qa.get("question", ""),
+                                "answer": qa.get("answer", ""),
+                            }
+                        )
                 if memories:
-                    dataset = JEPADataset.from_memories(
-                        memories, self
-                    )
+                    dataset = JEPADataset.from_memories(memories, self)
             except ImportError as e:
                 return {"error": f"jepa_dataset_unavailable: {e}"}
 
@@ -1495,9 +1512,7 @@ class MCIWorldModel:
                 learning_rate=learning_rate,
             )
 
-            self._state.n_qa_pairs = len(dataset.pairs) if hasattr(
-                dataset, "pairs"
-            ) else 0
+            self._state.n_qa_pairs = len(dataset.pairs) if hasattr(dataset, "pairs") else 0
 
             return {
                 "n_pairs": len(dataset.pairs) if hasattr(dataset, "pairs") else 0,
@@ -1553,7 +1568,9 @@ class MCIWorldModel:
                 "available": self._jepa_predictor is not None,
                 "encoder_available": self._jepa_encoder is not None,
                 "is_gnn": self._is_gnn_predictor(),
-                "predictor_type": type(self._jepa_predictor).__name__ if self._jepa_predictor else "none",
+                "predictor_type": type(self._jepa_predictor).__name__
+                if self._jepa_predictor
+                else "none",
             },
             "energy_loss": {
                 "available": self._energy_loss is not None,
@@ -1567,8 +1584,12 @@ class MCIWorldModel:
                 "v3.7.0": "do_operator_intervention ✓",
                 "v3.8.0": "counterfactual_reasoning_l3 ✓",
                 "v4.0.0": "jepa_world_model_closed_loop ✓",
-                "v4.0.0-m2": "jepa_gnn_trainable ✓" if self._is_gnn_predictor() else "jepa_gnn_trainable (use GNNPredictor)",
-                "v4.0.0-m3": "jepa_e2e_differentiable ✓" if self._is_e2e_mode() else "jepa_e2e_differentiable (use enable_m3())",
+                "v4.0.0-m2": "jepa_gnn_trainable ✓"
+                if self._is_gnn_predictor()
+                else "jepa_gnn_trainable (use GNNPredictor)",
+                "v4.0.0-m3": "jepa_e2e_differentiable ✓"
+                if self._is_e2e_mode()
+                else "jepa_e2e_differentiable (use enable_m3())",
             },
             "status": self._compute_health_status(),
         }
@@ -1592,14 +1613,13 @@ class MCIWorldModel:
         """检测是否使用可微 GNN 预测器。"""
         if self._jepa_predictor is None:
             return False
-        return hasattr(self._jepa_predictor, 'training_predict')
+        return hasattr(self._jepa_predictor, "training_predict")
 
     def _is_e2e_mode(self) -> bool:
         """检测是否启用 M3 端到端可微模式。"""
         if self._jepa_encoder is None or self._jepa_predictor is None:
             return False
-        return (hasattr(self._jepa_encoder, 'training_encode') and
-                self._is_gnn_predictor())
+        return hasattr(self._jepa_encoder, "training_encode") and self._is_gnn_predictor()
 
     # ────────────────────────────────────────────────
     # M3: 端到端可微模式
@@ -1629,6 +1649,7 @@ class MCIWorldModel:
         if self._jepa_encoder is not None:
             try:
                 from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
                 encoder = JEPAEncoder(self, differentiable=True, gat_key_dim=encoder_key_dim)
                 self._jepa_encoder = encoder
                 report["encoder"] = "gat_encoder_initialized"
@@ -1640,6 +1661,7 @@ class MCIWorldModel:
         # ── GNN 预测器 ──
         try:
             from mci_world_model.sdk._jepa_gnn import GNNPredictor
+
             self._jepa_predictor = GNNPredictor(hidden_dim=predictor_hidden_dim)
             report["predictor"] = "gnn_predictor_installed"
             logger.info("M3 GNN 预测器已安装 (hidden_dim=%d)", predictor_hidden_dim)
@@ -1662,10 +1684,7 @@ class MCIWorldModel:
             if hasattr(self._lite_pro, "_store"):
                 store = self._lite_pro._store
                 if isinstance(store, dict):
-                    return [
-                        {"id": k, "content": v.get("content", "")}
-                        for k, v in store.items()
-                    ]
+                    return [{"id": k, "content": v.get("content", "")} for k, v in store.items()]
             # 通过 query 获取
             if hasattr(self._lite_pro, "query"):
                 results = self._lite_pro.query("*", top_k=100)
@@ -1677,9 +1696,7 @@ class MCIWorldModel:
             logger.warning("从 lite_pro 获取记忆失败: %s", e)
         return []
 
-    def _apply_parametric_prior(
-        self, dag, memories: list[dict]
-    ):
+    def _apply_parametric_prior(self, dag, memories: list[dict]):
         """
         v4.0.0: JEPADataset 先验注入（替代 TopologicalEnergyMatrix 回退）。
 
@@ -1697,15 +1714,14 @@ class MCIWorldModel:
         prior_source = "uniform"
         try:
             from mci_world_model.sdk._jepa_dataset import JEPADataset
+
             dataset = JEPADataset.from_memories(memories, self)
             if dataset.pairs and len(dataset.pairs) >= 1:
                 avg_dist = dataset.stats.get("avg_distance", 0.5)
                 for i in range(n):
                     for j in range(n):
                         if i != j:
-                            parametric_prior[i, j] = max(
-                                0.05, 1.0 - avg_dist
-                            ) * 0.2
+                            parametric_prior[i, j] = max(0.05, 1.0 - avg_dist) * 0.2
                 prior_source = "jepa_dataset"
             else:
                 parametric_prior.fill(0.1)
@@ -1720,7 +1736,9 @@ class MCIWorldModel:
         dag.with_parametric_prior(parametric_prior)
         logger.debug(
             "JEPA 先验已注入 GaussianDAG (%dx%d, source=%s)",
-            n, n, prior_source,
+            n,
+            n,
+            prior_source,
         )
 
     @property

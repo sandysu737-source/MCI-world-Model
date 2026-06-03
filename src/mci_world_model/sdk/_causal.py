@@ -33,8 +33,20 @@ logger = logging.getLogger(__name__)
 CAUSAL_PATTERNS: dict[str, dict[str, list[str]]] = {
     "cause": {
         "markers": ["如果", "因为", "由于", "既然", "因", "由"],
-        "effect_markers": ["所以", "因此", "导致", "使得", "促使", "引发",
-                          "就会", "结果", "于是", "那么", "就", "便"],
+        "effect_markers": [
+            "所以",
+            "因此",
+            "导致",
+            "使得",
+            "促使",
+            "引发",
+            "就会",
+            "结果",
+            "于是",
+            "那么",
+            "就",
+            "便",
+        ],
         "type": "cause",
     },
     "condition": {
@@ -51,8 +63,18 @@ CAUSAL_PATTERNS: dict[str, dict[str, list[str]]] = {
 
 # 共享词汇因果（无需连接词，靠共享主语/主题）
 SHARED_CAUSAL_PATTERNS = [
-    "导致", "造成", "引起", "引发", "促使", "使得",
-    "带来", "产生", "触发", "推动", "带动", "影响",
+    "导致",
+    "造成",
+    "引起",
+    "引发",
+    "促使",
+    "使得",
+    "带来",
+    "产生",
+    "触发",
+    "推动",
+    "带动",
+    "影响",
 ]
 
 
@@ -100,13 +122,12 @@ def detect_causal_link(
 def _hash_pair_id_360(cause: str, effect: str) -> str:
     """v3.6.0: 生成参数化因果对哈希 ID。"""
     import hashlib
+
     h = hashlib.sha256(f"{cause}:::{effect}".encode()).hexdigest()
     return f"p3_{h[:8]}"
 
 
-def _is_duplicate(
-    pairs: list[tuple[dict, dict, str, float]], id_a: str, id_b: str
-) -> bool:
+def _is_duplicate(pairs: list[tuple[dict, dict, str, float]], id_a: str, id_b: str) -> bool:
     """检查因果对是否已在列表中 (双向去重)。"""
     for p in pairs:
         pid_a = p[0].get("id", "")
@@ -119,6 +140,7 @@ def _is_duplicate(
 # ---------------------------------------------------------------------------
 # CausalEngine
 # ---------------------------------------------------------------------------
+
 
 class CausalEngine:
     """
@@ -197,6 +219,7 @@ class CausalEngine:
         if use_statistical and len(memories) >= 10:
             try:
                 from mci_world_model.sdk._spectral_causal import GaussianDAG
+
                 dag = GaussianDAG(memories, index, energy_bus)
 
                 # ── v3.5.0: Reflection Prior 增强 ──
@@ -205,6 +228,7 @@ class CausalEngine:
                         from mci_world_model.sdk._reflection_synthesizer import (
                             ReflectionSynthesizer,
                         )
+
                         syn = ReflectionSynthesizer(
                             energy_bus=energy_bus,
                             min_confidence=0.4,
@@ -213,20 +237,17 @@ class CausalEngine:
                         _, prior_matrix = syn.run_pipeline(memories)
                         dag.with_reflection_prior(prior_matrix)
                     except ImportError:
-                        logger.debug(
-                            "ReflectionSynthesizer 不可用，降级为纯统计路径"
-                        )
+                        logger.debug("ReflectionSynthesizer 不可用，降级为纯统计路径")
 
                 # ── v3.6.0: 参数化先验增强 ──
                 if use_parametric and parametric_model is not None:
                     try:
                         from mci_world_model.sdk._energy_loss import TopologicalEnergyMatrix
+
                         topo = TopologicalEnergyMatrix.build()
                         dag.with_parametric_prior(topo)
                     except ImportError:
-                        logger.debug(
-                            "TopologicalEnergyMatrix 不可用，跳过参数化先验"
-                        )
+                        logger.debug("TopologicalEnergyMatrix 不可用，跳过参数化先验")
 
                 stat_edges = dag.discover_hidden_edges()
 
@@ -240,21 +261,21 @@ class CausalEngine:
                         continue
 
                     causal_type = (
-                        f"stat_{edge.get('verdict', '')}"
-                        f"_{edge.get('energy_relation', '')}"
+                        f"stat_{edge.get('verdict', '')}_{edge.get('energy_relation', '')}"
                     )
-                    pairs.append((
-                        mem_a, mem_b,
-                        causal_type,
-                        edge["confidence"],
-                    ))
+                    pairs.append(
+                        (
+                            mem_a,
+                            mem_b,
+                            causal_type,
+                            edge["confidence"],
+                        )
+                    )
             except ImportError:
-                logger.debug(
-                    "GaussianDAG 统计模块不可用，降级为纯关键词模式"
-                )
+                logger.debug("GaussianDAG 统计模块不可用，降级为纯关键词模式")
 
         # ── 路径 3: 参数化模型推理 (v3.6.0 新增) ──
-        if use_parametric and parametric_model is not None and hasattr(parametric_model, 'predict'):
+        if use_parametric and parametric_model is not None and hasattr(parametric_model, "predict"):
             try:
                 for _i, mem_a in enumerate(memories):
                     cause_text = mem_a.get("content", "")
@@ -266,18 +287,23 @@ class CausalEngine:
                         if pred_confidence < self.min_confidence:
                             continue
                         # 构造虚拟记忆对象作为效应
-                        pred_id = f"parametric_{_hash_pair_id_360(cause_text, pred.get('effect', ''))}"
+                        pred_id = (
+                            f"parametric_{_hash_pair_id_360(cause_text, pred.get('effect', ''))}"
+                        )
                         effect_mem = {
                             "id": pred_id,
                             "content": pred.get("effect", ""),
                             "parametric": True,
                         }
                         if not _is_duplicate(pairs, mem_a.get("id", ""), pred_id):
-                            pairs.append((
-                                mem_a, effect_mem,
-                                f"parametric_{pred.get('energy_relation', 'neutral')}",
-                                pred_confidence,
-                            ))
+                            pairs.append(
+                                (
+                                    mem_a,
+                                    effect_mem,
+                                    f"parametric_{pred.get('energy_relation', 'neutral')}",
+                                    pred_confidence,
+                                )
+                            )
             except Exception as e:
                 logger.debug("参数化推理失败: %s", e)
 
@@ -291,7 +317,7 @@ class CausalEngine:
         memories: list[dict],
         top_k: int = 3,
         use_intervention: bool = False,  # v3.7.0 新增
-        do_value: float | None = None,    # v3.7.0 新增
+        do_value: float | None = None,  # v3.7.0 新增
     ) -> list[dict]:
         """
         基于历史记忆预测给定原因的效应。
@@ -310,6 +336,7 @@ class CausalEngine:
         if use_intervention:
             try:
                 from mci_world_model.sdk._world_model import MCIWorldModel
+
                 wm = MCIWorldModel()
                 wm.initialize()
                 # 使用记忆构建因果图
@@ -321,13 +348,15 @@ class CausalEngine:
                     target="effect",
                 )
                 if result.get("status") == "ok":
-                    return [{
-                        "memory_id": "do_intervention",
-                        "content": f"ATE={result.get('ate', 0):.4f}",
-                        "confidence": 1.0 - result.get("p_value", 0.5),
-                        "causal_type": f"do_calculus_{result.get('method', 'auto')}",
-                        "intervention_result": result,
-                    }]
+                    return [
+                        {
+                            "memory_id": "do_intervention",
+                            "content": f"ATE={result.get('ate', 0):.4f}",
+                            "confidence": 1.0 - result.get("p_value", 0.5),
+                            "causal_type": f"do_calculus_{result.get('method', 'auto')}",
+                            "intervention_result": result,
+                        }
+                    ]
             except ImportError:
                 logger.debug("MCIWorldModel 不可用，回退到关键词模式")
             except Exception as e:
@@ -339,12 +368,14 @@ class CausalEngine:
             result = detect_causal_link(cause_content, mem.get("content", ""))
             if result:
                 causal_type, confidence = result
-                causes.append({
-                    "memory_id": mem.get("id", ""),
-                    "content": mem["content"],
-                    "confidence": confidence,
-                    "causal_type": causal_type,
-                })
+                causes.append(
+                    {
+                        "memory_id": mem.get("id", ""),
+                        "content": mem["content"],
+                        "confidence": confidence,
+                        "causal_type": causal_type,
+                    }
+                )
 
         causes.sort(key=lambda x: x["confidence"], reverse=True)
         return causes[:top_k]
@@ -377,12 +408,14 @@ class CausalEngine:
                 mid = mem.get("id", "")
                 if mid not in seen:
                     seen.add(mid)
-                    chain.append({
-                        "depth": 1,
-                        "memory_id": mid,
-                        "content": mem["content"],
-                        "confidence": confidence,
-                    })
+                    chain.append(
+                        {
+                            "depth": 1,
+                            "memory_id": mid,
+                            "content": mem["content"],
+                            "confidence": confidence,
+                        }
+                    )
 
         # Depth 2: effects of effects
         if max_depth >= 2:
@@ -397,13 +430,15 @@ class CausalEngine:
                         mid = mem.get("id", "")
                         if mid not in seen:
                             seen.add(mid)
-                            chain.append({
-                                "depth": 2,
-                                "memory_id": mid,
-                                "content": mem["content"],
-                                "confidence": round(confidence * 0.8, 3),
-                                "parent": item["memory_id"],
-                            })
+                            chain.append(
+                                {
+                                    "depth": 2,
+                                    "memory_id": mid,
+                                    "content": mem["content"],
+                                    "confidence": round(confidence * 0.8, 3),
+                                    "parent": item["memory_id"],
+                                }
+                            )
 
         chain.sort(key=lambda x: (x["depth"], -x["confidence"]))
         return chain
