@@ -3,6 +3,7 @@ mci_world_model.sdk — World Model Core
 
 Pearl 因果三层 + JEPA 世界建模 + 能量一致性
 v3.0.1: Cost 模块独立 + STM 工作记忆
+v3.0.2: H-JEPA 分层预测 + Actor 动作搜索
 """
 
 # 贝叶斯系统（从 _sys re-export 到 sdk）
@@ -13,6 +14,9 @@ from mci_world_model._sys import (
 
 # 因果引擎基础
 from mci_world_model.sdk._causal import CausalEngine
+
+# v3.0.2: Causal Actor
+from mci_world_model.sdk._causal_actor import ActionCandidate, CausalActor
 
 # v3.0.1: Cost 模块独立
 from mci_world_model.sdk._cost_module import CostSignal, EnergyCostModule
@@ -36,6 +40,7 @@ from mci_world_model.sdk._energy_loss import (
 )
 
 # JEPA 全套
+from mci_world_model.sdk._hierarchical_encoder import HierarchicalJEPAEncoder, HierarchicalState
 from mci_world_model.sdk._jepa_dataset import JEPADataset
 from mci_world_model.sdk._jepa_encoder import JEPAEncoder
 from mci_world_model.sdk._jepa_gnn import GNNPredictor
@@ -87,6 +92,8 @@ from mci_world_model.sdk.bayesian_augmenter import (
 
 __all__ = [
     "AccuracyRecord",
+    # v3.0.2: Causal Actor
+    "ActionCandidate",
     # Bayesian Augmenter
     "BayesianAugmenter",
     # Spectral Causal
@@ -105,6 +112,8 @@ __all__ = [
     "CounterfactualResult",
     # v3.0.1: Cost Module
     "CostSignal",
+    # v3.0.2: Causal Actor
+    "CausalActor",
     # Pearl Do-Calculus
     "DoCalculus",
     # Energy Loss
@@ -116,6 +125,9 @@ __all__ = [
     "GNNPredictor",
     "GaussianDAG",
     "GaussianDistribution",
+    # v3.0.2: H-JEPA
+    "HierarchicalJEPAEncoder",
+    "HierarchicalState",
     "IdentityPredictor",
     "JEPADataset",
     # JEPA
