@@ -1,0 +1,118 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mci-world-model"
+version = "3.0.0"
+description = "MCI World Model — 因果世界模型引擎 (Pearl 三层 + JEPA 世界建模 + 能量中心)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "MCI World Model Team", email = "team@mci-world-model.ai" },
+]
+keywords = [
+    "causal-inference", "world-model", "pearl", "do-calculus",
+    "jepa", "energy-center", "counterfactual",
+    "bayesian-network", "spectral-causal", "causal-discovery",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "numpy>=1.26.0",
+    "scipy>=1.10.0",
+]
+
+[project.optional-dependencies]
+# JEPA 训练与可视化
+jepa = [
+    "torch>=2.0.0",
+    "torch-geometric>=2.4.0",
+]
+# SIGReg 基准
+bench = [
+    "matplotlib>=3.7.0",
+    "tqdm>=4.65.0",
+]
+# 完整安装：pip install mci-world-model[full]
+full = [
+    "torch>=2.0.0",
+    "torch-geometric>=2.4.0",
+    "matplotlib>=3.7.0",
+    "tqdm>=4.65.0",
+    "networkx>=3.0",
+]
+# 开发者工具
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "black>=23.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sandysu737-source/mci-world-model"
+Repository = "https://github.com/sandysu737-source/mci-world-model"
+Issues = "https://github.com/sandysu737-source/mci-world-model/issues"
+Discussions = "https://github.com/sandysu737-source/mci-world-model/discussions"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"mci_world_model" = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "PL",  # pylint
+    "RUF", # ruff-specific
+]
+ignore = [
+    "PLR0913",  # too many arguments
+    "PLR2004",  # magic value
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR2004", "S101"]
+"benchmarks/*" = ["PLR2004", "T201"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+warn_return_any = false
+
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: integration tests requiring torch",
+]
