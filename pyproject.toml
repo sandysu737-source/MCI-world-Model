@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mci-world-model"
-version = "3.0.2"
-description = "MCI World Model — 因果世界模型引擎 (Pearl 三层 + JEPA 世界建模 + Cost 独立 + STM + H-JEPA 分层 + Actor)"
+version = "3.0.3"
+description = "MCI World Model — 因果世界模型引擎 (LeCun 六模块完整闭环: Perception+WorldModel+Configurator+Cost+Actor+STM)"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

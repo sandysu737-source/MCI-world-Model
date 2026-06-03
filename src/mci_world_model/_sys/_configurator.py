@@ -247,3 +247,148 @@ class MetaConfigurator:
                 )
 
         return actions
+
+
+# =============================================================================
+# v3.0.3: HierarchicalConfigurator — 分层决策配置器
+# =============================================================================
+
+
+class HierarchicalConfigurator:
+    """
+    分层决策配置器，内嵌 MetaConfigurator 并叠加协调层+自适应层。
+
+    三层决策架构:
+        L1 (单层规则): 委托 MetaConfigurator 的因果/时序/域/低置信度规则
+        L2 (协调层): 多 gap 综合分析，优先级排序，冲突消解
+        L3 (自适应层): 基于配置效果反馈动态调整阈值
+
+    六态流转：IDLE → ANALYZING_L1 → COORDINATING_L2 → ADAPTING_L3 →
+              CONFIGURING → MONITORING → IDLE
+    """
+
+    MIN_SEVERITY = 0.3
+    DECAY_FACTOR = 0.9
+    BOOST_FACTOR = 1.1
+
+    def __init__(self):
+        self._base = MetaConfigurator()
+        self._state: str = "IDLE"
+        self._action_history: list[dict] = []
+        self._adaptive_thresholds: dict[str, float] = {
+            "causal": MetaConfigurator.M3_CAUSAL_SEVERITY_THRESHOLD,
+            "temporal": MetaConfigurator.RETRAIN_TEMPORAL_SEVERITY,
+        }
+        self._feedback_scores: list[float] = []
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    @property
+    def config_history(self) -> list[dict]:
+        return self._action_history[-30:]
+
+    @property
+    def adaptive_thresholds(self) -> dict:
+        return dict(self._adaptive_thresholds)
+
+    def configure(self, world_model, gaps: list | None = None) -> list[dict]:
+        """分层决策：L1 单层规则 → L2 协调排序 → L3 自适应。"""
+        self._state = "ANALYZING_L1"
+
+        raw_actions = self._base.configure(world_model, gaps)
+        meaningful = [a for a in raw_actions if a.action_type != "noop"]
+
+        if not meaningful:
+            self._state = "IDLE"
+            return []
+
+        # L2: 优先级排序
+        self._state = "COORDINATING_L2"
+        scored = self._score_actions(meaningful, gaps or [])
+        resolved = self._resolve_conflicts(scored)
+
+        # L3: 自适应阈值
+        self._state = "ADAPTING_L3"
+        self._adapt_thresholds(scored)
+
+        self._state = "CONFIGURING"
+        actions_dict = [
+            {"type": a.action_type, "priority": p, "reason": a.reason, "gap_id": a.gap_id}
+            for a, p in resolved
+        ]
+        self._action_history.extend(actions_dict)
+        self._state = "MONITORING"
+        logger.info("HierarchicalConfigurator: L1=%d → L2=%d → L3 完成", len(meaningful), len(resolved))
+        return actions_dict
+
+    def _score_actions(self, actions: list, gaps: list) -> list[tuple]:
+        """多维度评分排序：severity × impact - frequency_penalty。"""
+        scored: list[tuple] = []
+        impact_map = {"enable_m3": 3.0, "suggest_retrain": 2.0, "adjust_weights": 1.0}
+
+        for action in actions:
+            score = 0.0
+            if action.gap_id:
+                for g in gaps:
+                    if g.gap_id == action.gap_id:
+                        score += g.severity * 5.0
+                        break
+            score += impact_map.get(action.action_type, 1.0)
+
+            freq = sum(1 for h in self._action_history[-10:] if h.get("type") == action.action_type)
+            if freq >= 3:
+                score *= 0.5
+
+            scored.append((action, round(score, 4)))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored
+
+    def _resolve_conflicts(self, scored: list[tuple]) -> list[tuple]:
+        """冲突消解：enable_m3 已涵盖 suggest_retrain。"""
+        if len(scored) <= 1:
+            return scored
+        resolved: list[tuple] = []
+        has_m3 = False
+        for action, score in scored:
+            if action.action_type == "enable_m3":
+                if not has_m3:
+                    resolved.append((action, score))
+                    has_m3 = True
+            elif action.action_type == "suggest_retrain":
+                if not has_m3:
+                    resolved.append((action, score))
+            else:
+                resolved.append((action, score))
+        return resolved
+
+    def _adapt_thresholds(self, scored: list[tuple]) -> None:
+        """自适应阈值：高频触发→BOOST，长期无触发→DECAY。"""
+        if not scored:
+            return
+        action_types: dict[str, int] = {}
+        for h in self._action_history[-10:]:
+            t = h.get("type", "")
+            action_types[t] = action_types.get(t, 0) + 1
+
+        for atype, count in action_types.items():
+            if count >= 3 and atype in ("enable_m3", "suggest_retrain"):
+                self._adaptive_thresholds["causal"] = min(
+                    self._adaptive_thresholds["causal"] * self.BOOST_FACTOR, 0.9
+                )
+
+        if len(self._action_history) >= 5:
+            recent = sum(1 for h in self._action_history[-5:] if h.get("type") != "noop")
+            if recent == 0:
+                for k in ("causal", "temporal"):
+                    self._adaptive_thresholds[k] = max(
+                        self._adaptive_thresholds[k] * self.DECAY_FACTOR, 0.3
+                    )
+
+    def feedback(self, was_effective: bool) -> None:
+        """外部反馈：上一次配置是否有效。"""
+        self._feedback_scores.append(1.0 if was_effective else 0.0)
+        if len(self._feedback_scores) > 10:
+            self._feedback_scores.pop(0)

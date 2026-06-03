@@ -140,7 +140,7 @@ from mci_world_model._sys._category_core import TrigramCore
 from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
 # v3.0.1: Configurator
-from mci_world_model._sys._configurator import ConfigAction, MetaConfigurator
+from mci_world_model._sys._configurator import ConfigAction, HierarchicalConfigurator, MetaConfigurator
 from mci_world_model._sys._dimension_map import TaijiMapper
 from mci_world_model._sys._energy_bus import EnergyBus
 
@@ -148,6 +148,9 @@ from mci_world_model._sys._energy_bus import EnergyBus
 from mci_world_model._sys._energy_core import EnergyCore
 from mci_world_model._sys._energy_relations import analyze_balance
 from mci_world_model._sys._pattern_inference import PatternInference
+
+# v3.0.3: Perception Pipeline
+from mci_world_model._sys._perception_pipeline import PerceptionPipeline
 
 # 天层 (Temporal/Sky) — 六十花甲编码核心
 from mci_world_model._sys._temporal_core import (
@@ -248,6 +251,8 @@ __all__ = [
     "MetaConfigurator",
     "MetaCognition",
     "PatternInference",
+    # v3.0.3: Perception
+    "PerceptionPipeline",
     "PropagationConfig",
     # 关系强度
     "RELATION_STRENGTH",
@@ -274,6 +279,8 @@ __all__ = [
     "TaijiMapper",
     # 天层
     "TemporalCore",
+    # v3.0.3: H-JEPA
+    "HierarchicalConfigurator",
     "TemporalInfo",
     "TemporalSystem",
     "ThreePowers",

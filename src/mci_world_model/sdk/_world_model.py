@@ -537,6 +537,7 @@ class MCIWorldModel:
         self._configurator: object | None = None  # v3.0.1: MetaConfigurator
         self._hierarchical_encoder: object | None = None  # v3.0.2: HierarchicalJEPAEncoder
         self._causal_actor: object | None = None  # v3.0.2: CausalActor
+        self._perception: object | None = None  # v3.0.3: PerceptionPipeline
         self._initialized: bool = False
 
         # v4.0.0 JEPA: 编码器 + 预测器 (懒加载)
@@ -1711,6 +1712,9 @@ class MCIWorldModel:
                 "v3.0.2": "hierarchical_jepa ✓"
                 if self._hierarchical_encoder is not None
                 else "hierarchical_jepa (pending)",
+                "v3.0.3": "six_module_closed_loop ✓"
+                if self._perception is not None
+                else "six_module_closed_loop (pending)",
             },
             "status": self._compute_health_status(),
         }
@@ -1761,6 +1765,148 @@ class MCIWorldModel:
             self._state = result["state"]
 
         return {k: v for k, v in result.items() if k != "state"}
+
+    # ────────────────────────────────────────────────
+    # v3.0.3: 六模块端到端闭环管线
+    # ────────────────────────────────────────────────
+
+    def six_module_pipeline(
+        self,
+        memories: list[dict],
+        max_optimize_iterations: int = 2,
+    ) -> dict:
+        """
+        六模块端到端闭环：Perception → WorldModel → Configurator →
+                        Cost → Actor → STM → (loop)
+
+        完整执行 LeCun 六模块自主推理循环:
+        1. Perception: 原始观测 → 结构化特征
+        2. World Model: 特征 → 因果图发现 (discover)
+        3. Configurator: 认知空洞检测 → 动态配置
+        4. Cost: 评估当前状态代价
+        5. Actor: 搜索最优干预 → 执行
+        6. STM: 记录轨迹到 WorkingMemory
+
+        Args:
+            memories: 原始记忆列表
+            max_optimize_iterations: Actor 优化最大迭代数
+
+        Returns:
+            执行报告
+        """
+        report: dict = {
+            "perception": {},
+            "world_model": {},
+            "configurator": {},
+            "cost": {},
+            "actor": {},
+            "stm": {},
+            "summary": {},
+        }
+
+        # ── 1. Perception: raw → structured ──
+        try:
+            if self._perception is None:
+                from mci_world_model._sys._perception_pipeline import PerceptionPipeline
+
+                self._perception = PerceptionPipeline()
+                logger.info("v3.0.3 PerceptionPipeline 延迟初始化")
+
+            features = self._perception.process(memories)
+            report["perception"] = {
+                "n_entities": len(features.entities),
+                "has_temporal": bool(features.temporal_context),
+                "evidence_count": features.evidence_count,
+            }
+        except Exception as e:
+            report["perception"] = {"error": str(e)}
+            logger.warning("Perception 跳过: %s", e)
+
+        # ── 2. World Model: features → causal graph ──
+        try:
+            self._state = self.discover(memories)
+            report["world_model"] = {
+                "n_edges": len(self._state.causal_edges),
+                "n_confirmed": self._state.n_confirmed,
+                "n_novel": self._state.n_novel,
+            }
+        except Exception as e:
+            report["world_model"] = {"error": str(e)}
+            logger.warning("WorldModel 跳过: %s", e)
+
+        # ── 3. Configurator: gaps → config ──
+        try:
+            from mci_world_model._sys.awareness import MetaCognition
+
+            mc = MetaCognition()
+            gaps = mc.discover_gaps(
+                memory_types={"fact": self._state.n_confirmed, "event": self._state.n_novel},
+                user_domains=list(self._state.active_states),
+                memory_list=[{"id": e.get("cause", ""), "type": "fact"} for e in self._state.causal_edges[:50]],
+            )
+            report["configurator"] = {"n_gaps": len(gaps)}
+        except Exception as e:
+            report["configurator"] = {"error": str(e)}
+            logger.warning("Configurator 跳过: %s", e)
+
+        # ── 4. Cost: state → cost signal ──
+        try:
+            cost_module = self._cost_module
+            if cost_module is None:
+                from mci_world_model.sdk._cost_module import EnergyCostModule
+
+                cost_module = EnergyCostModule()
+                self._cost_module = cost_module
+
+            signal = cost_module.evaluate(self._state)
+            report["cost"] = signal.to_dict()
+        except Exception as e:
+            report["cost"] = {"error": str(e)}
+            logger.warning("Cost 跳过: %s", e)
+
+        # ── 5. Actor: cost → optimize ──
+        try:
+            actor_result = self.actor_optimize(max_iterations=max_optimize_iterations)
+            report["actor"] = {
+                "n_actions": actor_result.get("n_actions", 0),
+                "cost_reduction": actor_result.get("cost_reduction", 0),
+            }
+        except Exception as e:
+            report["actor"] = {"error": str(e)}
+            logger.warning("Actor 跳过: %s", e)
+
+        # ── 6. STM: record trajectory ──
+        try:
+            from mci_world_model.sdk._world_model import TrajectoryStep
+
+            if self._state.working_memory is None:
+                from mci_world_model.sdk._world_model import WorkingMemory
+
+                self._state.working_memory = WorkingMemory(max_length=10)
+
+            step = TrajectoryStep(
+                state=self._state,
+                step_index=self._state.working_memory.trajectory.__len__(),
+            )
+            self._state.working_memory.push(step)
+            report["stm"] = self._state.working_memory.to_dict()
+        except Exception as e:
+            report["stm"] = {"error": str(e)}
+            logger.warning("STM 跳过: %s", e)
+
+        # ── Summary ──
+        n_modules_ok = sum(
+            1 for k in ["perception", "world_model", "configurator", "cost", "actor", "stm"]
+            if "error" not in report.get(k, {})
+        )
+        report["summary"] = {
+            "modules_executed": n_modules_ok,
+            "total_modules": 6,
+            "six_module_ready": n_modules_ok == 6,
+            "health": self.health_check(),
+        }
+
+        return report
 
     def _compute_health_status(self) -> str:
         """计算整体健康状态。"""

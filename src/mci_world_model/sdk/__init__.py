@@ -4,6 +4,7 @@ mci_world_model.sdk — World Model Core
 Pearl 因果三层 + JEPA 世界建模 + 能量一致性
 v3.0.1: Cost 模块独立 + STM 工作记忆
 v3.0.2: H-JEPA 分层预测 + Actor 动作搜索
+v3.0.3: 六模块完整闭环 (Perception + Configurator 分层)
 """
 
 # 贝叶斯系统（从 _sys re-export 到 sdk）
