@@ -46,7 +46,7 @@ MCI World Model 是强劲的「CPU」:
 - 下游产品：MCI·焕 (mci-huan) / mci-kernel-integrations
 """
 
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 __project__ = "MCI World Model"
 __brand__ = "MCI"
 

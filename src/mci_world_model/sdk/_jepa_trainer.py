@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from mci_world_model.sdk._cost_module import EnergyCostModule
 from mci_world_model.sdk._world_model import CausalWorldModelState
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ class JEPATrainingStats:
     final_loss: float = 0.0
     min_loss: float = float("inf")
     loss_history: list[float] = field(default_factory=list)
+    cost_history: list[float] = field(default_factory=list)
     alpha_energy: float = 0.1
     beta_cons: float = 0.05
 
@@ -100,6 +102,12 @@ class JEPATrainer:
         )
         self._is_gnn = self._detect_gnn()
         self._is_e2e = self._detect_e2e()
+
+        # v3.0.1: Cost 模块独立化 — 委托 EnergyCostModule 评估
+        self._cost_module = EnergyCostModule(
+            alpha_energy=alpha_energy,
+            beta_causal=beta_cons,
+        )
 
     def _detect_gnn(self) -> bool:
         """检测预测器是否支持可微训练（M2 GNN）。"""
@@ -368,39 +376,33 @@ class JEPATrainer:
         """
         计算图结构能量损失。
 
-        对 pred 中的每条边，用 _sys/_energy_relations.py 判定是否违反增强/抑制模式。
+        v3.0.1: 委托 EnergyCostModule._energy_balance_cost()。
+        保留方法签名为向后兼容。
         """
-        if not s_pred.causal_edges:
-            return 0.0
-
-        violations = 0.0
-        n_edges = len(s_pred.causal_edges)
-
-        for edge in s_pred.causal_edges:
-            edge.get("cause", "")
-            edge.get("effect", "")
-            energy_rel = edge.get("energy_relation", "neutral")
-            rho = edge.get("rho", 0.0)
-
-            # 增强模式下的低权重惩罚
-            if energy_rel == "enhance" and rho < 0.3:
-                violations += (0.3 - rho) * 2.0
-            # 抑制模式下的高权重惩罚
-            elif energy_rel == "suppress" and rho > 0.7:
-                violations += (rho - 0.7) * 2.0
-
-        return violations / max(n_edges, 1)
+        cost = self._cost_module.evaluate(s_pred)
+        return cost.energy_balance
 
     def _compute_consistency_loss(
         self,
         s_pred: CausalWorldModelState,
         s_actual: CausalWorldModelState,
     ) -> float:
-        """计算能量总量守恒损失。"""
+        """
+        计算能量守恒损失。
+
+        v3.0.1: 委托 EnergyCostModule._temporal_coherence_cost()
+                + 预测-实际能量总量差。
+        """
+        cost = self._cost_module.evaluate(s_pred)
+        tc = cost.temporal_coherence
+
+        # 保留原始 energy 总量守恒逻辑作为补充
         pred_total = sum(abs(e.get("rho", 0.0)) for e in s_pred.causal_edges)
         actual_total = sum(abs(e.get("rho", 0.0)) for e in s_actual.causal_edges)
         max_total = max(pred_total, actual_total, 1e-10)
-        return abs(pred_total - actual_total) / max_total
+        energy_gap = abs(pred_total - actual_total) / max_total
+
+        return 0.7 * tc + 0.3 * energy_gap
 
     # -----------------------------------------------------------------
     # 评估

@@ -2,6 +2,7 @@
 mci_world_model.sdk — World Model Core
 
 Pearl 因果三层 + JEPA 世界建模 + 能量一致性
+v3.0.1: Cost 模块独立 + STM 工作记忆
 """
 
 # 贝叶斯系统（从 _sys re-export 到 sdk）
@@ -12,6 +13,9 @@ from mci_world_model._sys import (
 
 # 因果引擎基础
 from mci_world_model.sdk._causal import CausalEngine
+
+# v3.0.1: Cost 模块独立
+from mci_world_model.sdk._cost_module import CostSignal, EnergyCostModule
 
 # v3.0.0: 反事实推理（P3）
 from mci_world_model.sdk._counterfactual import (
@@ -68,6 +72,9 @@ from mci_world_model.sdk._spectral_causal import (
 from mci_world_model.sdk._world_model import (
     CausalWorldModelState,
     MCIWorldModel,
+    # v3.0.1: STM 工作记忆
+    TrajectoryStep,
+    WorkingMemory,
 )
 
 # 贝叶斯增强器
@@ -96,10 +103,13 @@ __all__ = [
     # Counterfactual
     "CounterfactualEngine",
     "CounterfactualResult",
+    # v3.0.1: Cost Module
+    "CostSignal",
     # Pearl Do-Calculus
     "DoCalculus",
     # Energy Loss
     "EnergyConsistencyLoss",
+    "EnergyCostModule",
     "EnergyPropagationPredictor",
     "EnhancedOutput",
     "FourierCausal",
@@ -123,5 +133,8 @@ __all__ = [
     "SIGReg",
     "SynthesizedQAPair",
     "TopologicalEnergyMatrix",
+    # v3.0.1: STM
+    "TrajectoryStep",
+    "WorkingMemory",
     "apply_sigreg_to_index",
 ]

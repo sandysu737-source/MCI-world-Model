@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -104,6 +105,14 @@ class CausalWorldModelState:
     cognitive_gaps: list = field(default_factory=list)
     # list[CognitiveGap] from _sys/awareness.py（认知空洞）
 
+    # ── v3.0.1 STM: 工作记忆轨迹缓冲区 ──
+    working_memory: object | None = None
+    # WorkingMemory 短期轨迹缓冲
+
+    # ── v3.0.1 Cost: 最近代价信号快照 ──
+    latest_cost_signal: object | None = None
+    # CostSignal 最近一次评估结果
+
     @classmethod
     def empty(cls) -> CausalWorldModelState:
         return cls()
@@ -124,6 +133,8 @@ class CausalWorldModelState:
             "has_temporal_info": self.temporal_info is not None,
             "has_belief_tracker": self.belief_tracker is not None,
             "n_cognitive_gaps": len(self.cognitive_gaps),
+            "has_working_memory": self.working_memory is not None,
+            "has_cost_signal": self.latest_cost_signal is not None,
         }
 
     # ────────────────────────────────────────────────
@@ -388,6 +399,86 @@ class CausalWorldModelState:
 
 
 # =============================================================================
+# v3.0.1: WorkingMemory — Short-Term Memory 轨迹缓冲区
+# =============================================================================
+
+
+@dataclass
+class TrajectoryStep:
+    """
+    单步轨迹记录。
+
+    Attributes:
+        state: 该时刻的因果世界状态
+        cost_signal: 该时刻的代价评估结果
+        step_index: 全局步序号
+        timestamp: 时间戳 (time.time())
+    """
+
+    state: object  # CausalWorldModelState
+    cost_signal: object | None = None  # CostSignal
+    step_index: int = 0
+    timestamp: float = field(default_factory=time.time)
+
+
+@dataclass
+class WorkingMemory:
+    """
+    LeCun 风格的短期记忆 / 工作记忆缓冲区。
+
+    六态流转：IDLE → RECORDING → FULL → FLUSHING → IDLE
+
+    Attributes:
+        max_length: 最大轨迹步数（默认 10）
+        trajectory: 轨迹步骤列表（FIFO）
+    """
+
+    max_length: int = 10
+    trajectory: list[TrajectoryStep] = field(default_factory=list)
+    _state: str = "IDLE"  # IDLE → RECORDING → FULL → FLUSHING → IDLE
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    @property
+    def is_full(self) -> bool:
+        return len(self.trajectory) >= self.max_length
+
+    def push(self, step: TrajectoryStep) -> None:
+        """压入一步轨迹，FIFO 淘汰最旧记录。"""
+        self._state = "RECORDING"
+        self.trajectory.append(step)
+        if len(self.trajectory) > self.max_length:
+            self.trajectory.pop(0)
+        if self.is_full:
+            self._state = "FULL"
+
+    def get_recent(self, n: int = 3) -> list[TrajectoryStep]:
+        """获取最近 n 步轨迹。"""
+        if not self.trajectory:
+            return []
+        return self.trajectory[-n:]
+
+    def clear(self) -> None:
+        """清空缓冲区，重置为 IDLE。"""
+        self._state = "FLUSHING"
+        self.trajectory.clear()
+        self._state = "IDLE"
+
+    def to_dict(self) -> dict:
+        return {
+            "max_length": self.max_length,
+            "n_steps": len(self.trajectory),
+            "state": self._state,
+            "recent_costs": [
+                round(s.cost_signal.total, 6) if s.cost_signal else None
+                for s in self.get_recent(3)
+            ],
+        }
+
+
+# =============================================================================
 # MCIWorldModel
 # =============================================================================
 
@@ -442,6 +533,8 @@ class MCIWorldModel:
         self._state = CausalWorldModelState.empty()
         self._parametric: object | None = None  # 降级为惰性加载 (v4.0.0)
         self._energy_loss: object | None = None  # EnergyConsistencyLoss
+        self._cost_module: object | None = None  # v3.0.1: EnergyCostModule
+        self._configurator: object | None = None  # v3.0.1: MetaConfigurator
         self._initialized: bool = False
 
         # v4.0.0 JEPA: 编码器 + 预测器 (懒加载)
@@ -1575,6 +1668,16 @@ class MCIWorldModel:
             "energy_loss": {
                 "available": self._energy_loss is not None,
             },
+            "cost_module": {
+                "available": self._cost_module is not None,
+                "state": self._cost_module.state if self._cost_module else "not_initialized",
+                "eval_count": self._cost_module.eval_count if self._cost_module else 0,
+            },
+            "configurator": {
+                "available": self._configurator is not None,
+                "state": self._configurator.state if self._configurator else "not_initialized",
+                "n_actions": len(self._configurator.config_history) if self._configurator else 0,
+            },
             "integration": {
                 "lite_pro_connected": self._lite_pro is not None,
                 "n_memories": self._state.n_memories,
@@ -1590,6 +1693,9 @@ class MCIWorldModel:
                 "v4.0.0-m3": "jepa_e2e_differentiable ✓"
                 if self._is_e2e_mode()
                 else "jepa_e2e_differentiable (use enable_m3())",
+                "v3.0.1": "cost_module_independent ✓"
+                if self._cost_module is not None
+                else "cost_module_independent (pending)",
             },
             "status": self._compute_health_status(),
         }
