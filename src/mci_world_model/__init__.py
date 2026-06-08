@@ -37,7 +37,7 @@ MCI World Model 是强劲的「CPU」:
 | 项目 | 版本号 |
 |------|--------|
 | su-memory-sdk（记忆引擎） | V3.5.1 |
-| MCI World Model（世界模型） | V3.1.0（物理世界应用） |
+| MCI World Model（世界模型） | V3.3.0（多模态因果世界模型） |
 
 🔗 上下游
 ==========
@@ -46,7 +46,7 @@ MCI World Model 是强劲的「CPU」:
 - 下游产品：MCI·焕 (mci-huan) / mci-kernel-integrations
 """
 
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 __project__ = "MCI World Model"
 __brand__ = "MCI"
 

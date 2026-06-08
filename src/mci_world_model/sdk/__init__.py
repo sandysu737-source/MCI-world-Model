@@ -133,9 +133,38 @@ from mci_world_model.sdk._world_model import (
 # v3.2.0: 独立世界状态抽象
 from mci_world_model.sdk._world_state import (
     Action,
+    MultimodalWorldState,
     PendulumAction,
     PendulumState,
     WorldState,
+)
+
+# v3.2.0: Phase 1 P0 — 多分支推演/惊奇检测/PlanAgent
+from mci_world_model.sdk._multi_branch_predictor import (
+    BranchEvaluation,
+    MultiBranchPredictor,
+)
+from mci_world_model.sdk._surprise_detector import (
+    SurpriseDetector,
+    SurpriseSignal,
+)
+from mci_world_model.sdk._plan_agent import (
+    Plan,
+    PlanAgent,
+)
+
+# v3.3.0: 多模态因果世界模型
+from mci_world_model.sdk._modality_encoders import (
+    AudioEncoder,
+    ThermalEncoder,
+    VisionEncoder,
+)
+from mci_world_model.sdk._multimodal_fusion import (
+    FusedRepresentation,
+    MultimodalFusion,
+)
+from mci_world_model.sdk._multimodal_graph_builder import (
+    MultimodalGraphBuilder,
 )
 
 # 贝叶斯增强器
@@ -182,10 +211,26 @@ __all__ = [
     # v3.2.0: 独立世界状态
     "Action",
     "ActionConditionedPredictor",
+    # v3.3.0: 模态编码器
+    "AudioEncoder",
+    "MultimodalWorldState",
     "PendulumAction",
     "PendulumJEPAPredictor",
     "PendulumPhysicsPredictor",
     "PendulumState",
+    # v3.2.0: Phase 1 P0
+    "MultiBranchPredictor",
+    "BranchEvaluation",
+    "SurpriseDetector",
+    "SurpriseSignal",
+    "PlanAgent",
+    "Plan",
+    # v3.3.0: 多模态
+    "MultimodalFusion",
+    "FusedRepresentation",
+    "MultimodalGraphBuilder",
+    "VisionEncoder",
+    "ThermalEncoder",
     "WorldState",
     # Energy Loss
     "EnergyConsistencyLoss",

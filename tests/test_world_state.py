@@ -15,6 +15,7 @@ import pytest
 
 from mci_world_model.sdk._world_model import CausalWorldModelState
 from mci_world_model.sdk._world_state import (
+    MultimodalWorldState,
     PendulumAction,
     PendulumState,
     WorldState,
@@ -513,3 +514,166 @@ class TestPendulumAction:
         assert d["type"] == "PendulumAction"
         assert d["torque"] == 3.5
         assert d["dt"] == 0.02
+
+
+# =============================================================================
+# MultimodalWorldState 测试 (v3.3.0)
+# =============================================================================
+
+
+class TestMultimodalWorldState:
+    """MultimodalWorldState 多模态世界状态测试。"""
+
+    def test_is_worldstate(self):
+        """MultimodalWorldState 是 WorldState 实例。"""
+        state = MultimodalWorldState()
+        assert isinstance(state, WorldState)
+
+    def test_empty_state(self):
+        """空状态 → to_vector 返回零向量。"""
+        state = MultimodalWorldState()
+        vec = state.to_vector()
+        assert vec.shape == (1,)
+        assert vec[0] == 0.0
+
+    def test_single_modality(self):
+        """单模态 (proprioception) to_vector。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([0.5, 1.0]),
+        )
+        vec = state.to_vector()
+        assert vec.shape == (2,)
+        np.testing.assert_array_equal(vec, [0.5, 1.0])
+
+    def test_multi_modality_concat(self):
+        """多模态 to_vector 拼接。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0, 2.0]),
+            vision=np.array([3.0, 4.0, 5.0]),
+        )
+        vec = state.to_vector()
+        assert vec.shape == (5,)
+        np.testing.assert_array_equal(vec, [1.0, 2.0, 3.0, 4.0, 5.0])
+
+    def test_all_modalities(self):
+        """全部模态同时激活。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0]),
+            vision=np.array([2.0, 3.0]),
+            audio=np.array([4.0]),
+            thermal=np.array([5.0]),
+            fused=np.array([6.0, 7.0]),
+        )
+        vec = state.to_vector()
+        assert vec.shape == (7,)
+
+    def test_from_vector(self):
+        """from_vector 全部放入 fused。"""
+        vec = np.array([1.0, 2.0, 3.0])
+        state = MultimodalWorldState.from_vector(vec)
+        assert state.fused is not None
+        np.testing.assert_array_equal(state.fused, [1.0, 2.0, 3.0])
+        assert state.proprioception is None
+
+    def test_distance_same_state(self):
+        """相同状态距离为 0。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0, 2.0]),
+            vision=np.array([3.0]),
+        )
+        assert state.distance(state.copy()) == pytest.approx(0.0, abs=1e-10)
+
+    def test_distance_different(self):
+        """不同状态距离 > 0。"""
+        s1 = MultimodalWorldState(proprioception=np.array([0.0, 0.0]))
+        s2 = MultimodalWorldState(proprioception=np.array([3.0, 4.0]))
+        d = s1.distance(s2)
+        assert d == pytest.approx(5.0, abs=1e-10)
+
+    def test_copy_independent(self):
+        """copy 深拷贝不影响原状态。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0, 2.0]),
+            vision=np.array([3.0]),
+        )
+        cp = state.copy()
+        cp.proprioception[0] = 99.0
+        assert state.proprioception[0] == 1.0
+
+    def test_active_modalities(self):
+        """active_modalities 返回正确列表。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0]),
+            vision=np.array([2.0]),
+        )
+        mods = state.active_modalities()
+        assert "proprioception" in mods
+        assert "vision" in mods
+        assert "audio" not in mods
+
+    def test_active_modalities_empty(self):
+        """空状态 → 空列表。"""
+        state = MultimodalWorldState()
+        assert state.active_modalities() == []
+
+    def test_to_dict(self):
+        """to_dict 序列化。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0]),
+            vision=np.array([2.0, 3.0]),
+        )
+        d = state.to_dict()
+        assert d["type"] == "MultimodalWorldState"
+        assert d["proprioception"] == [1.0]
+        assert d["vision"] == [2.0, 3.0]
+        assert d["audio"] is None
+
+    def test_from_signals(self):
+        """从 PhysicalSignal 列表构建。"""
+
+        class FakePropSignal:
+            modality = "proprioception"
+            value = np.array([0.5, 1.0])
+
+        class FakeVisSignal:
+            modality = "vision"
+            value = np.array([0.1, 0.2, 0.3])
+
+        state = MultimodalWorldState.from_signals([FakePropSignal(), FakeVisSignal()])
+        assert state.proprioception is not None
+        assert state.vision is not None
+        np.testing.assert_array_almost_equal(state.proprioception, [0.5, 1.0])
+        np.testing.assert_array_almost_equal(state.vision, [0.1, 0.2, 0.3])
+
+    def test_from_signals_empty(self):
+        """空信号列表 → 默认空状态。"""
+        state = MultimodalWorldState.from_signals([])
+        assert state.proprioception is None
+        assert state.vision is None
+
+    def test_repr(self):
+        """repr 包含模态信息。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0]),
+            vision=np.array([2.0]),
+        )
+        r = repr(state)
+        assert "MultimodalWorldState" in r
+        assert "proprioception" in r
+        assert "vision" in r
+
+    def test_modality_confidences(self):
+        """modality_confidences 字段正常。"""
+        state = MultimodalWorldState(
+            proprioception=np.array([1.0]),
+            modality_confidences={"proprioception": 0.9},
+        )
+        assert state.modality_confidences["proprioception"] == 0.9
+        cp = state.copy()
+        cp.modality_confidences["proprioception"] = 0.1
+        assert state.modality_confidences["proprioception"] == 0.9
+
+    def test_timestamp(self):
+        """timestamp 字段正常。"""
+        state = MultimodalWorldState(timestamp=123.456)
+        assert state.timestamp == 123.456

@@ -54,6 +54,8 @@ class SignalType(Enum):
     TEMPORAL_SERIES = "temporal"  # 时序数据 (每日白蛋白: [30,32,31,33])
     LAB_STRUCTURED = "lab"  # 实验室检查 (多项结构化指标)
     CATEGORICAL = "categorical"  # 类别变量 (NRS2002 评分: 4)
+    IMAGE = "image"  # v3.3.0: 2D 图像 (RGB/Depth/Thermal)
+    AUDIO_FEATURES = "audio_features"  # v3.3.0: 音频特征向量
 
 
 @dataclass
@@ -349,19 +351,45 @@ class PerceptionPipeline:
     def _infer_state_class(signals: list) -> type | None:
         """从信号 modality 推断应该构建哪种 WorldState。
 
-        规则: 检查是否有本体感觉信号 (PROPRIOCEPTION)
-               → 推断为 PendulumState（物理体）。
-              未来扩展为注册表查找。
+        v3.3.0: 注册表模式 — 支持多模态状态推断。
+        规则:
+            - 有本体感觉信号 (PROPRIOCEPTION) → PendulumState
+            - 有多模态信号 (VISION + PROPRIOCEPTION) → MultimodalWorldState
         """
+        from mci_world_model._sys._sensor_paradigm import SensorModality
+
+        # 注册表: modality → WorldState 类
+        _STATE_REGISTRY: dict[str, type] = {}
+        try:
+            from mci_world_model.sdk._world_state import PendulumState
+
+            _STATE_REGISTRY["proprioception"] = PendulumState
+        except ImportError:
+            pass
+        try:
+            from mci_world_model.sdk._world_state import MultimodalWorldState
+
+            _STATE_REGISTRY["multimodal"] = MultimodalWorldState
+        except ImportError:
+            pass
+
+        modalities_found: set[str] = set()
         for sig in signals:
             modality_val = str(getattr(sig, "modality", "")).lower()
-            if "proprioception" in modality_val:
-                try:
-                    from mci_world_model.sdk._world_state import PendulumState
+            # 提取模态名 (enum repr or value)
+            for m in ("proprioception", "vision", "audition", "tactition", "olfaction", "gustation"):
+                if m in modality_val:
+                    modalities_found.add(m)
 
-                    return PendulumState
-                except ImportError:
-                    pass
+        # 多模态优先
+        if len(modalities_found) > 1 and "multimodal" in _STATE_REGISTRY:
+            return _STATE_REGISTRY["multimodal"]
+
+        # 单模态查找
+        for m in modalities_found:
+            if m in _STATE_REGISTRY:
+                return _STATE_REGISTRY[m]
+
         return None
 
     @staticmethod
@@ -385,6 +413,75 @@ class PerceptionPipeline:
             return state_class.from_signals(signals)
         raise NotImplementedError(f"{state_class.__name__} 未实现 from_signals() 类方法")
 
+    # -----------------------------------------------------------------
+    # v3.3.0: 多模态融合处理
+    # -----------------------------------------------------------------
+
+    def process_multimodal_fused(
+        self,
+        signals: list[MultimodalSignal],
+        fusion_strategy: str = "attention",
+    ) -> PerceivedFeatures:
+        """v3.3.0: 多模态信号 → 各模态编码 → 融合 → PerceivedFeatures。
+
+        完整流水线:
+            signals → 各模态编码 → MultimodalFusion → MultimodalWorldState → PerceivedFeatures
+
+        Args:
+            signals: MultimodalSignal 列表
+            fusion_strategy: 融合策略 "attention" / "weighted" / "concat"
+
+        Returns:
+            PerceivedFeatures，world_state 为 MultimodalWorldState
+        """
+        self._state = "COLLECTING"
+
+        if not signals:
+            self._state = "COMPLETE"
+            return PerceivedFeatures.empty()
+
+        features = PerceivedFeatures()
+
+        # 1. 先做普通多模态处理
+        processed = self.process_multimodal(signals)
+
+        # 2. 按模态分组收集特征向量
+        modality_features: dict[str, np.ndarray] = {}
+        modality_confidences: dict[str, float] = {}
+        for item in processed:
+            modality = item.get("modality", "")
+            value = item.get("value")
+            if modality and value is not None:
+                try:
+                    vec = np.asarray(value, dtype=np.float64).flatten()
+                    modality_features[modality] = vec
+                    modality_confidences[modality] = 1.0
+                except (TypeError, ValueError):
+                    continue
+
+        # 3. 融合
+        if modality_features:
+            try:
+                from mci_world_model.sdk._multimodal_fusion import MultimodalFusion
+
+                fusion = MultimodalFusion(
+                    strategy=fusion_strategy,
+                    output_dim=32,
+                )
+                fused = fusion.fuse(modality_features, modality_confidences)
+
+                # 4. 编码为 WorldState
+                features.world_state = fusion.encode_to_state(fused)
+            except Exception as e:
+                logger.warning("process_multimodal_fused 融合异常: %s", e)
+
+        self._state = "STRUCTURED"
+        self._last_features = features
+        self._process_count += 1
+        self._state = "COMPLETE"
+
+        return features
+
     def _dispatch_signal(self, sig: MultimodalSignal) -> object:
         """根据信号类型分派处理器。"""
         dispatcher = {
@@ -393,6 +490,9 @@ class PerceptionPipeline:
             SignalType.LAB_STRUCTURED: self._process_lab_structured,
             SignalType.CATEGORICAL: self._process_categorical,
             SignalType.TEXT: self._process_text_signal,
+            # v3.3.0: 多模态信号分派
+            SignalType.IMAGE: self._process_image,
+            SignalType.AUDIO_FEATURES: self._process_audio_features,
         }
         handler = dispatcher.get(sig.signal_type)
         if handler is None:
@@ -502,6 +602,66 @@ class PerceptionPipeline:
             "source": sig.source,
             "raw_label": str(raw_val),
         }
+
+    def _process_image(self, sig: MultimodalSignal) -> dict | None:
+        """v3.3.0: 处理图像信号 → VisionEncoder 特征。"""
+        try:
+            from mci_world_model.sdk._modality_encoders import VisionEncoder
+
+            frame = np.asarray(sig.value, dtype=np.float64)
+            if frame.ndim < 2:
+                return None
+            enc = VisionEncoder(feature_dim=32)
+            features = enc.encode(frame)
+            name = sig.metadata.get("name", sig.source)
+            return {
+                "feature_name": f"{name}_vision",
+                "value": features.tolist(),
+                "category": "generative",
+                "timestamp": sig.timestamp,
+                "source": sig.source,
+                "modality": "vision",
+                "feature_dim": enc.feature_dim,
+            }
+        except Exception as e:
+            logger.warning("图像处理异常: %s", e)
+            return None
+
+    def _process_audio_features(self, sig: MultimodalSignal) -> dict | None:
+        """v3.3.0: 处理音频特征信号 → AudioEncoder 或直接使用特征向量。"""
+        try:
+            arr = np.asarray(sig.value, dtype=np.float64)
+            if arr.size == 0:
+                return None
+            # 如果已经是特征向量 (1D)，直接使用
+            name = sig.metadata.get("name", sig.source)
+            if arr.ndim == 1:
+                return {
+                    "feature_name": f"{name}_audio",
+                    "value": arr.tolist(),
+                    "category": "generative",
+                    "timestamp": sig.timestamp,
+                    "source": sig.source,
+                    "modality": "audio",
+                    "feature_dim": len(arr),
+                }
+            # 原始波形 → AudioEncoder
+            from mci_world_model.sdk._modality_encoders import AudioEncoder
+
+            enc = AudioEncoder(feature_dim=16)
+            features = enc.encode(arr.flatten())
+            return {
+                "feature_name": f"{name}_audio",
+                "value": features.tolist(),
+                "category": "generative",
+                "timestamp": sig.timestamp,
+                "source": sig.source,
+                "modality": "audio",
+                "feature_dim": enc.feature_dim,
+            }
+        except Exception as e:
+            logger.warning("音频处理异常: %s", e)
+            return None
 
     def _process_text_signal(self, sig: MultimodalSignal) -> dict | None:
         """处理文本信号 → 降级为简单特征。"""

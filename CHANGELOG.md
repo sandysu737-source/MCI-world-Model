@@ -3,6 +3,29 @@
 所有本项目显著变更都记录在此文件。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [3.3.0] - 2026-06-03
+
+### Added — 多模态因果世界模型 + Phase 1 P0 三大特性
+
+**Phase 1 P0 — 三大新特性:**
+- **MultiBranchPredictor** (`sdk/_multi_branch_predictor.py`): 多分支未来推演引擎，复用 `rollout()` + `BatchCounterfactualEngine`
+- **SurpriseDetector** (`sdk/_surprise_detector.py`): 惊奇误差三维度量化 (state_distance 0.4 + vector_deviation 0.3 + direction_error 0.3)
+- **PlanAgent** (`sdk/_plan_agent.py`): “先模拟后执行”因果决策前置化，包裹 CausalActor + MultiBranchPredictor + SurpriseDetector
+
+**v3.3.0 — 多模态感知:**
+- **VisionEncoder / AudioEncoder / ThermalEncoder** (`sdk/_modality_encoders.py`): 纯 numpy 模态特征提取器（零外部依赖）
+- **MultimodalFusion** (`sdk/_multimodal_fusion.py`): 三种融合策略 (attention / weighted / concat)
+- **MultimodalGraphBuilder** (`sdk/_multimodal_graph_builder.py`): 多模态特征时序 → 跨模态因果图
+- **MultimodalWorldState** (`sdk/_world_state.py`): 多模态世界状态子类（5 个可选模态字段）
+- **感知管道多模态扩展**: `process_multimodal_fused()` + IMAGE / AUDIO_FEATURES 信号分派
+- **SignalType 枚举扩展**: IMAGE = "image" / AUDIO_FEATURES = "audio_features"
+- **_infer_state_class() 注册表模式**: 支持多模态状态自动推断
+
+### Changed
+
+- `to_multimodal()` 映射补全: ENCODER_POSITION / RGB_FRAME / DEPTH_FRAME / THERMAL_FRAME
+- 测试套件从 1537 个扩展到 1612 个
+
 ## [3.2.0] - 2026-06-03
 
 ### Added — WorldState 通用抽象 + Action-Conditioned JEPA + PhysicalSignal 感知通路
@@ -133,3 +156,4 @@ MCI World Model **V3.0.0** 是世界模型引擎**正式独立成仓**的第一�
 - `_sys/` 系统层（15 个文件，30+ 系统符号）
 
 [3.0.0]: https://github.com/sandysu737-source/mci-world-model/releases/tag/v3.0.0
+[3.3.0]: https://github.com/sandysu737-source/mci-world-model/releases/tag/v3.3.0

@@ -114,10 +114,13 @@ class PhysicalSignal:
             SignalSubType.TDS_LEVEL: SignalType.NUMERICAL,
             SignalSubType.ULTRASOUND_RANGE: SignalType.NUMERICAL,
             SignalSubType.PM25_VALUE: SignalType.NUMERICAL,
+            SignalSubType.ENCODER_POSITION: SignalType.NUMERICAL,  # v3.3.0
             SignalSubType.AUDIO_WAVEFORM: SignalType.TEMPORAL_SERIES,
             SignalSubType.IMU_9AXIS: SignalType.LAB_STRUCTURED,
             SignalSubType.GNSS_FIX: SignalType.LAB_STRUCTURED,
-            SignalSubType.RGB_FRAME: SignalType.LAB_STRUCTURED,
+            SignalSubType.RGB_FRAME: SignalType.IMAGE,  # v3.3.0
+            SignalSubType.DEPTH_FRAME: SignalType.IMAGE,  # v3.3.0
+            SignalSubType.THERMAL_FRAME: SignalType.IMAGE,  # v3.3.0
             SignalSubType.GAS_MULTICHANNEL: SignalType.LAB_STRUCTURED,
             SignalSubType.POWER_STATE: SignalType.LAB_STRUCTURED,
         }

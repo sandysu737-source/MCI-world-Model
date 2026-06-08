@@ -23,7 +23,7 @@ WorldState 是 MCI 世界模型"认知环"的核心数据结构——被建模�
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -328,6 +328,135 @@ class PendulumAction(Action):
             "torque": self.torque,
             "dt": self.dt,
         }
+
+
+# =============================================================================
+# MultimodalWorldState — 多模态世界状态 (v3.3.0)
+# =============================================================================
+
+
+@dataclass
+class MultimodalWorldState(WorldState):
+    """多模态世界状态 —— 融合本体感觉 + 视觉 + 音频 + 热感应。
+
+    v3.3.0: 扩展 WorldState 以支持多模态感知输入。
+    每个模态字段可选（None 表示该模态未提供）。
+
+    Example:
+        >>> state = MultimodalWorldState(
+        ...     proprioception=np.array([0.5, 1.0]),
+        ...     vision=np.array([0.1, 0.2, 0.3]),
+        ... )
+        >>> vec = state.to_vector()
+    """
+
+    proprioception: np.ndarray | None = None
+    vision: np.ndarray | None = None
+    audio: np.ndarray | None = None
+    thermal: np.ndarray | None = None
+    fused: np.ndarray | None = None
+    modality_confidences: dict = field(default_factory=dict)
+    timestamp: float = 0.0
+
+    def _get_vector_parts(self) -> list[np.ndarray]:
+        """收集所有非空模态向量。"""
+        parts: list[np.ndarray] = []
+        for arr in (self.proprioception, self.vision, self.audio, self.thermal, self.fused):
+            if arr is not None:
+                parts.append(np.asarray(arr, dtype=np.float64).flatten())
+        return parts
+
+    def to_vector(self) -> np.ndarray:
+        """拼接所有模态向量为统一向量。"""
+        parts = self._get_vector_parts()
+        if not parts:
+            return np.zeros(1, dtype=np.float64)
+        return np.concatenate(parts)
+
+    @classmethod
+    def from_vector(cls, vec: np.ndarray) -> MultimodalWorldState:
+        """从向量解码（全部放入 fused 字段）。"""
+        return cls(fused=np.array(vec, dtype=np.float64))
+
+    def distance(self, other: WorldState) -> float:
+        """多模态状态距离：向量 L2 距离。"""
+        self_vec = self.to_vector()
+        if isinstance(other, MultimodalWorldState):
+            other_vec = other.to_vector()
+        else:
+            other_vec = other.to_vector()
+        # 对齐维度
+        min_len = min(len(self_vec), len(other_vec))
+        if min_len == 0:
+            return float(np.linalg.norm(self_vec) + np.linalg.norm(other_vec))
+        return float(np.linalg.norm(self_vec[:min_len] - other_vec[:min_len]))
+
+    def copy(self) -> MultimodalWorldState:
+        """深拷贝。"""
+        return MultimodalWorldState(
+            proprioception=self.proprioception.copy() if self.proprioception is not None else None,
+            vision=self.vision.copy() if self.vision is not None else None,
+            audio=self.audio.copy() if self.audio is not None else None,
+            thermal=self.thermal.copy() if self.thermal is not None else None,
+            fused=self.fused.copy() if self.fused is not None else None,
+            modality_confidences=dict(self.modality_confidences),
+            timestamp=self.timestamp,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "type": "MultimodalWorldState",
+            "proprioception": self.proprioception.tolist() if self.proprioception is not None else None,
+            "vision": self.vision.tolist() if self.vision is not None else None,
+            "audio": self.audio.tolist() if self.audio is not None else None,
+            "thermal": self.thermal.tolist() if self.thermal is not None else None,
+            "fused": self.fused.tolist() if self.fused is not None else None,
+            "modality_confidences": self.modality_confidences,
+            "timestamp": self.timestamp,
+        }
+
+    def active_modalities(self) -> list[str]:
+        """返回当前激活的模态列表。"""
+        modalities = []
+        if self.proprioception is not None:
+            modalities.append("proprioception")
+        if self.vision is not None:
+            modalities.append("vision")
+        if self.audio is not None:
+            modalities.append("audio")
+        if self.thermal is not None:
+            modalities.append("thermal")
+        if self.fused is not None:
+            modalities.append("fused")
+        return modalities
+
+    @classmethod
+    def from_signals(cls, signals: list) -> MultimodalWorldState:
+        """从 PhysicalSignal 列表构建多模态世界状态。"""
+        state = cls()
+        for sig in signals:
+            modality_val = str(getattr(sig, "modality", "")).lower()
+            value = getattr(sig, "value", None)
+            if value is None:
+                continue
+            try:
+                vec = np.asarray(value, dtype=np.float64).flatten()
+            except (TypeError, ValueError):
+                continue
+
+            if "proprioception" in modality_val:
+                state.proprioception = vec
+            elif "vision" in modality_val:
+                state.vision = vec
+            elif "audition" in modality_val:
+                state.audio = vec
+            elif "tactition" in modality_val:
+                state.thermal = vec  # 触觉映射到热感应
+        return state
+
+    def __repr__(self) -> str:
+        mods = ", ".join(self.active_modalities())
+        return f"MultimodalWorldState(modalities=[{mods}])"
 
 
 # =============================================================================
