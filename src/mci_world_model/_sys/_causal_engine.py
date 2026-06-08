@@ -227,9 +227,7 @@ class CategoryCausalEngine:
 
         return success, relation
 
-    def propagate(
-        self, source_id: str, delta: float = 0.1, use_energy_balance: bool = True
-    ) -> dict[str, float]:
+    def propagate(self, source_id: str, delta: float = 0.1, use_energy_balance: bool = True) -> dict[str, float]:
         """
         Propagate energy along causal chains.
 

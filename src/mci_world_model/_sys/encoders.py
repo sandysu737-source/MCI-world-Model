@@ -462,9 +462,7 @@ def _get_st_model():
         from huggingface_hub import try_to_load_from_cache
         from sentence_transformers import SentenceTransformer
 
-        path = try_to_load_from_cache(
-            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "config.json"
-        )
+        path = try_to_load_from_cache("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "config.json")
         if path:
             _st_model = SentenceTransformer(os.path.dirname(path))
             return _st_model
@@ -812,11 +810,7 @@ class EncoderCore:
                     cand_energy_vec = ci.energy_scores
 
             q_vec = query_info.semantic_vector if query_info else None
-            c_vec = (
-                candidate_infos[cand].semantic_vector
-                if (candidate_infos and cand in candidate_infos)
-                else None
-            )
+            c_vec = candidate_infos[cand].semantic_vector if (candidate_infos and cand in candidate_infos) else None
 
             if use_vector_sim and q_vec is not None and c_vec is not None:
                 # Full vector cosine (most precise semantic retrieval, keep each candidate independent scoring)

@@ -90,9 +90,7 @@ class BayesianPredictor:
             if posterior and posterior.effective_sample_size > 2:
                 prob_net = posterior.mean
                 uncert_net = posterior.std
-                sources.append(
-                    {"source": "bayesian_network", "probability": prob_net, "weight": 0.5}
-                )
+                sources.append({"source": "bayesian_network", "probability": prob_net, "weight": 0.5})
 
                 # 融合：加权平均
                 if len(sources) == 2:
@@ -155,9 +153,7 @@ class BayesianPredictor:
         self._calibration_curve.append((predicted_prob, float(actual_outcome)))
 
         # 反馈到引擎
-        self._engine.observe(
-            belief_id=event_id, success=actual_outcome, weight=0.5, source="prediction_outcome"
-        )
+        self._engine.observe(belief_id=event_id, success=actual_outcome, weight=0.5, source="prediction_outcome")
 
     def _calibrate(self, raw_prob: float) -> float:
         """
@@ -203,10 +199,9 @@ class BayesianPredictor:
         accuracy = correct / max(total, 1)
 
         # Brier Score
-        brier = sum(
-            (p["predicted_prob"] - float(p["actual_outcome"])) ** 2
-            for p in self._prediction_history
-        ) / max(total, 1)
+        brier = sum((p["predicted_prob"] - float(p["actual_outcome"])) ** 2 for p in self._prediction_history) / max(
+            total, 1
+        )
 
         # 校准度 (Calibration-in-the-large)
         mean_pred = sum(p["predicted_prob"] for p in self._prediction_history) / total
@@ -422,11 +417,7 @@ class BayesianAdvisor:
                     "impact_factor": impact_factor,
                     "priority": priority,
                     "suggestion": (
-                        "急需更多证据"
-                        if priority > 0.3
-                        else "建议补充证据"
-                        if priority > 0.15
-                        else "证据相对充足"
+                        "急需更多证据" if priority > 0.3 else "建议补充证据" if priority > 0.15 else "证据相对充足"
                     ),
                 }
             )
@@ -492,13 +483,9 @@ class BayesianReasoningSystem:
         self.network = BayesianNetwork(name=name) if enable_network else None
         self.evidence_collector = EvidenceCollector(bayesian_engine=self.engine)
         self.predictor = (
-            BayesianPredictor(self.engine, self.network, self.evidence_collector)
-            if enable_predictor
-            else None
+            BayesianPredictor(self.engine, self.network, self.evidence_collector) if enable_predictor else None
         )
-        self.advisor = (
-            BayesianAdvisor(self.engine, self.network, self.predictor) if enable_advisor else None
-        )
+        self.advisor = BayesianAdvisor(self.engine, self.network, self.predictor) if enable_advisor else None
 
     # ---- 信念管理 ----
 
@@ -575,9 +562,7 @@ class BayesianReasoningSystem:
                             network_w = posterior.effective_sample_size
                             total_w = existing_w + network_w
                             if total_w > 0:
-                                fused_mean = (
-                                    existing_mean * existing_w + network_mean * network_w
-                                ) / total_w
+                                fused_mean = (existing_mean * existing_w + network_mean * network_w) / total_w
                                 # 更新信念（保持方向一致）
                                 if fused_mean > existing_mean:
                                     self.engine.observe(
@@ -727,9 +712,7 @@ class BayesianReasoningSystem:
             "top_beliefs": self.engine.get_top_beliefs(5),
             "most_uncertain": self.engine.get_uncertain_beliefs(5),
             "source_rankings": self.evidence_collector.get_source_rankings(),
-            "uncertainty_plan": (
-                self.advisor.uncertainty_reduction_plan(5) if self.advisor else []
-            ),
+            "uncertainty_plan": (self.advisor.uncertainty_reduction_plan(5) if self.advisor else []),
         }
 
     def get_accuracy_metrics(self) -> dict:
@@ -761,9 +744,7 @@ class BayesianReasoningSystem:
             "sharpness": sum(c * (1 - c) for c in confidences) / len(confidences),
             "high_confidence_ratio": sum(1 for c in confidences if c >= 0.8) / len(confidences),
             "calibration": (
-                self.predictor.get_calibration_report()
-                if self.predictor
-                else {"status": "predictor_disabled"}
+                self.predictor.get_calibration_report() if self.predictor else {"status": "predictor_disabled"}
             ),
         }
 

@@ -117,9 +117,7 @@ class BetaDistribution:
         return cls(alpha=1.0, beta=1.0)
 
     @classmethod
-    def weak_informative(
-        cls, prior_belief: float = 0.5, strength: float = 2.0
-    ) -> "BetaDistribution":
+    def weak_informative(cls, prior_belief: float = 0.5, strength: float = 2.0) -> "BetaDistribution":
         """
         弱信息先验 — 以 prior_belief 为中心，strength 控制先验强度
 
@@ -168,9 +166,7 @@ class BayesianBelief:
     category: str = "general"
     tags: list[str] = field(default_factory=list)
 
-    def update_evidence(
-        self, success: bool, weight: float = 1.0, source: str = "unknown", note: str = ""
-    ):
+    def update_evidence(self, success: bool, weight: float = 1.0, source: str = "unknown", note: str = ""):
         """
         更新证据（应用贝叶斯更新）
 
@@ -332,9 +328,7 @@ class LikelihoodFunctions:
             mu: 均值
             sigma: 标准差
         """
-        return -0.5 * math.log(2 * math.pi * sigma * sigma) - (x - mu) * (x - mu) / (
-            2 * sigma * sigma
-        )
+        return -0.5 * math.log(2 * math.pi * sigma * sigma) - (x - mu) * (x - mu) / (2 * sigma * sigma)
 
     @staticmethod
     def weighted_likelihood(evidence_list: list, hypothesis_mean: float) -> float:
@@ -540,9 +534,7 @@ class BayesianEngine:
         belief = self._beliefs.get(belief_id)
         return belief.get_uncertainty() if belief else None
 
-    def query_credible_interval(
-        self, belief_id: str, probability: float = 0.95
-    ) -> tuple[float, float] | None:
+    def query_credible_interval(self, belief_id: str, probability: float = 0.95) -> tuple[float, float] | None:
         """查询信念的置信区间"""
         belief = self._beliefs.get(belief_id)
         return belief.posterior.credible_interval(probability) if belief else None
@@ -599,9 +591,7 @@ class BayesianEngine:
             "superior": superior,
         }
 
-    def hypothesis_test(
-        self, belief_id: str, null_value: float = 0.5, threshold: float = 0.05
-    ) -> dict:
+    def hypothesis_test(self, belief_id: str, null_value: float = 0.5, threshold: float = 0.05) -> dict:
         """
         贝叶斯假设检验
 
@@ -652,16 +642,12 @@ class BayesianEngine:
             "credible_interval": list(ci),
             "reject_null": reject,
             "bayes_factor": bf,
-            "conclusion": (
-                f"拒绝零假设 (p ≠ {null_value})" if reject else f"未能拒绝零假设 (p = {null_value})"
-            ),
+            "conclusion": (f"拒绝零假设 (p ≠ {null_value})" if reject else f"未能拒绝零假设 (p = {null_value})"),
         }
 
     # ---- 批量查询 ----
 
-    def get_top_beliefs(
-        self, n: int = 10, category: str | None = None, min_evidence: float = 2.0
-    ) -> list[dict]:
+    def get_top_beliefs(self, n: int = 10, category: str | None = None, min_evidence: float = 2.0) -> list[dict]:
         """
         获取置信度最高的信念（按后验期望排序）
 
@@ -745,9 +731,7 @@ class BayesianEngine:
             belief = BayesianBelief(
                 belief_id=bid,
                 content_summary=bd.get("content_summary", ""),
-                posterior=BetaDistribution(
-                    alpha=bd["posterior"]["alpha"], beta=bd["posterior"]["beta"]
-                ),
+                posterior=BetaDistribution(alpha=bd["posterior"]["alpha"], beta=bd["posterior"]["beta"]),
                 positive_evidence=bd.get("positive_evidence", 0),
                 negative_evidence=bd.get("negative_evidence", 0),
                 category=bd.get("category", "general"),

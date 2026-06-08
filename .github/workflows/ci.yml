@@ -85,7 +85,7 @@ jobs:
 
       - name: Run Tests (excl. slow)
         run: |
-          PYTHONPATH=${{ github.workspace }}/src pytest -m "not slow" --cov=mci_world_model --cov-report=xml --cov-report=term
+          PYTHONPATH=${{ github.workspace }}/src pytest -m "not slow" --cov=mci_world_model --cov-report=xml --cov-report=term --cov-fail-under=45
 
       - name: Upload Coverage
         if: matrix.python-version == '3.11'

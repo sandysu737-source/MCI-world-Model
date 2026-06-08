@@ -1,5 +1,5 @@
 """
-su-memory v3.8.0 — Pearl Counterfactual 反事实推理引擎 (L3)
+MCI World Model v3.0.8 — Pearl Counterfactual 反事实推理引擎 (L3)
 ============================================================
 
 基于 Pearl (2009) 三步反事实算法的个体级因果推理:
@@ -7,9 +7,15 @@ su-memory v3.8.0 — Pearl Counterfactual 反事实推理引擎 (L3)
   Step 2 — Action (干预): do(X=x') → 构建 mutilated graph
   Step 3 — Prediction (预测): Y_{x'} = f_Y(pa(Y)_{x'}, U_Y) → 反事实结果
 
+v3.0.8 新增:
+- Nonlinear SEM: 支持 tanh/ReLU/sigmoid 非线性激活
+- BatchCounterfactualEngine: 矩阵化批量反事实查询 (O(1) vs O(N))
+- CausalGraph ↔ SEM 双向转换
+- PN/PS/PNS 共享噪声优化
+
 核心能力:
-- StructuralEquationModel: 线性 SEM 持久化对象
-- abduce(): 观测值 → 噪声项 (溯因)
+- StructuralEquationModel: 线性/非线性 SEM 持久化对象
+- abduce(): 观测值 → 噪声项 (溯因，支持非线性逆映射)
 - counterfactual(): 三条算法端到端
 - PN/PS/PNS: 必然性/充分性概率 (Monte Carlo 估计)
 
@@ -135,26 +141,42 @@ class CounterfactualResult:
 
 class StructuralEquationModel:
     """
-    线性结构方程模型 (Linear Structural Equation Model)。
+    线性和非线性结构方程模型 (Linear/Nonlinear SEM)。
 
     数学形式:
-        V_i = Σ_{j∈pa(i)} β_{ji} · V_j + U_i,  U_i ~ N(0, σ²)
+        V_i = σ( Σ_{j∈pa(i)} β_{ji} · V_j ) + U_i,  U_i ~ N(0, σ²)
 
     其中:
     - β_{ji}: 边权重 (从 CausalGraph.adjacency[j, i] 获取)
+    - σ(·): 激活函数 (linear/tanh/relu/sigmoid)
     - U_i: 外生噪声 (不可观测)
 
     支持:
-    - 前向模拟 (simulate)
-    - 噪声溯因 (abduce)
+    - 前向模拟 (simulate) — 线性/非线性
+    - 噪声溯因 (abduce) — 非线性逆映射
     - 反事实干预 (intervene → 返回 mutilated SEM)
     """
+
+    # 支持的激活函数
+    _ACTIVATIONS: dict[str, tuple] = {
+        "linear": (lambda x: x, lambda y: y),
+        "relu": (lambda x: np.maximum(0.0, x), lambda y: np.where(y > 0, y, -1.0)),
+        "tanh": (
+            np.tanh,
+            lambda y: np.arctanh(np.clip(y, -0.999999, 0.999999)),
+        ),
+        "sigmoid": (
+            lambda x: 1.0 / (1.0 + np.exp(-np.clip(x, -50.0, 50.0))),
+            lambda y: np.log(np.clip(y, 1e-10, 1.0 - 1e-10) / (1.0 - np.clip(y, 1e-10, 1.0 - 1e-10))),
+        ),
+    }
 
     def __init__(
         self,
         coefficients: np.ndarray,
         node_names: list[str],
         noise_std: float = 0.5,
+        activation: str = "linear",
         seed: int | None = None,
     ):
         """
@@ -162,6 +184,7 @@ class StructuralEquationModel:
             coefficients: n×n 系数矩阵, coeff[j,i] = 父节点 j → 子节点 i 的权重
             node_names: 节点名称列表
             noise_std: 噪声标准差 σ
+            activation: 激活函数 — "linear" | "tanh" | "relu" | "sigmoid"
             seed: 随机种子 (None → 使用系统熵源)
         """
         self.coefficients = coefficients.astype(np.float64)
@@ -172,6 +195,12 @@ class StructuralEquationModel:
         self._n_nodes = len(node_names)
         self._node_idx = {name: i for i, name in enumerate(node_names)}
         self._rng = np.random.RandomState(seed)
+
+        # 激活函数
+        if activation not in self._ACTIVATIONS:
+            raise ValueError(f"Unknown activation '{activation}'. Choose from: {list(self._ACTIVATIONS.keys())}")
+        self.activation = activation
+        self._forward_fn, self._inverse_fn = self._ACTIVATIONS[activation]
 
         # 缓存拓扑排序
         self._topo_order: list[int] | None = None
@@ -225,6 +254,18 @@ class StructuralEquationModel:
         return order
 
     # -----------------------------------------------------------------
+    # 激活函数接口
+    # -----------------------------------------------------------------
+
+    def _apply_activation(self, x: np.ndarray) -> np.ndarray:
+        """应用激活函数: x → σ(x)。"""
+        return self._forward_fn(x)
+
+    def _apply_inverse(self, y: np.ndarray) -> np.ndarray:
+        """应用逆激活: y → σ⁻¹(y)，用于溯因噪声回算。"""
+        return self._inverse_fn(y)
+
+    # -----------------------------------------------------------------
     # 前向模拟
     # -----------------------------------------------------------------
 
@@ -233,7 +274,7 @@ class StructuralEquationModel:
         前向模拟: 生成 n_samples 个服从 SEM 的样本。
 
         算法: 按拓扑排序逐节点采样
-            V_i = Σ β_{ji}·V_j + ε_i,  ε_i ~ N(0, σ²)
+            V_i = σ( Σ β_{ji}·V_j ) + ε_i,  ε_i ~ N(0, σ²)
 
         Args:
             n_samples: 样本数量
@@ -254,7 +295,7 @@ class StructuralEquationModel:
             for p_idx in range(self._n_nodes):
                 if self.coefficients[p_idx, node_i] != 0:
                     parent_sum += self.coefficients[p_idx, node_i] * data[:, p_idx]
-            data[:, node_i] = parent_sum + noise
+            data[:, node_i] = self._apply_activation(parent_sum) + noise
 
         return data
 
@@ -271,10 +312,10 @@ class StructuralEquationModel:
         溯因推断: 从观测数据推断噪声项。
 
         对每个观测节点 i:
-            U_i = V_i - Σ_{j∈pa(i)} β_{ji} · V_j
+            U_i = V_i - σ( Σ_{j∈pa(i)} β_{ji} · V_j )
 
         对未观测节点:
-            U_i ~ N(0, σ²) (随机采样)
+            V_i = σ( Σ_{j∈pa(i)} β_{ji} · V_j ) + U_i,  U_i ~ N(0, σ²)
 
         Args:
             observations: {node_name: observed_value, ...}
@@ -301,21 +342,21 @@ class StructuralEquationModel:
 
         for node_i in topo:
             if not np.isnan(obs_vec[node_i]):
-                # 观测节点: 噪声 = 观测值 - 父节点加权和
+                # 观测节点: 噪声 = 观测值 - σ(父节点加权和)
                 parent_sum = np.zeros(n_samples)
                 for p_idx in range(self._n_nodes):
                     if self.coefficients[p_idx, node_i] != 0:
                         parent_sum += self.coefficients[p_idx, node_i] * num_data[:, p_idx]
-                noise[:, node_i] = num_data[:, node_i] - parent_sum
+                noise[:, node_i] = num_data[:, node_i] - self._apply_activation(parent_sum)
             else:
-                # 未观测节点: 前向模拟 = 父节点和 + 随机噪声
+                # 未观测节点: 前向模拟 = σ(父节点和) + 随机噪声
                 parent_sum = np.zeros(n_samples)
                 for p_idx in range(self._n_nodes):
                     if self.coefficients[p_idx, node_i] != 0:
                         parent_sum += self.coefficients[p_idx, node_i] * num_data[:, p_idx]
                 noise[:, node_i] = self._rng.randn(n_samples) * self.noise_std
                 # ★ 关键: 回填模拟值以便下游节点计算 parent_sum
-                num_data[:, node_i] = parent_sum + noise[:, node_i]
+                num_data[:, node_i] = self._apply_activation(parent_sum) + noise[:, node_i]
 
         return noise
 
@@ -343,11 +384,12 @@ class StructuralEquationModel:
             if idx is not None:
                 mutilated_coeff[:, idx] = 0.0
 
-        # 新建 SEM，共享噪声标准差和种子偏移
+        # 新建 SEM，共享噪声标准差、激活函数和种子偏移
         new_sem = StructuralEquationModel(
             coefficients=mutilated_coeff,
             node_names=list(self.node_names),
             noise_std=self.noise_std,
+            activation=self.activation,
             seed=self._rng.randint(0, 2**31 - 1),
         )
 
@@ -391,14 +433,39 @@ class StructuralEquationModel:
                 # 干预节点: 固定值
                 data[:, node_i] = float(interventions[node_name])
             else:
-                # 正常节点: 父节点加权和 + 溯因噪声
+                # 正常节点: 父节点加权和 + 激活 + 溯因噪声
                 parent_sum = np.zeros(n_samples)
                 for p_idx in range(self._n_nodes):
                     if self.coefficients[p_idx, node_i] != 0:
                         parent_sum += self.coefficients[p_idx, node_i] * data[:, p_idx]
-                data[:, node_i] = parent_sum + noise[:, node_i]
+                data[:, node_i] = self._apply_activation(parent_sum) + noise[:, node_i]
 
         return data
+
+    # -----------------------------------------------------------------
+    # 序列化
+    # -----------------------------------------------------------------
+
+    def to_dict(self) -> dict:
+        """序列化为字典，便于 JSON 持久化。"""
+        return {
+            "coefficients": self.coefficients.tolist(),
+            "node_names": list(self.node_names),
+            "noise_std": self.noise_std,
+            "activation": self.activation,
+            "n_nodes": self._n_nodes,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict, seed: int | None = None) -> StructuralEquationModel:
+        """从字典恢复 SEM 实例。"""
+        return cls(
+            coefficients=np.array(data["coefficients"], dtype=np.float64),
+            node_names=list(data["node_names"]),
+            noise_std=float(data.get("noise_std", 0.5)),
+            activation=str(data.get("activation", "linear")),
+            seed=seed,
+        )
 
     # -----------------------------------------------------------------
     # 字符串表示
@@ -409,7 +476,7 @@ class StructuralEquationModel:
         return (
             f"StructuralEquationModel("
             f"nodes={self._n_nodes}, edges={n_edges}, "
-            f"noise_std={self.noise_std})"
+            f"activation={self.activation}, noise_std={self.noise_std})"
         )
 
 
@@ -451,6 +518,7 @@ class CounterfactualEngine:
     def from_causal_graph(
         graph,
         noise_std: float = 0.5,
+        activation: str = "linear",
         seed: int | None = None,
     ) -> CounterfactualEngine | None:
         """
@@ -461,6 +529,7 @@ class CounterfactualEngine:
         Args:
             graph: CausalGraph 实例 (含 adjacency 矩阵)
             noise_std: SEM 噪声标准差
+            activation: 激活函数 — "linear" | "tanh" | "relu" | "sigmoid"
             seed: 随机种子
 
         Returns:
@@ -476,6 +545,7 @@ class CounterfactualEngine:
             coefficients=np.array(graph.adjacency, dtype=np.float64),
             node_names=list(graph.nodes),
             noise_std=noise_std,
+            activation=activation,
             seed=seed,
         )
         return CounterfactualEngine(sem, list(graph.nodes))
@@ -567,11 +637,14 @@ class CounterfactualEngine:
         target_idx = self._node_idx[target]
 
         # ── Step 1: Abduction (溯因) ──
-        # 从事实证据推断噪声 (单样本确定性溯因)
-        noise_factual = self._sem.abduce(evidence, n_samples=1)[0]
+        # 从事实证据推断噪声
+        # v3.1.0p: 一次溯因同时获取 1-样本噪声和 n_cf_samples-样本噪声
+        n_cf_samples = min(n_mc, 500)
+        n_abduce = max(n_cf_samples + 1, 2)
+        noise_all = self._sem.abduce(evidence, n_samples=n_abduce)
+        noise_factual = noise_all[0]
 
-        # 计算事实值 (可能 evidence 中未给出 target 的实际值)
-        # 使用溯因噪声重建事实值
+        # 计算事实值 (使用溯因噪声重建事实值)
         topo = self._sem._topological_sort()
         data_factual = np.zeros((1, self._sem.n_nodes))
         for node_i in topo:
@@ -583,7 +656,7 @@ class CounterfactualEngine:
                 for p_idx in range(self._sem.n_nodes):
                     if self._sem.coefficients[p_idx, node_i] != 0:
                         parent_sum += self._sem.coefficients[p_idx, node_i] * data_factual[0, p_idx]
-                data_factual[0, node_i] = parent_sum + noise_factual[node_i]
+                data_factual[0, node_i] = self._sem._apply_activation(parent_sum) + noise_factual[node_i]
 
         factual_y = data_factual[0, target_idx]
 
@@ -591,17 +664,13 @@ class CounterfactualEngine:
         mutilated_sem = self._sem.intervene(do_x)
 
         # ── Step 3: Prediction (预测) ──
-        # 确定性预测 (单样本)
-        # ── 不确定性量化 (Monte Carlo 采样未观测噪声) ──
-        n_cf_samples = min(n_mc, 500)
-        noise_samples = self._sem.abduce(evidence, n_samples=n_cf_samples)
-        cf_samples = np.zeros(n_cf_samples)
-        for s in range(n_cf_samples):
-            cf_data_sample = mutilated_sem.simulate_with_intervention(
-                noise=noise_samples[s : s + 1],
-                n_samples=1,
-            )
-            cf_samples[s] = cf_data_sample[0, target_idx]
+        # v3.1.0p: 向量化批量模拟（消除 for 循环）
+        noise_cf = noise_all[1 : 1 + n_cf_samples]
+        cf_data_all = mutilated_sem.simulate_with_intervention(
+            noise=noise_cf,
+            n_samples=n_cf_samples,
+        )
+        cf_samples = cf_data_all[:, target_idx]
 
         cf_mean = float(np.mean(cf_samples))
         cf_std = float(np.std(cf_samples)) if n_cf_samples > 1 else self._sem.noise_std
@@ -631,9 +700,7 @@ class CounterfactualEngine:
             counterfactual_value=round(cf_mean, 6),
             ci_95=(round(ci_95[0], 6), round(ci_95[1], 6)),
             individual_effect=round(float(individual_effect), 6),
-            noise_terms={
-                name: round(float(noise_factual[idx]), 6) for name, idx in self._node_idx.items()
-            },
+            noise_terms={name: round(float(noise_factual[idx]), 6) for name, idx in self._node_idx.items()},
             pn=pn,
             ps=ps,
             pns=pns,
@@ -692,57 +759,51 @@ class CounterfactualEngine:
 
         x_name = next(iter(do_x.keys()))
 
-        # ── 事实世界模拟 (多次采样未观测噪声) ──
+        # ── 单次溯因: 获取共享噪声样本 (N, D) ──
         noise_samples = self._sem.abduce(evidence, n_samples=n_mc)
-        factual_samples = np.zeros(n_mc)
-        for s in range(n_mc):
-            data = np.zeros((1, self._sem.n_nodes))
-            topo = self._sem._topological_sort() or list(range(self._sem.n_nodes))
-            for node_i in topo:
-                node_name = self._node_names[node_i]
-                if node_name in evidence:
-                    data[0, node_i] = evidence[node_name]
-                else:
-                    parent_sum = 0.0
-                    for p_idx in range(self._sem.n_nodes):
-                        if self._sem.coefficients[p_idx, node_i] != 0:
-                            parent_sum += self._sem.coefficients[p_idx, node_i] * data[0, p_idx]
-                    data[0, node_i] = parent_sum + noise_samples[s, node_i]
-            factual_samples[s] = data[0, target_idx]
 
-        # ── 反事实世界模拟 ──
-        mutilated_sem = self._sem.intervene(do_x)
-        cf_samples = np.zeros(n_mc)
+        # ── 事实世界: 用溯因噪声 + 原始 SEM 模拟 ──
+        factual_data = np.zeros((n_mc, self._sem.n_nodes))
         for s in range(n_mc):
-            cf_data = mutilated_sem.simulate_with_intervention(
+            fd = self._sem.simulate_with_intervention(
                 noise=noise_samples[s : s + 1],
                 n_samples=1,
             )
-            cf_samples[s] = cf_data[0, target_idx]
+            factual_data[s] = fd[0]
+        factual_samples = factual_data[:, target_idx]
+
+        # ── 反事实世界: mutilated SEM + 相同噪声 ──
+        mutilated_sem = self._sem.intervene(do_x)
+        cf_data = np.zeros((n_mc, self._sem.n_nodes))
+        for s in range(n_mc):
+            cfd = mutilated_sem.simulate_with_intervention(
+                noise=noise_samples[s : s + 1],
+                n_samples=1,
+            )
+            cf_data[s] = cfd[0]
+        cf_samples = cf_data[:, target_idx]
 
         # ── 事实值 ──
-        y_factual = factual_samples[0]  # 确定性事实值
+        y_factual = factual_samples[0]
         x_factual = evidence.get(x_name, 0.0)
 
         # ── PN: P(Y_{x'} differs from y_factual | X=x_factual, Y=y_factual) ──
-        # 在给定事实 (X=x, Y=y) 下, 反事实 Y_{x'} 与 y 显著不同的概率
         n_pn = int(np.sum(np.abs(cf_samples - y_factual) > effect_threshold))
         pn = float(n_pn) / n_mc
 
-        # ── PS: P(Y_x ≈ y_factual | X=x', Y differs) ──
-        # 对 PS 的计算需要 X=x' 且 Y≠y_factual 的情境
-        # 简化: 测量 do(X=x_factual) 下 Y 的分布
+        # ── PS: 干预 X=x_factual, 复用相同噪声 ──
         do_factual = {x_name: x_factual}
         mutilated_factual = self._sem.intervene(do_factual)
-        ps_samples = np.zeros(n_mc)
+        ps_data = np.zeros((n_mc, self._sem.n_nodes))
         for s in range(n_mc):
-            ps_data = mutilated_factual.simulate_with_intervention(
+            psd = mutilated_factual.simulate_with_intervention(
                 noise=noise_samples[s : s + 1],
                 n_samples=1,
             )
-            ps_samples[s] = ps_data[0, target_idx]
+            ps_data[s] = psd[0]
+        ps_samples = ps_data[:, target_idx]
 
-        # PS = P(Y_x ≈ y | do(X=x')) — 当干预为 x_factual 时 Y≈y_factual 的比例
+        # PS = P(Y_x ≈ y | do(X=x'))
         n_ps = int(np.sum(np.abs(ps_samples - y_factual) <= effect_threshold))
         ps = float(n_ps) / n_mc
 

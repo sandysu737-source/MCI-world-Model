@@ -244,9 +244,7 @@ class EvidenceCollector:
 
     # ---- 证据验证 ----
 
-    def verify_evidence(
-        self, evidence_id: str, was_correct: bool, ground_truth_source: str = "ground_truth"
-    ):
+    def verify_evidence(self, evidence_id: str, was_correct: bool, ground_truth_source: str = "ground_truth"):
         """
         验证证据是否正确（使用真实结果反馈）
 
@@ -313,9 +311,7 @@ class EvidenceCollector:
 
         return LikelihoodFunctions.weighted_likelihood(evidence_list, h)
 
-    def compute_evidence_strength(
-        self, belief_id: str, time_window: float | None = None
-    ) -> dict[str, float]:
+    def compute_evidence_strength(self, belief_id: str, time_window: float | None = None) -> dict[str, float]:
         """
         计算证据强度摘要
 
@@ -377,9 +373,7 @@ class EvidenceCollector:
                     "severity": severity,
                     "positive_weight": strength["positive_weight"],
                     "negative_weight": strength["negative_weight"],
-                    "recommendation": "建议收集更多证据以消除不确定性"
-                    if severity > 0.7
-                    else "存在轻度冲突，持续观察",
+                    "recommendation": "建议收集更多证据以消除不确定性" if severity > 0.7 else "存在轻度冲突，持续观察",
                 }
             )
 
@@ -457,9 +451,7 @@ class EvidenceCollector:
 
     # ---- 查询辅助 ----
 
-    def get_evidence_for_belief(
-        self, belief_id: str, time_window: float | None = None
-    ) -> list[EvidenceRecord]:
+    def get_evidence_for_belief(self, belief_id: str, time_window: float | None = None) -> list[EvidenceRecord]:
         """获取某个信念的所有证据"""
         indices = self._evidence_index.get(belief_id, [])
         records = []

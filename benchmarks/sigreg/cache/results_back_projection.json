@@ -1,0 +1,53 @@
+{
+  "config": {
+    "top_k": 5,
+    "lambda_reg": 0.02,
+    "sketch_dim": 64,
+    "hnsw_m": 32,
+    "hnsw_efc": 64,
+    "hnsw_efs": 64,
+    "n_passages": 7405,
+    "n_queries": 500,
+    "reproducibility_seed": 42,
+    "single_threaded": true,
+    "granularity": "paragraph-level"
+  },
+  "results": [
+    {
+      "name": "A_raw_baseline",
+      "dim": 384,
+      "isotropy_before": 3.2375772866822113e-09,
+      "isotropy_after": 3.2375772866822113e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.1729873750009574,
+      "query_time_s": 0.01086458300051163,
+      "extra": {
+        "description": "no transformation"
+      }
+    },
+    {
+      "name": "B_sketched_only",
+      "dim": 64,
+      "isotropy_before": 3.2375772866822113e-09,
+      "isotropy_after": 0.9999999999991167,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.14082479199714726,
+      "query_time_s": 0.009578082997904858,
+      "extra": {
+        "description": "whitening in 64-dim sketch, no back-projection"
+      }
+    },
+    {
+      "name": "C_back_projected",
+      "dim": 384,
+      "isotropy_before": 3.2375772866822113e-09,
+      "isotropy_after": 1.512818946241081e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.19175025000004098,
+      "query_time_s": 0.011724542000592919,
+      "extra": {
+        "description": "sketched whitening + back-project to d=512 (current SIGReg)"
+      }
+    }
+  ]
+}

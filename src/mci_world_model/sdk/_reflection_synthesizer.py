@@ -1,8 +1,8 @@
 """
-su-memory v3.5.0 — Reflection QA Synthesizer
-=============================================
+MCI World Model v3.1.0 — Reflection QA Synthesizer
+======================================================
 基于 MEMO (2605.15156v2) 的 Reflection QA 框架，
-从 su-memory 记忆语料中合成因果 QA 对。
+从因果记忆语料中合成因果 QA 对。
 
 适配策略 (MEMO Table 9 消融实验指导):
 - ✅ Step 1: Fact Extraction — 从记忆中提取实体和属性
@@ -11,7 +11,7 @@ su-memory v3.5.0 — Reflection QA Synthesizer
 - ✅ Step 4: Entity Surfacing — 为每个实体发现相关事实
 - ✅ Step 5: Cross-document Synthesis — 跨文档因果合成
 
-su-memory 增强:
+MCI World Model 增强:
 - 能量分组: 用五行生克关系自动分块，控制 Step 5 复杂度
 - BayesianCausal 校验: 合成的 QA 对经过后验量化筛选
 - v3.6.0 本地训练就绪: training_data_report() 输出质量检查
@@ -423,9 +423,7 @@ class ReflectionSynthesizer:
             qa_pair_id=_hash_pair_id(content_a, content_b),
         )
 
-    def _try_synthesize_chain(
-        self, fact_a: dict, fact_b: dict, relation: str
-    ) -> SynthesizedQAPair | None:
+    def _try_synthesize_chain(self, fact_a: dict, fact_b: dict, relation: str) -> SynthesizedQAPair | None:
         """
         能量关系驱动的因果链合成。
 
@@ -569,9 +567,7 @@ class ReflectionSynthesizer:
         diversity_score = present_types / len(energy_types)
 
         # v3.6.0 本地训练就绪判断
-        ready = (
-            total >= 3000 and avg_conf >= 0.4 and diversity_score >= 0.6 and above_threshold >= 2000
-        )
+        ready = total >= 3000 and avg_conf >= 0.4 and diversity_score >= 0.6 and above_threshold >= 2000
 
         return {
             "total_pairs": total,

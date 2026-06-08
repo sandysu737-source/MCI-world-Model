@@ -349,9 +349,7 @@ def analyze_relation(source: str, target: str) -> EnergyRelation:
     )
 
 
-def calculate_link_weight(
-    source_energy: str, target_energy: str, base_weight: float = 1.0
-) -> float:
+def calculate_link_weight(source_energy: str, target_energy: str, base_weight: float = 1.0) -> float:
     """
     Calculate the link weight between two memory nodes based on energy relations.
 

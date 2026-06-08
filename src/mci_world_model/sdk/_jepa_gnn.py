@@ -1,6 +1,6 @@
 """
-su-memory v4.0.0 M2 — GNN Predictor
-====================================
+MCI World Model v3.1.0 M2 — GNN Predictor
+===========================================
 
 可微 GNN 因果图预测器，用 numpy 手写梯度实现。
 
@@ -35,6 +35,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections import OrderedDict
+from typing import Any
 
 import numpy as np
 
@@ -84,7 +85,7 @@ class GNNPredictor(JEPAPredictor):
         self.W3: np.ndarray = self._rng.randn(H, H).astype(np.float64) * np.sqrt(2.0 / (H + H))
 
         # ── 前向缓存（训练模式）──
-        self._cache: dict = {}
+        self._cache: dict[str, Any] = {}
         self._cache_lock = threading.Lock()
 
         # ── 训练统计 ──
@@ -102,7 +103,7 @@ class GNNPredictor(JEPAPredictor):
             W3=self.W3.copy(),
         )
 
-    def set_params(self, params: dict[str, np.ndarray]):
+    def set_params(self, params: dict[str, np.ndarray]) -> None:
         """从字典加载参数。"""
         if "W1" in params:
             self.W1 = np.asarray(params["W1"], dtype=np.float64)
@@ -188,7 +189,7 @@ class GNNPredictor(JEPAPredictor):
         self._prediction_count += 1
         return self._build_state(A_pred.astype(np.float32), node_index, state)
 
-    def get_predicted_adj(self) -> np.ndarray | None:
+    def get_predicted_adj(self) -> dict[str, Any] | None:
         """返回最近一次 training_predict 的预测邻接矩阵。"""
         with self._cache_lock:
             if self._cache.get("empty", True):
@@ -205,7 +206,7 @@ class GNNPredictor(JEPAPredictor):
     def compute_gradients(
         self,
         A_target: np.ndarray,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         计算 MSE 损失 + 手写反向传播梯度。
 
@@ -276,7 +277,7 @@ class GNNPredictor(JEPAPredictor):
             "grads": {"W1": dW1, "W2": dW2, "W3": dW3},
         }
 
-    def apply_gradients(self, grads: dict[str, np.ndarray], lr: float = 0.01):
+    def apply_gradients(self, grads: dict[str, np.ndarray], lr: float = 0.01) -> None:
         """
         梯度下降参数更新。
 
@@ -297,7 +298,7 @@ class GNNPredictor(JEPAPredictor):
     def evaluate(
         self,
         dataset: list[tuple[CausalWorldModelState, CausalWorldModelState]],
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         评估预测精度。
 

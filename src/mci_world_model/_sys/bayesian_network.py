@@ -195,14 +195,10 @@ class BeliefPropagator:
 
                 for neighbor_id in network.get_neighbors(node_id):
                     # 收集来自其他邻居的消息（除了目标邻居）
-                    incoming = self._collect_incoming(
-                        network, node_id, neighbor_id, messages, evidence
-                    )
+                    incoming = self._collect_incoming(network, node_id, neighbor_id, messages, evidence)
 
                     # 计算传出消息
-                    new_msg = self._compute_message(
-                        network, node_id, neighbor_id, incoming, evidence
-                    )
+                    new_msg = self._compute_message(network, node_id, neighbor_id, incoming, evidence)
 
                     key = (node_id, neighbor_id)
                     if key in old_messages:
@@ -247,9 +243,7 @@ class BeliefPropagator:
             if neighbor_id in evidence:
                 # 证据节点直接提供信息
                 val = evidence[neighbor_id]
-                incoming.append(
-                    BetaDistribution(alpha=10.0 if val else 1.0, beta=1.0 if val else 10.0)
-                )
+                incoming.append(BetaDistribution(alpha=10.0 if val else 1.0, beta=1.0 if val else 10.0))
             else:
                 msg = messages.get((neighbor_id, node_id))
                 if msg:
@@ -288,9 +282,7 @@ class BeliefPropagator:
         edge = network.get_edge(from_node, to_node)
         if edge:
             # P(to=pos | from) = P(to=pos|from=pos)*P(from=pos) + P(to=pos|from=neg)*P(from=neg)
-            prob_to = edge.pos_given_pos.mean * combined.mean + edge.pos_given_neg.mean * (
-                1 - combined.mean
-            )
+            prob_to = edge.pos_given_pos.mean * combined.mean + edge.pos_given_neg.mean * (1 - combined.mean)
             strength = max(combined.effective_sample_size * prob_to, 2.0)
             return BetaDistribution(alpha=prob_to * strength, beta=(1 - prob_to) * strength)
 
@@ -648,9 +640,7 @@ class BayesianNetwork:
             "posteriors": {nid: p.to_dict() for nid, p in posteriors.items()},
         }
 
-    def sensitivity_analysis(
-        self, query_node: str, evidence_node: str, steps: int = 11
-    ) -> list[dict]:
+    def sensitivity_analysis(self, query_node: str, evidence_node: str, steps: int = 11) -> list[dict]:
         """
         敏感性分析
 
@@ -714,9 +704,7 @@ class BayesianNetwork:
 
     # ---- 因果链分析 ----
 
-    def trace_causal_chain(
-        self, cause_node: str, effect_node: str, max_depth: int = 5
-    ) -> list[dict]:
+    def trace_causal_chain(self, cause_node: str, effect_node: str, max_depth: int = 5) -> list[dict]:
         """
         追踪因果链（BFS）
 
@@ -768,9 +756,7 @@ class BayesianNetwork:
             "node_count": total_nodes,
             "edge_count": total_edges,
             "edge_type_distribution": dict(edge_types),
-            "mean_causal_strength": (
-                sum(causal_strengths) / len(causal_strengths) if causal_strengths else 0.0
-            ),
+            "mean_causal_strength": (sum(causal_strengths) / len(causal_strengths) if causal_strengths else 0.0),
             "max_causal_strength": max(causal_strengths) if causal_strengths else 0.0,
             "is_dag": not self._has_cycle(),
         }
@@ -815,15 +801,11 @@ class BayesianNetwork:
         net = cls(name=d.get("name", "default"))
         # 恢复节点
         for nid, nd in d.get("nodes", {}).items():
-            net.add_node(
-                node_id=nid, label=nd.get("label", ""), node_type=nd.get("node_type", "memory")
-            )
+            net.add_node(node_id=nid, label=nd.get("label", ""), node_type=nd.get("node_type", "memory"))
         # 恢复边
         for key, ed in d.get("edges", {}).items():
             parent, child = key.split("→")
-            edge = net.add_edge(
-                parent_id=parent, child_id=child, edge_type=ed.get("edge_type", "causal")
-            )
+            edge = net.add_edge(parent_id=parent, child_id=child, edge_type=ed.get("edge_type", "causal"))
             edge.pos_given_pos = BetaDistribution.from_dict(ed["pos_given_pos"])
             edge.pos_given_neg = BetaDistribution.from_dict(ed["pos_given_neg"])
             edge.evidence_count = ed.get("evidence_count", 0)

@@ -2,17 +2,21 @@
 MCI World Model v3.0.3 — Perception Pipeline
 ==============================================
 
-LeCun 六模块架构中的 Perception 模块：将原始观测（文本/记忆）转换为
+LeCun 六模块架构中的 Perception 模块：将原始观测（文本/记忆/物理信号）转换为
 World Model 可消费的结构化特征。
 
 职责：
 - 接收原始文本或记忆列表 → 输出结构化感知特征
+- 接收多模态信号 (v3.1.0) → 输出物理感知特征
 - 封装 EvidenceCollector + EncoderCore + TemporalSystem 三源预处理
 - 提供统一的 "sensor-like" 接口
 
 处理流程:
     raw_input → evidence_collection → temporal_annotation →
     semantic_encoding → feature_extraction → structured_output
+
+多模态流程 (v3.1.0):
+    MultimodalSignal[] → signal_type_dispatch → feature_embedding → PerceivedFeatures
 
 状态机: IDLE → COLLECTING → ENCODING → STRUCTURED → COMPLETE
 
@@ -21,15 +25,67 @@ World Model 可消费的结构化特征。
 
     perception = PerceptionPipeline()
     features = perception.process(memories)
+    mf = perception.process_multimodal(signals)
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
+from enum import Enum
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# v3.1.0: 多模态信号类型
+# =============================================================================
+
+
+class SignalType(Enum):
+    """多模态信号类型枚举。"""
+
+    TEXT = "text"
+    NUMERICAL = "numerical"  # 单值数值 (血糖 5.6)
+    TEMPORAL_SERIES = "temporal"  # 时序数据 (每日白蛋白: [30,32,31,33])
+    LAB_STRUCTURED = "lab"  # 实验室检查 (多项结构化指标)
+    CATEGORICAL = "categorical"  # 类别变量 (NRS2002 评分: 4)
+
+
+@dataclass
+class MultimodalSignal:
+    """
+    多模态信号数据结构 (v3.1.0)。
+
+    统一表示来自不同源的物理世界信号，
+    包括实验室检查、护理记录、营养摄入等。
+
+    Attributes:
+        signal_type: 信号类型枚举
+        value: 原始值 (数值/字符串/列表)
+        timestamp: ISO 格式时间戳
+        source: 信号来源 ("lab_report" | "nursing_note" | "diet_record" | ...)
+        metadata: 额外元信息
+    """
+
+    signal_type: SignalType
+    value: object
+    timestamp: str = ""
+    source: str = "unknown"
+    metadata: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "signal_type": self.signal_type.value,
+            "value": self.value if not isinstance(self.value, np.ndarray) else self.value.tolist(),
+            "timestamp": self.timestamp,
+            "source": self.source,
+            "metadata": self.metadata,
+        }
 
 
 # =============================================================================
@@ -58,17 +114,24 @@ class PerceivedFeatures:
     evidence_count: int = 0
     timestamp: float = field(default_factory=time.time)
 
+    # v3.2.0: 从物理信号构建的世界状态（感知→认知桥接）
+    world_state: object | None = None
+
     @classmethod
     def empty(cls) -> PerceivedFeatures:
         return cls()
 
     def to_dict(self) -> dict:
-        return {
+        result = {
             "n_entities": len(self.entities),
             "has_temporal": bool(self.temporal_context),
             "energy_profile": self.energy_profile,
             "evidence_count": self.evidence_count,
+            "has_world_state": self.world_state is not None,
         }
+        if self.world_state is not None and hasattr(self.world_state, "to_dict"):
+            result["world_state"] = self.world_state.to_dict()
+        return result
 
 
 # =============================================================================
@@ -79,6 +142,9 @@ class PerceivedFeatures:
 class PerceptionPipeline:
     """
     统一感知前端管道。
+
+    **线程模型**: 非线程安全。_state 和 _process_count 为单线程场景设计，
+    并发调用需外部加锁。
 
     六态流转：IDLE → COLLECTING → ENCODING → STRUCTURED → COMPLETE
 
@@ -174,6 +240,285 @@ class PerceptionPipeline:
         return features
 
     # -----------------------------------------------------------------
+    # v3.1.0: 多模态处理
+    # -----------------------------------------------------------------
+
+    # 物理量 → 五范畴能量映射表
+    ENERGY_PHYSICAL_MAP: dict[str, list[str]] = {
+        "semantic": ["diagnosis_code", "chief_complaint", "disease_type"],
+        "causal": ["medication_dose", "intervention_type", "treatment_code"],
+        "spacetime": ["timestamp", "los_days", "season", "day_of_week"],
+        "generative": ["albumin", "prealbumin", "calorie_intake", "protein_intake", "body_weight", "bmi"],
+        "trust": ["nrs2002", "apache_ii", "evidence_level", "sofa_score", "glasgow_score"],
+    }
+
+    def process_multimodal(
+        self,
+        signals: list[MultimodalSignal],
+    ) -> list[dict]:
+        """
+        v3.1.0: 将多模态信号统一转换为因果发现可用的结构化特征。
+
+        处理策略:
+        - NUMERICAL → 单值特征 + 五范畴映射
+        - TEMPORAL_SERIES → 统计量 (mean/std/trend/min/max)
+        - LAB_STRUCTURED → {feature_name: value} 展开
+        - CATEGORICAL → one-hot 或 ordinal 编码
+        - TEXT → 关键词提取（降级至 process()）
+
+        Args:
+            signals: MultimodalSignal 列表
+
+        Returns:
+            结构化特征列表 [{"feature_name": str, "value": float, "category": str, ...}, ...]
+        """
+        self._state = "COLLECTING"
+        if not signals:
+            self._state = "COMPLETE"
+            return []
+
+        features: list[dict] = []
+
+        for sig in signals:
+            try:
+                processed = self._dispatch_signal(sig)
+                if processed:
+                    if isinstance(processed, list):
+                        features.extend(processed)
+                    else:
+                        features.append(processed)
+            except Exception as e:
+                logger.warning("信号处理异常 [%s]: %s", sig.signal_type.value, e)
+
+        self._state = "COMPLETE"
+        self._process_count += 1
+        return features
+
+    # -----------------------------------------------------------------
+    # v3.2.0: 物理信号 → WorldState（感知→认知桥接）
+    # -----------------------------------------------------------------
+
+    def process_physical(
+        self,
+        signals: list,
+        state_class: type | None = None,
+    ) -> PerceivedFeatures:
+        """v3.2.0: 处理物理信号 (PhysicalSignal) → 构建 WorldState。
+
+        与 process() / process_multimodal() 并列，不替代。
+
+        process():         文本记忆 → 实体提取 + 能量剖面
+        process_multimodal(): 多模态信号 → 结构化特征 (v3.1.0)
+        process_physical():   物理信号 → WorldState (v3.2.0 新)
+
+        Args:
+            signals: PhysicalSignal 列表
+            state_class: 期望构建的 WorldState 子类
+                        (None = 自动推断，从第一个信号的 modality 判断)
+
+        Returns:
+            PerceivedFeatures，其中 world_state 字段被填充
+        """
+        self._state = "COLLECTING"
+
+        if not signals:
+            self._state = "COMPLETE"
+            return PerceivedFeatures.empty()
+
+        features = PerceivedFeatures()
+
+        # 自动推断 WorldState 类型
+        if state_class is None:
+            state_class = self._infer_state_class(signals)
+
+        # 构建世界状态
+        if state_class is not None:
+            try:
+                features.world_state = self._signals_to_world_state(signals, state_class)
+            except Exception as e:
+                logger.warning("process_physical 状态构建异常: %s", e)
+
+        self._state = "STRUCTURED"
+        self._last_features = features
+        self._process_count += 1
+        self._state = "COMPLETE"
+
+        return features
+
+    @staticmethod
+    def _infer_state_class(signals: list) -> type | None:
+        """从信号 modality 推断应该构建哪种 WorldState。
+
+        规则: 检查是否有本体感觉信号 (PROPRIOCEPTION)
+               → 推断为 PendulumState（物理体）。
+              未来扩展为注册表查找。
+        """
+        for sig in signals:
+            modality_val = str(getattr(sig, "modality", "")).lower()
+            if "proprioception" in modality_val:
+                try:
+                    from mci_world_model.sdk._world_state import PendulumState
+
+                    return PendulumState
+                except ImportError:
+                    pass
+        return None
+
+    @staticmethod
+    def _signals_to_world_state(
+        signals: list,
+        state_class: type,
+    ) -> object:
+        """将物理信号编码为世界状态。
+
+        委托给 state_class.from_signals() 类方法。
+        每个 WorldState 子类自行定义如何从信号构建自身。
+
+        Args:
+            signals: PhysicalSignal 列表
+            state_class: WorldState 子类
+
+        Returns:
+            WorldState 实例
+        """
+        if hasattr(state_class, "from_signals"):
+            return state_class.from_signals(signals)
+        raise NotImplementedError(f"{state_class.__name__} 未实现 from_signals() 类方法")
+
+    def _dispatch_signal(self, sig: MultimodalSignal) -> object:
+        """根据信号类型分派处理器。"""
+        dispatcher = {
+            SignalType.NUMERICAL: self._process_numerical,
+            SignalType.TEMPORAL_SERIES: self._process_temporal_series,
+            SignalType.LAB_STRUCTURED: self._process_lab_structured,
+            SignalType.CATEGORICAL: self._process_categorical,
+            SignalType.TEXT: self._process_text_signal,
+        }
+        handler = dispatcher.get(sig.signal_type)
+        if handler is None:
+            logger.warning("未知信号类型: %s", sig.signal_type)
+            return None
+        return handler(sig)
+
+    def _map_to_energy_category(self, feature_name: str) -> str:
+        """将物理量名称映射到五范畴能量类型。"""
+        for cat, names in self.ENERGY_PHYSICAL_MAP.items():
+            if feature_name.lower() in [n.lower() for n in names]:
+                return cat
+        return "generative"  # 默认归类为生成类
+
+    def _process_numerical(self, sig: MultimodalSignal) -> dict | None:
+        """处理数值信号。"""
+        try:
+            val = float(sig.value)  # type: ignore
+        except (TypeError, ValueError):
+            return None
+        if not np.isfinite(val):
+            return None
+        name = sig.metadata.get("name", sig.source)
+        return {
+            "feature_name": name,
+            "value": val,
+            "category": self._map_to_energy_category(name),
+            "timestamp": sig.timestamp,
+            "source": sig.source,
+        }
+
+    def _process_temporal_series(self, sig: MultimodalSignal) -> list[dict]:
+        """处理时序信号 → 统计特征。"""
+        try:
+            arr = np.array(sig.value, dtype=np.float64)  # type: ignore
+            if arr.size == 0 or not np.all(np.isfinite(arr)):
+                return []
+        except (TypeError, ValueError):
+            return []
+
+        name = sig.metadata.get("name", sig.source)
+        cat = self._map_to_energy_category(name)
+        base = {"category": cat, "timestamp": sig.timestamp, "source": sig.source}
+
+        result = []
+        stats = [
+            ("mean", float(np.mean(arr))),
+            ("std", float(np.std(arr)) if arr.size > 1 else 0.0),
+            ("min", float(np.min(arr))),
+            ("max", float(np.max(arr))),
+        ]
+        # 趋势 (最后3天 vs 前3天的差值)
+        if arr.size >= 6:
+            trend = float(np.mean(arr[-3:]) - np.mean(arr[:3]))
+            stats.append(("trend", trend))
+
+        for stat_name, stat_val in stats:
+            result.append(
+                {
+                    "feature_name": f"{name}_{stat_name}",
+                    "value": round(stat_val, 4),
+                    **base,
+                }
+            )
+        return result
+
+    def _process_lab_structured(self, sig: MultimodalSignal) -> list[dict]:
+        """处理实验室结构化数据 → 逐项展开。"""
+        val = sig.value
+        if not isinstance(val, dict):
+            return []
+
+        result = []
+        for item_name, item_val in val.items():
+            try:
+                fv = float(item_val)  # type: ignore
+                if not np.isfinite(fv):
+                    continue
+            except (TypeError, ValueError):
+                continue
+            result.append(
+                {
+                    "feature_name": str(item_name),
+                    "value": fv,
+                    "category": self._map_to_energy_category(str(item_name)),
+                    "timestamp": sig.timestamp,
+                    "source": sig.source,
+                }
+            )
+        return result
+
+    def _process_categorical(self, sig: MultimodalSignal) -> dict | None:
+        """处理类别信号。"""
+        name = sig.metadata.get("name", sig.source)
+        raw_val = sig.value
+        # 尝试数值化
+        try:
+            num_val = float(raw_val)  # type: ignore
+        except (TypeError, ValueError):
+            num_val = float(hash(str(raw_val)) % 100) / 100.0  # hash 映射
+
+        return {
+            "feature_name": name,
+            "value": num_val,
+            "category": self._map_to_energy_category(name),
+            "timestamp": sig.timestamp,
+            "source": sig.source,
+            "raw_label": str(raw_val),
+        }
+
+    def _process_text_signal(self, sig: MultimodalSignal) -> dict | None:
+        """处理文本信号 → 降级为简单特征。"""
+        content = str(sig.value) if sig.value else ""
+        if not content.strip():
+            return None
+        words = re.findall(r"[\u4e00-\u9fff]{2,}", content)
+        return {
+            "feature_name": "text_signal",
+            "value": float(len(words)),
+            "category": "semantic",
+            "timestamp": sig.timestamp,
+            "source": sig.source,
+            "word_count": len(words),
+        }
+
+    # -----------------------------------------------------------------
     # 子管道（私有）
     # -----------------------------------------------------------------
 
@@ -205,7 +550,7 @@ class PerceptionPipeline:
 
             return count
         except Exception as e:
-            logger.debug("Perception evidence collect 跳过: %s", e)
+            logger.warning("Perception evidence collect 跳过: %s", e)
             return 0
 
     def _annotate_temporal(self, memories: list[dict]) -> dict:
@@ -224,16 +569,14 @@ class PerceptionPipeline:
                         temporal_info = ts.encode(timestamp or content)
                         if temporal_info:
                             latest_context = (
-                                temporal_info
-                                if isinstance(temporal_info, dict)
-                                else {"info": str(temporal_info)}
+                                temporal_info if isinstance(temporal_info, dict) else {"info": str(temporal_info)}
                             )
                     except Exception:
                         pass
 
             return latest_context
         except Exception as e:
-            logger.debug("Perception temporal 跳过: %s", e)
+            logger.warning("Perception temporal 跳过: %s", e)
             return {}
 
     def _extract_entities(self, memories: list[dict]) -> list[dict]:
@@ -298,7 +641,7 @@ class PerceptionPipeline:
 
             return profile
         except Exception as e:
-            logger.debug("Perception energy profile 跳过: %s", e)
+            logger.warning("Perception energy profile 跳过: %s", e)
             return {
                 "semantic": 0.2,
                 "causal": 0.2,
@@ -325,7 +668,7 @@ class PerceptionPipeline:
                     vectors.append(vec)
             return vectors
         except Exception as e:
-            logger.debug("Perception semantic encode 跳过: %s", e)
+            logger.warning("Perception semantic encode 跳过: %s", e)
             return []
 
 

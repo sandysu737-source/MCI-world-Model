@@ -1,0 +1,79 @@
+{
+  "config": {
+    "top_k": 5,
+    "sketch_dim": 64,
+    "hnsw_m": 32,
+    "hnsw_efc": 64,
+    "hnsw_efs": 64,
+    "n_passages": 7405,
+    "n_queries": 500,
+    "reproducibility_seed": 42,
+    "single_threaded": true,
+    "granularity": "paragraph-level"
+  },
+  "baseline": {
+    "lambda_reg": 0.0,
+    "isotropy": 3.2375772866822113e-09,
+    "recall_at_k": 0.0,
+    "build_time_s": 0.17140454200125532,
+    "query_time_s": 0.010684541997761698
+  },
+  "sweep": [
+    {
+      "lambda_reg": 0.0,
+      "isotropy_after": 1.1139924790196432e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.17421783299869276,
+      "query_time_s": 0.0102507079973293
+    },
+    {
+      "lambda_reg": 0.005,
+      "isotropy_after": 1.1721102629660756e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.17849629199918127,
+      "query_time_s": 0.011416124998504529
+    },
+    {
+      "lambda_reg": 0.01,
+      "isotropy_after": 1.2641482647096088e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.1808089169971936,
+      "query_time_s": 0.010789332998683676
+    },
+    {
+      "lambda_reg": 0.02,
+      "isotropy_after": 1.512818946241081e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.19207749999986845,
+      "query_time_s": 0.011321791000227677
+    },
+    {
+      "lambda_reg": 0.05,
+      "isotropy_after": 2.314394099144132e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.21325804099978996,
+      "query_time_s": 0.013412249998509651
+    },
+    {
+      "lambda_reg": 0.1,
+      "isotropy_after": 3.0147178548693346e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.22684225000193692,
+      "query_time_s": 0.014117958999122493
+    },
+    {
+      "lambda_reg": 0.2,
+      "isotropy_after": 3.326994647646461e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.2338587500016729,
+      "query_time_s": 0.014529708998452406
+    },
+    {
+      "lambda_reg": 0.5,
+      "isotropy_after": 3.412911313517491e-09,
+      "recall_at_k": 0.0,
+      "build_time_s": 0.23935275000258116,
+      "query_time_s": 0.01470891600183677
+    }
+  ]
+}

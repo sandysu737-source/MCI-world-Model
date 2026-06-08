@@ -81,10 +81,11 @@ def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 
     for i, ex in enumerate(ds):
         ctx_titles = ex["context"]["title"]
         ctx_sentences = ex["context"]["sentences"]
-        sp_titles = {sf[0] for sf in ex["supporting_facts"]["title"]}
+        # v3.1.0 fix: supporting_facts.title is a list of title strings, not list of [title, idx]
+        sp_titles = set(ex["supporting_facts"]["title"])
 
         for title, sents in zip(ctx_titles, ctx_sentences):
-            pid = f"{title}::{i}"     # title 唯一
+            pid = title  # 用 title 作 passage ID
             if pid not in seen:
                 seen[pid] = " ".join(sents)
 
@@ -92,9 +93,7 @@ def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 
             "qid": ex["id"],
             "question": ex["question"],
             "answer": ex["answer"],
-            "gold_passage_ids": [
-                f"{sf[0]}::{i}" for sf in ex["supporting_facts"]["title"]
-            ],
+            "gold_passage_ids": list(sp_titles),
         })
 
     # 取前 n_passages 个 passage

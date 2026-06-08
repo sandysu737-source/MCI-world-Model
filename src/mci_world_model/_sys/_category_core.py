@@ -356,9 +356,7 @@ class TrigramCore:
         self._hexagram_map = self._build_hexagram_map()
         self._cuo_cache: dict[tuple[TrigramType, TrigramType], tuple[TrigramType, TrigramType]] = {}
         self._hu_cache: dict[tuple[TrigramType, TrigramType], tuple[TrigramType, TrigramType]] = {}
-        self._zong_cache: dict[
-            tuple[TrigramType, TrigramType], tuple[TrigramType, TrigramType]
-        ] = {}
+        self._zong_cache: dict[tuple[TrigramType, TrigramType], tuple[TrigramType, TrigramType]] = {}
         self._ban_cache: dict[tuple[TrigramType, TrigramType], tuple[TrigramType, TrigramType]] = {}
         self._jia_cache: dict[tuple[TrigramType, TrigramType], tuple[TrigramType, TrigramType]] = {}
 
@@ -476,9 +474,7 @@ class TrigramCore:
         """
         return BINARY_TO_TRIGRAM[bits]
 
-    def get_cuo_hexagram(
-        self, upper: TrigramType, lower: TrigramType
-    ) -> tuple[TrigramType, TrigramType]:
+    def get_cuo_hexagram(self, upper: TrigramType, lower: TrigramType) -> tuple[TrigramType, TrigramType]:
         """
         Get Cuo (错卦) - opposite transformation.
 
@@ -513,9 +509,7 @@ class TrigramCore:
         self._cuo_cache[cache_key] = result
         return result
 
-    def get_hu_hexagram(
-        self, upper: TrigramType, lower: TrigramType
-    ) -> tuple[TrigramType, TrigramType]:
+    def get_hu_hexagram(self, upper: TrigramType, lower: TrigramType) -> tuple[TrigramType, TrigramType]:
         """
         Get Hu (互卦) - mutual transformation.
 
@@ -540,9 +534,7 @@ class TrigramCore:
         self._hu_cache[cache_key] = result
         return result
 
-    def get_zong_hexagram(
-        self, upper: TrigramType, lower: TrigramType
-    ) -> tuple[TrigramType, TrigramType]:
+    def get_zong_hexagram(self, upper: TrigramType, lower: TrigramType) -> tuple[TrigramType, TrigramType]:
         """
         Get Zong (综卦) - reversed transformation.
 
@@ -568,9 +560,7 @@ class TrigramCore:
         self._zong_cache[cache_key] = result
         return result
 
-    def get_ban_hexagram(
-        self, upper: TrigramType, lower: TrigramType
-    ) -> tuple[TrigramType, TrigramType]:
+    def get_ban_hexagram(self, upper: TrigramType, lower: TrigramType) -> tuple[TrigramType, TrigramType]:
         """
         Get Ban (半卦) - half transformation.
 
@@ -601,9 +591,7 @@ class TrigramCore:
         self._ban_cache[cache_key] = result
         return result
 
-    def get_jia_hexagram(
-        self, upper: TrigramType, lower: TrigramType
-    ) -> tuple[TrigramType, TrigramType]:
+    def get_jia_hexagram(self, upper: TrigramType, lower: TrigramType) -> tuple[TrigramType, TrigramType]:
         """
         Get Jia (交卦) - cross transformation.
 
@@ -725,9 +713,7 @@ class TrigramCore:
 
         # Check if same trigram (implicit relationship)
         if t1 == t2:
-            relations.append(
-                TrigramRelation.SAME if hasattr(TrigramRelation, "SAME") else TrigramRelation.BAN
-            )
+            relations.append(TrigramRelation.SAME if hasattr(TrigramRelation, "SAME") else TrigramRelation.BAN)
 
         # Check energy type relationship
         energy1 = TRIGRAM_ENERGY_TYPE[t1]

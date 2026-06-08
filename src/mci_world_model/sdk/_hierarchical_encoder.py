@@ -226,7 +226,7 @@ class HierarchicalJEPAEncoder:
 
         try:
             node_index = s_l1._build_node_index()
-            X = s_l1.to_node_feature_matrix(node_index)
+            X = s_l1.to_node_feature_matrix()
 
             if X.shape[0] == 0:
                 return CausalWorldModelState.empty()
@@ -366,9 +366,7 @@ class HierarchicalJEPAEncoder:
 
         return A2, node_index
 
-    def _l1_to_l2_features(
-        self, A1: np.ndarray, X: np.ndarray
-    ) -> np.ndarray:
+    def _l1_to_l2_features(self, A1: np.ndarray, X: np.ndarray) -> np.ndarray:
         """
         L1→L2 特征转换：用 L1 邻接矩阵对原始特征做消息传递。
 

@@ -1,6 +1,6 @@
 """
-su-memory v3.6.0 — Energy Consistency Loss (M7)
-==================================================
+MCI World Model v3.1.0 — Energy Consistency Loss (M7)
+========================================================
 
 拓扑先验能量一致性损失函数，用于 QLoRA 参数化训练时的结构约束。
 
@@ -238,9 +238,7 @@ class EnergyConsistencyLoss:
                 edge_type = rel if rel in ("enhance", "suppress") else "other"
 
                 # 边惩罚权重
-                weight = (
-                    self.edge_penalty_multiplier if edge_type in ("enhance", "suppress") else 1.0
-                )
+                weight = self.edge_penalty_multiplier if edge_type in ("enhance", "suppress") else 1.0
 
                 # L1 距离
                 diff = abs(pred_val - target_val)
@@ -291,6 +289,38 @@ class EnergyConsistencyLoss:
         """
         _, diag = self.compute(sft_loss=0.0, predictions=predictions, topological=topological)
         return diag["energy_loss"]
+
+    def compute_ratios(
+        self,
+        predicted_ratios: dict[str, float],
+        target_ratios: dict[str, float],
+    ) -> float:
+        """
+        v3.1.0: 便捷方法 — 从五维能量比率 dict 计算能量一致性损失。
+
+        接受语义化的 dict 输入（如 {"semantic": 0.25, "causal": 0.30, ...}），
+        内部转换为 5×5 对角矩阵后委托 compute_only_energy()。
+
+        Args:
+            predicted_ratios: 预测的五维能量比率
+            target_ratios: 目标/观测的五维能量比率
+
+        Returns:
+            L_energy 值（归一化 L1 距离）
+        """
+        five_keys = ["semantic", "causal", "spacetime", "generative", "trust"]
+        pred_arr = np.array([predicted_ratios.get(k, 0.0) for k in five_keys], dtype=np.float32)
+        targ_arr = np.array([target_ratios.get(k, 0.0) for k in five_keys], dtype=np.float32)
+        # 构造对角预测矩阵（非对角为零）
+        pred_mat = np.diag(pred_arr)
+        # 构造 target 拓扑矩阵
+        target_mat = np.diag(targ_arr)
+        topo = TopologicalEnergyMatrix(
+            matrix=target_mat,
+            state_index={s: i for i, s in enumerate(five_keys)},
+            edge_types={},
+        )
+        return self.compute_only_energy(pred_mat, topo)
 
     # -----------------------------------------------------------------
     # 推理时验证
@@ -398,7 +428,7 @@ class EnergyConsistencyLoss:
         }
 
     # -----------------------------------------------------------------
-    # v4.0.0 JEPA: N×N 图结构能量损失
+    # v3.1.0 JEPA: N×N 图结构能量损失
     # -----------------------------------------------------------------
 
     def compute_graph_energy(
@@ -455,7 +485,7 @@ class EnergyConsistencyLoss:
 
 
 # =============================================================================
-# v4.0.0 JEPA: 图结构能量损失工厂函数
+# v3.1.0 JEPA: 图结构能量损失工厂函数
 # =============================================================================
 
 

@@ -95,16 +95,22 @@ class EnergyCostModule:
         alpha_energy: float = 0.5,
         beta_causal: float = 0.3,
         gamma_temporal: float = 0.2,
+        energy_core=None,  # v3.0.4: 外部注入 EnergyCore
+        month_branch: int = 0,  # v3.0.4: 当前月份地支索引
     ):
         """
         Args:
             alpha_energy: 能量均衡维度权重
             beta_causal: 因果一致性维度权重
             gamma_temporal: 时序连贯性维度权重
+            energy_core: EnergyCore 实例，启用时变代价 (v3.0.4)
+            month_branch: 当前月份地支索引 0-11 (v3.0.4)
         """
         self._alpha = alpha_energy
         self._beta = beta_causal
         self._gamma = gamma_temporal
+        self._energy_core = energy_core  # v3.0.4
+        self._month_branch = month_branch  # v3.0.4
         self._state: str = "IDLE"  # IDLE → COMPUTING → COMPLETE
         self._eval_count: int = 0
 
@@ -139,8 +145,9 @@ class EnergyCostModule:
             eb = self._energy_balance_cost(state)
             cc = self._causal_consistency_cost(state)
             tc = self._temporal_coherence_cost(state)
+            oc = self._overconstraint_cost(state)  # v3.0.4: 乘侮异常代价
 
-            total = self._alpha * eb + self._beta * cc + self._gamma * tc
+            total = self._alpha * eb + self._beta * cc + self._gamma * tc + 0.15 * oc
 
             self._eval_count += 1
             self._state = "COMPLETE"
@@ -150,7 +157,7 @@ class EnergyCostModule:
                 energy_balance=eb,
                 causal_consistency=cc,
                 temporal_coherence=tc,
-                breakdown={"eb": eb, "cc": cc, "tc": tc},
+                breakdown={"eb": eb, "cc": cc, "tc": tc, "oc": oc},
             )
         except Exception:
             logger.warning("CostModule.evaluate() 异常降级为 zero", exc_info=True)
@@ -161,14 +168,18 @@ class EnergyCostModule:
     # 维度计算（私有方法，从 Trainer 提取）
     # -----------------------------------------------------------------
 
-    @staticmethod
-    def _energy_balance_cost(state) -> float:
+    # v3.0.4: 改为实例方法，支持时变能量惩罚
+    def _energy_balance_cost(self, state) -> float:
         """
         计算能量均衡代价。
 
         对每条因果边检查增强/抑制模式违规：
         - 增强边权重过低 → 惩罚
         - 抑制边权重过高 → 惩罚
+
+        v3.0.4: 引入时变惩罚系数 — 基于 EnergyCore 旺衰状态
+        - WANG 态 → 惩罚 ×1.2 (能量过旺时的违规更严重)
+        - SI 态  → 惩罚 ×0.3 (能量极弱时违规容忍度更高)
 
         Args:
             state: CausalWorldModelState
@@ -186,14 +197,46 @@ class EnergyCostModule:
             energy_rel = edge.get("energy_relation", "neutral")
             rho = edge.get("rho", 0.0)
 
+            # ── v3.0.4: 时变惩罚系数 ──
+            time_factor = 1.0
+            if self._energy_core is not None:
+                try:
+                    cause_energy = edge.get("cause_energy", "earth")
+                    energy_state = self._energy_core.get_energy_state(cause_energy, self._month_branch)
+                    time_factor = self._energy_core.STRENGTH_MULTIPLIER.get(energy_state.strength, 1.0)
+                except Exception:
+                    logger.debug("energy state time_factor fallback", exc_info=True)
+
             # 增强模式下的低权重惩罚
             if energy_rel == "enhance" and rho < 0.3:
-                violations += (0.3 - rho) * 2.0
+                violations += (0.3 - rho) * 2.0 * time_factor
             # 抑制模式下的高权重惩罚
             elif energy_rel == "suppress" and rho > 0.7:
-                violations += (rho - 0.7) * 2.0
+                violations += (rho - 0.7) * 2.0 * time_factor
 
         return violations / max(n_edges, 1)
+
+    def _overconstraint_cost(self, state) -> float:
+        """
+        v3.0.4: 检测过度克制（相乘）和反向克制（相侮）异常。
+
+        相乘 (overconstraint): 克方过强，被克方过弱 → 异常制衡
+        相侮 (reverse): 被克方反向克制克方 → 关系倒置
+
+        Returns:
+            乘侮异常分数 [0, ∞)
+        """
+        if self._energy_core is None or not state.causal_edges:
+            return 0.0
+        violations = 0.0
+        for edge in state.causal_edges:
+            cause_energy = edge.get("cause_energy", "earth")
+            effect_energy = edge.get("effect_energy", "earth")
+            if self._energy_core.get_overconstraint_relation(cause_energy, effect_energy):
+                violations += 0.15
+            if self._energy_core.get_reverse_relation(cause_energy, effect_energy):
+                violations += 0.10
+        return violations / max(len(state.causal_edges), 1)
 
     @staticmethod
     def _causal_consistency_cost(state) -> float:

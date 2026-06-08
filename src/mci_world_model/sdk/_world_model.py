@@ -1,26 +1,26 @@
 """
-su-memory v4.0.0 — MCI World Model JEPA
-===========================================
+MCI World Model v3.0.6 — 能量-因果统一世界模型
+=================================================
 
 神经-符号因果推理系统的统一接口，
-v4.0.0: JEPA 潜空间预测替代 QLoRA/Transformer。
+v3.0.6: 能量-因果统一 — 对偶边表示 + EnergyFlowPredictor + 自动能量调节闭环 + 五维覆盖度。
 融合三层因果量化管道 + JEPA 编码器-预测器 + Pearl do-calculus 干预 +
 Pearl counterfactual 反事实推理 (L3)。
 
 核心能力:
 - discover():        三层因果发现 → 加权因果图 → JEPA 编码
-- predict_effect():  纯检索路径 + JEPA 预测路径（v4.0.0 统一）
+- predict_effect():  纯检索路径 + JEPA 预测路径（v3.0.3 统一）
 - jepa_predict():    JEPA 潜空间预测 (encoder→state→predictor→next_state)
-- intervene():       Pearl do-operator 干预预测（v3.7.0 L2）
+- intervene():       Pearl do-operator 干预预测（Pearl L2）
 - decompose_effect(): 因果效应三分解 NDE/NIE/TE
-- query_counterfactual(): Pearl 反事实推理（v3.8.0 L3）
+- query_counterfactual(): Pearl 反事实推理（v3.0.8 L3）
 - train_jepa():      JEPA 端到端训练（替代 train_parametric）
 - explain():         因果链回溯，人类可读解释
 - health_check():    全系统健康诊断
 
 架构层次:
     ┌───────────────────────────────────────────┐
-    │        MCIWorldModel (v4.0.0 JEPA)        │
+    │        MCIWorldModel (v3.0.3 JEPA)        │
     │  ┌───────────────────────────────────┐    │
     │  │  JEPA Encoder + Predictor         │    │
     │  │  (潜空间因果图编码 → GNN/基线预测) │    │
@@ -60,6 +60,33 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# v3.0.6: 五维能量比率聚合（公共逻辑，供 _world_model + _configurator 复用）
+# =============================================================================
+
+
+def _aggregate_energy_ratios(causal_edges: list[dict]) -> dict[str, float] | None:
+    """v3.0.6: 从因果边列表聚合五维能量比率（公共逻辑）。"""
+    if not causal_edges:
+        return None
+    energy_counts: dict[str, int] = {
+        "semantic": 0,
+        "causal": 0,
+        "spacetime": 0,
+        "generative": 0,
+        "trust": 0,
+    }
+    for edge in causal_edges:
+        for key in ("cause_energy", "effect_energy"):
+            e = edge.get(key, "")
+            if e in energy_counts:
+                energy_counts[e] += 1
+    total = sum(energy_counts.values())
+    if total == 0:
+        return None
+    return {k: v / total for k, v in energy_counts.items()}
+
+
+# =============================================================================
 # CausalWorldModelState
 # =============================================================================
 
@@ -93,11 +120,11 @@ class CausalWorldModelState:
     parametric_enhanced: bool = False
     timestamp: str = ""
 
-    # ── 反事实世界（v3.8.0 L3）─
+    # ── 反事实世界（v3.0.8 L3）─
     counterfactual_graph: dict | None = None
     do_interventions: list[dict] = field(default_factory=list)
 
-    # ── v4.0.0 JEPA: 时空 + 信念 + 元认知元数据 ──
+    # ── v3.1.0 JEPA: 时空 + 信念 + 元认知元数据 ──
     temporal_info: object | None = None
     # TemporalInfo from _sys/chrono.py（干支持信息）
     belief_tracker: object | None = None
@@ -113,12 +140,21 @@ class CausalWorldModelState:
     latest_cost_signal: object | None = None
     # CostSignal 最近一次评估结果
 
+    # ── v3.0.4: 五维能量分布快照 ──
+    energy_ratios: dict[str, float] | None = None
+    # {"semantic": 0.25, "causal": 0.30, ...}  从因果边聚合
+
+    # ── v3.2.0: 独立世界状态（桥接新旧架构）──
+    world_state: object | None = None
+    # WorldState 实例，独立于推理过程的世界内在表征
+    # None = 旧模式（纯因果图推理），非 None = 新模式（世界状态 + 因果图并行）
+
     @classmethod
     def empty(cls) -> CausalWorldModelState:
         return cls()
 
     def to_dict(self) -> dict:
-        return {
+        result = {
             "n_causal_edges": len(self.causal_edges),
             "n_confirmed": self.n_confirmed,
             "n_novel": self.n_novel,
@@ -135,10 +171,14 @@ class CausalWorldModelState:
             "n_cognitive_gaps": len(self.cognitive_gaps),
             "has_working_memory": self.working_memory is not None,
             "has_cost_signal": self.latest_cost_signal is not None,
+            "has_world_state": self.world_state is not None,
         }
+        if self.world_state is not None and hasattr(self.world_state, "to_dict"):
+            result["world_state"] = self.world_state.to_dict()
+        return result
 
     # ────────────────────────────────────────────────
-    # v4.0.0 JEPA: 因果图距离度量
+    # v3.1.0 JEPA: 因果图距离度量
     # ────────────────────────────────────────────────
 
     def _build_node_index(self) -> dict[str, int]:
@@ -264,7 +304,7 @@ class CausalWorldModelState:
         JEPA 训练损失的主项：
             L_pred = state_distance(s_pred, s_actual)
 
-        v4.0.0: 融合因果图距离 + 时空距离 + 信念距离。
+        v3.1.0: 融合因果图距离 + 时空距离 + 信念距离。
             L_total = (α_causal·L_causal + α_temporal·L_temporal + α_belief·L_belief) / Σα
 
         因果图距离子项：
@@ -311,12 +351,10 @@ class CausalWorldModelState:
 
         # ── 2. 图结构 Jaccard 差异 ──
         self_edges_set = {
-            (self._get_node_name(e, "cause"), self._get_node_name(e, "effect"))
-            for e in self.causal_edges
+            (self._get_node_name(e, "cause"), self._get_node_name(e, "effect")) for e in self.causal_edges
         }
         other_edges_set = {
-            (other._get_node_name(e, "cause"), other._get_node_name(e, "effect"))
-            for e in other.causal_edges
+            (other._get_node_name(e, "cause"), other._get_node_name(e, "effect")) for e in other.causal_edges
         }
         intersection = len(self_edges_set & other_edges_set)
         union = len(self_edges_set | other_edges_set)
@@ -332,7 +370,7 @@ class CausalWorldModelState:
         max_energy = max(self_total_energy, other_total_energy, 1e-10)
         dist_energy = abs(self_total_energy - other_total_energy) / max_energy
 
-        # ── 4. v4.0.0: 时空距离 (energy_type 对齐) ──
+        # ── 4. v3.1.0: 时空距离 (energy_type 对齐) ──
         dist_temporal = 0.0
         has_temporal = False
         if self.temporal_info is not None and other.temporal_info is not None:
@@ -342,9 +380,9 @@ class CausalWorldModelState:
                 other_et = getattr(other.temporal_info, "energy_type", "")
                 dist_temporal = 0.0 if self_et == other_et else 1.0
             except Exception:
-                pass
+                logger.debug("temporal distance calc failed", exc_info=True)
 
-        # ── 5. v4.0.0: 信念距离 (置信度轨迹差异) ──
+        # ── 5. v3.1.0: 信念距离 (置信度轨迹差异) ──
         dist_belief = 0.0
         has_belief = False
         if self.belief_tracker is not None and other.belief_tracker is not None:
@@ -369,15 +407,13 @@ class CausalWorldModelState:
                         diffs.append(abs(sc - oc))
                     dist_belief = sum(diffs) / len(diffs) if diffs else 0.0
             except Exception:
-                pass
+                logger.debug("belief distance calc failed", exc_info=True)
 
         # ── 加权求和 ──
         # 归一化: 只对活跃的组件分配权重
         causal_weight = alpha_edges + alpha_structure + alpha_energy
         total_weight = causal_weight
-        distance = (
-            alpha_edges * dist_edges + alpha_structure * dist_structure + alpha_energy * dist_energy
-        )
+        distance = alpha_edges * dist_edges + alpha_structure * dist_structure + alpha_energy * dist_energy
         if has_temporal:
             total_weight += alpha_temporal
             distance += alpha_temporal * dist_temporal
@@ -420,6 +456,11 @@ class TrajectoryStep:
     step_index: int = 0
     timestamp: float = field(default_factory=time.time)
 
+    # v3.0.4: 时空间编码
+    stem_branch_code: object | None = None  # StemBranchCode
+    energy_state: object | None = None  # EnergyState
+    temporal_weight: float = 1.0  # 时变重要性
+
 
 @dataclass
 class WorkingMemory:
@@ -436,6 +477,8 @@ class WorkingMemory:
     max_length: int = 10
     trajectory: list[TrajectoryStep] = field(default_factory=list)
     _state: str = "IDLE"  # IDLE → RECORDING → FULL → FLUSHING → IDLE
+    _energy_core: object | None = None  # v3.0.4
+    _temporal_core: object | None = None  # v3.0.4
 
     @property
     def state(self) -> str:
@@ -446,11 +489,37 @@ class WorkingMemory:
         return len(self.trajectory) >= self.max_length
 
     def push(self, step: TrajectoryStep) -> None:
-        """压入一步轨迹，FIFO 淘汰最旧记录。"""
+        """压入一步轨迹，加权淘汰（v3.0.4: 优先淘汰 temporal_weight 最低的记录）。"""
         self._state = "RECORDING"
+
+        # ── v3.0.4: 自动注入时空编码 ──
+        from datetime import datetime
+
+        if step.stem_branch_code is None and self._temporal_core is not None:
+            now = datetime.now()
+            step.stem_branch_code = self._temporal_core.create_code(
+                stem_idx=now.year % 10,
+                branch_idx=now.month - 1,
+            )
+
+        if step.energy_state is None and self._energy_core is not None:
+            step.energy_state = self._energy_core.get_energy_state("spacetime", datetime.now().month - 1)
+            strength_name = getattr(getattr(step.energy_state, "strength", None), "name", "")
+            step.temporal_weight = {
+                "WANG": 1.5,
+                "XIANG": 1.2,
+                "XIU": 0.8,
+                "QIU": 0.5,
+                "SI": 0.2,
+            }.get(strength_name, 1.0)
+
         self.trajectory.append(step)
+
+        # ── v3.0.4: 加权淘汰 — 优先淘汰 temporal_weight 最低的记录 ──
         if len(self.trajectory) > self.max_length:
+            self.trajectory.sort(key=lambda s: getattr(s, "temporal_weight", 1.0))
             self.trajectory.pop(0)
+
         if self.is_full:
             self._state = "FULL"
 
@@ -459,6 +528,34 @@ class WorkingMemory:
         if not self.trajectory:
             return []
         return self.trajectory[-n:]
+
+    def get_recent_weighted(self, n: int = 3) -> list[TrajectoryStep]:
+        """
+        v3.0.4: 按时间距离 × 旺衰权重检索最近轨迹。
+
+        候选池翻倍 (n*2)，用循环距离衰减 + temporal_weight 排序，
+        返回 Top-N 步。
+
+        Args:
+            n: 返回步数
+
+        Returns:
+            加权排序后的轨迹步骤列表
+        """
+        import math
+
+        if not self.trajectory:
+            return []
+        steps = self.trajectory[-n * 2 :]  # 候选池翻倍
+        if self._temporal_core is not None and steps:
+            last = steps[-1]
+            now_idx = last.stem_branch_code.cycle_index if last.stem_branch_code is not None else 0
+            for s in steps:
+                if s.stem_branch_code is not None:
+                    dist = self._temporal_core.get_cycle_distance(now_idx, s.stem_branch_code.cycle_index)
+                    s.temporal_weight *= math.exp(-0.1 * dist)
+        steps.sort(key=lambda s: getattr(s, "temporal_weight", 1.0), reverse=True)
+        return steps[:n]
 
     def clear(self) -> None:
         """清空缓冲区，重置为 IDLE。"""
@@ -471,10 +568,7 @@ class WorkingMemory:
             "max_length": self.max_length,
             "n_steps": len(self.trajectory),
             "state": self._state,
-            "recent_costs": [
-                round(s.cost_signal.total, 6) if s.cost_signal else None
-                for s in self.get_recent(3)
-            ],
+            "recent_costs": [round(s.cost_signal.total, 6) if s.cost_signal else None for s in self.get_recent(3)],
         }
 
 
@@ -485,9 +579,9 @@ class WorkingMemory:
 
 class MCIWorldModel:
     """
-    MCI World Model v4.0.0 JEPA — 神经-符号因果推理系统。
+    MCI World Model v3.0.6 — 能量-因果统一世界模型。
 
-    v4.0.0: JEPA 潜空间预测替代 QLoRA/Transformer。
+    v3.0.6: 能量-因果统一（对偶边表示 + EnergyFlowPredictor + 自动调节闭环 + 五维覆盖度）。
     统一了检索增强 + JEPA 编码器-预测器两种路径，
     提供 Pearl 因果层级（关联→干预→反事实）的完整接口。
 
@@ -501,13 +595,13 @@ class MCIWorldModel:
         >>> for p in predictions:
         ...     print(f"→ {p['effect']} (置信度: {p['confidence']})")
 
-        >>> # 干预分析 (v3.7.0 L2)
+        >>> # 干预分析 (Pearl L2)
         >>> result = wm.intervene(
         ...     do_x={"price": 1.5},
         ...     target="demand",
         ... )
 
-        >>> # 反事实推理 (v3.8.0 L3)
+        >>> # 反事实推理 (Pearl L3)
         >>> cf = wm.query_counterfactual(
         ...     evidence={"price": 1.0, "demand": 100},
         ...     do_x={"price": 0.8},
@@ -531,7 +625,7 @@ class MCIWorldModel:
         self._lite_pro = lite_pro
         self._config = config or {}
         self._state = CausalWorldModelState.empty()
-        self._parametric: object | None = None  # 降级为惰性加载 (v4.0.0)
+        self._parametric: object | None = None  # 降级为惰性加载 (v3.1.0)
         self._energy_loss: object | None = None  # EnergyConsistencyLoss
         self._cost_module: object | None = None  # v3.0.1: EnergyCostModule
         self._configurator: object | None = None  # v3.0.1: MetaConfigurator
@@ -540,11 +634,15 @@ class MCIWorldModel:
         self._perception: object | None = None  # v3.0.3: PerceptionPipeline
         self._initialized: bool = False
 
-        # v4.0.0 JEPA: 编码器 + 预测器 (懒加载)
+        # v3.0.4: 能量仲裁器 + 时空编码器（惰性初始化）
+        self._energy_core: object | None = None
+        self._temporal_core: object | None = None
+
+        # v3.1.0 JEPA: 编码器 + 预测器 (懒加载)
         self._jepa_encoder: object | None = None
         self._jepa_predictor: object | None = None
 
-        # v3.7.0: do-calculus 干预引擎 (懒加载)
+        # Pearl L2: do-calculus 干预引擎 (懒加载)
         self._do_calculus: object | None = None
         self._do_calculus_lock: threading.Lock = threading.Lock()
         self._intervention_history: list[dict] = []
@@ -634,7 +732,7 @@ class MCIWorldModel:
             except ImportError:
                 report["modules"]["sigreg"] = "unavailable"
 
-            # ── v4.0.0 JEPA: 检查编码器 ──
+            # ── v3.1.0 JEPA: 检查编码器 ──
             try:
                 from mci_world_model.sdk._jepa_encoder import JEPAEncoder
 
@@ -642,7 +740,7 @@ class MCIWorldModel:
             except ImportError:
                 report["modules"]["jepa_encoder"] = "unavailable"
 
-            # ── v4.0.0 JEPA: 检查预测器 ──
+            # ── v3.1.0 JEPA: 检查预测器 ──
             try:
                 from mci_world_model.sdk._jepa_predictor import (
                     BeliefPropagationPredictor,
@@ -652,7 +750,7 @@ class MCIWorldModel:
             except ImportError:
                 report["modules"]["jepa_predictor"] = "unavailable"
 
-            # ── v4.0.0 M2: 检查 GNN 预测器 ──
+            # ── v3.1.0 M2: 检查 GNN 预测器 ──
             try:
                 from mci_world_model.sdk._jepa_gnn import GNNPredictor  # noqa: F401
 
@@ -671,7 +769,7 @@ class MCIWorldModel:
             except ImportError:
                 report["modules"]["energy_loss"] = "unavailable"
 
-            # ── v4.0.0: 初始化 JEPA 编码器 ──
+            # ── v3.1.0: 初始化 JEPA 编码器 ──
             if report["modules"]["jepa_encoder"] == "available":
                 try:
                     from mci_world_model.sdk._jepa_encoder import JEPAEncoder
@@ -681,7 +779,7 @@ class MCIWorldModel:
                 except Exception as e:
                     report["warnings"].append(f"JEPA 编码器初始化失败: {e}")
 
-            # ── v4.0.0: 初始化 JEPA 预测器（默认为 BeliefPropagation 基线） ──
+            # ── v3.1.0: 初始化 JEPA 预测器（默认为 BeliefPropagation 基线） ──
             if report["modules"]["jepa_predictor"] == "available":
                 try:
                     from mci_world_model.sdk._jepa_predictor import (
@@ -697,11 +795,160 @@ class MCIWorldModel:
             self._initialized = report["ready"]
 
             if report["ready"]:
-                logger.info("MCIWorldModel v4.0.0 JEPA 初始化完成")
+                logger.info("MCIWorldModel v3.1.0 JEPA 初始化完成")
             else:
                 logger.warning("MCIWorldModel 初始化不完整: %s", report["warnings"])
 
             return report
+
+    # ────────────────────────────────────────────────
+    # v3.0.4: 能量中心 + 时空编码器 惰性获取器
+    # ────────────────────────────────────────────────
+
+    def _get_energy_core(self):
+        """惰性初始化并返回 EnergyCore 实例。"""
+        if self._energy_core is None:
+            from su_memory._sys._energy_core import EnergyCore
+
+            self._energy_core = EnergyCore()
+        return self._energy_core
+
+    def _get_temporal_core(self):
+        """惰性初始化并返回 TemporalCore 实例。"""
+        if self._temporal_core is None:
+            from su_memory._sys._temporal_core import TemporalCore
+
+            self._temporal_core = TemporalCore()
+        return self._temporal_core
+
+    def _get_configurator(self):
+        """v3.0.6: 惰性初始化并返回 HierarchicalConfigurator 实例。"""
+        if self._configurator is None:
+            from mci_world_model._sys._configurator import HierarchicalConfigurator
+
+            self._configurator = HierarchicalConfigurator(energy_core=self._energy_core)
+        return self._configurator
+
+    def _get_causal_actor(self):
+        """v3.0.6: 惰性初始化并返回 CausalActor 实例。"""
+        if self._causal_actor is None:
+            from mci_world_model.sdk._causal_actor import CausalActor
+
+            self._causal_actor = CausalActor(self, self._cost_module, energy_core=self._energy_core)
+        return self._causal_actor
+
+    # ────────────────────────────────────────────────
+    # v3.0.5: 能量分布提取 + EnergyBus 三层传播
+    # ────────────────────────────────────────────────
+
+    def _extract_energy_ratios(self, state) -> dict[str, float] | None:
+        """
+        v3.0.5: 从因果图状态提取五维能量分布比率。
+
+        委托到公共函数 ``_aggregate_energy_ratios`` 避免逻辑重复。
+
+        Args:
+            state: CausalWorldModelState 实例
+
+        Returns:
+            五维能量比率字典，若 causal_edges 无能量标签返回 None
+        """
+        if not hasattr(state, "causal_edges") or not state.causal_edges:
+            return None
+        return _aggregate_energy_ratios(state.causal_edges)
+
+    def _build_energy_bus(self) -> object:
+        """
+        v3.0.5: 从因果图构建 EnergyBus 三层网络。
+
+        为每个活跃能量创建五元素节点，基于 causal_edges 建立
+        ENHANCE/SUPPRESS Channel。
+
+        Returns:
+            EnergyBus 实例（已连接所有因果边）
+        """
+        from su_memory._sys._energy_bus import (
+            EnergyBus,
+            EnergyLayer,
+            EnergyNode,
+            RelationType,
+        )
+
+        bus = EnergyBus()
+        # 为每个活跃状态创建五元素节点
+        for energy in self.FIVE_STATES:
+            node = EnergyNode(
+                node_id=f"wm_{energy}",
+                energy_type=energy,
+                layer=EnergyLayer.FIVE_ELEMENTS,
+            )
+            bus.add_node(node, auto_connect=False)
+
+        # 基于因果边建立 Channel
+        for edge in self._state.causal_edges:
+            cause_e = edge.get("cause_energy", "earth")
+            effect_e = edge.get("effect_energy", "earth")
+            rel = self._get_energy_core().analyze_interaction(cause_e, effect_e)
+            if rel and rel[0].name != "SAME":
+                bus.connect(
+                    f"wm_{cause_e}",
+                    f"wm_{effect_e}",
+                    RelationType.ENHANCE if "ENHANCE" in str(rel) else RelationType.SUPPRESS,
+                    base_weight=edge.get("rho", 0.5),
+                )
+        return bus
+
+    def _propagate_energy(self, steps: int = 3) -> dict:
+        """
+        v3.0.5: 执行能量传播并返回总线状态。
+
+        Args:
+            steps: 传播步数
+
+        Returns:
+            EnergyBus.get_bus_state() 返回的总线状态字典
+        """
+        bus = self._build_energy_bus()
+        bus.propagate(steps=steps)
+        return bus.get_bus_state()
+
+    # ────────────────────────────────────────────────
+    # v3.0.6: 因果边标准化
+    # ────────────────────────────────────────────────
+
+    def normalize_edge(self, edge: dict, energy_core=None, month_branch: int = 0) -> dict:
+        """
+        v3.0.6: 标准化因果边，自动补全能量属性。
+
+        对偶表示：每条边同时携带因果权重(rho) + 能量属性(energy_relation/strength)。
+        - 自动推断 energy_relation（基于五行生克）
+        - 自动注入 energy_strength（当前月份旺衰）
+
+        Args:
+            edge: 原始因果边 dict
+            energy_core: EnergyCore 实例（None 时使用内置惰性获取器）
+            month_branch: 当前月份地支索引（0=子月）
+
+        Returns:
+            补全能量属性后的新 dict
+        """
+        edge = dict(edge)
+        ec = energy_core or self._energy_core
+
+        # 自动推断 energy_relation
+        if "energy_relation" not in edge and ec is not None:
+            ce = edge.get("cause_energy", "earth")
+            ee = edge.get("effect_energy", "earth")
+            rel = ec.analyze_interaction(ce, ee)
+            edge["energy_relation"] = rel[0].name.lower() if rel else "neutral"
+
+        # 自动注入旺衰
+        if "energy_strength" not in edge and ec is not None:
+            ce = edge.get("cause_energy", "earth")
+            state = ec.get_energy_state(ce, month_branch)
+            edge["energy_strength"] = state.strength.name
+
+        return edge
 
     # ────────────────────────────────────────────────
     # 因果发现
@@ -766,7 +1013,7 @@ class MCIWorldModel:
                 # ── Layer 1+2: GaussianDAG ──
                 dag = GaussianDAG(memories, index, energy_bus)
 
-                # ── v4.0.0: JEPA 先验增强 ──
+                # ── v3.1.0: JEPA 先验增强 ──
                 if use_parametric and self._jepa_encoder is not None:
                     self._apply_parametric_prior(dag, memories)
 
@@ -789,7 +1036,7 @@ class MCIWorldModel:
                 # ── 发现隐藏因果边 ──
                 edges = dag.discover_hidden_edges()
 
-                # ── v4.0.0: 补充 cause/effect 实体名称 ──
+                # ── v3.1.0: 补充 cause/effect 实体名称 ──
                 # GaussianDAG 输出边使用 TF-IDF 词表索引 (cause_idx/effect_idx)，
                 # 后续代码 (BayesianCausal) 依赖这些索引。同时补充 cause/effect
                 # 实体名称，使 GAT 编码器和 align_adjacency 能正确对齐。
@@ -891,7 +1138,7 @@ class MCIWorldModel:
         memories: list[dict] | None = None,
     ) -> list[dict]:
         """
-        JEPA 潜空间因果预测（v4.0.0）。
+        JEPA 潜空间因果预测（v3.1.0）。
 
         流程: 编码器(记忆 → 因果图状态) → 预测器(状态 → 下一状态) →
               差分分析(原因 → 效应)
@@ -934,9 +1181,7 @@ class MCIWorldModel:
             # 3. 差分: 找出新增/增强的因果边
             predictions = []
             if state.causal_edges and next_state.causal_edges:
-                current_edge_keys = {
-                    (e.get("cause", ""), e.get("effect", "")) for e in state.causal_edges
-                }
+                current_edge_keys = {(e.get("cause", ""), e.get("effect", "")) for e in state.causal_edges}
                 for edge in next_state.causal_edges:
                     ee = edge.get("effect", "")
                     ec = edge.get("cause", "")
@@ -947,8 +1192,7 @@ class MCIWorldModel:
                         predictions.append(
                             {
                                 "effect": ee,
-                                "confidence": edge.get("confidence", 0.5)
-                                * (1.1 if is_new else 0.9),
+                                "confidence": edge.get("confidence", 0.5) * (1.1 if is_new else 0.9),
                                 "energy_relation": edge.get("energy_relation", "neutral"),
                                 "cause": ec,
                                 "verdict": edge.get("verdict", "predicted"),
@@ -958,6 +1202,28 @@ class MCIWorldModel:
 
             # 按置信度排序
             predictions.sort(key=lambda x: x["confidence"], reverse=True)
+
+            # ── v3.0.5: 预测后能量守恒验证 ──
+            if self._energy_core is not None:
+                try:
+                    energy_before = self._extract_energy_ratios(state)
+                    energy_after = self._extract_energy_ratios(next_state)
+                    if energy_before and energy_after:
+                        simulated = self._energy_core.simulate_energy_flow(energy_after, steps=3)
+                        # 检测能量是否收敛到合理范围（每维偏离 0.2 上限不超过 0.3）
+                        final = simulated[-1]
+                        max_deviation = max(abs(final.get(k, 0) - 0.2) for k in final)
+                        if max_deviation > 0.3:
+                            # 能量不守恒 → 降低全部预测置信度
+                            for p in predictions:
+                                p["confidence"] *= 0.7
+                            logger.debug(
+                                "JEPA 预测能量不守恒 (max_deviation=%.3f)，置信度降权",
+                                max_deviation,
+                            )
+                except Exception as e:
+                    logger.debug("能量守恒验证跳过: %s", e)
+
             return predictions[:top_k] if predictions else self.predict_effect(cause, top_k=top_k)
 
         except Exception as e:
@@ -971,9 +1237,9 @@ class MCIWorldModel:
         top_k: int = 3,
     ) -> list[dict]:
         """
-        参数化路径因果预测（v3.6.0 — v4.0.0 降级为 jepa_predict 别名）。
+        参数化路径因果预测（v3.6.0 — v3.1.0 降级为 jepa_predict 别名）。
 
-        v4.0.0: 重路由到 JEPA 潜空间预测。
+        v3.1.0: 重路由到 JEPA 潜空间预测。
         保留接口兼容性，内部调用 jepa_predict()。
 
         Args:
@@ -1055,9 +1321,9 @@ class MCIWorldModel:
         parametric_weight: float = 0.6,
     ) -> list[dict]:
         """
-        融合预测（v4.0.0: 检索 + JEPA 加权）。
+        融合预测（v3.1.0: 检索 + JEPA 加权）。
 
-        v4.0.0: 将"参数化"路径替换为 JEPA 潜空间预测。
+        v3.1.0: 将"参数化"路径替换为 JEPA 潜空间预测。
         parametric_weight 参数保留但语义变为 JEPA 预测权重。
 
         Args:
@@ -1124,16 +1390,11 @@ class MCIWorldModel:
             return None
         from mci_world_model.sdk._do_calculus import DoCalculus
 
-        n_nodes = (
-            max(
-                max(e.get("cause_idx", 0), e.get("effect_idx", 0)) for e in self._state.causal_edges
-            )
-            + 1
-        )
+        n_nodes = max(max(e.get("cause_idx", 0), e.get("effect_idx", 0)) for e in self._state.causal_edges) + 1
         return DoCalculus.build_from_gaussian_dag(self._state.causal_edges, n_nodes)
 
     # ────────────────────────────────────────────────
-    # Pearl do-operator 干预（v3.7.0 完整实现）
+    # Pearl do-operator 干预（Pearl L2 完整实现）
     # ────────────────────────────────────────────────
 
     def intervene(
@@ -1144,7 +1405,7 @@ class MCIWorldModel:
         method: str = "auto",
     ) -> dict:
         """
-        Pearl do-operator 干预预测（v3.7.0 完整实现）。
+        Pearl do-operator 干预预测（Pearl L2 完整实现）。
 
         计算公式:
             P(Y | do(X=x)) = Σ_z P(Y | X=x, Z=z) · P(Z=z)
@@ -1211,9 +1472,7 @@ class MCIWorldModel:
         if not np.isfinite(x_value):
             return {
                 "status": "error",
-                "message": (
-                    f"intervention value must be finite (NaN/Inf rejected), got: x_value={x_value}"
-                ),
+                "message": (f"intervention value must be finite (NaN/Inf rejected), got: x_value={x_value}"),
             }
 
         try:
@@ -1265,7 +1524,7 @@ class MCIWorldModel:
         return output
 
     # ────────────────────────────────────────────────
-    # 因果效应分解（v3.7.0 新增）
+    # 因果效应分解（Pearl L2 新增）
     # ────────────────────────────────────────────────
 
     def decompose_effect(
@@ -1372,7 +1631,7 @@ class MCIWorldModel:
         }
 
     # ────────────────────────────────────────────────
-    # 反事实推理（v3.8.0 新增 — Pearl L3）
+    # 反事实推理（v3.0.8 新增 — Pearl L3）
     # ────────────────────────────────────────────────
 
     def query_counterfactual(
@@ -1383,7 +1642,7 @@ class MCIWorldModel:
         compute_pns: bool = True,
     ) -> dict:
         """
-        Pearl 三步反事实推理（v3.8.0 L3 新增）。
+        Pearl 三步反事实推理（v3.0.8 L3 新增）。
 
         基于当前因果图，回答反事实问题:
             "如果当初 X=x' 而非 X=x，Y 会是多少？"
@@ -1537,9 +1796,7 @@ class MCIWorldModel:
             parts.append(f"{n_novel} 条为潜在新发现。")
 
         top_chain = chains[0]
-        parts.append(
-            f"最高置信度链 (置信度: {top_chain['confidence']:.2f}): {' → '.join(top_chain['path'])}"
-        )
+        parts.append(f"最高置信度链 (置信度: {top_chain['confidence']:.2f}): {' → '.join(top_chain['path'])}")
 
         return " ".join(parts)
 
@@ -1556,7 +1813,7 @@ class MCIWorldModel:
         learning_rate: float = 0.01,
     ) -> dict:
         """
-        JEPA 端到端训练（v4.0.0，替代 train_parametric）。
+        JEPA 端到端训练（v3.1.0，替代 train_parametric）。
 
         Args:
             dataset: JEPADataset 实例（优先）
@@ -1629,9 +1886,9 @@ class MCIWorldModel:
         output_dir: str = "./checkpoints/mci-world-model",
     ) -> dict:
         """
-        一键参数化训练（v3.6.0 — v4.0.0 降级为 train_jepa 别名）。
+        一键参数化训练（v3.6.0 — v3.1.0 降级为 train_jepa 别名）。
 
-        v4.0.0: 重路由到 JEPA 训练循环。
+        v3.1.0: 重路由到 JEPA 训练循环。
 
         Args:
             qa_pairs: Reflection QA 对列表
@@ -1649,8 +1906,8 @@ class MCIWorldModel:
     def health_check(self) -> dict:
         """全系统健康诊断。"""
         check = {
-            "version": "4.0.0",
-            "code_name": "MCI World Model v4.0.0 JEPA",
+            "version": "3.1.0",
+            "code_name": "MCI World Model v3.1.0 JEPA 编码器-预测器统一",
             "initialized": self._initialized,
             "causal_pipeline": {
                 "edges_discovered": len(self._state.causal_edges),
@@ -1664,9 +1921,7 @@ class MCIWorldModel:
                 "available": self._jepa_predictor is not None,
                 "encoder_available": self._jepa_encoder is not None,
                 "is_gnn": self._is_gnn_predictor(),
-                "predictor_type": type(self._jepa_predictor).__name__
-                if self._jepa_predictor
-                else "none",
+                "predictor_type": type(self._jepa_predictor).__name__ if self._jepa_predictor else "none",
             },
             "energy_loss": {
                 "available": self._energy_loss is not None,
@@ -1695,15 +1950,16 @@ class MCIWorldModel:
                 "lite_pro_connected": self._lite_pro is not None,
                 "n_memories": self._state.n_memories,
             },
+            "energy_coverage": self._compute_energy_coverage(),
             "roadmap": {
-                "v3.6.0": "parametric_causal_discovery ✓",
-                "v3.7.0": "do_operator_intervention ✓",
-                "v3.8.0": "counterfactual_reasoning_l3 ✓",
-                "v4.0.0": "jepa_world_model_closed_loop ✓",
-                "v4.0.0-m2": "jepa_gnn_trainable ✓"
+                "v3.0.7": "parametric_memory_awakening ✓",
+                "pearl_l2_do_operator": "do_operator_intervention ✓",
+                "v3.0.8": "counterfactual_reasoning_l3 ✓",
+                "v3.0.0": "jepa_world_model_closed_loop ✓",
+                "v3.0.0-m2": "jepa_gnn_trainable ✓"
                 if self._is_gnn_predictor()
                 else "jepa_gnn_trainable (use GNNPredictor)",
-                "v4.0.0-m3": "jepa_e2e_differentiable ✓"
+                "v3.0.0-m3": "jepa_e2e_differentiable ✓"
                 if self._is_e2e_mode()
                 else "jepa_e2e_differentiable (use enable_m3())",
                 "v3.0.1": "cost_module_independent ✓"
@@ -1712,6 +1968,13 @@ class MCIWorldModel:
                 "v3.0.2": "hierarchical_jepa ✓"
                 if self._hierarchical_encoder is not None
                 else "hierarchical_jepa (pending)",
+                "v3.0.6": "energy_causal_unified ✓"
+                if self._energy_core is not None
+                else "energy_causal_unified (pending)",
+                "v3.0.5": "energy_flow_closed_loop ✓"
+                if self._energy_core is not None
+                else "energy_flow_closed_loop (pending)",
+                "v3.0.4": "energy_aware_basic ✓" if self._energy_core is not None else "energy_aware_basic (pending)",
                 "v3.0.3": "six_module_closed_loop ✓"
                 if self._perception is not None
                 else "six_module_closed_loop (pending)",
@@ -1765,6 +2028,79 @@ class MCIWorldModel:
             self._state = result["state"]
 
         return {k: v for k, v in result.items() if k != "state"}
+
+    # ────────────────────────────────────────────────
+    # v3.0.6: Configurator + Actor 自动能量调节闭环
+    # ────────────────────────────────────────────────
+
+    def auto_regulate(self, max_iterations: int = 3) -> dict:
+        """
+        v3.0.6: Configurator + Actor 自动能量调节闭环。
+
+        流程:
+        1. 提取当前五维能量分布
+        2. 检测能量失衡 → Configurator 生成调节策略
+        3. Actor 搜索最优干预动作
+        4. 执行干预 → 重新评估能量分布
+        5. 迭代至平衡或达到 max_iterations
+
+        Args:
+            max_iterations: 最大迭代次数
+
+        Returns:
+            {"iterations": int, "history": [...], "converged": bool,
+             "no_energy_data": bool}
+        """
+        ec = self._get_energy_core()
+        actor = self._get_causal_actor()
+        configurator = self._get_configurator()
+        current_state = self._state
+        history: list[dict] = []
+        early_stop = False
+        ratios = None
+
+        for i in range(max_iterations):
+            ratios = self._extract_energy_ratios(current_state)
+            if not ratios:
+                break  # 无能量数据，无法调节
+
+            balance = ec.analyze_balance(ratios)
+            if balance.status == "balanced":
+                early_stop = True
+                break  # 已平衡
+
+            try:
+                # Configurator 生成策略
+                _actions = configurator.configure(self, gaps=None)
+
+                # Actor 搜索最优动作
+                candidates = actor.search(current_state, n_candidates=2)
+
+                # 执行并链式传递状态
+                for c in candidates:
+                    current_state = actor.apply(current_state, c)
+            except Exception as e:
+                logger.warning("auto_regulate 迭代 %d 异常: %s", i, e)
+                break
+
+            history.append(
+                {
+                    "iteration": i,
+                    "balance_before": balance.status,
+                    "dominant": balance.dominant,
+                    "n_actions": len(candidates),
+                }
+            )
+
+        # 写回最终状态
+        self._state = current_state
+
+        return {
+            "iterations": len(history),
+            "history": history,
+            "converged": early_stop,
+            "no_energy_data": ratios is None and len(history) == 0,
+        }
 
     # ────────────────────────────────────────────────
     # v3.0.3: 六模块端到端闭环管线
@@ -1896,7 +2232,8 @@ class MCIWorldModel:
 
         # ── Summary ──
         n_modules_ok = sum(
-            1 for k in ["perception", "world_model", "configurator", "cost", "actor", "stm"]
+            1
+            for k in ["perception", "world_model", "configurator", "cost", "actor", "stm"]
             if "error" not in report.get(k, {})
         )
         report["summary"] = {
@@ -1921,6 +2258,32 @@ class MCIWorldModel:
         if self._state.n_confirmed > 0:
             return "operational_retrieval_only"
         return "degraded"
+
+    # ────────────────────────────────────────────────
+    # v3.0.6: 五维覆盖度
+    # ────────────────────────────────────────────────
+
+    def _compute_energy_coverage(self) -> dict:
+        """
+        v3.0.6: 计算五维能量覆盖度。
+
+        从当前因果图状态提取能量分布，计算覆盖评分。
+        coverage_score = 有能量标签(>5%)的维度数 / 5。
+
+        Returns:
+            {"ratios": {...}, "coverage_score": float, "warning": str|None}
+        """
+        energy_ratios = self._extract_energy_ratios(self._state)
+        active_dims = len([v for v in (energy_ratios or {}).values() if v > 0.05])
+        coverage_score = active_dims / 5.0
+        warning = None
+        if coverage_score < 0.6:
+            warning = "能量维度覆盖不足，建议丰富数据源"
+        return {
+            "ratios": energy_ratios or {},
+            "coverage_score": round(coverage_score, 3),
+            "warning": warning,
+        }
 
     def _is_gnn_predictor(self) -> bool:
         """检测是否使用可微 GNN 预测器。"""
@@ -2001,17 +2364,14 @@ class MCIWorldModel:
             # 通过 query 获取
             if hasattr(self._lite_pro, "query"):
                 results = self._lite_pro.query("*", top_k=100)
-                return [
-                    {"id": r.get("id", str(i)), "content": r.get("content", "")}
-                    for i, r in enumerate(results)
-                ]
+                return [{"id": r.get("id", str(i)), "content": r.get("content", "")} for i, r in enumerate(results)]
         except Exception as e:
             logger.warning("从 lite_pro 获取记忆失败: %s", e)
         return []
 
     def _apply_parametric_prior(self, dag, memories: list[dict]):
         """
-        v4.0.0: JEPADataset 先验注入（替代 TopologicalEnergyMatrix 回退）。
+        v3.1.0: JEPADataset 先验注入（替代 TopologicalEnergyMatrix 回退）。
 
         通过 JEPADataset 从历史状态转移中提取因果边先验权重。
         不可用时回退到均匀弱先验。
@@ -2023,7 +2383,7 @@ class MCIWorldModel:
         n = min(len(memories), 50)
         parametric_prior = np.zeros((n, n), dtype=np.float32)
 
-        # v4.0.0: 优先使用 JEPADataset 统计信息构造先验
+        # v3.1.0: 优先使用 JEPADataset 统计信息构造先验
         prior_source = "uniform"
         try:
             from mci_world_model.sdk._jepa_dataset import JEPADataset
@@ -2064,7 +2424,7 @@ class MCIWorldModel:
         jepa_ready = self._jepa_predictor is not None
         gnn_label = "[GNN]" if self._is_gnn_predictor() else ""
         return (
-            f"MCIWorldModel(v4.0.0 JEPA{gnn_label}, {len(self._state.causal_edges)} edges, "
+            f"MCIWorldModel(v3.0.3{gnn_label}, {len(self._state.causal_edges)} edges, "
             f"jepa={'✓' if jepa_ready else '✗'}, "
             f"status={status})"
         )

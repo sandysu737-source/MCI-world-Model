@@ -1,33 +1,31 @@
 """
-su-memory v3.6.0 — Parametric Memory Engine (M8)
-==================================================
+MCI World Model v3.0.7 — Parametric Memory Engine
+===================================================
 
-基于 QLoRA 的参数化记忆训练引擎。
-在消费级硬件（Apple M5 Pro, 48GB）上微调 Qwen2.5-1.5B-Instruct，
-产出 ~100MB LoRA adapter。
+基于 CausalMLP 的参数化记忆训练引擎（MLX Native）。
+替代 v3.6.0 的 Qwen2.5-1.5B + QLoRA 路线，彻底移除 transformers/torch/peft 依赖。
 
 核心能力:
-- 4-bit 量化加载（MLX 或 bitsandbytes）
-- QLoRA 微调（rank=64, alpha=128）
-- 能量一致性损失集成
-- Adapter 保存/加载
-- 因果推理预测接口
+- CausalMLP 小型因果推断网络 (~15K params)
+- 纯 numpy 手写梯度 SGD 训练（零自动微分依赖）
+- 五范畴因果分类 (semantic / causal / spacetime / generative / trust)
+- Adapter 保存/加载 (.npz + .json)
+- 路径白名单安全机制（防御路径穿越）
 
-论文规格:
-- Base model: Qwen2.5-1.5B-Instruct（MLX 4-bit, ~0.75GB）
-- Trainable: ~100M params (6.7% of base)
-- Training data: 3,000-30,000 Reflection QA pairs
-- Training time: 1.3-3.8h (M5 Pro, batch_size=4)
-- Output: ~100MB LoRA adapter (safetensors)
+架构原则:
+- 零 transformers / PyTorch / peft 硬依赖
+- 纯 CPU + numpy + scipy
+- 复用 JEPA 手写梯度范式
 
 用法:
     from mci_world_model.sdk._parametric_memory import ParametricMemory, ParametricMemoryConfig
 
-    config = ParametricMemoryConfig(base_model="Qwen/Qwen2.5-1.5B-Instruct")
+    config = ParametricMemoryConfig()
     pm = ParametricMemory(config)
     pm.prepare_training_data(qa_pairs)
-    pm.train()
-    pm.save_adapter("./checkpoints/mci-world-model-v0.1.0")
+    stats = pm.train()
+    results = pm.predict("物价上涨导致货币贬值")
+    pm.save_adapter("./checkpoints/mci-world-model-v0.3.7")
 """
 
 from __future__ import annotations
@@ -36,9 +34,18 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
+
+from mci_world_model.sdk._causal_mlp import (
+    CATEGORY_TO_INDEX,
+    ENERGY_CATEGORIES,
+    CausalMLP,
+    SimpleTextEmbedder,
+    energy_relation_to_category,
+    energy_relation_to_rho,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,74 +58,52 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ParametricMemoryConfig:
     """
-    QLoRA 参数化记忆训练配置。
+    V3.0.7: CausalMLP 参数化记忆训练配置。
 
-    默认参数针对 Apple M5 Pro (48GB) 优化。
+    对比 v3.6.0：移除 QLoRA 专属字段（lora_*, quant_*, base_model, use_bfloat16, bnb_*）。
+    新增 CausalMLP 架构配置字段。
     """
 
-    # ── 基础模型 ──
-    base_model: str = "Qwen/Qwen2.5-1.5B-Instruct"
-
-    # ── QLoRA 参数 ──
-    lora_rank: int = 64  # r
-    lora_alpha: int = 128  # α
-    lora_dropout: float = 0.05
-    lora_target_modules: list[str] = field(
-        default_factory=lambda: [
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "o_proj",
-            "gate_proj",
-            "up_proj",
-            "down_proj",
-        ]
-    )
-
-    # ── 量化 ──
-    quant_bits: int = 4  # 4-bit NormalFloat
-    use_double_quant: bool = True  # 嵌套量化
+    # ── CausalMLP 架构 ──
+    input_dim: int = 128
+    hidden_dims: tuple[int, ...] = (64, 32)
+    num_categories: int = 5
 
     # ── 训练参数 ──
-    max_seq_length: int = 2048
-    batch_size: int = 4
-    gradient_accumulation_steps: int = 4
-    learning_rate: float = 2e-4
-    num_epochs: int = 3
-    warmup_steps: int = 100
-    max_steps: int = -1  # -1 = 按 epoch 训练
+    batch_size: int = 8
+    learning_rate: float = 0.01
+    num_epochs: int = 10
+    rho_weight: float = 0.1  # rho 回归损失权重 β
 
     # ── 能量一致性损失 ──
     energy_loss_alpha: float = 0.1
     use_energy_loss: bool = True
 
-    # ── 硬件适配 ──
-    use_mlx: bool = True  # Apple Silicon 原生加速
-    use_bfloat16: bool = True  # BF16 训练
-
     # ── Checkpoint ──
-    save_steps: int = 500
-    eval_steps: int = 500
     logging_steps: int = 50
     output_dir: str = "./checkpoints/mci-world-model"
 
     # ── 训练数据 ──
-    min_training_pairs: int = 3000  # 最低 QA 对数量
-    min_confidence: float = 0.4  # 最低置信度阈值
+    min_training_pairs: int = 10  # V3.0.7: 降低门槛（小模型快速验证）
+    min_confidence: float = 0.4
     max_training_pairs: int = 30000
+
+    # ── 随机种子 ──
+    seed: int = 42
 
     def to_dict(self) -> dict:
         return {
-            "base_model": self.base_model,
-            "lora_rank": self.lora_rank,
-            "lora_alpha": self.lora_alpha,
-            "quant_bits": self.quant_bits,
+            "version": "3.0.7",
+            "model_type": "CausalMLP",
+            "input_dim": self.input_dim,
+            "hidden_dims": list(self.hidden_dims),
+            "num_categories": self.num_categories,
             "batch_size": self.batch_size,
             "learning_rate": self.learning_rate,
             "num_epochs": self.num_epochs,
+            "rho_weight": self.rho_weight,
             "energy_loss_alpha": self.energy_loss_alpha,
             "use_energy_loss": self.use_energy_loss,
-            "use_mlx": self.use_mlx,
         }
 
 
@@ -129,7 +114,7 @@ class ParametricMemoryConfig:
 
 @dataclass
 class TrainingSample:
-    """单条训练样本（instruction-tuning 格式）。"""
+    """单条训练样本。"""
 
     instruction: str
     input_text: str
@@ -146,14 +131,13 @@ class TrainingSample:
 
 class ParametricMemory:
     """
-    参数化记忆引擎 — QLoRA 微调 + 因果推理。
+    V3.0.7: 参数化记忆引擎 — CausalMLP 因果推理。
 
     工作流:
-    1. load_base_model()  → 加载量化基础模型
-    2. prepare_training_data(qa_pairs) → 转换 QA 对为训练格式
-    3. train() → QLoRA 微调
-    4. save_adapter() / load_adapter() → 持久化
-    5. predict() → 推理
+    1. prepare_training_data(qa_pairs) → 转换 QA 对为训练格式
+    2. train() → CausalMLP 手写梯度 SGD 训练
+    3. save_adapter() / load_adapter() → 持久化 (.npz)
+    4. predict() → 五范畴因果概率预测
     """
 
     def __init__(self, config: ParametricMemoryConfig | None = None):
@@ -162,93 +146,31 @@ class ParametricMemory:
             config: 训练配置（None 时使用默认值）
         """
         self.config = config or ParametricMemoryConfig()
-        self._model = None
-        self._tokenizer = None
+        self._model: CausalMLP | None = None
+        self._embedder: SimpleTextEmbedder = SimpleTextEmbedder(output_dim=self.config.input_dim)
         self._training_data: list[TrainingSample] = []
         self._is_trained: bool = False
         self._training_stats: dict = {}
-        self._energy_loss = None
 
     # ────────────────────────────────────────────────
-    # 基础模型加载
+    # 模型初始化
     # ────────────────────────────────────────────────
 
-    def load_base_model(self) -> bool:
-        """
-        加载 Qwen2.5-1.5B-Instruct 量化基础模型。
-
-        优先使用 MLX（Apple Silicon 原生），
-        回退到 transformers + bitsandbytes。
-
-        Returns:
-            True 如果加载成功
-        """
-        if self.config.use_mlx:
-            return self._load_mlx_model()
-        return self._load_torch_model()
-
-    def _load_mlx_model(self) -> bool:
-        """加载 MLX 量化模型。"""
-        try:
-            import mlx.core as mx  # noqa: F401
-            from mlx_lm import load
-            from mlx_lm.utils import generate_step
-
-            logger.info("正在加载 MLX 量化模型: %s", self.config.base_model)
-            self._model, self._tokenizer = load(self.config.base_model)
-            logger.info("MLX 模型加载成功 (%.1f GB)", self._estimate_model_size_gb())
-            self._mlx_generate_step = generate_step
-            return True
-        except ImportError as e:
-            logger.warning("MLX 不可用 (%s)，回退到 torch 模式", e)
-            self.config.use_mlx = False
-            return self._load_torch_model()
-        except Exception as e:
-            logger.error("MLX 模型加载失败: %s", e)
-            return False
-
-    def _load_torch_model(self) -> bool:
-        """加载 PyTorch 量化模型（回退方案）。"""
-        try:
-            import torch
-            from transformers import (
-                AutoModelForCausalLM,
-                AutoTokenizer,
-                BitsAndBytesConfig,
+    def _init_model(self) -> CausalMLP:
+        """初始化或返回已有的 CausalMLP 模型。"""
+        if self._model is None:
+            self._model = CausalMLP(
+                input_dim=self.config.input_dim,
+                hidden_dims=self.config.hidden_dims,
+                num_categories=self.config.num_categories,
+                seed=self.config.seed,
             )
-
-            bnb_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.bfloat16
-                if self.config.use_bfloat16
-                else torch.float16,
-                bnb_4bit_use_double_quant=self.config.use_double_quant,
+            logger.info(
+                "CausalMLP 已初始化: %d params, arch=%s",
+                self._model.n_trainable_params,
+                self._model,
             )
-
-            logger.info("正在加载 Torch 4-bit 量化模型: %s", self.config.base_model)
-            self._model = AutoModelForCausalLM.from_pretrained(
-                self.config.base_model,
-                quantization_config=bnb_config,
-                device_map="auto",
-                trust_remote_code=True,
-            )
-            self._tokenizer = AutoTokenizer.from_pretrained(
-                self.config.base_model,
-                trust_remote_code=True,
-            )
-            logger.info("Torch 模型加载成功 (%.1f GB)", self._estimate_model_size_gb())
-            return True
-        except ImportError as e:
-            logger.error("PyTorch/transformers 不可用: %s", e)
-            return False
-        except Exception as e:
-            logger.error("Torch 模型加载失败: %s", e)
-            return False
-
-    def _estimate_model_size_gb(self) -> float:
-        """估算模型内存占用 (GB)。"""
-        return 0.75  # Qwen2.5-1.5B 4-bit ≈ 0.75GB
+        return self._model
 
     # ────────────────────────────────────────────────
     # 训练数据准备
@@ -259,7 +181,7 @@ class ParametricMemory:
         qa_pairs: list,
     ) -> tuple[int, dict]:
         """
-        将 Reflection QA 对转换为 instruction-tuning 训练格式。
+        将 Reflection QA 对转换为训练格式。
 
         支持的数据源:
         - SynthesizedQAPair (ReflectionSynthesizer 输出)
@@ -335,12 +257,7 @@ class ParametricMemory:
         return n, report
 
     def get_training_format(self) -> list[dict]:
-        """
-        获取转换后的 instruction-tuning 格式数据。
-
-        Returns:
-            [{"instruction": ..., "input": ..., "output": ...}, ...]
-        """
+        """获取转换后的训练格式数据。"""
         return [
             {
                 "instruction": s.instruction,
@@ -353,7 +270,40 @@ class ParametricMemory:
         ]
 
     # ────────────────────────────────────────────────
-    # QLoRA 训练
+    # 嵌入转换
+    # ────────────────────────────────────────────────
+
+    def _embed_training_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        将训练数据转换为 CausalMLP 可用的嵌入和标签。
+
+        Returns:
+            (X, y_categories, y_rhos):
+            - X: (N, input_dim) 嵌入矩阵
+            - y_categories: (N,) 类别索引
+            - y_rhos: (N,) rho 代理值
+        """
+        if not self._training_data:
+            return (
+                np.zeros((0, self.config.input_dim), dtype=np.float32),
+                np.zeros(0, dtype=np.int32),
+                np.zeros(0, dtype=np.float32),
+            )
+
+        n = len(self._training_data)
+        X = np.zeros((n, self.config.input_dim), dtype=np.float32)
+        y_categories = np.zeros(n, dtype=np.int32)
+        y_rhos = np.zeros(n, dtype=np.float32)
+
+        for i, sample in enumerate(self._training_data):
+            X[i] = self._embedder.embed(sample.input_text)
+            y_categories[i] = energy_relation_to_category(sample.energy_relation)
+            y_rhos[i] = energy_relation_to_rho(sample.energy_relation)
+
+        return X, y_categories, y_rhos
+
+    # ────────────────────────────────────────────────
+    # 训练
     # ────────────────────────────────────────────────
 
     def train(
@@ -362,11 +312,11 @@ class ParametricMemory:
         energy_loss_fn=None,
     ) -> dict:
         """
-        执行 QLoRA 微调。
+        执行 CausalMLP 参数化训练。
 
         Args:
             training_data: 训练数据（None 时使用 prepare_training_data 的数据）
-            energy_loss_fn: EnergyConsistencyLoss 实例（None 时从配置创建）
+            energy_loss_fn: EnergyConsistencyLoss 实例（保留接口兼容，当前未使用）
 
         Returns:
             训练统计字典
@@ -381,164 +331,82 @@ class ParametricMemory:
                 self.config.min_training_pairs,
             )
 
-        if self.config.use_mlx:
-            stats = self._train_mlx(energy_loss_fn)
-        else:
-            stats = self._train_torch(energy_loss_fn)
+        # ── 初始化模型 ──
+        model = self._init_model()
+
+        # ── 嵌入训练数据 ──
+        X, y_categories, y_rhos = self._embed_training_data()
+        if X.shape[0] == 0:
+            logger.warning("无有效训练数据")
+            return {"error": "no_training_data", "backend": "numpy_sgd"}
+
+        logger.info(
+            "开始 CausalMLP 训练: %d samples, %d epochs, lr=%.4f",
+            X.shape[0],
+            self.config.num_epochs,
+            self.config.learning_rate,
+        )
+
+        # ── 训练 ──
+        stats = model.train(
+            X,
+            y_categories,
+            y_rhos,
+            n_epochs=self.config.num_epochs,
+            batch_size=self.config.batch_size,
+            learning_rate=self.config.learning_rate,
+            rho_weight=self.config.rho_weight,
+        )
+
+        stats["backend"] = "numpy_sgd"
+        stats["n_trainable_params"] = model.n_trainable_params
+        stats["n_samples"] = X.shape[0]
 
         self._is_trained = True
         self._training_stats = stats
+
+        logger.info(
+            "CausalMLP 训练完成: %d epochs, final loss %.6f",
+            self.config.num_epochs,
+            stats["final_loss"],
+        )
         return stats
 
-    def _train_mlx(self, energy_loss_fn=None) -> dict:
+    def train_on_signals(
+        self,
+        cause_texts: list[str],
+        true_categories: list[int],
+        learning_rate: float = 0.01,
+    ) -> dict:
         """
-        MLX 原生 QLoRA 训练。
+        快速单轮训练：用于 JEPATrainer 集成场景。
 
-        使用 Apple MLX 框架在 M 系列芯片上高效微调。
+        Args:
+            cause_texts: 原因文本列表
+            true_categories: 真实类别索引列表
+            learning_rate: 学习率
+
+        Returns:
+            训练统计
         """
-        try:
-            import mlx.core as mx  # noqa: F401
-            from mlx_lm import lora, tuner  # noqa: F401
+        model = self._init_model()
+        n = min(len(cause_texts), len(true_categories))
 
-            if self._model is None and not self.load_base_model():
-                return {"error": "model_load_failed", "backend": "mlx"}
-
-            logger.info(
-                "开始 MLX QLoRA 训练 (rank=%d, batch=%d)...",
-                self.config.lora_rank,
-                self.config.batch_size,
+        losses: list[float] = []
+        for i in range(n):
+            x = self._embedder.embed(cause_texts[i])
+            loss = model.train_step(
+                x,
+                int(true_categories[i]),
+                y_rho=0.5,
+                learning_rate=learning_rate,
+                rho_weight=self.config.rho_weight,
             )
+            losses.append(loss)
 
-            # ── 准备训练数据 ──
-            train_data = self.get_training_format()
-            train_texts = [
-                f"原因: {d['input']}\n效应: {d['output']}\n关系: {d['energy_relation']}"
-                for d in train_data
-            ]
-
-            # ── 应用 LoRA adapter ──
-            lora_layers = lora.apply_lora(  # noqa: F841
-                self._model,
-                rank=self.config.lora_rank,
-                alpha=self.config.lora_alpha,
-            )
-
-            # ── 训练循环 (MLX 简化版) ──
-            n_steps = min(
-                len(train_texts) // self.config.batch_size,
-                200,  # 上限 200 步（避免过长阻塞）
-            )
-            losses: list[float] = []
-
-            self._energy_loss = energy_loss_fn
-
-            for step in range(n_steps):
-                batch_texts = train_texts[
-                    step * self.config.batch_size : (step + 1) * self.config.batch_size
-                ]
-                # (实际训练中这里使用 mlx.nn.value_and_grad + optimizer.step)
-                # 当前为桩实现，记录预期逻辑
-                loss = self._simulated_training_step(batch_texts, step, n_steps)
-                losses.append(loss)
-
-                if (step + 1) % self.config.logging_steps == 0:
-                    avg_loss = sum(losses[-self.config.logging_steps :]) / self.config.logging_steps
-                    logger.info("MLX Step %d/%d | Loss: %.6f", step + 1, n_steps, avg_loss)
-
-            avg_loss = float(np.mean(losses)) if losses else 0.0
-            logger.info("MLX 训练完成: %d steps, avg loss %.6f", n_steps, avg_loss)
-
-            self._is_trained = True
-            return {
-                "backend": "mlx",
-                "n_steps": n_steps,
-                "final_loss": round(avg_loss, 6),
-                "lora_rank": self.config.lora_rank,
-                "n_trainable_params": self._estimate_trainable_params(),
-                "training_time_estimate": f"{n_steps * 0.5 / 60:.1f} min (simulated)",
-            }
-        except ImportError as e:
-            logger.warning("MLX 训练不可用 (%s)，回退到 torch", e)
-            self.config.use_mlx = False
-            return self._train_torch(energy_loss_fn)
-        except Exception as e:
-            logger.error("MLX 训练失败: %s", e)
-            return {"error": str(e), "backend": "mlx"}
-
-    def _train_torch(self, energy_loss_fn=None) -> dict:
-        """
-        PyTorch + PEFT QLoRA 训练。
-        """
-        try:
-            import torch  # noqa: F401
-            from peft import (
-                LoraConfig,
-                TaskType,
-                get_peft_model,
-                prepare_model_for_kbit_training,
-            )
-
-            if self._model is None and not self.load_base_model():
-                return {"error": "model_load_failed", "backend": "torch"}
-
-            logger.info(
-                "开始 Torch QLoRA 训练 (rank=%d, batch=%d)...",
-                self.config.lora_rank,
-                self.config.batch_size,
-            )
-
-            # ── PEFT 配置 ──
-            self._model = prepare_model_for_kbit_training(self._model)
-            peft_config = LoraConfig(
-                task_type=TaskType.CAUSAL_LM,
-                inference_mode=False,
-                r=self.config.lora_rank,
-                lora_alpha=self.config.lora_alpha,
-                lora_dropout=self.config.lora_dropout,
-                target_modules=self.config.lora_target_modules,
-            )
-            self._model = get_peft_model(self._model, peft_config)
-
-            trainable_params = sum(p.numel() for p in self._model.parameters() if p.requires_grad)
-            logger.info(
-                "可训练参数: %d (%.1f%% of base)",
-                trainable_params,
-                100 * trainable_params / 1_500_000_000,
-            )
-
-            # ── 训练数据 ──
-            train_data = self.get_training_format()
-            n_steps = min(len(train_data) // self.config.batch_size, 200)
-            self._energy_loss = energy_loss_fn
-
-            # ── 训练循环 (桩实现) ──
-            losses = [0.5 * (0.99**i) for i in range(n_steps)]
-            avg_loss = float(np.mean(losses))
-
-            self._is_trained = True
-            return {
-                "backend": "torch",
-                "n_steps": n_steps,
-                "final_loss": round(avg_loss, 6),
-                "lora_rank": self.config.lora_rank,
-                "n_trainable_params": trainable_params,
-                "training_time_estimate": f"{n_steps * 2.0 / 60:.1f} min (simulated)",
-            }
-        except ImportError as e:
-            logger.error("PyTorch/PEFT 不可用: %s", e)
-            return {"error": f"dependency_missing: {e}", "backend": "torch"}
-        except Exception as e:
-            logger.error("Torch 训练失败: %s", e)
-            return {"error": str(e), "backend": "torch"}
-
-    def _simulated_training_step(self, batch: list[str], step: int, total_steps: int) -> float:
-        """模拟训练步骤（用于 MLX 桩实现）。"""
-        # 递减损失函数
-        return 0.5 * (0.99**step) + np.random.uniform(-0.01, 0.01)
-
-    def _estimate_trainable_params(self) -> int:
-        """估算 LoRA 可训练参数量。"""
-        return int(1.5e9 * 0.067)  # ~100M
+        self._is_trained = True
+        avg_loss = float(np.mean(losses)) if losses else 0.0
+        return {"n_steps": n, "final_loss": round(avg_loss, 6), "backend": "numpy_sgd"}
 
     # ────────────────────────────────────────────────
     # Adapter 持久化
@@ -556,11 +424,6 @@ class ParametricMemory:
     def _validate_adapter_path(cls, path: str) -> str:
         """
         F2-P0-2: 验证 adapter 路径合法性，防御路径穿越与任意写入。
-
-        拒绝:
-            - 绝对路径 (例如 /etc/passwd, C:\\Windows)
-            - 包含 `..` 的相对路径（跳出当前目录）
-            - 解析后位于允许根目录之外的目标
 
         Returns:
             规范化后的绝对路径
@@ -583,30 +446,23 @@ class ParametricMemory:
         # 展开允许根目录
         allowed_roots = [_osp.abspath(_osp.expanduser(r)) for r in cls._ALLOWED_ADAPTER_ROOTS]
 
-        # 兼容旧用法：项目根目录或 CWD 也允许（向后兼容）
-        cwd = _osp.abspath(_osp.getcwd())
-        project_root_marker = _osp.abspath(
-            _osp.dirname(_osp.dirname(_osp.dirname(_osp.dirname(__file__))))
-        )
+        # 兼容旧用法：项目根目录或 CWD 也允许
+        cwd = os.getcwd()
+        project_root_marker = _osp.abspath(_osp.dirname(_osp.dirname(_osp.dirname(_osp.dirname(__file__)))))
         allowed_roots.extend([cwd, project_root_marker])
 
-        # 检查 abs_path 是否在任一允许根目录下
         for root in allowed_roots:
             try:
                 if _osp.commonpath([abs_path, root]) == root:
                     return abs_path
             except ValueError:
-                # 不同驱动器 (Windows) 或非法路径
                 continue
 
-        raise ValueError(
-            f"adapter path not in whitelist: {abs_path}. "
-            f"Allowed roots: {cls._ALLOWED_ADAPTER_ROOTS}"
-        )
+        raise ValueError(f"adapter path not in whitelist: {abs_path}. Allowed roots: {cls._ALLOWED_ADAPTER_ROOTS}")
 
     def save_adapter(self, path: str) -> bool:
         """
-        保存 LoRA adapter 到磁盘。
+        保存 CausalMLP 模型到磁盘 (.npz + adapter_config.json)。
 
         Args:
             path: 输出目录路径
@@ -614,71 +470,46 @@ class ParametricMemory:
         Returns:
             True 如果保存成功
         """
-        # F2-P0-2: 路径白名单验证
         try:
             safe_path = self._validate_adapter_path(path)
         except ValueError as e:
             logger.error("save_adapter 拒绝非法路径: %s", e)
             return False
+
         os.makedirs(safe_path, exist_ok=True)
 
         try:
-            # ── 保存 adapter 权重 ──
-            if self.config.use_mlx:
-                return self._save_adapter_mlx(safe_path)
-            return self._save_adapter_torch(safe_path)
+            # ── 保存模型权重 ──
+            model = self._init_model()
+            model_path = os.path.join(safe_path, "causal_mlp_weights")
+            if not model.save(model_path):
+                return False
+
+            # ── 保存配置 ──
+            config_dict = self.config.to_dict()
+            config_dict["adapter_type"] = "causal_mlp"
+            config_dict["n_params"] = model.n_trainable_params
+            with open(os.path.join(safe_path, "adapter_config.json"), "w") as f:
+                json.dump(config_dict, f, indent=2)
+
+            # ── 保存训练统计 ──
+            with open(os.path.join(safe_path, "training_stats.json"), "w") as f:
+                json.dump(self._training_stats, f, indent=2)
+
+            logger.info(
+                "CausalMLP adapter 已保存到: %s (%d 训练样本, %d params)",
+                safe_path,
+                len(self._training_data),
+                model.n_trainable_params,
+            )
+            return True
         except Exception as e:
             logger.error("保存 adapter 失败: %s", e)
             return False
 
-    def _save_adapter_mlx(self, path: str) -> bool:
-        """MLX adapter 保存。"""
-        try:
-            import mlx.core as mx  # noqa: F401
-
-            # 保存配置
-            config = self.config.to_dict()
-            config["version"] = "3.6.0"
-            config["adapter_type"] = "mlx_lora"
-            with open(os.path.join(path, "adapter_config.json"), "w") as f:
-                json.dump(config, f, indent=2)
-
-            # 保存训练统计
-            with open(os.path.join(path, "training_stats.json"), "w") as f:
-                json.dump(self._training_stats, f, indent=2)
-
-            # (实际保存 adapter 权重: mx.save_safetensors(...))
-            logger.info("MLX adapter 已保存到: %s (%d 训练样本)", path, len(self._training_data))
-            return True
-        except ImportError:
-            # 保存配置即使无 MLX runtime
-            config = self.config.to_dict()
-            config["version"] = "3.6.0"
-            with open(os.path.join(path, "adapter_config.json"), "w") as f:
-                json.dump(config, f, indent=2)
-            return True
-
-    def _save_adapter_torch(self, path: str) -> bool:
-        """Torch adapter 保存。"""
-
-        # 保存配置
-        config = self.config.to_dict()
-        config["version"] = "3.6.0"
-        config["adapter_type"] = "peft_lora"
-        with open(os.path.join(path, "adapter_config.json"), "w") as f:
-            json.dump(config, f, indent=2)
-
-        # 保存训练统计
-        with open(os.path.join(path, "training_stats.json"), "w") as f:
-            json.dump(self._training_stats, f, indent=2)
-
-        # (实际保存: self._model.save_pretrained(path))
-        logger.info("Torch adapter 已保存到: %s", path)
-        return True
-
     def load_adapter(self, path: str) -> bool:
         """
-        从磁盘加载预训练的 LoRA adapter。
+        从磁盘加载预训练的 CausalMLP adapter。
 
         Args:
             path: adapter 目录路径
@@ -686,7 +517,6 @@ class ParametricMemory:
         Returns:
             True 如果加载成功
         """
-        # F2-P0-2: 路径白名单验证（防御符号链接/路径穿越读取任意文件）
         try:
             safe_path = self._validate_adapter_path(path)
         except ValueError as e:
@@ -703,19 +533,26 @@ class ParametricMemory:
                 adapter_config = json.load(f)
 
             # 更新配置
-            for key in ("lora_rank", "lora_alpha", "base_model"):
+            for key in ("input_dim", "hidden_dims", "num_categories"):
                 if key in adapter_config:
-                    setattr(self.config, key, adapter_config[key])
+                    value = adapter_config[key]
+                    if key == "hidden_dims":
+                        value = tuple(value)
+                    setattr(self.config, key, value)
 
-            # 加载基础模型
+            # 加载模型
+            model_path = os.path.join(safe_path, "causal_mlp_weights")
+            self._model = CausalMLP.load(model_path)
             if self._model is None:
-                self.load_base_model()
+                logger.error("CausalMLP 权重加载失败: %s", model_path)
+                return False
 
-            # (实际加载 adapter 权重)
-            logger.info(
-                "adapter 加载成功: %s (version=%s)", path, adapter_config.get("version", "unknown")
-            )
             self._is_trained = True
+            logger.info(
+                "adapter 加载成功: %s (version=%s)",
+                path,
+                adapter_config.get("version", "unknown"),
+            )
             return True
         except Exception as e:
             logger.error("加载 adapter 失败: %s", e)
@@ -730,69 +567,68 @@ class ParametricMemory:
         cause: str,
         target_category: str | None = None,
         top_k: int = 3,
-        max_new_tokens: int = 128,
+        max_new_tokens: int = 128,  # 保留接口兼容，CausalMLP 不使用
     ) -> list[dict]:
         """
-        参数化因果推理。
-
-        给定原因文本，预测可能的效应。
+        参数化因果推理：给定原因文本，预测五范畴因果分布。
 
         Args:
             cause: 原因文本
-            target_category: 目标状态类别（可选，约束预测方向）
+            target_category: 目标状态类别（可选，约束输出排序）
             top_k: 返回前 K 个预测
-            max_new_tokens: 最大生成 token 数
+            max_new_tokens: 保留接口兼容（CausalMLP 不使用）
 
         Returns:
             [{"effect": str, "confidence": float, "energy_relation": str}, ...]
         """
-        if not self._is_trained and self._model is None:
-            logger.warning("模型未训练或未加载，返回空预测")
+        model = self._init_model()
+        if model is None:
+            logger.warning("模型初始化失败，返回空预测")
             return []
 
-        prompt = f"分析以下原因并预测其因果效应:\n\n原因: {cause}\n"
-        if target_category:
-            prompt += f"目标领域: {target_category}\n"
-        prompt += "\n效应预测:"
+        # ── 嵌入 + 前向 ──
+        x = self._embedder.embed(cause)
+        probs = model.forward(x)
 
-        try:
-            if self.config.use_mlx and hasattr(self, "_mlx_generate_step"):
-                return self._predict_mlx(prompt, top_k, max_new_tokens)
-            return self._predict_torch(prompt, top_k, max_new_tokens)
-        except Exception as e:
-            logger.error("参数化预测失败: %s", e)
-            return [
+        # ── 构建排序结果 ──
+        category_order = list(ENERGY_CATEGORIES)
+        if target_category and target_category in CATEGORY_TO_INDEX:
+            # 目标类别优先
+            category_order = [target_category] + [c for c in category_order if c != target_category]
+
+        results = []
+        for cat in category_order[: min(top_k, len(category_order))]:
+            idx = CATEGORY_TO_INDEX[cat]
+            confidence = round(float(probs[idx]), 4)
+
+            # 将类别映射回 energy_relation
+            if cat == "causal":
+                relation = "enhance" if confidence > 0.5 else "suppress"
+            elif cat == "semantic":
+                relation = "same"
+            else:
+                relation = "neutral"
+
+            results.append(
                 {
-                    "effect": "[预测失败 — 模型未就绪]",
-                    "confidence": 0.0,
-                    "energy_relation": "neutral",
-                    "error": str(e),
+                    "effect": f"[CausalMLP]: 基于因果先验的效应推断 → {cat}",
+                    "confidence": confidence,
+                    "energy_relation": relation,
+                    "category": cat,
                 }
-            ]
+            )
 
-    def _predict_mlx(self, prompt: str, top_k: int, max_tokens: int) -> list[dict]:
-        """MLX 推理。"""
-        # (桩实现 — 实际使用 mlx_lm.generate)
-        return [
-            {
-                "effect": f"[MLX 参数化预测 #{i + 1}]: 基于因果先验的效应推断",
-                "confidence": round(0.8 - i * 0.15, 3),
-                "energy_relation": "enhance" if i == 0 else "neutral",
-            }
-            for i in range(min(top_k, 3))
-        ]
+        return results
 
-    def _predict_torch(self, prompt: str, top_k: int, max_tokens: int) -> list[dict]:
-        """Torch 推理。"""
-        # (桩实现 — 实际使用 model.generate)
-        return [
-            {
-                "effect": f"[Torch 参数化预测 #{i + 1}]: 基于因果先验的效应推断",
-                "confidence": round(0.8 - i * 0.15, 3),
-                "energy_relation": "enhance" if i == 0 else "neutral",
-            }
-            for i in range(min(top_k, 3))
-        ]
+    def predict_probs(self, cause: str) -> dict[str, float]:
+        """返回所有五范畴的概率分布。"""
+        model = self._model
+        if model is None:
+            return dict.fromkeys(ENERGY_CATEGORIES, 0.0)
+
+        x = self._embedder.embed(cause)
+        probs = model.forward(x)
+        return {cat: round(float(probs[i]), 4) for i, cat in enumerate(ENERGY_CATEGORIES)}
 
     # ────────────────────────────────────────────────
     # 状态查询
@@ -800,29 +636,32 @@ class ParametricMemory:
 
     @property
     def is_trained(self) -> bool:
-        """模型是否已训练。"""
         return self._is_trained
 
     @property
     def training_stats(self) -> dict:
-        """最近训练统计。"""
         return self._training_stats.copy()
 
     @property
     def n_training_samples(self) -> int:
-        """训练样本数。"""
         return len(self._training_data)
+
+    @property
+    def model(self) -> CausalMLP | None:
+        return self._model
 
     def health_check(self) -> dict:
         """健康检查。"""
         return {
-            "model_loaded": self._model is not None,
+            "model_initialized": self._model is not None,
+            "model_type": "CausalMLP" if self._model is not None else None,
+            "n_trainable_params": self._model.n_trainable_params if self._model else 0,
             "is_trained": self._is_trained,
             "n_training_samples": self.n_training_samples,
-            "backend": "mlx" if self.config.use_mlx else "torch",
-            "base_model": self.config.base_model,
-            "lora_rank": self.config.lora_rank,
-            "adapters": [],  # (待实现: 已加载的 adapter 列表)
+            "backend": "numpy_sgd",
+            "input_dim": self.config.input_dim,
+            "hidden_dims": list(self.config.hidden_dims),
+            "adapters": [],
         }
 
 
@@ -838,22 +677,22 @@ def _hash_sample_id(cause: str, effect: str, idx: int) -> str:
     return f"pm_{h[:12]}"
 
 
-def estimate_training_time(n_samples: int, backend: str = "mlx") -> dict:
+def estimate_training_time(n_samples: int, backend: str = "numpy_sgd") -> dict:
     """
     估算训练时间。
 
     Args:
         n_samples: 训练样本数
-        backend: "mlx" 或 "torch"
+        backend: "numpy_sgd" (仅支持此模式)
 
     Returns:
         {"hours": float, "minutes": float, "steps": int}
     """
-    steps_per_sample = 0.6 if backend == "mlx" else 1.5  # 秒/样本
+    steps_per_sample = 0.001  # numpy SGD ~1ms per sample
     total_seconds = n_samples * steps_per_sample
     return {
-        "hours": round(total_seconds / 3600, 1),
-        "minutes": round(total_seconds / 60, 1),
+        "hours": round(total_seconds / 3600, 3),
+        "minutes": round(total_seconds / 60, 3),
         "steps": int(n_samples),
         "backend": backend,
     }

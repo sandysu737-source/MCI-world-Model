@@ -1,5 +1,5 @@
 """
-MCI World Model v3.0.1 — Meta Configurator
+MCI World Model v3.0.3 — Meta Configurator + HierarchicalConfigurator
 ============================================
 
 LeCun 六模块架构中的 Configurator 模块：根据认知空洞检测结果，
@@ -219,9 +219,7 @@ class MetaConfigurator:
             return actions
 
         n_edges = len(state.causal_edges)
-        low_conf_count = sum(
-            1 for e in state.causal_edges if e.get("confidence", 1.0) < 0.5
-        )
+        low_conf_count = sum(1 for e in state.causal_edges if e.get("confidence", 1.0) < 0.5)
         ratio = low_conf_count / max(n_edges, 1)
 
         if ratio >= self.GNN_LOW_CONFIDENCE_RATIO and n_edges >= 5:
@@ -271,8 +269,9 @@ class HierarchicalConfigurator:
     DECAY_FACTOR = 0.9
     BOOST_FACTOR = 1.1
 
-    def __init__(self):
+    def __init__(self, energy_core=None):
         self._base = MetaConfigurator()
+        self._energy_core = energy_core  # v3.0.4: 能量仲裁器
         self._state: str = "IDLE"
         self._action_history: list[dict] = []
         self._adaptive_thresholds: dict[str, float] = {
@@ -294,7 +293,7 @@ class HierarchicalConfigurator:
         return dict(self._adaptive_thresholds)
 
     def configure(self, world_model, gaps: list | None = None) -> list[dict]:
-        """分层决策：L1 单层规则 → L2 协调排序 → L3 自适应。"""
+        """分层决策：L1 单层规则 → L1.5 能量格局 → L2 协调排序 → L3 自适应。"""
         self._state = "ANALYZING_L1"
 
         raw_actions = self._base.configure(world_model, gaps)
@@ -307,6 +306,24 @@ class HierarchicalConfigurator:
         # L2: 优先级排序
         self._state = "COORDINATING_L2"
         scored = self._score_actions(meaningful, gaps or [])
+
+        # ── v3.0.4 L1.5: 能量格局分析 (在冲突消解前) ──
+        if self._energy_core is not None:
+            try:
+                ratios = _extract_energy_ratios_from_state(world_model._state)
+                if ratios:
+                    balance = self._energy_core.analyze_balance(ratios)
+                    # 格局驱动的优先级调节
+                    if balance.pattern.name == "ZHUAN_WANG":
+                        # 专旺格：将 dominant 对应的配置提升优先级
+                        scored = [(a, s * 1.5 if balance.dominant in str(a.reason) else s) for a, s in scored]
+                    elif balance.pattern.name == "FAN_WANG":
+                        # 反局格：降低互克方向的配置优先级
+                        scored = [(a, s * 0.7) for a, s in scored]
+                    logger.debug("能量格局分析: pattern=%s dominant=%s", balance.pattern.name, balance.dominant)
+            except Exception as e:
+                logger.debug("能量格局分析跳过: %s", e)
+
         resolved = self._resolve_conflicts(scored)
 
         # L3: 自适应阈值
@@ -315,8 +332,7 @@ class HierarchicalConfigurator:
 
         self._state = "CONFIGURING"
         actions_dict = [
-            {"type": a.action_type, "priority": p, "reason": a.reason, "gap_id": a.gap_id}
-            for a, p in resolved
+            {"type": a.action_type, "priority": p, "reason": a.reason, "gap_id": a.gap_id} for a, p in resolved
         ]
         self._action_history.extend(actions_dict)
         self._state = "MONITORING"
@@ -365,7 +381,7 @@ class HierarchicalConfigurator:
         return resolved
 
     def _adapt_thresholds(self, scored: list[tuple]) -> None:
-        """自适应阈值：高频触发→BOOST，长期无触发→DECAY。"""
+        """自适应阈值：高频触发→BOOST，长期无触发→DECAY。v3.0.5: 月度旺衰修正。"""
         if not scored:
             return
         action_types: dict[str, int] = {}
@@ -375,20 +391,55 @@ class HierarchicalConfigurator:
 
         for atype, count in action_types.items():
             if count >= 3 and atype in ("enable_m3", "suggest_retrain"):
-                self._adaptive_thresholds["causal"] = min(
-                    self._adaptive_thresholds["causal"] * self.BOOST_FACTOR, 0.9
-                )
+                self._adaptive_thresholds["causal"] = min(self._adaptive_thresholds["causal"] * self.BOOST_FACTOR, 0.9)
 
         if len(self._action_history) >= 5:
             recent = sum(1 for h in self._action_history[-5:] if h.get("type") != "noop")
             if recent == 0:
                 for k in ("causal", "temporal"):
-                    self._adaptive_thresholds[k] = max(
-                        self._adaptive_thresholds[k] * self.DECAY_FACTOR, 0.3
-                    )
+                    self._adaptive_thresholds[k] = max(self._adaptive_thresholds[k] * self.DECAY_FACTOR, 0.3)
+
+        # ── v3.0.5: 月度旺衰修正 ──
+        if self._energy_core is not None:
+            from datetime import datetime
+
+            month_branch = datetime.now().month - 1
+            try:
+                strengths = self._energy_core.get_strength_from_branch(month_branch)
+                # 对 WANG 态能量降低阈值（更敏感），对 SI 态提高阈值（更容忍）
+                for energy, strength in strengths.items():
+                    if energy == "causal" and strength.name == "WANG":
+                        self._adaptive_thresholds["causal"] = max(self._adaptive_thresholds["causal"] * 0.85, 0.25)
+                    elif energy == "causal" and strength.name == "SI":
+                        self._adaptive_thresholds["causal"] = min(self._adaptive_thresholds["causal"] * 1.15, 0.9)
+            except Exception:
+                logger.debug("monthly strength adaptation failed", exc_info=True)
 
     def feedback(self, was_effective: bool) -> None:
         """外部反馈：上一次配置是否有效。"""
         self._feedback_scores.append(1.0 if was_effective else 0.0)
         if len(self._feedback_scores) > 10:
             self._feedback_scores.pop(0)
+
+
+# =============================================================================
+# v3.0.4: 能量分布提取器
+# =============================================================================
+
+
+def _extract_energy_ratios_from_state(state) -> dict[str, float] | None:
+    """
+    v3.0.6: 委托到公共函数 ``_aggregate_energy_ratios`` 消除逻辑重复。
+
+    从 CausalWorldModelState 的 causal_edges 中聚合五维能量比率。
+
+    Args:
+        state: CausalWorldModelState 实例
+
+    Returns:
+        五维能量比率字典，若因果边无能量标签则返回 None
+    """
+    from mci_world_model.sdk._world_model import _aggregate_energy_ratios
+
+    edges = getattr(state, "causal_edges", None)
+    return _aggregate_energy_ratios(edges)

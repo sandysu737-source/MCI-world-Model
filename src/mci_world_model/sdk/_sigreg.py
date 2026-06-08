@@ -1,6 +1,6 @@
 """
-su-memory v3.5.0 — SIGReg Embedding Regularizer
-================================================
+MCI World Model v3.1.0 — SIGReg Embedding Regularizer
+=======================================================
 基于 LeJEPA (2511.08544v2) 的 Sketched Isotropic Gaussian Regularization。
 
 核心洞察: 嵌入向量的各向同性程度与下游检索质量正相关。

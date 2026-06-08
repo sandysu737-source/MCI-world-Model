@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mci-world-model"
-version = "3.0.3"
+version = "3.2.0"
 description = "MCI World Model — 因果世界模型引擎 (LeCun 六模块完整闭环: Perception+WorldModel+Configurator+Cost+Actor+STM)"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -136,8 +136,32 @@ warn_return_any = false
 [tool.pytest.ini_options]
 minversion = "7.4"
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -p cov_fix"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: integration tests requiring torch",
+    "unit: fast unit tests (<100ms each)",
+    "functional: functional/integration tests",
+    "benchmark: performance benchmark tests",
 ]
+
+[tool.pytest-benchmark]
+min_rounds = 5
+max_time = 2.0
+timer = "perf_counter"
+# 回归门禁: CI 中自动对比 baseline 并报告 >50% 劣化
+# 保存: pytest benchmarks/ -m benchmark --benchmark-save=baseline
+# 对比: pytest benchmarks/ -m benchmark --benchmark-compare
+# 失败: pytest benchmarks/ -m benchmark --benchmark-compare --benchmark-compare-fail=min:50%
+# 跳过: BENCHMARK_SKIP=true pytest benchmarks/ -m benchmark
+compare = ["baseline"]
+compare_fail = ["min:50%"]
+
+[tool.coverage.run]
+source = ["mci_world_model"]
+relative_files = true
+
+[tool.coverage.report]
+fail_under = 53
+show_missing = true
+skip_covered = false

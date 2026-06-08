@@ -1,7 +1,7 @@
 """
 世界模型统一入口 — World Model Unified API
 
-su-memory v3.5.0 能量中心三才合一架构:
+MCI World Model v3.1.0 能量中心三才合一架构:
 
   【基础类型层 (Foundation)】
      YinYang          阴阳二象

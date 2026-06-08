@@ -341,12 +341,7 @@ class CausalChain:
             mid_tb = self.time_map.get(mid)
             if mid_tb:
                 neighbors = BRANCH_TEMPORAL.get(mid_tb, [])
-                if any(
-                    self.time_map.get(oid) == nb
-                    for oid in all_ids
-                    for nb in neighbors
-                    if oid != mid
-                ):
+                if any(self.time_map.get(oid) == nb for oid in all_ids for nb in neighbors if oid != mid):
                     covered.add(mid)
 
             # Layer 5: Pattern relationships
@@ -379,11 +374,7 @@ class CausalChain:
                 conflict_type = "textual"
 
                 # Energy suppression -> high severity
-                if (
-                    a_energy_type
-                    and b_energy_type
-                    and ENERGY_SUPPRESS.get(a_energy_type) == b_energy_type
-                ):
+                if a_energy_type and b_energy_type and ENERGY_SUPPRESS.get(a_energy_type) == b_energy_type:
                     severity = 0.9
                     conflict_type = "energy_suppress"
 
@@ -494,9 +485,7 @@ class CausalInference:
     def __init__(self):
         self._energy_enhance_reverse = {v: k for k, v in ENERGY_ENHANCE.items()}
 
-    def infer_relation(
-        self, query_category: str, query_energy: str, cand_category: str, cand_energy: str
-    ) -> dict:
+    def infer_relation(self, query_category: str, query_energy: str, cand_category: str, cand_energy: str) -> dict:
         if query_category == cand_category:
             return {
                 "relation": "same",
@@ -578,9 +567,7 @@ class CausalInference:
         for i, (m, attr) in enumerate(zip(memories, mem_attrs)):
             if not attr["category"]:
                 continue
-            rel = self.infer_relation(
-                query_category, query_energy, attr["category"], attr["energy"]
-            )
+            rel = self.infer_relation(query_category, query_energy, attr["category"], attr["energy"])
             score = rel["score"]
             if score > 0:
                 first_hop_results.append((i, score, rel))
@@ -634,8 +621,7 @@ class CausalInference:
                         best_scores[j] = {
                             "hop_score": hop3_score,
                             "hop_count": 3,
-                            "hop_path": bridge_info["hop_path"]
-                            + [f"{bridge_id}->{target_id}({rel3['relation']})"],
+                            "hop_path": bridge_info["hop_path"] + [f"{bridge_id}->{target_id}({rel3['relation']})"],
                         }
         return self._build_results(memories, best_scores)
 

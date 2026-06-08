@@ -203,11 +203,7 @@ class BayesianAugmenter:
 
             # 同步到贝叶斯系统
             content = args[0] if args else kwargs.get("content", "")
-            metadata = (
-                kwargs.get("metadata", {})
-                if "metadata" in kwargs
-                else (args[1] if len(args) > 1 else {})
-            )
+            metadata = kwargs.get("metadata", {}) if "metadata" in kwargs else (args[1] if len(args) > 1 else {})
 
             if memory_id and memory_id not in self._synced_memory_ids:
                 try:
@@ -338,9 +334,7 @@ class BayesianAugmenter:
         results.sort(key=lambda x: x.get("score", x.get("original_score", 0)), reverse=True)
         return results[:top_k]
 
-    def _compare_query_results(
-        self, query: str, original: list[dict], bayesian: list[dict]
-    ) -> list[ComparisonDelta]:
+    def _compare_query_results(self, query: str, original: list[dict], bayesian: list[dict]) -> list[ComparisonDelta]:
         """对比原始和贝叶斯查询结果"""
         comparisons = []
 
@@ -362,9 +356,7 @@ class BayesianAugmenter:
             )
 
         # 排序变化
-        changed = sum(
-            1 for i, bid in enumerate(bayes_ids) if i < len(orig_ids) and orig_ids[i] != bid
-        )
+        changed = sum(1 for i, bid in enumerate(bayes_ids) if i < len(orig_ids) and orig_ids[i] != bid)
         comparisons.append(
             ComparisonDelta(
                 field="ranking_changes",
@@ -448,20 +440,10 @@ class BayesianAugmenter:
                 belief = self.engine.get_or_create(belief_id, content_summary=pred_content)
 
                 # 贝叶斯增强的置信度
-                bayes_conf = (
-                    belief.posterior.mean
-                    if belief.posterior.effective_sample_size > 2
-                    else pred_confidence
-                )
-                bayes_uncert = (
-                    belief.posterior.std if belief.posterior.effective_sample_size > 2 else None
-                )
+                bayes_conf = belief.posterior.mean if belief.posterior.effective_sample_size > 2 else pred_confidence
+                bayes_uncert = belief.posterior.std if belief.posterior.effective_sample_size > 2 else None
 
-                ci = (
-                    belief.posterior.credible_interval(0.95)
-                    if belief.posterior.effective_sample_size > 2
-                    else None
-                )
+                ci = belief.posterior.credible_interval(0.95) if belief.posterior.effective_sample_size > 2 else None
 
                 enhanced_events.append(
                     {
@@ -488,9 +470,7 @@ class BayesianAugmenter:
         results["engine_stats"] = self.engine.get_statistics()
         return results
 
-    def _compare_predictions(
-        self, query: str, original: dict, bayesian: dict
-    ) -> list[ComparisonDelta]:
+    def _compare_predictions(self, query: str, original: dict, bayesian: dict) -> list[ComparisonDelta]:
         """对比预测结果"""
         comparisons = []
 
@@ -506,17 +486,13 @@ class BayesianAugmenter:
                         field=f"prediction_confidence:{pred.get('content', '')[:30]}",
                         original_value=orig_conf,
                         bayesian_value=bayes_conf,
-                        difference_description=(
-                            f"贝叶斯{'上调' if delta > 0 else '下调'}置信度 {abs(delta):.3f}"
-                        ),
+                        difference_description=(f"贝叶斯{'上调' if delta > 0 else '下调'}置信度 {abs(delta):.3f}"),
                         improvement_indicator="positive" if abs(delta) > 0.05 else "neutral",
                     )
                 )
 
         # 是否有不确定性量化
-        has_uncertainty = any(
-            p.get("bayesian_uncertainty") is not None for p in bayesian.get("event_predictions", [])
-        )
+        has_uncertainty = any(p.get("bayesian_uncertainty") is not None for p in bayesian.get("event_predictions", []))
         comparisons.append(
             ComparisonDelta(
                 field="uncertainty_quantification",
@@ -648,9 +624,7 @@ class BayesianAugmenter:
         if original_confidence is not None:
             results["original_confidence"] = original_confidence
             # 基于相关记忆的平均后验置信度
-            bayes_confidences = [
-                b["confidence"] for b in memory_beliefs if b["confidence"] is not None
-            ]
+            bayes_confidences = [b["confidence"] for b in memory_beliefs if b["confidence"] is not None]
             if bayes_confidences:
                 results["bayesian_confidence"] = sum(bayes_confidences) / len(bayes_confidences)
                 results["confidence_delta"] = results["bayesian_confidence"] - original_confidence
@@ -661,9 +635,7 @@ class BayesianAugmenter:
 
         return results
 
-    def _compare_reasoning(
-        self, query: str, original: dict, bayesian: dict
-    ) -> list[ComparisonDelta]:
+    def _compare_reasoning(self, query: str, original: dict, bayesian: dict) -> list[ComparisonDelta]:
         """对比推理结果"""
         comparisons = []
 
@@ -677,9 +649,7 @@ class BayesianAugmenter:
                     field="reasoning_confidence",
                     original_value=orig_conf,
                     bayesian_value=bayes_conf,
-                    difference_description=(
-                        f"贝叶斯{'上调' if delta > 0 else '下调'}推理置信度 {abs(delta):.3f}"
-                    ),
+                    difference_description=(f"贝叶斯{'上调' if delta > 0 else '下调'}推理置信度 {abs(delta):.3f}"),
                     improvement_indicator="positive",
                 )
             )
@@ -828,9 +798,7 @@ class BayesianAugmenter:
                 "original_error": error_original,
                 "bayesian_error": error_bayesian,
                 "improvement": (
-                    (error_original - error_bayesian) / max(error_original, 0.001) * 100
-                    if error_original > 0
-                    else 0
+                    (error_original - error_bayesian) / max(error_original, 0.001) * 100 if error_original > 0 else 0
                 ),
             }
 
@@ -900,11 +868,7 @@ class BayesianAugmenter:
                 "mae": mae,
                 "rmse": rmse,
                 "median_error": errors[len(errors) // 2] if errors else 0,
-                "p90_error": errors[int(len(errors) * 0.9)]
-                if len(errors) >= 10
-                else errors[-1]
-                if errors
-                else 0,
+                "p90_error": errors[int(len(errors) * 0.9)] if len(errors) >= 10 else errors[-1] if errors else 0,
                 "mean_bias": sum(r.error for r in records) / len(records),
             }
 
@@ -912,9 +876,7 @@ class BayesianAugmenter:
         bayes_stats = compute_stats(bayesian_records)
 
         improvement = (
-            (orig_stats.get("mae", 0) - bayes_stats.get("mae", 0))
-            / max(orig_stats.get("mae", 0.001), 0.001)
-            * 100
+            (orig_stats.get("mae", 0) - bayes_stats.get("mae", 0)) / max(orig_stats.get("mae", 0.001), 0.001) * 100
         )
 
         # 判定置信度
@@ -963,24 +925,16 @@ class BayesianAugmenter:
         orig = report["original_stats"]
         bayes = report["bayesian_stats"]
 
-        print(
-            f"\n  📈 总体: {summary['total_feedback']} 次反馈, {summary['total_records']} 条准确度记录"
-        )
+        print(f"\n  📈 总体: {summary['total_feedback']} 次反馈, {summary['total_records']} 条准确度记录")
         print(f"\n  {'指标':<15} {'原始':>10} {'贝叶斯':>10} {'改善':>10}")
         print(f"  {'─' * 15} {'─' * 10} {'─' * 10} {'─' * 10}")
         print(
             f"  {'MAE':<15} {orig.get('mae', 0):>10.4f} {bayes.get('mae', 0):>10.4f} {summary['improvement_pct']:>+9.1f}%"
         )
         print(f"  {'RMSE':<15} {orig.get('rmse', 0):>10.4f} {bayes.get('rmse', 0):>10.4f}")
-        print(
-            f"  {'Median Error':<15} {orig.get('median_error', 0):>10.4f} {bayes.get('median_error', 0):>10.4f}"
-        )
-        print(
-            f"  {'P90 Error':<15} {orig.get('p90_error', 0):>10.4f} {bayes.get('p90_error', 0):>10.4f}"
-        )
-        print(
-            f"  {'Bias':<15} {orig.get('mean_bias', 0):>10.4f} {bayes.get('mean_bias', 0):>10.4f}"
-        )
+        print(f"  {'Median Error':<15} {orig.get('median_error', 0):>10.4f} {bayes.get('median_error', 0):>10.4f}")
+        print(f"  {'P90 Error':<15} {orig.get('p90_error', 0):>10.4f} {bayes.get('p90_error', 0):>10.4f}")
+        print(f"  {'Bias':<15} {orig.get('mean_bias', 0):>10.4f} {bayes.get('mean_bias', 0):>10.4f}")
 
         print(f"\n  🎯 判定: {summary['verdict']}")
         print(f"  💡 建议: {summary['recommendation']}")
@@ -1034,28 +988,18 @@ class BayesianAugmenter:
             results.append(
                 {
                     "query": query,
-                    "top1_match": (
-                        result.original["results"][0]["memory_id"]
-                        if result.original["results"]
-                        else None
-                    ),
+                    "top1_match": (result.original["results"][0]["memory_id"] if result.original["results"] else None),
                     "bayesian_top1": (
-                        result.bayesian["results"][0]["memory_id"]
-                        if result.bayesian["results"]
-                        else None
+                        result.bayesian["results"][0]["memory_id"] if result.bayesian["results"] else None
                     ),
-                    "expected": tc.get("expected_memory_ids", [None])[0]
-                    if tc.get("expected_memory_ids")
-                    else None,
+                    "expected": tc.get("expected_memory_ids", [None])[0] if tc.get("expected_memory_ids") else None,
                     "original_correct": (
-                        result.original["results"][0]["memory_id"]
-                        in tc.get("expected_memory_ids", [])
+                        result.original["results"][0]["memory_id"] in tc.get("expected_memory_ids", [])
                         if result.original["results"] and tc.get("expected_memory_ids")
                         else None
                     ),
                     "bayesian_correct": (
-                        result.bayesian["results"][0]["memory_id"]
-                        in tc.get("expected_memory_ids", [])
+                        result.bayesian["results"][0]["memory_id"] in tc.get("expected_memory_ids", [])
                         if result.bayesian["results"] and tc.get("expected_memory_ids")
                         else None
                     ),
@@ -1076,9 +1020,7 @@ class BayesianAugmenter:
             print("=" * 60)
             print(f"\n  测试用例: {len(test_queries)}")
             if total_tested > 0:
-                print(
-                    f"  原始 Top-1 准确率: {orig_correct}/{total_tested} ({orig_correct / total_tested * 100:.1f}%)"
-                )
+                print(f"  原始 Top-1 准确率: {orig_correct}/{total_tested} ({orig_correct / total_tested * 100:.1f}%)")
                 print(
                     f"  贝叶斯 Top-1 准确率: {bayes_correct}/{total_tested} ({bayes_correct / total_tested * 100:.1f}%)"
                 )
@@ -1091,12 +1033,8 @@ class BayesianAugmenter:
             "results": results,
             "summary": {
                 "test_count": len(test_queries),
-                "original_accuracy": orig_correct / max(total_tested, 1)
-                if total_tested > 0
-                else None,
-                "bayesian_accuracy": bayes_correct / max(total_tested, 1)
-                if total_tested > 0
-                else None,
+                "original_accuracy": orig_correct / max(total_tested, 1) if total_tested > 0 else None,
+                "bayesian_accuracy": bayes_correct / max(total_tested, 1) if total_tested > 0 else None,
             },
             "accuracy_report": report,
         }

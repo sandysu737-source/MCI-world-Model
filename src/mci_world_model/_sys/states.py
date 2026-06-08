@@ -153,10 +153,7 @@ class BeliefTracker:
         now = time.time()
 
         if trigger == "reinforce":
-            if (
-                state.stage == BeliefStage.COGNITION
-                and state.reinforce_count >= self.REINFORCE_THRESHOLD
-            ):
+            if state.stage == BeliefStage.COGNITION and state.reinforce_count >= self.REINFORCE_THRESHOLD:
                 state.stage = BeliefStage.CONFIRM
                 state.transitions.append("确认")
             elif state.stage == BeliefStage.CONFIRM and state.confidence >= self.CONFIRM_CONFIDENCE:
@@ -261,9 +258,7 @@ class BayesianBeliefTracker:
             prior_type: 先验类型 "uniform" | "jeffreys" | "weak"
         """
         self._engine = (
-            BayesianEngine(default_prior_type=prior_type, default_prior_strength=2.0)
-            if BayesianEngine
-            else None
+            BayesianEngine(default_prior_type=prior_type, default_prior_strength=2.0) if BayesianEngine else None
         )
         self._transitions: dict[str, list[str]] = {}  # memory_id → transition history
         self._initialized_at: dict[str, float] = {}
@@ -329,9 +324,7 @@ class BayesianBeliefTracker:
         if self._engine is None:
             return self._fallback_reinforce(memory_id)
 
-        belief = self._engine.observe(
-            belief_id=memory_id, success=True, weight=weight, source="reinforce"
-        )
+        belief = self._engine.observe(belief_id=memory_id, success=True, weight=weight, source="reinforce")
 
         return self._build_state(belief, memory_id, trigger="reinforce")
 

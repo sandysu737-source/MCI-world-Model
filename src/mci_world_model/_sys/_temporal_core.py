@@ -255,8 +255,7 @@ class TemporalCore:
         """
         if index < 0 or index >= 60:
             raise ValueError(
-                f"Cycle index {index} out of range [0, 59]. "
-                f"This may indicate an invalid stem-branch combination."
+                f"Cycle index {index} out of range [0, 59]. This may indicate an invalid stem-branch combination."
             )
         stem, branch = self._cycle[index]
         return f"{TIME_STEMS[stem.value]}{TIME_BRANCHES[branch.value]}"
@@ -851,10 +850,7 @@ def _run_tests():
     stems = tc.get_hidden_stems(TimeBranch.YIN)
     test(
         "寅藏甲丙戊 (YIN hidden JIA, BING, WU)",
-        len(stems) == 3
-        and TimeStem.JIA in stems
-        and TimeStem.BING in stems
-        and TimeStem.WU in stems,
+        len(stems) == 3 and TimeStem.JIA in stems and TimeStem.BING in stems and TimeStem.WU in stems,
     )
 
     # 亥藏壬甲
@@ -958,10 +954,7 @@ def _run_tests():
     branches = tc.get_san_he_branches("wood")
     test(
         "木局三合: 亥卯未",
-        len(branches) == 3
-        and TimeBranch.HAI in branches
-        and TimeBranch.MAO in branches
-        and TimeBranch.WEI in branches,
+        len(branches) == 3 and TimeBranch.HAI in branches and TimeBranch.MAO in branches and TimeBranch.WEI in branches,
     )
 
     print("\n" + "=" * 60)

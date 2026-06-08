@@ -126,14 +126,14 @@ from mci_world_model._sys._time_code import (
 from mci_world_model._sys._unified_unit import create_unified_unit
 
 # 兼容占位：world_model.py 中引用但本版本不提供的过时符号
-get_seasonal_energy_state = None  # type: ignore[assignment]
-EnergyRelationsType = None  # type: ignore[assignment]
+get_seasonal_energy_state = None
+EnergyRelationsType = None
 
 # MultiViewRetriever 占位：5 维融合检索器在未来版本提供，当前为 stub
-MultiViewRetriever = None  # type: ignore[assignment]
+MultiViewRetriever = None
 
 # 别名：保持 world_model.py 的历史接口名仍可导入
-EnergyStateInfo = EnergyState  # type: ignore[assignment]
+EnergyStateInfo = EnergyState
 
 # 地层 (Spatial/Earth)
 from mci_world_model._sys._category_core import TrigramCore
@@ -150,7 +150,22 @@ from mci_world_model._sys._energy_relations import analyze_balance
 from mci_world_model._sys._pattern_inference import PatternInference
 
 # v3.0.3: Perception Pipeline
-from mci_world_model._sys._perception_pipeline import PerceptionPipeline
+from mci_world_model._sys._perception_pipeline import (
+    MultimodalSignal,  # v3.1.0
+    PerceptionPipeline,
+    SignalType,  # v3.1.0
+)
+
+# v3.2.0: 感知-行动接口范式 (大脑对躯壳的抽象契约)
+from mci_world_model._sys._sensor_paradigm import (
+    ActionCommand,
+    ActionPriority,
+    ActionResult,
+    ActuatorChannel,
+    PhysicalSignal,
+    SensorModality,
+    SignalSubType,
+)
 
 # 天层 (Temporal/Sky) — 六十花甲编码核心
 from mci_world_model._sys._temporal_core import (
@@ -253,6 +268,17 @@ __all__ = [
     "PatternInference",
     # v3.0.3: Perception
     "PerceptionPipeline",
+    # v3.1.0: 多模态信号
+    "MultimodalSignal",
+    "SignalType",
+    # v3.2.0: 感知-行动接口范式
+    "ActionCommand",
+    "ActionPriority",
+    "ActionResult",
+    "ActuatorChannel",
+    "PhysicalSignal",
+    "SensorModality",
+    "SignalSubType",
     "PropagationConfig",
     # 关系强度
     "RELATION_STRENGTH",

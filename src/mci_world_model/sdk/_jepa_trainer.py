@@ -1,8 +1,8 @@
 """
-su-memory v4.0.0 M2 — JEPA Trainer
-===================================
+MCI World Model v3.1.0 — JEPA Trainer
+========================================
 
-JEPA 端到端训练循环，支持两类预测器:
+JEPA 端到端训练循环，支持三类训练模式:
 
 1. 不可参基线 (Identity/EnergyPropagation/BeliefPropagation):
    训练损失 = state_distance(s_pred, s_actual) + α·L_energy + β·L_cons
@@ -10,6 +10,9 @@ JEPA 端到端训练循环，支持两类预测器:
 2. 可微 GNN (GNNPredictor):
    训练损失 = MSE(A_pred, A_actual) + α·L_energy + β·L_cons
    反向传播: 手写梯度 → SGD 参数更新
+
+3. v3.0.7: 参数化记忆集成 (ParametricMemory):
+   从 JEPA 编码器输出提取因果边 → CausalMLP 训练信号
 
 用法:
     from mci_world_model.sdk._jepa_trainer import JEPATrainer
@@ -82,6 +85,7 @@ class JEPATrainer:
         dataset=None,
         alpha_energy: float = 0.1,
         beta_cons: float = 0.05,
+        parametric_memory=None,
     ):
         """
         Args:
@@ -90,12 +94,14 @@ class JEPATrainer:
             dataset: JEPADataset 实例（可选，train() 时传入）
             alpha_energy: 能量损失权重
             beta_cons: 能量守恒损失权重
+            parametric_memory: v3.0.7 ParametricMemory 实例（可选）
         """
         self.encoder = encoder
         self.predictor = predictor
         self.dataset = dataset
         self.alpha_energy = alpha_energy
         self.beta_cons = beta_cons
+        self._parametric_memory = parametric_memory
         self._stats = JEPATrainingStats(
             alpha_energy=alpha_energy,
             beta_cons=beta_cons,
@@ -174,14 +180,8 @@ class JEPATrainer:
                 has_state_cache = hasattr(ds, "state_pairs") and ds.state_pairs
                 for idx, (mem_t, mem_t1) in enumerate(ds.memory_pairs):
                     s_t1 = ds.pairs[idx][1] if idx < len(ds.pairs) else None
-                    s_t = (
-                        ds.state_pairs[idx][0]
-                        if has_state_cache and idx < len(ds.state_pairs)
-                        else None
-                    )
-                    loss = self._train_e2e_step(
-                        mem_t, mem_t1, s_t1, s_t=s_t, learning_rate=learning_rate
-                    )
+                    s_t = ds.state_pairs[idx][0] if has_state_cache and idx < len(ds.state_pairs) else None
+                    loss = self._train_e2e_step(mem_t, mem_t1, s_t1, s_t=s_t, learning_rate=learning_rate)
                     epoch_losses.append(loss)
             else:
                 for s_t, s_t1 in ds.pairs:
@@ -407,6 +407,78 @@ class JEPATrainer:
     # -----------------------------------------------------------------
     # 评估
     # -----------------------------------------------------------------
+
+    # -----------------------------------------------------------------
+    # v3.0.7: 参数化记忆集成
+    # -----------------------------------------------------------------
+
+    @property
+    def parametric_memory(self):
+        """返回关联的 ParametricMemory 实例。"""
+        return self._parametric_memory
+
+    @parametric_memory.setter
+    def parametric_memory(self, pm):
+        """设置关联的 ParametricMemory 实例。"""
+        self._parametric_memory = pm
+
+    @staticmethod
+    def _energy_to_category(energy_relation: str) -> int:
+        """将 energy_relation 映射为 CausalMLP 类别索引。"""
+        _map = {
+            "enhance": 1,  # causal
+            "suppress": 1,  # causal
+            "same": 0,  # semantic
+            "neutral": 0,  # semantic
+        }
+        return _map.get(energy_relation, 0)
+
+    def _train_parametric_step(
+        self,
+        s_t: CausalWorldModelState,
+        s_t1: CausalWorldModelState,
+        learning_rate: float = 0.01,
+    ) -> float:
+        """
+        v3.0.7: 使用 JEPA 编码器输出作为参数化记忆的训练信号。
+
+        流程:
+            编码器因果边 → 提取 (cause_text, energy_relation) 对
+            → ParametricMemory.train_on_signals() → CausalMLP 参数更新
+
+        Args:
+            s_t: 当前状态（提取训练信号）
+            s_t1: 目标状态（保留，暂未使用）
+            learning_rate: 学习率
+
+        Returns:
+            参数化训练损失 float
+        """
+        if self._parametric_memory is None:
+            return 0.0
+
+        edges = s_t.causal_edges
+        if not edges:
+            return 0.0
+
+        # 从因果边提取训练信号
+        cause_texts: list[str] = []
+        true_categories: list[int] = []
+
+        for e in edges:
+            cause = e.get("cause", "")
+            if not cause:
+                continue
+            relation = e.get("energy_relation", "neutral")
+            cause_texts.append(cause)
+            true_categories.append(self._energy_to_category(relation))
+
+        if not cause_texts:
+            return 0.0
+
+        # 调用参数化记忆训练
+        stats = self._parametric_memory.train_on_signals(cause_texts, true_categories, learning_rate=learning_rate)
+        return stats.get("final_loss", 0.0)
 
     def evaluate(self, dataset=None) -> dict:
         """

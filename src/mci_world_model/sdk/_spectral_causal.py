@@ -1,5 +1,5 @@
 """
-su-memory v3.6.0 — Spectral Causal Engine
+MCI World Model v3.1.0 — Spectral Causal Engine
 
 能量中心为核 · 四层量化为翼 · 从语法因果到数学可验证因果的质变
 
@@ -210,9 +210,7 @@ class GaussianDAG:
     # 偏相关系数
     # -----------------------------------------------------------------
 
-    def partial_correlation(
-        self, x: np.ndarray, y: np.ndarray, z: np.ndarray
-    ) -> tuple[float, float]:
+    def partial_correlation(self, x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple[float, float]:
         """
         计算偏相关系数 ρ_{XY|Z} + Fisher z-transform p-value。
 
@@ -249,9 +247,7 @@ class GaussianDAG:
 
         return (float(rho), float(p_value))
 
-    def _partial_corr_vec(
-        self, x: np.ndarray, y: np.ndarray, z_vec: np.ndarray
-    ) -> tuple[float, float]:
+    def _partial_corr_vec(self, x: np.ndarray, y: np.ndarray, z_vec: np.ndarray) -> tuple[float, float]:
         """
         以全局均值向量作为条件集的代理 (简化版)。
         当无法穷举所有条件组合时使用。
@@ -399,9 +395,7 @@ class GaussianDAG:
                 base_conf = min(abs(rho), 0.95)
 
                 # 能量先验交叉验证
-                conf, verdict = self.energy_prior_boost(
-                    self.memories[i], self.memories[j], base_conf
-                )
+                conf, verdict = self.energy_prior_boost(self.memories[i], self.memories[j], base_conf)
 
                 # 尝试获取能量关系描述
                 energy_rel = None
@@ -754,9 +748,7 @@ class FourierCausal:
         #    1 = 能量完全分散 (宽带噪声) → 异常
         sorted_power = np.sort(power[1:])[::-1] if len(power) > 1 else np.array([0])
         top2_power = (
-            np.sum(sorted_power[:2])
-            if len(sorted_power) >= 2
-            else (sorted_power[0] if len(sorted_power) > 0 else 0)
+            np.sum(sorted_power[:2]) if len(sorted_power) >= 2 else (sorted_power[0] if len(sorted_power) > 0 else 0)
         )
         spectral_spread = max(0.0, 1.0 - top2_power / (total_power - dc_power + 1e-10))
 
@@ -928,9 +920,7 @@ class FourierCausal:
 
         for i in range(n_elem):
             for j in range(i + 1, n_elem):
-                coherence = self.cross_spectral_coherence(
-                    self.FIVE_ELEMENTS[i], self.FIVE_ELEMENTS[j]
-                )
+                coherence = self.cross_spectral_coherence(self.FIVE_ELEMENTS[i], self.FIVE_ELEMENTS[j])
                 if coherence.get("error"):
                     continue
 
@@ -1152,9 +1142,7 @@ class GaussianDistribution:
         likelihood_precision = n / (sample_std**2 + 1e-10)
         posterior_precision = prior_precision + likelihood_precision
 
-        self.mu = (
-            self.mu * prior_precision + sample_mean * likelihood_precision
-        ) / posterior_precision
+        self.mu = (self.mu * prior_precision + sample_mean * likelihood_precision) / posterior_precision
         self.sigma = 1.0 / math.sqrt(posterior_precision)
         self.n_observations += n
 
@@ -1324,9 +1312,7 @@ class BayesianCausal:
             "posterior_mean": round(posterior.mu, 6),
             "posterior_std": round(posterior.sigma, 6),
             "credible_interval_95": (round(ci[0], 6), round(ci[1], 6)),
-            "bayes_factor": bayes_factor
-            if bayes_factor == float("inf")
-            else round(bayes_factor, 4),
+            "bayes_factor": bayes_factor if bayes_factor == float("inf") else round(bayes_factor, 4),
             "conclusion": conclusion,
             "energy_prior_used": energy_relation or "none",
         }
@@ -1399,9 +1385,7 @@ class BayesianCausal:
                     "id": test["edge_id"],
                     "conclusion": test["conclusion"],
                     "posterior_mean": test["posterior_mean"],
-                    "bayes_factor": (
-                        test["bayes_factor"] if test["bayes_factor"] != float("inf") else "inf"
-                    ),
+                    "bayes_factor": (test["bayes_factor"] if test["bayes_factor"] != float("inf") else "inf"),
                 }
             )
 

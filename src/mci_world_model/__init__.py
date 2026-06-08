@@ -37,7 +37,7 @@ MCI World Model 是强劲的「CPU」:
 | 项目 | 版本号 |
 |------|--------|
 | su-memory-sdk（记忆引擎） | V3.5.1 |
-| MCI World Model（世界模型） | V3.0.0（更名前 V4.0.0） |
+| MCI World Model（世界模型） | V3.1.0（物理世界应用） |
 
 🔗 上下游
 ==========
@@ -46,7 +46,7 @@ MCI World Model 是强劲的「CPU」:
 - 下游产品：MCI·焕 (mci-huan) / mci-kernel-integrations
 """
 
-__version__ = "3.0.3"
+__version__ = "3.2.0"
 __project__ = "MCI World Model"
 __brand__ = "MCI"
 
@@ -58,13 +58,19 @@ from mci_world_model._sys import (
     # 因果引擎
     CategoryCausalEngine,
     CognitiveGap,
+    # v3.0.1/v3.0.3: Configurator 分层决策
+    ConfigAction,
     EnergyBus,
     EnergyCore,
     FourSymbols,
+    HierarchicalConfigurator,
     KnowledgeAging,
     # 元认知
     MetaCognition,
+    MetaConfigurator,
     PatternInference,
+    # v3.0.1/v3.0.3: Perception 前端信号处理
+    PerceptionPipeline,
     StemBranchCode,
     # 时空感知
     TemporalCore,
@@ -76,11 +82,15 @@ from mci_world_model._sys import (
     YinYang,
 )
 from mci_world_model.sdk import (
+    # v3.0.8: BatchCounterfactualEngine
+    BatchCounterfactualEngine,
     # 贝叶斯增强
     BayesianAugmenter,
     BayesianCausal,
     CausalEngine,
     CausalGraph,
+    # v3.0.7: CausalMLP
+    CausalMLP,
     CausalWorldModelState,
     CounterfactualEngine,
     # Pearl 三层
@@ -101,10 +111,14 @@ from mci_world_model.sdk import (
     # 参数化记忆
     ParametricMemory,
     ParametricMemoryConfig,
+    # v3.1.0: 物理量→因果边转换器
+    PhysicalGraphBuilder,
     # Reflection QA
     ReflectionSynthesizer,
     # SIGReg
     SIGReg,
+    # v3.0.8: StructuralEquationModel
+    StructuralEquationModel,
     SynthesizedQAPair,
     TopologicalEnergyMatrix,
     apply_sigreg_to_index,
@@ -121,8 +135,12 @@ __all__ = [
     "CategoryCausalEngine",
     "CausalEngine",
     "CausalGraph",
+    # v3.0.8: BatchCounterfactualEngine
+    "BatchCounterfactualEngine",
     "CausalWorldModelState",
     "CognitiveGap",
+    # v3.0.1/v3.0.3: Configurator
+    "ConfigAction",
     "CounterfactualEngine",
     # sdk — Pearl 三层
     "DoCalculus",
@@ -134,6 +152,8 @@ __all__ = [
     "FourierCausal",
     "GNNPredictor",
     "GaussianDAG",
+    # v3.0.3: Configurator 分层
+    "HierarchicalConfigurator",
     "IdentityPredictor",
     "JEPADataset",
     # sdk — JEPA 全套
@@ -145,16 +165,25 @@ __all__ = [
     "MCIWorldModel",
     # _sys — 元认知
     "MetaCognition",
+    "MetaConfigurator",
+    # v3.0.7: CausalMLP
+    "CausalMLP",
     # sdk — 参数化记忆
     "ParametricMemory",
     "ParametricMemoryConfig",
     "PatternInference",
+    # v3.0.3: Perception
+    "PerceptionPipeline",
+    # v3.1.0: PhysicalGraphBuilder
+    "PhysicalGraphBuilder",
     # sdk — Reflection QA
     "ReflectionSynthesizer",
     # sdk — SIGReg
     "SIGReg",
     "StemBranchCode",
     "SynthesizedQAPair",
+    # v3.0.8: StructuralEquationModel
+    "StructuralEquationModel",
     # _sys — 时空感知
     "TemporalCore",
     "TemporalSystem",

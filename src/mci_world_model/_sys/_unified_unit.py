@@ -208,13 +208,9 @@ class UnifiedInfoUnit:
             "intensity": self.temporal_intensity,
         }
         if self.temporal_stem is not None:
-            result["stem_name"] = (
-                TIME_STEMS[self.temporal_stem] if 0 <= self.temporal_stem < 10 else None
-            )
+            result["stem_name"] = TIME_STEMS[self.temporal_stem] if 0 <= self.temporal_stem < 10 else None
         if self.temporal_branch is not None:
-            result["branch_name"] = (
-                TIME_BRANCHES[self.temporal_branch] if 0 <= self.temporal_branch < 12 else None
-            )
+            result["branch_name"] = TIME_BRANCHES[self.temporal_branch] if 0 <= self.temporal_branch < 12 else None
         return result
 
     @property
@@ -412,9 +408,7 @@ class UnifiedInfoFactory:
         # Get temporal information
         stem_idx = stem_idx % 10
         branch_idx = branch_idx % 12
-        cyclic_code = self._temporal_core.get_cycle_index(
-            TimeStem(stem_idx), TimeBranch(branch_idx)
-        )
+        cyclic_code = self._temporal_core.get_cycle_index(TimeStem(stem_idx), TimeBranch(branch_idx))
 
         # Get spatial information from hexagram
         _upper_trigram, lower_trigram = self._trigram_core.get_hexagram(hexagram_idx)
@@ -476,9 +470,7 @@ class UnifiedInfoFactory:
             )
 
         # Get temporal information
-        cyclic_code = self._temporal_core.get_cycle_index(
-            TimeStem(stem_idx), TimeBranch(branch_idx)
-        )
+        cyclic_code = self._temporal_core.get_cycle_index(TimeStem(stem_idx), TimeBranch(branch_idx))
 
         # Get temporal code name
         code_name = self._temporal_core.get_cycle_name(cyclic_code)
@@ -493,9 +485,7 @@ class UnifiedInfoFactory:
 
         # Map branch to trigram (simplified mapping)
         trigram_idx = self._map_branch_to_trigram(branch_idx)
-        hexagram_idx = self._trigram_core.get_hexagram_number(
-            TrigramType(trigram_idx), TrigramType(0)
-        )
+        hexagram_idx = self._trigram_core.get_hexagram_number(TrigramType(trigram_idx), TrigramType(0))
 
         # Get prior/post trigrams
         prior_idx = self._trigram_core.get_prior_order(TrigramType(trigram_idx))
@@ -629,9 +619,7 @@ class UnifiedInfoFactory:
 # =============================================================================
 
 
-def create_unified_unit(
-    stem_idx: int = 0, branch_idx: int = 0, content: str = ""
-) -> UnifiedInfoUnit:
+def create_unified_unit(stem_idx: int = 0, branch_idx: int = 0, content: str = "") -> UnifiedInfoUnit:
     """
     Convenience function to create a unified information unit.
 
@@ -679,9 +667,7 @@ def run_tests():
         assert unit.temporal_stem == 0, f"Expected stem 0, got {unit.temporal_stem}"
         assert unit.temporal_branch == 0, f"Expected branch 0, got {unit.temporal_branch}"
         assert unit.cyclic_code == 0, f"Expected cyclic 0, got {unit.cyclic_code}"
-        print(
-            f"  PASS: stem={unit.temporal_stem}, branch={unit.temporal_branch}, cyclic={unit.cyclic_code}"
-        )
+        print(f"  PASS: stem={unit.temporal_stem}, branch={unit.temporal_branch}, cyclic={unit.cyclic_code}")
         tests_passed += 1
     except Exception as e:
         print(f"  FAIL: {e}")
@@ -775,10 +761,7 @@ def run_tests():
             )
             assert len(unit.direction) > 0, f"Energy {energy_idx} missing directions"
             assert len(unit.colors) > 0, f"Energy {energy_idx} missing colors"
-            print(
-                f"  Energy {energy_idx} ({ENERGY_NAMES[energy_idx]}): "
-                f"dir={unit.direction}, colors={unit.colors}"
-            )
+            print(f"  Energy {energy_idx} ({ENERGY_NAMES[energy_idx]}): dir={unit.direction}, colors={unit.colors}")
         print("  PASS: All energy types have extended attributes")
         tests_passed += 1
     except Exception as e:

@@ -1,6 +1,6 @@
 """
-su-memory v4.0.0 — JEPA Dataset
-================================
+MCI World Model v3.1.0 — JEPA Dataset
+======================================
 
 从记忆时间线构造 JEPA 时序训练数据对 (s_t, s_{t+1})。
 
@@ -99,10 +99,7 @@ class JEPADataset:
             s_t = valid_states[i]
             s_t1 = valid_states[i + 1]
             # 确保每个状态至少有最小记忆数
-            if (
-                s_t.n_memories >= min_memories_per_window
-                and s_t1.n_memories >= min_memories_per_window
-            ):
+            if s_t.n_memories >= min_memories_per_window and s_t1.n_memories >= min_memories_per_window:
                 pairs.append((s_t, s_t1))
 
         distances: list[float] = []
@@ -213,10 +210,7 @@ class JEPADataset:
         memory_pairs: list[tuple] = []
         state_pairs: list[tuple] = []
         for i in range(len(states) - 1):
-            if (
-                states[i].n_memories >= min_memories_per_window
-                and states[i + 1].n_memories >= min_memories_per_window
-            ):
+            if states[i].n_memories >= min_memories_per_window and states[i + 1].n_memories >= min_memories_per_window:
                 memory_pairs.append((memory_batches[i], memory_batches[i + 1]))
                 state_pairs.append((states[i], states[i + 1]))
         result.memory_pairs = memory_pairs
@@ -244,7 +238,4 @@ class JEPADataset:
         return iter(self.pairs)
 
     def __repr__(self) -> str:
-        return (
-            f"JEPADataset(states={self.n_states}, pairs={self.n_pairs}, "
-            f"avg_dist={self.avg_distance:.4f})"
-        )
+        return f"JEPADataset(states={self.n_states}, pairs={self.n_pairs}, avg_dist={self.avg_distance:.4f})"

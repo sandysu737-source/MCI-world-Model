@@ -1,1 +1,5 @@
-"""MCI World Model Benchmarks — SIGReg 嵌入正则化基准"""
+"""
+MCI World Model — 性能基准测试套件
+
+P1 性能驱动: 核心推理路径延迟可度量、可回归、可优化。
+"""

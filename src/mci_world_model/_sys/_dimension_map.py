@@ -582,9 +582,7 @@ class TaijiMapper:
 
         confidence = MappingConfidence.DEFINITIVE if targets else MappingConfidence.LOW
 
-        return MappingResult(
-            source=t.value, targets=targets, dimension=MappingDimension.NAJIA, confidence=confidence
-        )
+        return MappingResult(source=t.value, targets=targets, dimension=MappingDimension.NAJIA, confidence=confidence)
 
     # =========================================================================
     # Integrated Multi-Dimensional Mapping (积分: 多维度融合)
@@ -641,9 +639,7 @@ class TaijiMapper:
         stem_name = TIME_STEMS[stem.value]
         if primary is not None:
             trig_name = TRIGRAM_NAMES[TrigramType(primary)]
-            explanation = (
-                f"{stem_name} maps to {trig_name} with {agreement:.0%} dimensional agreement"
-            )
+            explanation = f"{stem_name} maps to {trig_name} with {agreement:.0%} dimensional agreement"
             if najia_result.has_conflict:
                 explanation += f" (candidates: {len(najia_result.targets)})"
         else:
@@ -896,9 +892,7 @@ class TaijiMapper:
         match_type = None
         if is_match:
             branches_of_trigram = self.trigram_to_branches(t)
-            branch_position = (
-                branches_of_trigram.index(branch) if branch in branches_of_trigram else -1
-            )
+            branch_position = branches_of_trigram.index(branch) if branch in branches_of_trigram else -1
             match_type = "primary" if branch_position == 0 else "secondary"
 
         return {
@@ -958,9 +952,7 @@ class TaijiMapper:
             "stem": TIME_STEMS[stem.value],
             "branch": TIME_BRANCHES[branch.value],
             "stem_trigram": TRIGRAM_NAMES.get(stem_trigram) if stem_trigram is not None else None,
-            "branch_trigram": TRIGRAM_NAMES.get(branch_trigram)
-            if branch_trigram is not None
-            else None,
+            "branch_trigram": TRIGRAM_NAMES.get(branch_trigram) if branch_trigram is not None else None,
             "trigram": harmony["trigram"] if harmony else None,
             "trigram_type": best_trigram,
             "consistent": consistent,

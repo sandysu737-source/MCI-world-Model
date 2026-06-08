@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-06-05T00:05:23+0800",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "python": "3.11.15",
+  "numpy": "2.4.4",
+  "faiss": "1.13.2",
+  "mci_world_model": "3.1.0",
+  "single_threaded": true,
+  "reproducibility_seed": 42,
+  "script": "bench_sigreg_02_back_projection.py"
+}

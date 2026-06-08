@@ -638,9 +638,7 @@ class EnergyCore:
     # Balance Rules Application
     # ============================================================
 
-    def apply_balance_rules(
-        self, energies: dict[str, float], pattern: EnergyPattern
-    ) -> dict[str, float]:
+    def apply_balance_rules(self, energies: dict[str, float], pattern: EnergyPattern) -> dict[str, float]:
         """
         Apply balance rules based on the energy pattern.
 
@@ -726,9 +724,7 @@ class EnergyCore:
     # Energy Flow Simulation
     # ============================================================
 
-    def simulate_energy_flow(
-        self, energies: dict[str, float], steps: int = 10
-    ) -> list[dict[str, float]]:
+    def simulate_energy_flow(self, energies: dict[str, float], steps: int = 10) -> list[dict[str, float]]:
         """
         Simulate energy flow over multiple steps.
 
@@ -804,9 +800,7 @@ class EnergyCore:
             "suppressed_by": self._suppress_reverse.get(energy, ""),
         }
 
-    def calculate_compatibility(
-        self, energies1: dict[str, float], energies2: dict[str, float]
-    ) -> float:
+    def calculate_compatibility(self, energies1: dict[str, float], energies2: dict[str, float]) -> float:
         """
         Calculate compatibility score between two energy distributions.
 
@@ -846,9 +840,7 @@ class EnergyCore:
 
                 # Same energy type
                 if e1 == e2:
-                    score += min(norm1.get(e1, 0), norm2.get(e2, 0)) / max(
-                        norm1.get(e1, 0.001), norm2.get(e2, 0.001)
-                    )
+                    score += min(norm1.get(e1, 0), norm2.get(e2, 0)) / max(norm1.get(e1, 0.001), norm2.get(e2, 0.001))
                     continue
 
                 # Enhancement relationship
@@ -969,9 +961,7 @@ def test_energy_core():
             tests_passed += 1
         else:
             tests_failed += 1
-        print(
-            f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]"
-        )
+        print(f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]")
 
     # Test 4: Intensity calculation
     print("\n[TEST 4] Intensity Calculation")
@@ -982,9 +972,7 @@ def test_energy_core():
         tests_passed += 1
     else:
         tests_failed += 1
-    print(
-        f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]"
-    )
+    print(f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]")
 
     # Test 5: Balance analysis
     print("\n[TEST 5] Balance Analysis")

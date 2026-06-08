@@ -32,9 +32,7 @@ class SemanticType(Enum):
 
     @property
     def name_en(self) -> str:
-        return ["Creative", "Lake", "Light", "Thunder", "Wind", "Abyss", "Mountain", "Receptive"][
-            self.value
-        ]
+        return ["Creative", "Lake", "Light", "Thunder", "Wind", "Abyss", "Mountain", "Receptive"][self.value]
 
     @property
     def energy_type(self) -> str:
@@ -190,22 +188,10 @@ def _build_hexagram_trigrams():
     result = []
     for i in range(64):
         # Resolve via three-dimensional weighted voting (integration/differentiation/gradient)
-        upper_result = _get_trigram_resolver().resolve_trigram_to_semantic(
-            HEXAGRAM_TRIGRAMS_ABOVE[i]
-        )
-        lower_result = _get_trigram_resolver().resolve_trigram_to_semantic(
-            HEXAGRAM_TRIGRAMS_BELOW[i]
-        )
-        upper = (
-            SemanticType(upper_result.primary)
-            if upper_result.primary is not None
-            else SemanticType.CAT_CREATIVE
-        )
-        lower = (
-            SemanticType(lower_result.primary)
-            if lower_result.primary is not None
-            else SemanticType.CAT_CREATIVE
-        )
+        upper_result = _get_trigram_resolver().resolve_trigram_to_semantic(HEXAGRAM_TRIGRAMS_ABOVE[i])
+        lower_result = _get_trigram_resolver().resolve_trigram_to_semantic(HEXAGRAM_TRIGRAMS_BELOW[i])
+        upper = SemanticType(upper_result.primary) if upper_result.primary is not None else SemanticType.CAT_CREATIVE
+        lower = SemanticType(lower_result.primary) if lower_result.primary is not None else SemanticType.CAT_CREATIVE
         result.append((upper, lower))
     return result
 
@@ -232,9 +218,7 @@ class ComponentPosition:
 class Pattern:
     """64-pattern object"""
 
-    def __init__(
-        self, number: int, upper: SemanticType, lower: SemanticType, pattern_name: str = ""
-    ):
+    def __init__(self, number: int, upper: SemanticType, lower: SemanticType, pattern_name: str = ""):
         self.number = number
         self.upper = upper
         self.lower = lower
@@ -358,9 +342,7 @@ class MemoryPattern:
 
     def get_state(self) -> str:
         """Get current state"""
-        return (
-            f"{self.pattern.energy_type} energy {'active' if self.active_components else 'stable'}"
-        )
+        return f"{self.pattern.energy_type} energy {'active' if self.active_components else 'stable'}"
 
 
 # ============================================================
@@ -566,9 +548,7 @@ class PatternInference:
             resulting_pattern=resulting_pattern,
         )
 
-    def three_layer_retrieve(
-        self, query_index: int, candidate_indices: list[int], top_k: int = 8
-    ) -> list[dict]:
+    def three_layer_retrieve(self, query_index: int, candidate_indices: list[int], top_k: int = 8) -> list[dict]:
         """
         Three-layer inference retrieval
 

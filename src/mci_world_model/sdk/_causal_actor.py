@@ -70,6 +70,66 @@ class ActionCandidate:
 
 
 # =============================================================================
+# v3.0.5: EnergyGuidedAction — 能量流引导干预动作
+# =============================================================================
+
+
+@dataclass
+class EnergyGuidedAction(ActionCandidate):
+    """
+    v3.0.5: 能量流引导的干预动作。
+
+    继承 ActionCandidate，新增能量干预方向字段，
+    可基于五行生克自动推断干预方向（增强/抑制）。
+
+    Attributes:
+        energy_direction: 能量干预方向 "enhance" | "suppress" | "neutral"
+    """
+
+    energy_direction: str = ""
+
+    @classmethod
+    def from_edge(cls, edge: dict, energy_core, **kwargs):
+        """
+        基于五行生克自动推断干预方向。
+
+        生关系 → 提升权重 (enhance)
+        克关系 → 降低权重 (suppress)
+
+        Args:
+            edge: 因果边 dict，含 cause_energy/effect_energy/rho
+            energy_core: EnergyCore 实例
+            **kwargs: 传递给 ActionCandidate 的其他参数
+
+        Returns:
+            EnergyGuidedAction 实例
+        """
+        cause_e = edge.get("cause_energy", "earth")
+        effect_e = edge.get("effect_energy", "earth")
+        direction = "neutral"
+        rho = edge.get("rho", 0.5)
+        proposed = kwargs.get("proposed_value", rho)
+
+        if energy_core.get_enhance_relation(cause_e, effect_e):
+            direction = "enhance"
+            proposed = min(rho + 0.15, 1.0)  # 生 → 提升权重
+        elif energy_core.get_suppress_relation(cause_e, effect_e):
+            direction = "suppress"
+            proposed = max(rho - 0.10, 0.0)  # 克 → 降低权重
+
+        return cls(
+            energy_direction=direction,
+            proposed_value=proposed,
+            **{k: v for k, v in kwargs.items() if k != "proposed_value"},
+        )
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d["energy_direction"] = self.energy_direction
+        return d
+
+
+# =============================================================================
 # CausalActor — 因果动作搜索器
 # =============================================================================
 
@@ -91,14 +151,16 @@ class CausalActor:
     MIN_COST_IMPROVEMENT: float = 0.01  # 最小代价改善阈值
     DEFAULT_DELTA: float = 0.1  # 有限差分扰动幅度
 
-    def __init__(self, world_model, cost_module=None):
+    def __init__(self, world_model, cost_module=None, energy_core=None):
         """
         Args:
             world_model: MCIWorldModel 实例
             cost_module: EnergyCostModule 实例（可选，None 时使用 world_model._cost_module）
+            energy_core: v3.0.4: EnergyCore 实例，用于能量亲和度引导（可选）
         """
         self._wm = world_model
         self._cost = cost_module
+        self._energy_core = energy_core  # v3.0.4: 能量亲和度引导
         self._state: str = "IDLE"  # IDLE → SEARCHING → ... → COMPLETE
         self._action_history: list[ActionCandidate] = []
 
@@ -196,20 +258,29 @@ class CausalActor:
             improvement = -grad * abs(proposed_rho - rho_original)
 
             if improvement > self.MIN_COST_IMPROVEMENT:
-                candidates.append(
-                    ActionCandidate(
-                        action_type="adjust_weight",
-                        target=f"{cause}→{effect}",
-                        proposed_value=round(proposed_rho, 4),
-                        expected_cost=round(improvement, 6),
-                        confidence=round(min(abs(grad) * 5, 1.0), 4),
-                        metadata={
-                            "edge_index": i,
-                            "original_rho": rho_original,
-                            "gradient": round(grad, 6),
-                        },
-                    )
+                candidate = ActionCandidate(
+                    action_type="adjust_weight",
+                    target=f"{cause}→{effect}",
+                    proposed_value=round(proposed_rho, 4),
+                    expected_cost=round(improvement, 6),
+                    confidence=round(min(abs(grad) * 5, 1.0), 4),
+                    metadata={
+                        "edge_index": i,
+                        "original_rho": rho_original,
+                        "gradient": round(grad, 6),
+                    },
                 )
+
+                # v3.0.4: 能量亲和度调整
+                if self._energy_core is not None:
+                    cause_energy = edge.get("cause_energy", "earth")
+                    effect_energy = edge.get("effect_energy", "earth")
+                    if self._energy_core.get_enhance_relation(cause_energy, effect_energy):
+                        candidate.confidence *= 1.15  # 生关系 → 优先增强
+                    elif self._energy_core.get_suppress_relation(cause_energy, effect_energy):
+                        candidate.confidence *= 1.10  # 克关系 → 优先抑制
+
+                candidates.append(candidate)
 
         # ── 3. Top-K 选择 ──
         self._state = "SELECTING"

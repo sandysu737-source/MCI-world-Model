@@ -1,5 +1,5 @@
 """
-su-memory v3.7.0 — Pearl Do-Calculus 干预引擎 (M1)
+MCI World Model v3.0.7 — Pearl Do-Calculus 干预引擎 (M1)
 ====================================================
 
 基于 Pearl (2009) do-calculus 的因果干预推理，
@@ -199,6 +199,89 @@ class CausalGraph:
 
     def __repr__(self) -> str:
         return f"CausalGraph(nodes={len(self.nodes)}, edges={len(self.edges)})"
+
+    # -----------------------------------------------------------------
+    # CausalGraph ↔ SEM 双向转换 (v3.0.8)
+    # -----------------------------------------------------------------
+
+    def to_sem(
+        self,
+        noise_std: float = 0.5,
+        activation: str = "linear",
+        seed: int | None = None,
+    ):
+        """
+        将 CausalGraph 的邻接矩阵转为 StructuralEquationModel。
+
+        邻接矩阵 → SEM 系数矩阵: 非零边保留权重，零边保持零。
+
+        Args:
+            noise_std: SEM 噪声标准差
+            activation: 激活函数 — "linear" | "tanh" | "relu" | "sigmoid"
+            seed: 随机种子
+
+        Returns:
+            StructuralEquationModel 实例
+        """
+        from mci_world_model.sdk._counterfactual import StructuralEquationModel
+
+        coeff = (
+            np.array(self.adjacency, dtype=np.float64)
+            if self.adjacency is not None
+            else np.zeros((len(self.nodes), len(self.nodes)), dtype=np.float64)
+        )
+        return StructuralEquationModel(
+            coefficients=coeff,
+            node_names=list(self.nodes),
+            noise_std=noise_std,
+            activation=activation,
+            seed=seed,
+        )
+
+    @staticmethod
+    def from_sem(sem) -> CausalGraph:
+        """
+        从 StructuralEquationModel 系数矩阵反向构建 CausalGraph。
+
+        非零系数 → 边存在 (保留权重)。
+
+        Args:
+            sem: StructuralEquationModel 实例
+
+        Returns:
+            CausalGraph 实例
+        """
+        cg = CausalGraph(nodes=list(sem.node_names))
+        n = sem.n_nodes
+        adj = np.zeros((n, n), dtype=np.float32)
+        for i in range(n):
+            for j in range(n):
+                w = sem.coefficients[i, j]
+                if w != 0:
+                    adj[i, j] = float(w)
+                    cg.add_edge(sem.node_names[i], sem.node_names[j])
+        cg.adjacency = adj
+        return cg
+
+    def add_edge(self, src: str, dst: str, weight: float = 1.0):
+        """添加因果边。"""
+        if src not in self.nodes:
+            self.nodes.append(src)
+        if dst not in self.nodes:
+            self.nodes.append(dst)
+        if (src, dst) not in self.edges:
+            self.edges.append((src, dst))
+        # 更新邻接矩阵
+        n = len(self.nodes)
+        if self.adjacency is None or self.adjacency.shape[0] < n:
+            old = self.adjacency
+            self.adjacency = np.zeros((n, n), dtype=np.float32)
+            if old is not None:
+                self.adjacency[: old.shape[0], : old.shape[1]] = old
+        i = self.node_index(src)
+        j = self.node_index(dst)
+        if i is not None and j is not None:
+            self.adjacency[i, j] = float(weight)
 
 
 # =============================================================================
@@ -489,9 +572,7 @@ class DoCalculus:
                 y_vals = sim_data[:, Y_idx]
                 # 线性回归: E[Y | X=x, Z=z] ≈ intercept + slope * x
                 if n_z > 2:
-                    slope = np.cov(x_vals[mask], y_vals[mask])[0, 1] / (
-                        np.var(x_vals[mask]) + 1e-10
-                    )
+                    slope = np.cov(x_vals[mask], y_vals[mask])[0, 1] / (np.var(x_vals[mask]) + 1e-10)
                     intercept = np.mean(y_vals[mask]) - slope * np.mean(x_vals[mask])
                     y_given_do = intercept + slope * x_value
                 else:

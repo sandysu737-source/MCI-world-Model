@@ -1,10 +1,10 @@
 """
-su-memory v3.8.0 — Lightweight Causal Engine
+MCI World Model v3.0.8 — Lightweight Causal Engine
 
 基于中文关键词模式的因果关系检测和推理。
-v3.4.0: 新增双路径因果发现 — 关键词匹配 (语法层) + 偏相关统计 (数值层)
-v3.6.0: 新增参数化路径 — QLoRA 模型推理 (语义层，三路径加权融合)
-v3.7.0: 新增 do-calculus 干预预测 — Pearl do-operator 因果干预
+双路径因果发现: 关键词匹配 (语法层) + 偏相关统计 (数值层)
+参数化路径: QLoRA 模型推理 (语义层，三路径加权融合)
+干预预测: Pearl do-operator 因果干预
 独立于 SuMemoryLitePro 的 MemoryGraph，为 SuMemoryLite 提供因果推理能力。
 
 用法:
@@ -13,10 +13,10 @@ v3.7.0: 新增 do-calculus 干预预测 — Pearl do-operator 因果干预
     engine = CausalEngine()
     pairs = engine.find_causal_pairs(memories_list)
 
-    # v3.6.0 新增: 参数化路径 (三路径融合)
+    # 参数化路径 (三路径融合)
     pairs = engine.find_causal_pairs(memories_list, use_parametric=True, parametric_model=pm)
 
-    # v3.7.0 新增: 干预预测
+    # 干预预测
     effects = engine.predict_effects(cause, memories, use_intervention=True, do_value=1.5)
 """
 
@@ -260,9 +260,7 @@ class CausalEngine:
                     if _is_duplicate(pairs, mem_a.get("id", ""), mem_b.get("id", "")):
                         continue
 
-                    causal_type = (
-                        f"stat_{edge.get('verdict', '')}_{edge.get('energy_relation', '')}"
-                    )
+                    causal_type = f"stat_{edge.get('verdict', '')}_{edge.get('energy_relation', '')}"
                     pairs.append(
                         (
                             mem_a,
@@ -287,9 +285,7 @@ class CausalEngine:
                         if pred_confidence < self.min_confidence:
                             continue
                         # 构造虚拟记忆对象作为效应
-                        pred_id = (
-                            f"parametric_{_hash_pair_id_360(cause_text, pred.get('effect', ''))}"
-                        )
+                        pred_id = f"parametric_{_hash_pair_id_360(cause_text, pred.get('effect', ''))}"
                         effect_mem = {
                             "id": pred_id,
                             "content": pred.get("effect", ""),
@@ -316,8 +312,8 @@ class CausalEngine:
         cause_content: str,
         memories: list[dict],
         top_k: int = 3,
-        use_intervention: bool = False,  # v3.7.0 新增
-        do_value: float | None = None,  # v3.7.0 新增
+        use_intervention: bool = False,
+        do_value: float | None = None,
     ) -> list[dict]:
         """
         基于历史记忆预测给定原因的效应。
@@ -326,13 +322,13 @@ class CausalEngine:
             cause_content: 原因文本
             memories: 历史记忆列表
             top_k: 返回数量
-            use_intervention: v3.7.0 — 使用 do-calculus 替代纯统计预测
-            do_value: v3.7.0 — do(X) 干预值
+            use_intervention: 使用 do-calculus 替代纯统计预测
+            do_value: do(X) 干预值
 
         Returns:
             [{"memory_id", "content", "confidence", "causal_type"}, ...]
         """
-        # ── v3.7.0: 干预增强路径 ──
+        # 干预增强路径
         if use_intervention:
             try:
                 from mci_world_model.sdk._world_model import MCIWorldModel

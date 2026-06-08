@@ -342,11 +342,7 @@ class EnergyBus:
         node = self._nodes[node_id]
 
         # Remove all channels connected to this node
-        channels_to_remove = [
-            ch_id
-            for ch_id, ch in self._channels.items()
-            if node_id in (ch.source_id, ch.target_id)
-        ]
+        channels_to_remove = [ch_id for ch_id, ch in self._channels.items() if node_id in (ch.source_id, ch.target_id)]
         for ch_id in channels_to_remove:
             del self._channels[ch_id]
 
@@ -443,9 +439,7 @@ class EnergyBus:
     # Energy Propagation (能量传播算法)
     # =========================================================================
 
-    def propagate_energy(
-        self, source_id: str, delta: float, max_hops: int | None = None
-    ) -> list[EnergySignal]:
+    def propagate_energy(self, source_id: str, delta: float, max_hops: int | None = None) -> list[EnergySignal]:
         """
         Propagate energy from a source node through the network.
 
@@ -543,9 +537,7 @@ class EnergyBus:
             combined_decay = prior_contribution + post_contribution
 
             # Calculate final propagation intensity
-            propagated_intensity = (
-                intensity * channel.effective_weight * relation_modifier * combined_decay
-            )
+            propagated_intensity = intensity * channel.effective_weight * relation_modifier * combined_decay
 
             if propagated_intensity < 0.01:
                 continue
@@ -568,9 +560,7 @@ class EnergyBus:
 
             # Recursive propagation
             if self._config.enable_feedback or channel.relation_type == RelationType.ENHANCE:
-                self._propagate_recursive(
-                    target_id, propagated_intensity, remaining_hops - 1, signals, visited.copy()
-                )
+                self._propagate_recursive(target_id, propagated_intensity, remaining_hops - 1, signals, visited.copy())
 
     def _calculate_relation_modifier(self, relation: RelationType) -> float:
         """
@@ -641,9 +631,7 @@ class EnergyBus:
 
             for target_node in target_nodes:
                 # Calculate flow using prior/post principles
-                flow_amount = intensity * self._calculate_layer_flow_coefficient(
-                    source_node, target_node, target_layer
-                )
+                flow_amount = intensity * self._calculate_layer_flow_coefficient(source_node, target_node, target_layer)
 
                 if flow_amount > 0.01:
                     target_node.adjust_intensity(flow_amount)
@@ -687,9 +675,7 @@ class EnergyBus:
         # Calculate trigram position difference for spatial decay
         if source.trigram_idx is not None and target.trigram_idx is not None:
             # 【先天主数】: Calculate numerical distance
-            pos_diff = abs(
-                PRIOR_ORDER.get(source.trigram_idx, 0) - PRIOR_ORDER.get(target.trigram_idx, 0)
-            )
+            pos_diff = abs(PRIOR_ORDER.get(source.trigram_idx, 0) - PRIOR_ORDER.get(target.trigram_idx, 0))
             spatial_decay = math.exp(-0.1 * min(pos_diff, 4))
         else:
             spatial_decay = 1.0
@@ -757,9 +743,7 @@ class EnergyBus:
         }
 
         for node in self._nodes.values():
-            element_totals[node.energy_type] = (
-                element_totals.get(node.energy_type, 0.0) + node.intensity
-            )
+            element_totals[node.energy_type] = element_totals.get(node.energy_type, 0.0) + node.intensity
 
         total = sum(element_totals.values())
         if total == 0:
@@ -798,9 +782,7 @@ class EnergyBus:
         nodes = {}
         for energy_type in ["wood", "fire", "earth", "metal", "water"]:
             node_id = f"element_{energy_type}"
-            node = EnergyNode(
-                node_id=node_id, energy_type=energy_type, layer=EnergyLayer.FIVE_ELEMENTS
-            )
+            node = EnergyNode(node_id=node_id, energy_type=energy_type, layer=EnergyLayer.FIVE_ELEMENTS)
             self.add_node(node, auto_connect=False)
             nodes[energy_type] = node
 

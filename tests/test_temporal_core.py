@@ -245,9 +245,9 @@ class TestTemporalCoreStemRelations:
 
     def test_symmetric(self):
         """合/冲是对称的"""
-        assert self.tc.analyze_stem_relation(
-            TimeStem.JIA, TimeStem.JI
-        ) == self.tc.analyze_stem_relation(TimeStem.JI, TimeStem.JIA)
+        assert self.tc.analyze_stem_relation(TimeStem.JIA, TimeStem.JI) == self.tc.analyze_stem_relation(
+            TimeStem.JI, TimeStem.JIA
+        )
 
 
 # =====================================================================

@@ -98,9 +98,7 @@ class MetaCognition:
 
         return gaps
 
-    def _detect_domain_gaps(
-        self, memory_types: dict[str, int], user_domains: list[str]
-    ) -> list[CognitiveGap]:
+    def _detect_domain_gaps(self, memory_types: dict[str, int], user_domains: list[str]) -> list[CognitiveGap]:
         """检测领域覆盖空洞"""
         gaps = []
 

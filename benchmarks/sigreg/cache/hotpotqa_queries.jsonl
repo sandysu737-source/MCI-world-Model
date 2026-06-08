@@ -1,0 +1,500 @@
+{"qid": "synth_q::00000", "question": "Which mathematics researcher at Oxford started in 2007?", "answer": "Dr. Alice Chen", "gold_passage_ids": ["synth::00000"]}
+{"qid": "synth_q::00001", "question": "Which medicine researcher at Cambridge started in 2008?", "answer": "Dr. Alice Kumar", "gold_passage_ids": ["synth::00001"]}
+{"qid": "synth_q::00002", "question": "Which engineering researcher at Caltech started in 2009?", "answer": "Dr. Alice Williams", "gold_passage_ids": ["synth::00002"]}
+{"qid": "synth_q::00003", "question": "Which astronomy researcher at Princeton started in 2010?", "answer": "Dr. Alice Smith", "gold_passage_ids": ["synth::00003"]}
+{"qid": "synth_q::00004", "question": "Which geology researcher at Yale started in 2011?", "answer": "Dr. Alice Rodriguez", "gold_passage_ids": ["synth::00004"]}
+{"qid": "synth_q::00005", "question": "Which neuroscience researcher at Berkeley started in 2012?", "answer": "Dr. Alice Zhang", "gold_passage_ids": ["synth::00005"]}
+{"qid": "synth_q::00006", "question": "Which physics researcher at CMU started in 2013?", "answer": "Dr. Alice Park", "gold_passage_ids": ["synth::00006"]}
+{"qid": "synth_q::00007", "question": "Which chemistry researcher at ETH started in 2014?", "answer": "Dr. Alice Liu", "gold_passage_ids": ["synth::00007"]}
+{"qid": "synth_q::00008", "question": "Which biology researcher at Tokyo started in 2015?", "answer": "Dr. Alice Tanaka", "gold_passage_ids": ["synth::00008"]}
+{"qid": "synth_q::00009", "question": "Which computer science researcher at MIT started in 2016?", "answer": "Dr. Alice Müller", "gold_passage_ids": ["synth::00009"]}
+{"qid": "synth_q::00010", "question": "Which mathematics researcher at Stanford started in 2017?", "answer": "Dr. Bob Chen", "gold_passage_ids": ["synth::00010"]}
+{"qid": "synth_q::00011", "question": "Which medicine researcher at Harvard started in 2018?", "answer": "Dr. Bob Kumar", "gold_passage_ids": ["synth::00011"]}
+{"qid": "synth_q::00012", "question": "Which engineering researcher at Oxford started in 2019?", "answer": "Dr. Bob Williams", "gold_passage_ids": ["synth::00012"]}
+{"qid": "synth_q::00013", "question": "Which astronomy researcher at Cambridge started in 2020?", "answer": "Dr. Bob Smith", "gold_passage_ids": ["synth::00013"]}
+{"qid": "synth_q::00014", "question": "Which geology researcher at Caltech started in 2021?", "answer": "Dr. Bob Rodriguez", "gold_passage_ids": ["synth::00014"]}
+{"qid": "synth_q::00015", "question": "Which neuroscience researcher at Princeton started in 2022?", "answer": "Dr. Bob Zhang", "gold_passage_ids": ["synth::00015"]}
+{"qid": "synth_q::00016", "question": "Which physics researcher at Yale started in 2023?", "answer": "Dr. Bob Park", "gold_passage_ids": ["synth::00016"]}
+{"qid": "synth_q::00017", "question": "Which chemistry researcher at Berkeley started in 2024?", "answer": "Dr. Bob Liu", "gold_passage_ids": ["synth::00017"]}
+{"qid": "synth_q::00018", "question": "Which biology researcher at CMU started in 2000?", "answer": "Dr. Bob Tanaka", "gold_passage_ids": ["synth::00018"]}
+{"qid": "synth_q::00019", "question": "Which computer science researcher at ETH started in 2001?", "answer": "Dr. Bob Müller", "gold_passage_ids": ["synth::00019"]}
+{"qid": "synth_q::00020", "question": "Which mathematics researcher at Tokyo started in 2002?", "answer": "Dr. Carol Chen", "gold_passage_ids": ["synth::00020"]}
+{"qid": "synth_q::00021", "question": "Which medicine researcher at MIT started in 2003?", "answer": "Dr. Carol Kumar", "gold_passage_ids": ["synth::00021"]}
+{"qid": "synth_q::00022", "question": "Which engineering researcher at Stanford started in 2004?", "answer": "Dr. Carol Williams", "gold_passage_ids": ["synth::00022"]}
+{"qid": "synth_q::00023", "question": "Which astronomy researcher at Harvard started in 2005?", "answer": "Dr. Carol Smith", "gold_passage_ids": ["synth::00023"]}
+{"qid": "synth_q::00024", "question": "Which geology researcher at Oxford started in 2006?", "answer": "Dr. Carol Rodriguez", "gold_passage_ids": ["synth::00024"]}
+{"qid": "synth_q::00025", "question": "Which neuroscience researcher at Cambridge started in 2007?", "answer": "Dr. Carol Zhang", "gold_passage_ids": ["synth::00025"]}
+{"qid": "synth_q::00026", "question": "Which physics researcher at Caltech started in 2008?", "answer": "Dr. Carol Park", "gold_passage_ids": ["synth::00026"]}
+{"qid": "synth_q::00027", "question": "Which chemistry researcher at Princeton started in 2009?", "answer": "Dr. Carol Liu", "gold_passage_ids": ["synth::00027"]}
+{"qid": "synth_q::00028", "question": "Which biology researcher at Yale started in 2010?", "answer": "Dr. Carol Tanaka", "gold_passage_ids": ["synth::00028"]}
+{"qid": "synth_q::00029", "question": "Which computer science researcher at Berkeley started in 2011?", "answer": "Dr. Carol Müller", "gold_passage_ids": ["synth::00029"]}
+{"qid": "synth_q::00030", "question": "Which mathematics researcher at CMU started in 2012?", "answer": "Dr. David Chen", "gold_passage_ids": ["synth::00030"]}
+{"qid": "synth_q::00031", "question": "Which medicine researcher at ETH started in 2013?", "answer": "Dr. David Kumar", "gold_passage_ids": ["synth::00031"]}
+{"qid": "synth_q::00032", "question": "Which engineering researcher at Tokyo started in 2014?", "answer": "Dr. David Williams", "gold_passage_ids": ["synth::00032"]}
+{"qid": "synth_q::00033", "question": "Which astronomy researcher at MIT started in 2015?", "answer": "Dr. David Smith", "gold_passage_ids": ["synth::00033"]}
+{"qid": "synth_q::00034", "question": "Which geology researcher at Stanford started in 2016?", "answer": "Dr. David Rodriguez", "gold_passage_ids": ["synth::00034"]}
+{"qid": "synth_q::00035", "question": "Which neuroscience researcher at Harvard started in 2017?", "answer": "Dr. David Zhang", "gold_passage_ids": ["synth::00035"]}
+{"qid": "synth_q::00036", "question": "Which physics researcher at Oxford started in 2018?", "answer": "Dr. David Park", "gold_passage_ids": ["synth::00036"]}
+{"qid": "synth_q::00037", "question": "Which chemistry researcher at Cambridge started in 2019?", "answer": "Dr. David Liu", "gold_passage_ids": ["synth::00037"]}
+{"qid": "synth_q::00038", "question": "Which biology researcher at Caltech started in 2020?", "answer": "Dr. David Tanaka", "gold_passage_ids": ["synth::00038"]}
+{"qid": "synth_q::00039", "question": "Which computer science researcher at Princeton started in 2021?", "answer": "Dr. David Müller", "gold_passage_ids": ["synth::00039"]}
+{"qid": "synth_q::00040", "question": "Which mathematics researcher at Yale started in 2022?", "answer": "Dr. Elena Chen", "gold_passage_ids": ["synth::00040"]}
+{"qid": "synth_q::00041", "question": "Which medicine researcher at Berkeley started in 2023?", "answer": "Dr. Elena Kumar", "gold_passage_ids": ["synth::00041"]}
+{"qid": "synth_q::00042", "question": "Which engineering researcher at CMU started in 2024?", "answer": "Dr. Elena Williams", "gold_passage_ids": ["synth::00042"]}
+{"qid": "synth_q::00043", "question": "Which astronomy researcher at ETH started in 2000?", "answer": "Dr. Elena Smith", "gold_passage_ids": ["synth::00043"]}
+{"qid": "synth_q::00044", "question": "Which geology researcher at Tokyo started in 2001?", "answer": "Dr. Elena Rodriguez", "gold_passage_ids": ["synth::00044"]}
+{"qid": "synth_q::00045", "question": "Which neuroscience researcher at MIT started in 2002?", "answer": "Dr. Elena Zhang", "gold_passage_ids": ["synth::00045"]}
+{"qid": "synth_q::00046", "question": "Which physics researcher at Stanford started in 2003?", "answer": "Dr. Elena Park", "gold_passage_ids": ["synth::00046"]}
+{"qid": "synth_q::00047", "question": "Which chemistry researcher at Harvard started in 2004?", "answer": "Dr. Elena Liu", "gold_passage_ids": ["synth::00047"]}
+{"qid": "synth_q::00048", "question": "Which biology researcher at Oxford started in 2005?", "answer": "Dr. Elena Tanaka", "gold_passage_ids": ["synth::00048"]}
+{"qid": "synth_q::00049", "question": "Which computer science researcher at Cambridge started in 2006?", "answer": "Dr. Elena Müller", "gold_passage_ids": ["synth::00049"]}
+{"qid": "synth_q::00050", "question": "Which mathematics researcher at Caltech started in 2007?", "answer": "Dr. Frank Chen", "gold_passage_ids": ["synth::00050"]}
+{"qid": "synth_q::00051", "question": "Which medicine researcher at Princeton started in 2008?", "answer": "Dr. Frank Kumar", "gold_passage_ids": ["synth::00051"]}
+{"qid": "synth_q::00052", "question": "Which engineering researcher at Yale started in 2009?", "answer": "Dr. Frank Williams", "gold_passage_ids": ["synth::00052"]}
+{"qid": "synth_q::00053", "question": "Which astronomy researcher at Berkeley started in 2010?", "answer": "Dr. Frank Smith", "gold_passage_ids": ["synth::00053"]}
+{"qid": "synth_q::00054", "question": "Which geology researcher at CMU started in 2011?", "answer": "Dr. Frank Rodriguez", "gold_passage_ids": ["synth::00054"]}
+{"qid": "synth_q::00055", "question": "Which neuroscience researcher at ETH started in 2012?", "answer": "Dr. Frank Zhang", "gold_passage_ids": ["synth::00055"]}
+{"qid": "synth_q::00056", "question": "Which physics researcher at Tokyo started in 2013?", "answer": "Dr. Frank Park", "gold_passage_ids": ["synth::00056"]}
+{"qid": "synth_q::00057", "question": "Which chemistry researcher at MIT started in 2014?", "answer": "Dr. Frank Liu", "gold_passage_ids": ["synth::00057"]}
+{"qid": "synth_q::00058", "question": "Which biology researcher at Stanford started in 2015?", "answer": "Dr. Frank Tanaka", "gold_passage_ids": ["synth::00058"]}
+{"qid": "synth_q::00059", "question": "Which computer science researcher at Harvard started in 2016?", "answer": "Dr. Frank Müller", "gold_passage_ids": ["synth::00059"]}
+{"qid": "synth_q::00060", "question": "Which mathematics researcher at Oxford started in 2017?", "answer": "Dr. Grace Chen", "gold_passage_ids": ["synth::00060"]}
+{"qid": "synth_q::00061", "question": "Which medicine researcher at Cambridge started in 2018?", "answer": "Dr. Grace Kumar", "gold_passage_ids": ["synth::00061"]}
+{"qid": "synth_q::00062", "question": "Which engineering researcher at Caltech started in 2019?", "answer": "Dr. Grace Williams", "gold_passage_ids": ["synth::00062"]}
+{"qid": "synth_q::00063", "question": "Which astronomy researcher at Princeton started in 2020?", "answer": "Dr. Grace Smith", "gold_passage_ids": ["synth::00063"]}
+{"qid": "synth_q::00064", "question": "Which geology researcher at Yale started in 2021?", "answer": "Dr. Grace Rodriguez", "gold_passage_ids": ["synth::00064"]}
+{"qid": "synth_q::00065", "question": "Which neuroscience researcher at Berkeley started in 2022?", "answer": "Dr. Grace Zhang", "gold_passage_ids": ["synth::00065"]}
+{"qid": "synth_q::00066", "question": "Which physics researcher at CMU started in 2023?", "answer": "Dr. Grace Park", "gold_passage_ids": ["synth::00066"]}
+{"qid": "synth_q::00067", "question": "Which chemistry researcher at ETH started in 2024?", "answer": "Dr. Grace Liu", "gold_passage_ids": ["synth::00067"]}
+{"qid": "synth_q::00068", "question": "Which biology researcher at Tokyo started in 2000?", "answer": "Dr. Grace Tanaka", "gold_passage_ids": ["synth::00068"]}
+{"qid": "synth_q::00069", "question": "Which computer science researcher at MIT started in 2001?", "answer": "Dr. Grace Müller", "gold_passage_ids": ["synth::00069"]}
+{"qid": "synth_q::00070", "question": "Which mathematics researcher at Stanford started in 2002?", "answer": "Dr. Henry Chen", "gold_passage_ids": ["synth::00070"]}
+{"qid": "synth_q::00071", "question": "Which medicine researcher at Harvard started in 2003?", "answer": "Dr. Henry Kumar", "gold_passage_ids": ["synth::00071"]}
+{"qid": "synth_q::00072", "question": "Which engineering researcher at Oxford started in 2004?", "answer": "Dr. Henry Williams", "gold_passage_ids": ["synth::00072"]}
+{"qid": "synth_q::00073", "question": "Which astronomy researcher at Cambridge started in 2005?", "answer": "Dr. Henry Smith", "gold_passage_ids": ["synth::00073"]}
+{"qid": "synth_q::00074", "question": "Which geology researcher at Caltech started in 2006?", "answer": "Dr. Henry Rodriguez", "gold_passage_ids": ["synth::00074"]}
+{"qid": "synth_q::00075", "question": "Which neuroscience researcher at Princeton started in 2007?", "answer": "Dr. Henry Zhang", "gold_passage_ids": ["synth::00075"]}
+{"qid": "synth_q::00076", "question": "Which physics researcher at Yale started in 2008?", "answer": "Dr. Henry Park", "gold_passage_ids": ["synth::00076"]}
+{"qid": "synth_q::00077", "question": "Which chemistry researcher at Berkeley started in 2009?", "answer": "Dr. Henry Liu", "gold_passage_ids": ["synth::00077"]}
+{"qid": "synth_q::00078", "question": "Which biology researcher at CMU started in 2010?", "answer": "Dr. Henry Tanaka", "gold_passage_ids": ["synth::00078"]}
+{"qid": "synth_q::00079", "question": "Which computer science researcher at ETH started in 2011?", "answer": "Dr. Henry Müller", "gold_passage_ids": ["synth::00079"]}
+{"qid": "synth_q::00080", "question": "Which mathematics researcher at Tokyo started in 2012?", "answer": "Dr. Ivan Chen", "gold_passage_ids": ["synth::00080"]}
+{"qid": "synth_q::00081", "question": "Which medicine researcher at MIT started in 2013?", "answer": "Dr. Ivan Kumar", "gold_passage_ids": ["synth::00081"]}
+{"qid": "synth_q::00082", "question": "Which engineering researcher at Stanford started in 2014?", "answer": "Dr. Ivan Williams", "gold_passage_ids": ["synth::00082"]}
+{"qid": "synth_q::00083", "question": "Which astronomy researcher at Harvard started in 2015?", "answer": "Dr. Ivan Smith", "gold_passage_ids": ["synth::00083"]}
+{"qid": "synth_q::00084", "question": "Which geology researcher at Oxford started in 2016?", "answer": "Dr. Ivan Rodriguez", "gold_passage_ids": ["synth::00084"]}
+{"qid": "synth_q::00085", "question": "Which neuroscience researcher at Cambridge started in 2017?", "answer": "Dr. Ivan Zhang", "gold_passage_ids": ["synth::00085"]}
+{"qid": "synth_q::00086", "question": "Which physics researcher at Caltech started in 2018?", "answer": "Dr. Ivan Park", "gold_passage_ids": ["synth::00086"]}
+{"qid": "synth_q::00087", "question": "Which chemistry researcher at Princeton started in 2019?", "answer": "Dr. Ivan Liu", "gold_passage_ids": ["synth::00087"]}
+{"qid": "synth_q::00088", "question": "Which biology researcher at Yale started in 2020?", "answer": "Dr. Ivan Tanaka", "gold_passage_ids": ["synth::00088"]}
+{"qid": "synth_q::00089", "question": "Which computer science researcher at Berkeley started in 2021?", "answer": "Dr. Ivan Müller", "gold_passage_ids": ["synth::00089"]}
+{"qid": "synth_q::00090", "question": "Which mathematics researcher at CMU started in 2022?", "answer": "Dr. Judy Chen", "gold_passage_ids": ["synth::00090"]}
+{"qid": "synth_q::00091", "question": "Which medicine researcher at ETH started in 2023?", "answer": "Dr. Judy Kumar", "gold_passage_ids": ["synth::00091"]}
+{"qid": "synth_q::00092", "question": "Which engineering researcher at Tokyo started in 2024?", "answer": "Dr. Judy Williams", "gold_passage_ids": ["synth::00092"]}
+{"qid": "synth_q::00093", "question": "Which astronomy researcher at MIT started in 2000?", "answer": "Dr. Judy Smith", "gold_passage_ids": ["synth::00093"]}
+{"qid": "synth_q::00094", "question": "Which geology researcher at Stanford started in 2001?", "answer": "Dr. Judy Rodriguez", "gold_passage_ids": ["synth::00094"]}
+{"qid": "synth_q::00095", "question": "Which neuroscience researcher at Harvard started in 2002?", "answer": "Dr. Judy Zhang", "gold_passage_ids": ["synth::00095"]}
+{"qid": "synth_q::00096", "question": "Which physics researcher at Oxford started in 2003?", "answer": "Dr. Judy Park", "gold_passage_ids": ["synth::00096"]}
+{"qid": "synth_q::00097", "question": "Which chemistry researcher at Cambridge started in 2004?", "answer": "Dr. Judy Liu", "gold_passage_ids": ["synth::00097"]}
+{"qid": "synth_q::00098", "question": "Which biology researcher at Caltech started in 2005?", "answer": "Dr. Judy Tanaka", "gold_passage_ids": ["synth::00098"]}
+{"qid": "synth_q::00099", "question": "Which computer science researcher at Princeton started in 2006?", "answer": "Dr. Judy Müller", "gold_passage_ids": ["synth::00099"]}
+{"qid": "synth_q::00100", "question": "Which mathematics researcher at Yale started in 2007?", "answer": "Dr. Alice Chen", "gold_passage_ids": ["synth::00100"]}
+{"qid": "synth_q::00101", "question": "Which medicine researcher at Berkeley started in 2008?", "answer": "Dr. Alice Kumar", "gold_passage_ids": ["synth::00101"]}
+{"qid": "synth_q::00102", "question": "Which engineering researcher at CMU started in 2009?", "answer": "Dr. Alice Williams", "gold_passage_ids": ["synth::00102"]}
+{"qid": "synth_q::00103", "question": "Which astronomy researcher at ETH started in 2010?", "answer": "Dr. Alice Smith", "gold_passage_ids": ["synth::00103"]}
+{"qid": "synth_q::00104", "question": "Which geology researcher at Tokyo started in 2011?", "answer": "Dr. Alice Rodriguez", "gold_passage_ids": ["synth::00104"]}
+{"qid": "synth_q::00105", "question": "Which neuroscience researcher at MIT started in 2012?", "answer": "Dr. Alice Zhang", "gold_passage_ids": ["synth::00105"]}
+{"qid": "synth_q::00106", "question": "Which physics researcher at Stanford started in 2013?", "answer": "Dr. Alice Park", "gold_passage_ids": ["synth::00106"]}
+{"qid": "synth_q::00107", "question": "Which chemistry researcher at Harvard started in 2014?", "answer": "Dr. Alice Liu", "gold_passage_ids": ["synth::00107"]}
+{"qid": "synth_q::00108", "question": "Which biology researcher at Oxford started in 2015?", "answer": "Dr. Alice Tanaka", "gold_passage_ids": ["synth::00108"]}
+{"qid": "synth_q::00109", "question": "Which computer science researcher at Cambridge started in 2016?", "answer": "Dr. Alice Müller", "gold_passage_ids": ["synth::00109"]}
+{"qid": "synth_q::00110", "question": "Which mathematics researcher at Caltech started in 2017?", "answer": "Dr. Bob Chen", "gold_passage_ids": ["synth::00110"]}
+{"qid": "synth_q::00111", "question": "Which medicine researcher at Princeton started in 2018?", "answer": "Dr. Bob Kumar", "gold_passage_ids": ["synth::00111"]}
+{"qid": "synth_q::00112", "question": "Which engineering researcher at Yale started in 2019?", "answer": "Dr. Bob Williams", "gold_passage_ids": ["synth::00112"]}
+{"qid": "synth_q::00113", "question": "Which astronomy researcher at Berkeley started in 2020?", "answer": "Dr. Bob Smith", "gold_passage_ids": ["synth::00113"]}
+{"qid": "synth_q::00114", "question": "Which geology researcher at CMU started in 2021?", "answer": "Dr. Bob Rodriguez", "gold_passage_ids": ["synth::00114"]}
+{"qid": "synth_q::00115", "question": "Which neuroscience researcher at ETH started in 2022?", "answer": "Dr. Bob Zhang", "gold_passage_ids": ["synth::00115"]}
+{"qid": "synth_q::00116", "question": "Which physics researcher at Tokyo started in 2023?", "answer": "Dr. Bob Park", "gold_passage_ids": ["synth::00116"]}
+{"qid": "synth_q::00117", "question": "Which chemistry researcher at MIT started in 2024?", "answer": "Dr. Bob Liu", "gold_passage_ids": ["synth::00117"]}
+{"qid": "synth_q::00118", "question": "Which biology researcher at Stanford started in 2000?", "answer": "Dr. Bob Tanaka", "gold_passage_ids": ["synth::00118"]}
+{"qid": "synth_q::00119", "question": "Which computer science researcher at Harvard started in 2001?", "answer": "Dr. Bob Müller", "gold_passage_ids": ["synth::00119"]}
+{"qid": "synth_q::00120", "question": "Which mathematics researcher at Oxford started in 2002?", "answer": "Dr. Carol Chen", "gold_passage_ids": ["synth::00120"]}
+{"qid": "synth_q::00121", "question": "Which medicine researcher at Cambridge started in 2003?", "answer": "Dr. Carol Kumar", "gold_passage_ids": ["synth::00121"]}
+{"qid": "synth_q::00122", "question": "Which engineering researcher at Caltech started in 2004?", "answer": "Dr. Carol Williams", "gold_passage_ids": ["synth::00122"]}
+{"qid": "synth_q::00123", "question": "Which astronomy researcher at Princeton started in 2005?", "answer": "Dr. Carol Smith", "gold_passage_ids": ["synth::00123"]}
+{"qid": "synth_q::00124", "question": "Which geology researcher at Yale started in 2006?", "answer": "Dr. Carol Rodriguez", "gold_passage_ids": ["synth::00124"]}
+{"qid": "synth_q::00125", "question": "Which neuroscience researcher at Berkeley started in 2007?", "answer": "Dr. Carol Zhang", "gold_passage_ids": ["synth::00125"]}
+{"qid": "synth_q::00126", "question": "Which physics researcher at CMU started in 2008?", "answer": "Dr. Carol Park", "gold_passage_ids": ["synth::00126"]}
+{"qid": "synth_q::00127", "question": "Which chemistry researcher at ETH started in 2009?", "answer": "Dr. Carol Liu", "gold_passage_ids": ["synth::00127"]}
+{"qid": "synth_q::00128", "question": "Which biology researcher at Tokyo started in 2010?", "answer": "Dr. Carol Tanaka", "gold_passage_ids": ["synth::00128"]}
+{"qid": "synth_q::00129", "question": "Which computer science researcher at MIT started in 2011?", "answer": "Dr. Carol Müller", "gold_passage_ids": ["synth::00129"]}
+{"qid": "synth_q::00130", "question": "Which mathematics researcher at Stanford started in 2012?", "answer": "Dr. David Chen", "gold_passage_ids": ["synth::00130"]}
+{"qid": "synth_q::00131", "question": "Which medicine researcher at Harvard started in 2013?", "answer": "Dr. David Kumar", "gold_passage_ids": ["synth::00131"]}
+{"qid": "synth_q::00132", "question": "Which engineering researcher at Oxford started in 2014?", "answer": "Dr. David Williams", "gold_passage_ids": ["synth::00132"]}
+{"qid": "synth_q::00133", "question": "Which astronomy researcher at Cambridge started in 2015?", "answer": "Dr. David Smith", "gold_passage_ids": ["synth::00133"]}
+{"qid": "synth_q::00134", "question": "Which geology researcher at Caltech started in 2016?", "answer": "Dr. David Rodriguez", "gold_passage_ids": ["synth::00134"]}
+{"qid": "synth_q::00135", "question": "Which neuroscience researcher at Princeton started in 2017?", "answer": "Dr. David Zhang", "gold_passage_ids": ["synth::00135"]}
+{"qid": "synth_q::00136", "question": "Which physics researcher at Yale started in 2018?", "answer": "Dr. David Park", "gold_passage_ids": ["synth::00136"]}
+{"qid": "synth_q::00137", "question": "Which chemistry researcher at Berkeley started in 2019?", "answer": "Dr. David Liu", "gold_passage_ids": ["synth::00137"]}
+{"qid": "synth_q::00138", "question": "Which biology researcher at CMU started in 2020?", "answer": "Dr. David Tanaka", "gold_passage_ids": ["synth::00138"]}
+{"qid": "synth_q::00139", "question": "Which computer science researcher at ETH started in 2021?", "answer": "Dr. David Müller", "gold_passage_ids": ["synth::00139"]}
+{"qid": "synth_q::00140", "question": "Which mathematics researcher at Tokyo started in 2022?", "answer": "Dr. Elena Chen", "gold_passage_ids": ["synth::00140"]}
+{"qid": "synth_q::00141", "question": "Which medicine researcher at MIT started in 2023?", "answer": "Dr. Elena Kumar", "gold_passage_ids": ["synth::00141"]}
+{"qid": "synth_q::00142", "question": "Which engineering researcher at Stanford started in 2024?", "answer": "Dr. Elena Williams", "gold_passage_ids": ["synth::00142"]}
+{"qid": "synth_q::00143", "question": "Which astronomy researcher at Harvard started in 2000?", "answer": "Dr. Elena Smith", "gold_passage_ids": ["synth::00143"]}
+{"qid": "synth_q::00144", "question": "Which geology researcher at Oxford started in 2001?", "answer": "Dr. Elena Rodriguez", "gold_passage_ids": ["synth::00144"]}
+{"qid": "synth_q::00145", "question": "Which neuroscience researcher at Cambridge started in 2002?", "answer": "Dr. Elena Zhang", "gold_passage_ids": ["synth::00145"]}
+{"qid": "synth_q::00146", "question": "Which physics researcher at Caltech started in 2003?", "answer": "Dr. Elena Park", "gold_passage_ids": ["synth::00146"]}
+{"qid": "synth_q::00147", "question": "Which chemistry researcher at Princeton started in 2004?", "answer": "Dr. Elena Liu", "gold_passage_ids": ["synth::00147"]}
+{"qid": "synth_q::00148", "question": "Which biology researcher at Yale started in 2005?", "answer": "Dr. Elena Tanaka", "gold_passage_ids": ["synth::00148"]}
+{"qid": "synth_q::00149", "question": "Which computer science researcher at Berkeley started in 2006?", "answer": "Dr. Elena Müller", "gold_passage_ids": ["synth::00149"]}
+{"qid": "synth_q::00150", "question": "Which mathematics researcher at CMU started in 2007?", "answer": "Dr. Frank Chen", "gold_passage_ids": ["synth::00150"]}
+{"qid": "synth_q::00151", "question": "Which medicine researcher at ETH started in 2008?", "answer": "Dr. Frank Kumar", "gold_passage_ids": ["synth::00151"]}
+{"qid": "synth_q::00152", "question": "Which engineering researcher at Tokyo started in 2009?", "answer": "Dr. Frank Williams", "gold_passage_ids": ["synth::00152"]}
+{"qid": "synth_q::00153", "question": "Which astronomy researcher at MIT started in 2010?", "answer": "Dr. Frank Smith", "gold_passage_ids": ["synth::00153"]}
+{"qid": "synth_q::00154", "question": "Which geology researcher at Stanford started in 2011?", "answer": "Dr. Frank Rodriguez", "gold_passage_ids": ["synth::00154"]}
+{"qid": "synth_q::00155", "question": "Which neuroscience researcher at Harvard started in 2012?", "answer": "Dr. Frank Zhang", "gold_passage_ids": ["synth::00155"]}
+{"qid": "synth_q::00156", "question": "Which physics researcher at Oxford started in 2013?", "answer": "Dr. Frank Park", "gold_passage_ids": ["synth::00156"]}
+{"qid": "synth_q::00157", "question": "Which chemistry researcher at Cambridge started in 2014?", "answer": "Dr. Frank Liu", "gold_passage_ids": ["synth::00157"]}
+{"qid": "synth_q::00158", "question": "Which biology researcher at Caltech started in 2015?", "answer": "Dr. Frank Tanaka", "gold_passage_ids": ["synth::00158"]}
+{"qid": "synth_q::00159", "question": "Which computer science researcher at Princeton started in 2016?", "answer": "Dr. Frank Müller", "gold_passage_ids": ["synth::00159"]}
+{"qid": "synth_q::00160", "question": "Which mathematics researcher at Yale started in 2017?", "answer": "Dr. Grace Chen", "gold_passage_ids": ["synth::00160"]}
+{"qid": "synth_q::00161", "question": "Which medicine researcher at Berkeley started in 2018?", "answer": "Dr. Grace Kumar", "gold_passage_ids": ["synth::00161"]}
+{"qid": "synth_q::00162", "question": "Which engineering researcher at CMU started in 2019?", "answer": "Dr. Grace Williams", "gold_passage_ids": ["synth::00162"]}
+{"qid": "synth_q::00163", "question": "Which astronomy researcher at ETH started in 2020?", "answer": "Dr. Grace Smith", "gold_passage_ids": ["synth::00163"]}
+{"qid": "synth_q::00164", "question": "Which geology researcher at Tokyo started in 2021?", "answer": "Dr. Grace Rodriguez", "gold_passage_ids": ["synth::00164"]}
+{"qid": "synth_q::00165", "question": "Which neuroscience researcher at MIT started in 2022?", "answer": "Dr. Grace Zhang", "gold_passage_ids": ["synth::00165"]}
+{"qid": "synth_q::00166", "question": "Which physics researcher at Stanford started in 2023?", "answer": "Dr. Grace Park", "gold_passage_ids": ["synth::00166"]}
+{"qid": "synth_q::00167", "question": "Which chemistry researcher at Harvard started in 2024?", "answer": "Dr. Grace Liu", "gold_passage_ids": ["synth::00167"]}
+{"qid": "synth_q::00168", "question": "Which biology researcher at Oxford started in 2000?", "answer": "Dr. Grace Tanaka", "gold_passage_ids": ["synth::00168"]}
+{"qid": "synth_q::00169", "question": "Which computer science researcher at Cambridge started in 2001?", "answer": "Dr. Grace Müller", "gold_passage_ids": ["synth::00169"]}
+{"qid": "synth_q::00170", "question": "Which mathematics researcher at Caltech started in 2002?", "answer": "Dr. Henry Chen", "gold_passage_ids": ["synth::00170"]}
+{"qid": "synth_q::00171", "question": "Which medicine researcher at Princeton started in 2003?", "answer": "Dr. Henry Kumar", "gold_passage_ids": ["synth::00171"]}
+{"qid": "synth_q::00172", "question": "Which engineering researcher at Yale started in 2004?", "answer": "Dr. Henry Williams", "gold_passage_ids": ["synth::00172"]}
+{"qid": "synth_q::00173", "question": "Which astronomy researcher at Berkeley started in 2005?", "answer": "Dr. Henry Smith", "gold_passage_ids": ["synth::00173"]}
+{"qid": "synth_q::00174", "question": "Which geology researcher at CMU started in 2006?", "answer": "Dr. Henry Rodriguez", "gold_passage_ids": ["synth::00174"]}
+{"qid": "synth_q::00175", "question": "Which neuroscience researcher at ETH started in 2007?", "answer": "Dr. Henry Zhang", "gold_passage_ids": ["synth::00175"]}
+{"qid": "synth_q::00176", "question": "Which physics researcher at Tokyo started in 2008?", "answer": "Dr. Henry Park", "gold_passage_ids": ["synth::00176"]}
+{"qid": "synth_q::00177", "question": "Which chemistry researcher at MIT started in 2009?", "answer": "Dr. Henry Liu", "gold_passage_ids": ["synth::00177"]}
+{"qid": "synth_q::00178", "question": "Which biology researcher at Stanford started in 2010?", "answer": "Dr. Henry Tanaka", "gold_passage_ids": ["synth::00178"]}
+{"qid": "synth_q::00179", "question": "Which computer science researcher at Harvard started in 2011?", "answer": "Dr. Henry Müller", "gold_passage_ids": ["synth::00179"]}
+{"qid": "synth_q::00180", "question": "Which mathematics researcher at Oxford started in 2012?", "answer": "Dr. Ivan Chen", "gold_passage_ids": ["synth::00180"]}
+{"qid": "synth_q::00181", "question": "Which medicine researcher at Cambridge started in 2013?", "answer": "Dr. Ivan Kumar", "gold_passage_ids": ["synth::00181"]}
+{"qid": "synth_q::00182", "question": "Which engineering researcher at Caltech started in 2014?", "answer": "Dr. Ivan Williams", "gold_passage_ids": ["synth::00182"]}
+{"qid": "synth_q::00183", "question": "Which astronomy researcher at Princeton started in 2015?", "answer": "Dr. Ivan Smith", "gold_passage_ids": ["synth::00183"]}
+{"qid": "synth_q::00184", "question": "Which geology researcher at Yale started in 2016?", "answer": "Dr. Ivan Rodriguez", "gold_passage_ids": ["synth::00184"]}
+{"qid": "synth_q::00185", "question": "Which neuroscience researcher at Berkeley started in 2017?", "answer": "Dr. Ivan Zhang", "gold_passage_ids": ["synth::00185"]}
+{"qid": "synth_q::00186", "question": "Which physics researcher at CMU started in 2018?", "answer": "Dr. Ivan Park", "gold_passage_ids": ["synth::00186"]}
+{"qid": "synth_q::00187", "question": "Which chemistry researcher at ETH started in 2019?", "answer": "Dr. Ivan Liu", "gold_passage_ids": ["synth::00187"]}
+{"qid": "synth_q::00188", "question": "Which biology researcher at Tokyo started in 2020?", "answer": "Dr. Ivan Tanaka", "gold_passage_ids": ["synth::00188"]}
+{"qid": "synth_q::00189", "question": "Which computer science researcher at MIT started in 2021?", "answer": "Dr. Ivan Müller", "gold_passage_ids": ["synth::00189"]}
+{"qid": "synth_q::00190", "question": "Which mathematics researcher at Stanford started in 2022?", "answer": "Dr. Judy Chen", "gold_passage_ids": ["synth::00190"]}
+{"qid": "synth_q::00191", "question": "Which medicine researcher at Harvard started in 2023?", "answer": "Dr. Judy Kumar", "gold_passage_ids": ["synth::00191"]}
+{"qid": "synth_q::00192", "question": "Which engineering researcher at Oxford started in 2024?", "answer": "Dr. Judy Williams", "gold_passage_ids": ["synth::00192"]}
+{"qid": "synth_q::00193", "question": "Which astronomy researcher at Cambridge started in 2000?", "answer": "Dr. Judy Smith", "gold_passage_ids": ["synth::00193"]}
+{"qid": "synth_q::00194", "question": "Which geology researcher at Caltech started in 2001?", "answer": "Dr. Judy Rodriguez", "gold_passage_ids": ["synth::00194"]}
+{"qid": "synth_q::00195", "question": "Which neuroscience researcher at Princeton started in 2002?", "answer": "Dr. Judy Zhang", "gold_passage_ids": ["synth::00195"]}
+{"qid": "synth_q::00196", "question": "Which physics researcher at Yale started in 2003?", "answer": "Dr. Judy Park", "gold_passage_ids": ["synth::00196"]}
+{"qid": "synth_q::00197", "question": "Which chemistry researcher at Berkeley started in 2004?", "answer": "Dr. Judy Liu", "gold_passage_ids": ["synth::00197"]}
+{"qid": "synth_q::00198", "question": "Which biology researcher at CMU started in 2005?", "answer": "Dr. Judy Tanaka", "gold_passage_ids": ["synth::00198"]}
+{"qid": "synth_q::00199", "question": "Which computer science researcher at ETH started in 2006?", "answer": "Dr. Judy Müller", "gold_passage_ids": ["synth::00199"]}
+{"qid": "synth_q::00200", "question": "Which mathematics researcher at Tokyo started in 2007?", "answer": "Dr. Alice Chen", "gold_passage_ids": ["synth::00200"]}
+{"qid": "synth_q::00201", "question": "Which medicine researcher at MIT started in 2008?", "answer": "Dr. Alice Kumar", "gold_passage_ids": ["synth::00201"]}
+{"qid": "synth_q::00202", "question": "Which engineering researcher at Stanford started in 2009?", "answer": "Dr. Alice Williams", "gold_passage_ids": ["synth::00202"]}
+{"qid": "synth_q::00203", "question": "Which astronomy researcher at Harvard started in 2010?", "answer": "Dr. Alice Smith", "gold_passage_ids": ["synth::00203"]}
+{"qid": "synth_q::00204", "question": "Which geology researcher at Oxford started in 2011?", "answer": "Dr. Alice Rodriguez", "gold_passage_ids": ["synth::00204"]}
+{"qid": "synth_q::00205", "question": "Which neuroscience researcher at Cambridge started in 2012?", "answer": "Dr. Alice Zhang", "gold_passage_ids": ["synth::00205"]}
+{"qid": "synth_q::00206", "question": "Which physics researcher at Caltech started in 2013?", "answer": "Dr. Alice Park", "gold_passage_ids": ["synth::00206"]}
+{"qid": "synth_q::00207", "question": "Which chemistry researcher at Princeton started in 2014?", "answer": "Dr. Alice Liu", "gold_passage_ids": ["synth::00207"]}
+{"qid": "synth_q::00208", "question": "Which biology researcher at Yale started in 2015?", "answer": "Dr. Alice Tanaka", "gold_passage_ids": ["synth::00208"]}
+{"qid": "synth_q::00209", "question": "Which computer science researcher at Berkeley started in 2016?", "answer": "Dr. Alice Müller", "gold_passage_ids": ["synth::00209"]}
+{"qid": "synth_q::00210", "question": "Which mathematics researcher at CMU started in 2017?", "answer": "Dr. Bob Chen", "gold_passage_ids": ["synth::00210"]}
+{"qid": "synth_q::00211", "question": "Which medicine researcher at ETH started in 2018?", "answer": "Dr. Bob Kumar", "gold_passage_ids": ["synth::00211"]}
+{"qid": "synth_q::00212", "question": "Which engineering researcher at Tokyo started in 2019?", "answer": "Dr. Bob Williams", "gold_passage_ids": ["synth::00212"]}
+{"qid": "synth_q::00213", "question": "Which astronomy researcher at MIT started in 2020?", "answer": "Dr. Bob Smith", "gold_passage_ids": ["synth::00213"]}
+{"qid": "synth_q::00214", "question": "Which geology researcher at Stanford started in 2021?", "answer": "Dr. Bob Rodriguez", "gold_passage_ids": ["synth::00214"]}
+{"qid": "synth_q::00215", "question": "Which neuroscience researcher at Harvard started in 2022?", "answer": "Dr. Bob Zhang", "gold_passage_ids": ["synth::00215"]}
+{"qid": "synth_q::00216", "question": "Which physics researcher at Oxford started in 2023?", "answer": "Dr. Bob Park", "gold_passage_ids": ["synth::00216"]}
+{"qid": "synth_q::00217", "question": "Which chemistry researcher at Cambridge started in 2024?", "answer": "Dr. Bob Liu", "gold_passage_ids": ["synth::00217"]}
+{"qid": "synth_q::00218", "question": "Which biology researcher at Caltech started in 2000?", "answer": "Dr. Bob Tanaka", "gold_passage_ids": ["synth::00218"]}
+{"qid": "synth_q::00219", "question": "Which computer science researcher at Princeton started in 2001?", "answer": "Dr. Bob Müller", "gold_passage_ids": ["synth::00219"]}
+{"qid": "synth_q::00220", "question": "Which mathematics researcher at Yale started in 2002?", "answer": "Dr. Carol Chen", "gold_passage_ids": ["synth::00220"]}
+{"qid": "synth_q::00221", "question": "Which medicine researcher at Berkeley started in 2003?", "answer": "Dr. Carol Kumar", "gold_passage_ids": ["synth::00221"]}
+{"qid": "synth_q::00222", "question": "Which engineering researcher at CMU started in 2004?", "answer": "Dr. Carol Williams", "gold_passage_ids": ["synth::00222"]}
+{"qid": "synth_q::00223", "question": "Which astronomy researcher at ETH started in 2005?", "answer": "Dr. Carol Smith", "gold_passage_ids": ["synth::00223"]}
+{"qid": "synth_q::00224", "question": "Which geology researcher at Tokyo started in 2006?", "answer": "Dr. Carol Rodriguez", "gold_passage_ids": ["synth::00224"]}
+{"qid": "synth_q::00225", "question": "Which neuroscience researcher at MIT started in 2007?", "answer": "Dr. Carol Zhang", "gold_passage_ids": ["synth::00225"]}
+{"qid": "synth_q::00226", "question": "Which physics researcher at Stanford started in 2008?", "answer": "Dr. Carol Park", "gold_passage_ids": ["synth::00226"]}
+{"qid": "synth_q::00227", "question": "Which chemistry researcher at Harvard started in 2009?", "answer": "Dr. Carol Liu", "gold_passage_ids": ["synth::00227"]}
+{"qid": "synth_q::00228", "question": "Which biology researcher at Oxford started in 2010?", "answer": "Dr. Carol Tanaka", "gold_passage_ids": ["synth::00228"]}
+{"qid": "synth_q::00229", "question": "Which computer science researcher at Cambridge started in 2011?", "answer": "Dr. Carol Müller", "gold_passage_ids": ["synth::00229"]}
+{"qid": "synth_q::00230", "question": "Which mathematics researcher at Caltech started in 2012?", "answer": "Dr. David Chen", "gold_passage_ids": ["synth::00230"]}
+{"qid": "synth_q::00231", "question": "Which medicine researcher at Princeton started in 2013?", "answer": "Dr. David Kumar", "gold_passage_ids": ["synth::00231"]}
+{"qid": "synth_q::00232", "question": "Which engineering researcher at Yale started in 2014?", "answer": "Dr. David Williams", "gold_passage_ids": ["synth::00232"]}
+{"qid": "synth_q::00233", "question": "Which astronomy researcher at Berkeley started in 2015?", "answer": "Dr. David Smith", "gold_passage_ids": ["synth::00233"]}
+{"qid": "synth_q::00234", "question": "Which geology researcher at CMU started in 2016?", "answer": "Dr. David Rodriguez", "gold_passage_ids": ["synth::00234"]}
+{"qid": "synth_q::00235", "question": "Which neuroscience researcher at ETH started in 2017?", "answer": "Dr. David Zhang", "gold_passage_ids": ["synth::00235"]}
+{"qid": "synth_q::00236", "question": "Which physics researcher at Tokyo started in 2018?", "answer": "Dr. David Park", "gold_passage_ids": ["synth::00236"]}
+{"qid": "synth_q::00237", "question": "Which chemistry researcher at MIT started in 2019?", "answer": "Dr. David Liu", "gold_passage_ids": ["synth::00237"]}
+{"qid": "synth_q::00238", "question": "Which biology researcher at Stanford started in 2020?", "answer": "Dr. David Tanaka", "gold_passage_ids": ["synth::00238"]}
+{"qid": "synth_q::00239", "question": "Which computer science researcher at Harvard started in 2021?", "answer": "Dr. David Müller", "gold_passage_ids": ["synth::00239"]}
+{"qid": "synth_q::00240", "question": "Which mathematics researcher at Oxford started in 2022?", "answer": "Dr. Elena Chen", "gold_passage_ids": ["synth::00240"]}
+{"qid": "synth_q::00241", "question": "Which medicine researcher at Cambridge started in 2023?", "answer": "Dr. Elena Kumar", "gold_passage_ids": ["synth::00241"]}
+{"qid": "synth_q::00242", "question": "Which engineering researcher at Caltech started in 2024?", "answer": "Dr. Elena Williams", "gold_passage_ids": ["synth::00242"]}
+{"qid": "synth_q::00243", "question": "Which astronomy researcher at Princeton started in 2000?", "answer": "Dr. Elena Smith", "gold_passage_ids": ["synth::00243"]}
+{"qid": "synth_q::00244", "question": "Which geology researcher at Yale started in 2001?", "answer": "Dr. Elena Rodriguez", "gold_passage_ids": ["synth::00244"]}
+{"qid": "synth_q::00245", "question": "Which neuroscience researcher at Berkeley started in 2002?", "answer": "Dr. Elena Zhang", "gold_passage_ids": ["synth::00245"]}
+{"qid": "synth_q::00246", "question": "Which physics researcher at CMU started in 2003?", "answer": "Dr. Elena Park", "gold_passage_ids": ["synth::00246"]}
+{"qid": "synth_q::00247", "question": "Which chemistry researcher at ETH started in 2004?", "answer": "Dr. Elena Liu", "gold_passage_ids": ["synth::00247"]}
+{"qid": "synth_q::00248", "question": "Which biology researcher at Tokyo started in 2005?", "answer": "Dr. Elena Tanaka", "gold_passage_ids": ["synth::00248"]}
+{"qid": "synth_q::00249", "question": "Which computer science researcher at MIT started in 2006?", "answer": "Dr. Elena Müller", "gold_passage_ids": ["synth::00249"]}
+{"qid": "synth_q::00250", "question": "Which mathematics researcher at Stanford started in 2007?", "answer": "Dr. Frank Chen", "gold_passage_ids": ["synth::00250"]}
+{"qid": "synth_q::00251", "question": "Which medicine researcher at Harvard started in 2008?", "answer": "Dr. Frank Kumar", "gold_passage_ids": ["synth::00251"]}
+{"qid": "synth_q::00252", "question": "Which engineering researcher at Oxford started in 2009?", "answer": "Dr. Frank Williams", "gold_passage_ids": ["synth::00252"]}
+{"qid": "synth_q::00253", "question": "Which astronomy researcher at Cambridge started in 2010?", "answer": "Dr. Frank Smith", "gold_passage_ids": ["synth::00253"]}
+{"qid": "synth_q::00254", "question": "Which geology researcher at Caltech started in 2011?", "answer": "Dr. Frank Rodriguez", "gold_passage_ids": ["synth::00254"]}
+{"qid": "synth_q::00255", "question": "Which neuroscience researcher at Princeton started in 2012?", "answer": "Dr. Frank Zhang", "gold_passage_ids": ["synth::00255"]}
+{"qid": "synth_q::00256", "question": "Which physics researcher at Yale started in 2013?", "answer": "Dr. Frank Park", "gold_passage_ids": ["synth::00256"]}
+{"qid": "synth_q::00257", "question": "Which chemistry researcher at Berkeley started in 2014?", "answer": "Dr. Frank Liu", "gold_passage_ids": ["synth::00257"]}
+{"qid": "synth_q::00258", "question": "Which biology researcher at CMU started in 2015?", "answer": "Dr. Frank Tanaka", "gold_passage_ids": ["synth::00258"]}
+{"qid": "synth_q::00259", "question": "Which computer science researcher at ETH started in 2016?", "answer": "Dr. Frank Müller", "gold_passage_ids": ["synth::00259"]}
+{"qid": "synth_q::00260", "question": "Which mathematics researcher at Tokyo started in 2017?", "answer": "Dr. Grace Chen", "gold_passage_ids": ["synth::00260"]}
+{"qid": "synth_q::00261", "question": "Which medicine researcher at MIT started in 2018?", "answer": "Dr. Grace Kumar", "gold_passage_ids": ["synth::00261"]}
+{"qid": "synth_q::00262", "question": "Which engineering researcher at Stanford started in 2019?", "answer": "Dr. Grace Williams", "gold_passage_ids": ["synth::00262"]}
+{"qid": "synth_q::00263", "question": "Which astronomy researcher at Harvard started in 2020?", "answer": "Dr. Grace Smith", "gold_passage_ids": ["synth::00263"]}
+{"qid": "synth_q::00264", "question": "Which geology researcher at Oxford started in 2021?", "answer": "Dr. Grace Rodriguez", "gold_passage_ids": ["synth::00264"]}
+{"qid": "synth_q::00265", "question": "Which neuroscience researcher at Cambridge started in 2022?", "answer": "Dr. Grace Zhang", "gold_passage_ids": ["synth::00265"]}
+{"qid": "synth_q::00266", "question": "Which physics researcher at Caltech started in 2023?", "answer": "Dr. Grace Park", "gold_passage_ids": ["synth::00266"]}
+{"qid": "synth_q::00267", "question": "Which chemistry researcher at Princeton started in 2024?", "answer": "Dr. Grace Liu", "gold_passage_ids": ["synth::00267"]}
+{"qid": "synth_q::00268", "question": "Which biology researcher at Yale started in 2000?", "answer": "Dr. Grace Tanaka", "gold_passage_ids": ["synth::00268"]}
+{"qid": "synth_q::00269", "question": "Which computer science researcher at Berkeley started in 2001?", "answer": "Dr. Grace Müller", "gold_passage_ids": ["synth::00269"]}
+{"qid": "synth_q::00270", "question": "Which mathematics researcher at CMU started in 2002?", "answer": "Dr. Henry Chen", "gold_passage_ids": ["synth::00270"]}
+{"qid": "synth_q::00271", "question": "Which medicine researcher at ETH started in 2003?", "answer": "Dr. Henry Kumar", "gold_passage_ids": ["synth::00271"]}
+{"qid": "synth_q::00272", "question": "Which engineering researcher at Tokyo started in 2004?", "answer": "Dr. Henry Williams", "gold_passage_ids": ["synth::00272"]}
+{"qid": "synth_q::00273", "question": "Which astronomy researcher at MIT started in 2005?", "answer": "Dr. Henry Smith", "gold_passage_ids": ["synth::00273"]}
+{"qid": "synth_q::00274", "question": "Which geology researcher at Stanford started in 2006?", "answer": "Dr. Henry Rodriguez", "gold_passage_ids": ["synth::00274"]}
+{"qid": "synth_q::00275", "question": "Which neuroscience researcher at Harvard started in 2007?", "answer": "Dr. Henry Zhang", "gold_passage_ids": ["synth::00275"]}
+{"qid": "synth_q::00276", "question": "Which physics researcher at Oxford started in 2008?", "answer": "Dr. Henry Park", "gold_passage_ids": ["synth::00276"]}
+{"qid": "synth_q::00277", "question": "Which chemistry researcher at Cambridge started in 2009?", "answer": "Dr. Henry Liu", "gold_passage_ids": ["synth::00277"]}
+{"qid": "synth_q::00278", "question": "Which biology researcher at Caltech started in 2010?", "answer": "Dr. Henry Tanaka", "gold_passage_ids": ["synth::00278"]}
+{"qid": "synth_q::00279", "question": "Which computer science researcher at Princeton started in 2011?", "answer": "Dr. Henry Müller", "gold_passage_ids": ["synth::00279"]}
+{"qid": "synth_q::00280", "question": "Which mathematics researcher at Yale started in 2012?", "answer": "Dr. Ivan Chen", "gold_passage_ids": ["synth::00280"]}
+{"qid": "synth_q::00281", "question": "Which medicine researcher at Berkeley started in 2013?", "answer": "Dr. Ivan Kumar", "gold_passage_ids": ["synth::00281"]}
+{"qid": "synth_q::00282", "question": "Which engineering researcher at CMU started in 2014?", "answer": "Dr. Ivan Williams", "gold_passage_ids": ["synth::00282"]}
+{"qid": "synth_q::00283", "question": "Which astronomy researcher at ETH started in 2015?", "answer": "Dr. Ivan Smith", "gold_passage_ids": ["synth::00283"]}
+{"qid": "synth_q::00284", "question": "Which geology researcher at Tokyo started in 2016?", "answer": "Dr. Ivan Rodriguez", "gold_passage_ids": ["synth::00284"]}
+{"qid": "synth_q::00285", "question": "Which neuroscience researcher at MIT started in 2017?", "answer": "Dr. Ivan Zhang", "gold_passage_ids": ["synth::00285"]}
+{"qid": "synth_q::00286", "question": "Which physics researcher at Stanford started in 2018?", "answer": "Dr. Ivan Park", "gold_passage_ids": ["synth::00286"]}
+{"qid": "synth_q::00287", "question": "Which chemistry researcher at Harvard started in 2019?", "answer": "Dr. Ivan Liu", "gold_passage_ids": ["synth::00287"]}
+{"qid": "synth_q::00288", "question": "Which biology researcher at Oxford started in 2020?", "answer": "Dr. Ivan Tanaka", "gold_passage_ids": ["synth::00288"]}
+{"qid": "synth_q::00289", "question": "Which computer science researcher at Cambridge started in 2021?", "answer": "Dr. Ivan Müller", "gold_passage_ids": ["synth::00289"]}
+{"qid": "synth_q::00290", "question": "Which mathematics researcher at Caltech started in 2022?", "answer": "Dr. Judy Chen", "gold_passage_ids": ["synth::00290"]}
+{"qid": "synth_q::00291", "question": "Which medicine researcher at Princeton started in 2023?", "answer": "Dr. Judy Kumar", "gold_passage_ids": ["synth::00291"]}
+{"qid": "synth_q::00292", "question": "Which engineering researcher at Yale started in 2024?", "answer": "Dr. Judy Williams", "gold_passage_ids": ["synth::00292"]}
+{"qid": "synth_q::00293", "question": "Which astronomy researcher at Berkeley started in 2000?", "answer": "Dr. Judy Smith", "gold_passage_ids": ["synth::00293"]}
+{"qid": "synth_q::00294", "question": "Which geology researcher at CMU started in 2001?", "answer": "Dr. Judy Rodriguez", "gold_passage_ids": ["synth::00294"]}
+{"qid": "synth_q::00295", "question": "Which neuroscience researcher at ETH started in 2002?", "answer": "Dr. Judy Zhang", "gold_passage_ids": ["synth::00295"]}
+{"qid": "synth_q::00296", "question": "Which physics researcher at Tokyo started in 2003?", "answer": "Dr. Judy Park", "gold_passage_ids": ["synth::00296"]}
+{"qid": "synth_q::00297", "question": "Which chemistry researcher at MIT started in 2004?", "answer": "Dr. Judy Liu", "gold_passage_ids": ["synth::00297"]}
+{"qid": "synth_q::00298", "question": "Which biology researcher at Stanford started in 2005?", "answer": "Dr. Judy Tanaka", "gold_passage_ids": ["synth::00298"]}
+{"qid": "synth_q::00299", "question": "Which computer science researcher at Harvard started in 2006?", "answer": "Dr. Judy Müller", "gold_passage_ids": ["synth::00299"]}
+{"qid": "synth_q::00300", "question": "Which mathematics researcher at Oxford started in 2007?", "answer": "Dr. Alice Chen", "gold_passage_ids": ["synth::00300"]}
+{"qid": "synth_q::00301", "question": "Which medicine researcher at Cambridge started in 2008?", "answer": "Dr. Alice Kumar", "gold_passage_ids": ["synth::00301"]}
+{"qid": "synth_q::00302", "question": "Which engineering researcher at Caltech started in 2009?", "answer": "Dr. Alice Williams", "gold_passage_ids": ["synth::00302"]}
+{"qid": "synth_q::00303", "question": "Which astronomy researcher at Princeton started in 2010?", "answer": "Dr. Alice Smith", "gold_passage_ids": ["synth::00303"]}
+{"qid": "synth_q::00304", "question": "Which geology researcher at Yale started in 2011?", "answer": "Dr. Alice Rodriguez", "gold_passage_ids": ["synth::00304"]}
+{"qid": "synth_q::00305", "question": "Which neuroscience researcher at Berkeley started in 2012?", "answer": "Dr. Alice Zhang", "gold_passage_ids": ["synth::00305"]}
+{"qid": "synth_q::00306", "question": "Which physics researcher at CMU started in 2013?", "answer": "Dr. Alice Park", "gold_passage_ids": ["synth::00306"]}
+{"qid": "synth_q::00307", "question": "Which chemistry researcher at ETH started in 2014?", "answer": "Dr. Alice Liu", "gold_passage_ids": ["synth::00307"]}
+{"qid": "synth_q::00308", "question": "Which biology researcher at Tokyo started in 2015?", "answer": "Dr. Alice Tanaka", "gold_passage_ids": ["synth::00308"]}
+{"qid": "synth_q::00309", "question": "Which computer science researcher at MIT started in 2016?", "answer": "Dr. Alice Müller", "gold_passage_ids": ["synth::00309"]}
+{"qid": "synth_q::00310", "question": "Which mathematics researcher at Stanford started in 2017?", "answer": "Dr. Bob Chen", "gold_passage_ids": ["synth::00310"]}
+{"qid": "synth_q::00311", "question": "Which medicine researcher at Harvard started in 2018?", "answer": "Dr. Bob Kumar", "gold_passage_ids": ["synth::00311"]}
+{"qid": "synth_q::00312", "question": "Which engineering researcher at Oxford started in 2019?", "answer": "Dr. Bob Williams", "gold_passage_ids": ["synth::00312"]}
+{"qid": "synth_q::00313", "question": "Which astronomy researcher at Cambridge started in 2020?", "answer": "Dr. Bob Smith", "gold_passage_ids": ["synth::00313"]}
+{"qid": "synth_q::00314", "question": "Which geology researcher at Caltech started in 2021?", "answer": "Dr. Bob Rodriguez", "gold_passage_ids": ["synth::00314"]}
+{"qid": "synth_q::00315", "question": "Which neuroscience researcher at Princeton started in 2022?", "answer": "Dr. Bob Zhang", "gold_passage_ids": ["synth::00315"]}
+{"qid": "synth_q::00316", "question": "Which physics researcher at Yale started in 2023?", "answer": "Dr. Bob Park", "gold_passage_ids": ["synth::00316"]}
+{"qid": "synth_q::00317", "question": "Which chemistry researcher at Berkeley started in 2024?", "answer": "Dr. Bob Liu", "gold_passage_ids": ["synth::00317"]}
+{"qid": "synth_q::00318", "question": "Which biology researcher at CMU started in 2000?", "answer": "Dr. Bob Tanaka", "gold_passage_ids": ["synth::00318"]}
+{"qid": "synth_q::00319", "question": "Which computer science researcher at ETH started in 2001?", "answer": "Dr. Bob Müller", "gold_passage_ids": ["synth::00319"]}
+{"qid": "synth_q::00320", "question": "Which mathematics researcher at Tokyo started in 2002?", "answer": "Dr. Carol Chen", "gold_passage_ids": ["synth::00320"]}
+{"qid": "synth_q::00321", "question": "Which medicine researcher at MIT started in 2003?", "answer": "Dr. Carol Kumar", "gold_passage_ids": ["synth::00321"]}
+{"qid": "synth_q::00322", "question": "Which engineering researcher at Stanford started in 2004?", "answer": "Dr. Carol Williams", "gold_passage_ids": ["synth::00322"]}
+{"qid": "synth_q::00323", "question": "Which astronomy researcher at Harvard started in 2005?", "answer": "Dr. Carol Smith", "gold_passage_ids": ["synth::00323"]}
+{"qid": "synth_q::00324", "question": "Which geology researcher at Oxford started in 2006?", "answer": "Dr. Carol Rodriguez", "gold_passage_ids": ["synth::00324"]}
+{"qid": "synth_q::00325", "question": "Which neuroscience researcher at Cambridge started in 2007?", "answer": "Dr. Carol Zhang", "gold_passage_ids": ["synth::00325"]}
+{"qid": "synth_q::00326", "question": "Which physics researcher at Caltech started in 2008?", "answer": "Dr. Carol Park", "gold_passage_ids": ["synth::00326"]}
+{"qid": "synth_q::00327", "question": "Which chemistry researcher at Princeton started in 2009?", "answer": "Dr. Carol Liu", "gold_passage_ids": ["synth::00327"]}
+{"qid": "synth_q::00328", "question": "Which biology researcher at Yale started in 2010?", "answer": "Dr. Carol Tanaka", "gold_passage_ids": ["synth::00328"]}
+{"qid": "synth_q::00329", "question": "Which computer science researcher at Berkeley started in 2011?", "answer": "Dr. Carol Müller", "gold_passage_ids": ["synth::00329"]}
+{"qid": "synth_q::00330", "question": "Which mathematics researcher at CMU started in 2012?", "answer": "Dr. David Chen", "gold_passage_ids": ["synth::00330"]}
+{"qid": "synth_q::00331", "question": "Which medicine researcher at ETH started in 2013?", "answer": "Dr. David Kumar", "gold_passage_ids": ["synth::00331"]}
+{"qid": "synth_q::00332", "question": "Which engineering researcher at Tokyo started in 2014?", "answer": "Dr. David Williams", "gold_passage_ids": ["synth::00332"]}
+{"qid": "synth_q::00333", "question": "Which astronomy researcher at MIT started in 2015?", "answer": "Dr. David Smith", "gold_passage_ids": ["synth::00333"]}
+{"qid": "synth_q::00334", "question": "Which geology researcher at Stanford started in 2016?", "answer": "Dr. David Rodriguez", "gold_passage_ids": ["synth::00334"]}
+{"qid": "synth_q::00335", "question": "Which neuroscience researcher at Harvard started in 2017?", "answer": "Dr. David Zhang", "gold_passage_ids": ["synth::00335"]}
+{"qid": "synth_q::00336", "question": "Which physics researcher at Oxford started in 2018?", "answer": "Dr. David Park", "gold_passage_ids": ["synth::00336"]}
+{"qid": "synth_q::00337", "question": "Which chemistry researcher at Cambridge started in 2019?", "answer": "Dr. David Liu", "gold_passage_ids": ["synth::00337"]}
+{"qid": "synth_q::00338", "question": "Which biology researcher at Caltech started in 2020?", "answer": "Dr. David Tanaka", "gold_passage_ids": ["synth::00338"]}
+{"qid": "synth_q::00339", "question": "Which computer science researcher at Princeton started in 2021?", "answer": "Dr. David Müller", "gold_passage_ids": ["synth::00339"]}
+{"qid": "synth_q::00340", "question": "Which mathematics researcher at Yale started in 2022?", "answer": "Dr. Elena Chen", "gold_passage_ids": ["synth::00340"]}
+{"qid": "synth_q::00341", "question": "Which medicine researcher at Berkeley started in 2023?", "answer": "Dr. Elena Kumar", "gold_passage_ids": ["synth::00341"]}
+{"qid": "synth_q::00342", "question": "Which engineering researcher at CMU started in 2024?", "answer": "Dr. Elena Williams", "gold_passage_ids": ["synth::00342"]}
+{"qid": "synth_q::00343", "question": "Which astronomy researcher at ETH started in 2000?", "answer": "Dr. Elena Smith", "gold_passage_ids": ["synth::00343"]}
+{"qid": "synth_q::00344", "question": "Which geology researcher at Tokyo started in 2001?", "answer": "Dr. Elena Rodriguez", "gold_passage_ids": ["synth::00344"]}
+{"qid": "synth_q::00345", "question": "Which neuroscience researcher at MIT started in 2002?", "answer": "Dr. Elena Zhang", "gold_passage_ids": ["synth::00345"]}
+{"qid": "synth_q::00346", "question": "Which physics researcher at Stanford started in 2003?", "answer": "Dr. Elena Park", "gold_passage_ids": ["synth::00346"]}
+{"qid": "synth_q::00347", "question": "Which chemistry researcher at Harvard started in 2004?", "answer": "Dr. Elena Liu", "gold_passage_ids": ["synth::00347"]}
+{"qid": "synth_q::00348", "question": "Which biology researcher at Oxford started in 2005?", "answer": "Dr. Elena Tanaka", "gold_passage_ids": ["synth::00348"]}
+{"qid": "synth_q::00349", "question": "Which computer science researcher at Cambridge started in 2006?", "answer": "Dr. Elena Müller", "gold_passage_ids": ["synth::00349"]}
+{"qid": "synth_q::00350", "question": "Which mathematics researcher at Caltech started in 2007?", "answer": "Dr. Frank Chen", "gold_passage_ids": ["synth::00350"]}
+{"qid": "synth_q::00351", "question": "Which medicine researcher at Princeton started in 2008?", "answer": "Dr. Frank Kumar", "gold_passage_ids": ["synth::00351"]}
+{"qid": "synth_q::00352", "question": "Which engineering researcher at Yale started in 2009?", "answer": "Dr. Frank Williams", "gold_passage_ids": ["synth::00352"]}
+{"qid": "synth_q::00353", "question": "Which astronomy researcher at Berkeley started in 2010?", "answer": "Dr. Frank Smith", "gold_passage_ids": ["synth::00353"]}
+{"qid": "synth_q::00354", "question": "Which geology researcher at CMU started in 2011?", "answer": "Dr. Frank Rodriguez", "gold_passage_ids": ["synth::00354"]}
+{"qid": "synth_q::00355", "question": "Which neuroscience researcher at ETH started in 2012?", "answer": "Dr. Frank Zhang", "gold_passage_ids": ["synth::00355"]}
+{"qid": "synth_q::00356", "question": "Which physics researcher at Tokyo started in 2013?", "answer": "Dr. Frank Park", "gold_passage_ids": ["synth::00356"]}
+{"qid": "synth_q::00357", "question": "Which chemistry researcher at MIT started in 2014?", "answer": "Dr. Frank Liu", "gold_passage_ids": ["synth::00357"]}
+{"qid": "synth_q::00358", "question": "Which biology researcher at Stanford started in 2015?", "answer": "Dr. Frank Tanaka", "gold_passage_ids": ["synth::00358"]}
+{"qid": "synth_q::00359", "question": "Which computer science researcher at Harvard started in 2016?", "answer": "Dr. Frank Müller", "gold_passage_ids": ["synth::00359"]}
+{"qid": "synth_q::00360", "question": "Which mathematics researcher at Oxford started in 2017?", "answer": "Dr. Grace Chen", "gold_passage_ids": ["synth::00360"]}
+{"qid": "synth_q::00361", "question": "Which medicine researcher at Cambridge started in 2018?", "answer": "Dr. Grace Kumar", "gold_passage_ids": ["synth::00361"]}
+{"qid": "synth_q::00362", "question": "Which engineering researcher at Caltech started in 2019?", "answer": "Dr. Grace Williams", "gold_passage_ids": ["synth::00362"]}
+{"qid": "synth_q::00363", "question": "Which astronomy researcher at Princeton started in 2020?", "answer": "Dr. Grace Smith", "gold_passage_ids": ["synth::00363"]}
+{"qid": "synth_q::00364", "question": "Which geology researcher at Yale started in 2021?", "answer": "Dr. Grace Rodriguez", "gold_passage_ids": ["synth::00364"]}
+{"qid": "synth_q::00365", "question": "Which neuroscience researcher at Berkeley started in 2022?", "answer": "Dr. Grace Zhang", "gold_passage_ids": ["synth::00365"]}
+{"qid": "synth_q::00366", "question": "Which physics researcher at CMU started in 2023?", "answer": "Dr. Grace Park", "gold_passage_ids": ["synth::00366"]}
+{"qid": "synth_q::00367", "question": "Which chemistry researcher at ETH started in 2024?", "answer": "Dr. Grace Liu", "gold_passage_ids": ["synth::00367"]}
+{"qid": "synth_q::00368", "question": "Which biology researcher at Tokyo started in 2000?", "answer": "Dr. Grace Tanaka", "gold_passage_ids": ["synth::00368"]}
+{"qid": "synth_q::00369", "question": "Which computer science researcher at MIT started in 2001?", "answer": "Dr. Grace Müller", "gold_passage_ids": ["synth::00369"]}
+{"qid": "synth_q::00370", "question": "Which mathematics researcher at Stanford started in 2002?", "answer": "Dr. Henry Chen", "gold_passage_ids": ["synth::00370"]}
+{"qid": "synth_q::00371", "question": "Which medicine researcher at Harvard started in 2003?", "answer": "Dr. Henry Kumar", "gold_passage_ids": ["synth::00371"]}
+{"qid": "synth_q::00372", "question": "Which engineering researcher at Oxford started in 2004?", "answer": "Dr. Henry Williams", "gold_passage_ids": ["synth::00372"]}
+{"qid": "synth_q::00373", "question": "Which astronomy researcher at Cambridge started in 2005?", "answer": "Dr. Henry Smith", "gold_passage_ids": ["synth::00373"]}
+{"qid": "synth_q::00374", "question": "Which geology researcher at Caltech started in 2006?", "answer": "Dr. Henry Rodriguez", "gold_passage_ids": ["synth::00374"]}
+{"qid": "synth_q::00375", "question": "Which neuroscience researcher at Princeton started in 2007?", "answer": "Dr. Henry Zhang", "gold_passage_ids": ["synth::00375"]}
+{"qid": "synth_q::00376", "question": "Which physics researcher at Yale started in 2008?", "answer": "Dr. Henry Park", "gold_passage_ids": ["synth::00376"]}
+{"qid": "synth_q::00377", "question": "Which chemistry researcher at Berkeley started in 2009?", "answer": "Dr. Henry Liu", "gold_passage_ids": ["synth::00377"]}
+{"qid": "synth_q::00378", "question": "Which biology researcher at CMU started in 2010?", "answer": "Dr. Henry Tanaka", "gold_passage_ids": ["synth::00378"]}
+{"qid": "synth_q::00379", "question": "Which computer science researcher at ETH started in 2011?", "answer": "Dr. Henry Müller", "gold_passage_ids": ["synth::00379"]}
+{"qid": "synth_q::00380", "question": "Which mathematics researcher at Tokyo started in 2012?", "answer": "Dr. Ivan Chen", "gold_passage_ids": ["synth::00380"]}
+{"qid": "synth_q::00381", "question": "Which medicine researcher at MIT started in 2013?", "answer": "Dr. Ivan Kumar", "gold_passage_ids": ["synth::00381"]}
+{"qid": "synth_q::00382", "question": "Which engineering researcher at Stanford started in 2014?", "answer": "Dr. Ivan Williams", "gold_passage_ids": ["synth::00382"]}
+{"qid": "synth_q::00383", "question": "Which astronomy researcher at Harvard started in 2015?", "answer": "Dr. Ivan Smith", "gold_passage_ids": ["synth::00383"]}
+{"qid": "synth_q::00384", "question": "Which geology researcher at Oxford started in 2016?", "answer": "Dr. Ivan Rodriguez", "gold_passage_ids": ["synth::00384"]}
+{"qid": "synth_q::00385", "question": "Which neuroscience researcher at Cambridge started in 2017?", "answer": "Dr. Ivan Zhang", "gold_passage_ids": ["synth::00385"]}
+{"qid": "synth_q::00386", "question": "Which physics researcher at Caltech started in 2018?", "answer": "Dr. Ivan Park", "gold_passage_ids": ["synth::00386"]}
+{"qid": "synth_q::00387", "question": "Which chemistry researcher at Princeton started in 2019?", "answer": "Dr. Ivan Liu", "gold_passage_ids": ["synth::00387"]}
+{"qid": "synth_q::00388", "question": "Which biology researcher at Yale started in 2020?", "answer": "Dr. Ivan Tanaka", "gold_passage_ids": ["synth::00388"]}
+{"qid": "synth_q::00389", "question": "Which computer science researcher at Berkeley started in 2021?", "answer": "Dr. Ivan Müller", "gold_passage_ids": ["synth::00389"]}
+{"qid": "synth_q::00390", "question": "Which mathematics researcher at CMU started in 2022?", "answer": "Dr. Judy Chen", "gold_passage_ids": ["synth::00390"]}
+{"qid": "synth_q::00391", "question": "Which medicine researcher at ETH started in 2023?", "answer": "Dr. Judy Kumar", "gold_passage_ids": ["synth::00391"]}
+{"qid": "synth_q::00392", "question": "Which engineering researcher at Tokyo started in 2024?", "answer": "Dr. Judy Williams", "gold_passage_ids": ["synth::00392"]}
+{"qid": "synth_q::00393", "question": "Which astronomy researcher at MIT started in 2000?", "answer": "Dr. Judy Smith", "gold_passage_ids": ["synth::00393"]}
+{"qid": "synth_q::00394", "question": "Which geology researcher at Stanford started in 2001?", "answer": "Dr. Judy Rodriguez", "gold_passage_ids": ["synth::00394"]}
+{"qid": "synth_q::00395", "question": "Which neuroscience researcher at Harvard started in 2002?", "answer": "Dr. Judy Zhang", "gold_passage_ids": ["synth::00395"]}
+{"qid": "synth_q::00396", "question": "Which physics researcher at Oxford started in 2003?", "answer": "Dr. Judy Park", "gold_passage_ids": ["synth::00396"]}
+{"qid": "synth_q::00397", "question": "Which chemistry researcher at Cambridge started in 2004?", "answer": "Dr. Judy Liu", "gold_passage_ids": ["synth::00397"]}
+{"qid": "synth_q::00398", "question": "Which biology researcher at Caltech started in 2005?", "answer": "Dr. Judy Tanaka", "gold_passage_ids": ["synth::00398"]}
+{"qid": "synth_q::00399", "question": "Which computer science researcher at Princeton started in 2006?", "answer": "Dr. Judy Müller", "gold_passage_ids": ["synth::00399"]}
+{"qid": "synth_q::00400", "question": "Which mathematics researcher at Yale started in 2007?", "answer": "Dr. Alice Chen", "gold_passage_ids": ["synth::00400"]}
+{"qid": "synth_q::00401", "question": "Which medicine researcher at Berkeley started in 2008?", "answer": "Dr. Alice Kumar", "gold_passage_ids": ["synth::00401"]}
+{"qid": "synth_q::00402", "question": "Which engineering researcher at CMU started in 2009?", "answer": "Dr. Alice Williams", "gold_passage_ids": ["synth::00402"]}
+{"qid": "synth_q::00403", "question": "Which astronomy researcher at ETH started in 2010?", "answer": "Dr. Alice Smith", "gold_passage_ids": ["synth::00403"]}
+{"qid": "synth_q::00404", "question": "Which geology researcher at Tokyo started in 2011?", "answer": "Dr. Alice Rodriguez", "gold_passage_ids": ["synth::00404"]}
+{"qid": "synth_q::00405", "question": "Which neuroscience researcher at MIT started in 2012?", "answer": "Dr. Alice Zhang", "gold_passage_ids": ["synth::00405"]}
+{"qid": "synth_q::00406", "question": "Which physics researcher at Stanford started in 2013?", "answer": "Dr. Alice Park", "gold_passage_ids": ["synth::00406"]}
+{"qid": "synth_q::00407", "question": "Which chemistry researcher at Harvard started in 2014?", "answer": "Dr. Alice Liu", "gold_passage_ids": ["synth::00407"]}
+{"qid": "synth_q::00408", "question": "Which biology researcher at Oxford started in 2015?", "answer": "Dr. Alice Tanaka", "gold_passage_ids": ["synth::00408"]}
+{"qid": "synth_q::00409", "question": "Which computer science researcher at Cambridge started in 2016?", "answer": "Dr. Alice Müller", "gold_passage_ids": ["synth::00409"]}
+{"qid": "synth_q::00410", "question": "Which mathematics researcher at Caltech started in 2017?", "answer": "Dr. Bob Chen", "gold_passage_ids": ["synth::00410"]}
+{"qid": "synth_q::00411", "question": "Which medicine researcher at Princeton started in 2018?", "answer": "Dr. Bob Kumar", "gold_passage_ids": ["synth::00411"]}
+{"qid": "synth_q::00412", "question": "Which engineering researcher at Yale started in 2019?", "answer": "Dr. Bob Williams", "gold_passage_ids": ["synth::00412"]}
+{"qid": "synth_q::00413", "question": "Which astronomy researcher at Berkeley started in 2020?", "answer": "Dr. Bob Smith", "gold_passage_ids": ["synth::00413"]}
+{"qid": "synth_q::00414", "question": "Which geology researcher at CMU started in 2021?", "answer": "Dr. Bob Rodriguez", "gold_passage_ids": ["synth::00414"]}
+{"qid": "synth_q::00415", "question": "Which neuroscience researcher at ETH started in 2022?", "answer": "Dr. Bob Zhang", "gold_passage_ids": ["synth::00415"]}
+{"qid": "synth_q::00416", "question": "Which physics researcher at Tokyo started in 2023?", "answer": "Dr. Bob Park", "gold_passage_ids": ["synth::00416"]}
+{"qid": "synth_q::00417", "question": "Which chemistry researcher at MIT started in 2024?", "answer": "Dr. Bob Liu", "gold_passage_ids": ["synth::00417"]}
+{"qid": "synth_q::00418", "question": "Which biology researcher at Stanford started in 2000?", "answer": "Dr. Bob Tanaka", "gold_passage_ids": ["synth::00418"]}
+{"qid": "synth_q::00419", "question": "Which computer science researcher at Harvard started in 2001?", "answer": "Dr. Bob Müller", "gold_passage_ids": ["synth::00419"]}
+{"qid": "synth_q::00420", "question": "Which mathematics researcher at Oxford started in 2002?", "answer": "Dr. Carol Chen", "gold_passage_ids": ["synth::00420"]}
+{"qid": "synth_q::00421", "question": "Which medicine researcher at Cambridge started in 2003?", "answer": "Dr. Carol Kumar", "gold_passage_ids": ["synth::00421"]}
+{"qid": "synth_q::00422", "question": "Which engineering researcher at Caltech started in 2004?", "answer": "Dr. Carol Williams", "gold_passage_ids": ["synth::00422"]}
+{"qid": "synth_q::00423", "question": "Which astronomy researcher at Princeton started in 2005?", "answer": "Dr. Carol Smith", "gold_passage_ids": ["synth::00423"]}
+{"qid": "synth_q::00424", "question": "Which geology researcher at Yale started in 2006?", "answer": "Dr. Carol Rodriguez", "gold_passage_ids": ["synth::00424"]}
+{"qid": "synth_q::00425", "question": "Which neuroscience researcher at Berkeley started in 2007?", "answer": "Dr. Carol Zhang", "gold_passage_ids": ["synth::00425"]}
+{"qid": "synth_q::00426", "question": "Which physics researcher at CMU started in 2008?", "answer": "Dr. Carol Park", "gold_passage_ids": ["synth::00426"]}
+{"qid": "synth_q::00427", "question": "Which chemistry researcher at ETH started in 2009?", "answer": "Dr. Carol Liu", "gold_passage_ids": ["synth::00427"]}
+{"qid": "synth_q::00428", "question": "Which biology researcher at Tokyo started in 2010?", "answer": "Dr. Carol Tanaka", "gold_passage_ids": ["synth::00428"]}
+{"qid": "synth_q::00429", "question": "Which computer science researcher at MIT started in 2011?", "answer": "Dr. Carol Müller", "gold_passage_ids": ["synth::00429"]}
+{"qid": "synth_q::00430", "question": "Which mathematics researcher at Stanford started in 2012?", "answer": "Dr. David Chen", "gold_passage_ids": ["synth::00430"]}
+{"qid": "synth_q::00431", "question": "Which medicine researcher at Harvard started in 2013?", "answer": "Dr. David Kumar", "gold_passage_ids": ["synth::00431"]}
+{"qid": "synth_q::00432", "question": "Which engineering researcher at Oxford started in 2014?", "answer": "Dr. David Williams", "gold_passage_ids": ["synth::00432"]}
+{"qid": "synth_q::00433", "question": "Which astronomy researcher at Cambridge started in 2015?", "answer": "Dr. David Smith", "gold_passage_ids": ["synth::00433"]}
+{"qid": "synth_q::00434", "question": "Which geology researcher at Caltech started in 2016?", "answer": "Dr. David Rodriguez", "gold_passage_ids": ["synth::00434"]}
+{"qid": "synth_q::00435", "question": "Which neuroscience researcher at Princeton started in 2017?", "answer": "Dr. David Zhang", "gold_passage_ids": ["synth::00435"]}
+{"qid": "synth_q::00436", "question": "Which physics researcher at Yale started in 2018?", "answer": "Dr. David Park", "gold_passage_ids": ["synth::00436"]}
+{"qid": "synth_q::00437", "question": "Which chemistry researcher at Berkeley started in 2019?", "answer": "Dr. David Liu", "gold_passage_ids": ["synth::00437"]}
+{"qid": "synth_q::00438", "question": "Which biology researcher at CMU started in 2020?", "answer": "Dr. David Tanaka", "gold_passage_ids": ["synth::00438"]}
+{"qid": "synth_q::00439", "question": "Which computer science researcher at ETH started in 2021?", "answer": "Dr. David Müller", "gold_passage_ids": ["synth::00439"]}
+{"qid": "synth_q::00440", "question": "Which mathematics researcher at Tokyo started in 2022?", "answer": "Dr. Elena Chen", "gold_passage_ids": ["synth::00440"]}
+{"qid": "synth_q::00441", "question": "Which medicine researcher at MIT started in 2023?", "answer": "Dr. Elena Kumar", "gold_passage_ids": ["synth::00441"]}
+{"qid": "synth_q::00442", "question": "Which engineering researcher at Stanford started in 2024?", "answer": "Dr. Elena Williams", "gold_passage_ids": ["synth::00442"]}
+{"qid": "synth_q::00443", "question": "Which astronomy researcher at Harvard started in 2000?", "answer": "Dr. Elena Smith", "gold_passage_ids": ["synth::00443"]}
+{"qid": "synth_q::00444", "question": "Which geology researcher at Oxford started in 2001?", "answer": "Dr. Elena Rodriguez", "gold_passage_ids": ["synth::00444"]}
+{"qid": "synth_q::00445", "question": "Which neuroscience researcher at Cambridge started in 2002?", "answer": "Dr. Elena Zhang", "gold_passage_ids": ["synth::00445"]}
+{"qid": "synth_q::00446", "question": "Which physics researcher at Caltech started in 2003?", "answer": "Dr. Elena Park", "gold_passage_ids": ["synth::00446"]}
+{"qid": "synth_q::00447", "question": "Which chemistry researcher at Princeton started in 2004?", "answer": "Dr. Elena Liu", "gold_passage_ids": ["synth::00447"]}
+{"qid": "synth_q::00448", "question": "Which biology researcher at Yale started in 2005?", "answer": "Dr. Elena Tanaka", "gold_passage_ids": ["synth::00448"]}
+{"qid": "synth_q::00449", "question": "Which computer science researcher at Berkeley started in 2006?", "answer": "Dr. Elena Müller", "gold_passage_ids": ["synth::00449"]}
+{"qid": "synth_q::00450", "question": "Which mathematics researcher at CMU started in 2007?", "answer": "Dr. Frank Chen", "gold_passage_ids": ["synth::00450"]}
+{"qid": "synth_q::00451", "question": "Which medicine researcher at ETH started in 2008?", "answer": "Dr. Frank Kumar", "gold_passage_ids": ["synth::00451"]}
+{"qid": "synth_q::00452", "question": "Which engineering researcher at Tokyo started in 2009?", "answer": "Dr. Frank Williams", "gold_passage_ids": ["synth::00452"]}
+{"qid": "synth_q::00453", "question": "Which astronomy researcher at MIT started in 2010?", "answer": "Dr. Frank Smith", "gold_passage_ids": ["synth::00453"]}
+{"qid": "synth_q::00454", "question": "Which geology researcher at Stanford started in 2011?", "answer": "Dr. Frank Rodriguez", "gold_passage_ids": ["synth::00454"]}
+{"qid": "synth_q::00455", "question": "Which neuroscience researcher at Harvard started in 2012?", "answer": "Dr. Frank Zhang", "gold_passage_ids": ["synth::00455"]}
+{"qid": "synth_q::00456", "question": "Which physics researcher at Oxford started in 2013?", "answer": "Dr. Frank Park", "gold_passage_ids": ["synth::00456"]}
+{"qid": "synth_q::00457", "question": "Which chemistry researcher at Cambridge started in 2014?", "answer": "Dr. Frank Liu", "gold_passage_ids": ["synth::00457"]}
+{"qid": "synth_q::00458", "question": "Which biology researcher at Caltech started in 2015?", "answer": "Dr. Frank Tanaka", "gold_passage_ids": ["synth::00458"]}
+{"qid": "synth_q::00459", "question": "Which computer science researcher at Princeton started in 2016?", "answer": "Dr. Frank Müller", "gold_passage_ids": ["synth::00459"]}
+{"qid": "synth_q::00460", "question": "Which mathematics researcher at Yale started in 2017?", "answer": "Dr. Grace Chen", "gold_passage_ids": ["synth::00460"]}
+{"qid": "synth_q::00461", "question": "Which medicine researcher at Berkeley started in 2018?", "answer": "Dr. Grace Kumar", "gold_passage_ids": ["synth::00461"]}
+{"qid": "synth_q::00462", "question": "Which engineering researcher at CMU started in 2019?", "answer": "Dr. Grace Williams", "gold_passage_ids": ["synth::00462"]}
+{"qid": "synth_q::00463", "question": "Which astronomy researcher at ETH started in 2020?", "answer": "Dr. Grace Smith", "gold_passage_ids": ["synth::00463"]}
+{"qid": "synth_q::00464", "question": "Which geology researcher at Tokyo started in 2021?", "answer": "Dr. Grace Rodriguez", "gold_passage_ids": ["synth::00464"]}
+{"qid": "synth_q::00465", "question": "Which neuroscience researcher at MIT started in 2022?", "answer": "Dr. Grace Zhang", "gold_passage_ids": ["synth::00465"]}
+{"qid": "synth_q::00466", "question": "Which physics researcher at Stanford started in 2023?", "answer": "Dr. Grace Park", "gold_passage_ids": ["synth::00466"]}
+{"qid": "synth_q::00467", "question": "Which chemistry researcher at Harvard started in 2024?", "answer": "Dr. Grace Liu", "gold_passage_ids": ["synth::00467"]}
+{"qid": "synth_q::00468", "question": "Which biology researcher at Oxford started in 2000?", "answer": "Dr. Grace Tanaka", "gold_passage_ids": ["synth::00468"]}
+{"qid": "synth_q::00469", "question": "Which computer science researcher at Cambridge started in 2001?", "answer": "Dr. Grace Müller", "gold_passage_ids": ["synth::00469"]}
+{"qid": "synth_q::00470", "question": "Which mathematics researcher at Caltech started in 2002?", "answer": "Dr. Henry Chen", "gold_passage_ids": ["synth::00470"]}
+{"qid": "synth_q::00471", "question": "Which medicine researcher at Princeton started in 2003?", "answer": "Dr. Henry Kumar", "gold_passage_ids": ["synth::00471"]}
+{"qid": "synth_q::00472", "question": "Which engineering researcher at Yale started in 2004?", "answer": "Dr. Henry Williams", "gold_passage_ids": ["synth::00472"]}
+{"qid": "synth_q::00473", "question": "Which astronomy researcher at Berkeley started in 2005?", "answer": "Dr. Henry Smith", "gold_passage_ids": ["synth::00473"]}
+{"qid": "synth_q::00474", "question": "Which geology researcher at CMU started in 2006?", "answer": "Dr. Henry Rodriguez", "gold_passage_ids": ["synth::00474"]}
+{"qid": "synth_q::00475", "question": "Which neuroscience researcher at ETH started in 2007?", "answer": "Dr. Henry Zhang", "gold_passage_ids": ["synth::00475"]}
+{"qid": "synth_q::00476", "question": "Which physics researcher at Tokyo started in 2008?", "answer": "Dr. Henry Park", "gold_passage_ids": ["synth::00476"]}
+{"qid": "synth_q::00477", "question": "Which chemistry researcher at MIT started in 2009?", "answer": "Dr. Henry Liu", "gold_passage_ids": ["synth::00477"]}
+{"qid": "synth_q::00478", "question": "Which biology researcher at Stanford started in 2010?", "answer": "Dr. Henry Tanaka", "gold_passage_ids": ["synth::00478"]}
+{"qid": "synth_q::00479", "question": "Which computer science researcher at Harvard started in 2011?", "answer": "Dr. Henry Müller", "gold_passage_ids": ["synth::00479"]}
+{"qid": "synth_q::00480", "question": "Which mathematics researcher at Oxford started in 2012?", "answer": "Dr. Ivan Chen", "gold_passage_ids": ["synth::00480"]}
+{"qid": "synth_q::00481", "question": "Which medicine researcher at Cambridge started in 2013?", "answer": "Dr. Ivan Kumar", "gold_passage_ids": ["synth::00481"]}
+{"qid": "synth_q::00482", "question": "Which engineering researcher at Caltech started in 2014?", "answer": "Dr. Ivan Williams", "gold_passage_ids": ["synth::00482"]}
+{"qid": "synth_q::00483", "question": "Which astronomy researcher at Princeton started in 2015?", "answer": "Dr. Ivan Smith", "gold_passage_ids": ["synth::00483"]}
+{"qid": "synth_q::00484", "question": "Which geology researcher at Yale started in 2016?", "answer": "Dr. Ivan Rodriguez", "gold_passage_ids": ["synth::00484"]}
+{"qid": "synth_q::00485", "question": "Which neuroscience researcher at Berkeley started in 2017?", "answer": "Dr. Ivan Zhang", "gold_passage_ids": ["synth::00485"]}
+{"qid": "synth_q::00486", "question": "Which physics researcher at CMU started in 2018?", "answer": "Dr. Ivan Park", "gold_passage_ids": ["synth::00486"]}
+{"qid": "synth_q::00487", "question": "Which chemistry researcher at ETH started in 2019?", "answer": "Dr. Ivan Liu", "gold_passage_ids": ["synth::00487"]}
+{"qid": "synth_q::00488", "question": "Which biology researcher at Tokyo started in 2020?", "answer": "Dr. Ivan Tanaka", "gold_passage_ids": ["synth::00488"]}
+{"qid": "synth_q::00489", "question": "Which computer science researcher at MIT started in 2021?", "answer": "Dr. Ivan Müller", "gold_passage_ids": ["synth::00489"]}
+{"qid": "synth_q::00490", "question": "Which mathematics researcher at Stanford started in 2022?", "answer": "Dr. Judy Chen", "gold_passage_ids": ["synth::00490"]}
+{"qid": "synth_q::00491", "question": "Which medicine researcher at Harvard started in 2023?", "answer": "Dr. Judy Kumar", "gold_passage_ids": ["synth::00491"]}
+{"qid": "synth_q::00492", "question": "Which engineering researcher at Oxford started in 2024?", "answer": "Dr. Judy Williams", "gold_passage_ids": ["synth::00492"]}
+{"qid": "synth_q::00493", "question": "Which astronomy researcher at Cambridge started in 2000?", "answer": "Dr. Judy Smith", "gold_passage_ids": ["synth::00493"]}
+{"qid": "synth_q::00494", "question": "Which geology researcher at Caltech started in 2001?", "answer": "Dr. Judy Rodriguez", "gold_passage_ids": ["synth::00494"]}
+{"qid": "synth_q::00495", "question": "Which neuroscience researcher at Princeton started in 2002?", "answer": "Dr. Judy Zhang", "gold_passage_ids": ["synth::00495"]}
+{"qid": "synth_q::00496", "question": "Which physics researcher at Yale started in 2003?", "answer": "Dr. Judy Park", "gold_passage_ids": ["synth::00496"]}
+{"qid": "synth_q::00497", "question": "Which chemistry researcher at Berkeley started in 2004?", "answer": "Dr. Judy Liu", "gold_passage_ids": ["synth::00497"]}
+{"qid": "synth_q::00498", "question": "Which biology researcher at CMU started in 2005?", "answer": "Dr. Judy Tanaka", "gold_passage_ids": ["synth::00498"]}
+{"qid": "synth_q::00499", "question": "Which computer science researcher at ETH started in 2006?", "answer": "Dr. Judy Müller", "gold_passage_ids": ["synth::00499"]}

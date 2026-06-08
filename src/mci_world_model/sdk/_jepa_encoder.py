@@ -1,6 +1,6 @@
 """
-su-memory v4.0.0 — JEPA Encoder
-================================
+MCI World Model v3.1.0 — JEPA Encoder
+=========================================
 
 将观测（记忆列表）编码为结构化潜状态（CausalWorldModelState）。
 
@@ -21,6 +21,7 @@ su-memory v4.0.0 — JEPA Encoder
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -32,6 +33,9 @@ logger = logging.getLogger(__name__)
 class JEPAEncoder:
     """
     JEPA 编码器: 观测 → 结构化潜状态。
+
+    **线程模型**: 非线程安全。_encode_count 为非原子计数器，
+    多线程共享实例需外部同步。
 
     两种模式:
     - 不可微 (M1/M2): discover() 三层统计因果发现
@@ -74,14 +78,20 @@ class JEPAEncoder:
 
     def encode(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]] = None,
+        signals: list[dict[str, Any]] = None,
         use_parametric: bool = False,
     ) -> CausalWorldModelState:
         """
         将观测记忆编码为因果世界状态。
 
+        v3.1.0: 新增 signals 参数支持物理世界信号输入。
+
         Args:
             memories: 记忆列表 [{"content": ..., "timestamp": ...}, ...]
+            signals: 多模态信号列表 (v3.1.0 新增物理世界路径)
+                     [{"signal_type": ..., "value": ..., "timestamp": ..., ...}, ...]
+                     或 dict 列表格式 (每条为一天的物理量快照)
             use_parametric: 是否启用参数化增强（M2 可微时才生效）
 
         Returns:
@@ -90,6 +100,63 @@ class JEPAEncoder:
         Raises:
             RuntimeError: 如果 world_model 未就绪
         """
+        if signals is not None:
+            # ── v3.1.0 物理世界路径 ──
+            return self._encode_via_physical_builder(signals)
+
+        if memories is not None:
+            return self._encode_via_memories(memories, use_parametric)
+
+        return CausalWorldModelState.empty()
+
+    def _encode_via_physical_builder(self, signals: list[dict[str, Any]]) -> CausalWorldModelState:
+        """
+        v3.1.0: 通过 PhysicalGraphBuilder 编码物理信号。
+
+        支持两种输入格式:
+        1. dict 列表 (由 generate_synthetic_patient 生成):
+           [{"day": 1, "albumin": 30, ...}, ...]
+        2. MultimodalSignal 对象列表（先转为 dict 列表）
+        """
+        from mci_world_model.sdk._physical_graph_builder import PhysicalGraphBuilder
+
+        # v3.1.0a QC: 空 signals 保护
+        if not signals:
+            return CausalWorldModelState.empty()
+
+        builder = PhysicalGraphBuilder()
+
+        # 检测输入格式
+        if signals and hasattr(signals[0], "signal_type"):
+            # MultimodalSignal 对象列表 → 先转为 timeline
+            from mci_world_model._sys._perception_pipeline import MultimodalSignal
+
+            if isinstance(signals[0], MultimodalSignal):
+                from mci_world_model.sdk._physical_graph_builder import signals_to_timeline
+
+                timeline = signals_to_timeline(signals)
+            else:
+                timeline = signals  # type: ignore
+        else:
+            timeline = signals  # type: ignore
+
+        edges = builder.build_graph(timeline)
+        timestamp = signals[0].get("timestamp", "") if isinstance(signals[0], dict) else ""
+
+        return CausalWorldModelState(
+            causal_edges=edges,
+            n_novel=sum(1 for e in edges if e.get("verdict") == "novel"),
+            n_confirmed=sum(1 for e in edges if e.get("verdict") == "confirmed"),
+            n_memories=len(timeline),  # v3.1.0: 使物理状态通过 JEPADataset 过滤
+            timestamp=timestamp,
+        )
+
+    def _encode_via_memories(
+        self,
+        memories: list[dict[str, Any]],
+        use_parametric: bool = False,
+    ) -> CausalWorldModelState:
+        """原有路径: 通过 discover() 编码文本记忆。"""
         if self._wm is None:
             raise RuntimeError("JEPAEncoder: world_model 未初始化")
 
@@ -108,7 +175,7 @@ class JEPAEncoder:
         self._encode_count += 1
         return state
 
-    def _collect_evidence(self, memories: list[dict]) -> list[dict]:
+    def _collect_evidence(self, memories: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """通过 EvidenceCollector 预处理记忆。"""
         try:
             from mci_world_model._sys.bayesian import BayesianEngine
@@ -130,7 +197,7 @@ class JEPAEncoder:
             logger.debug("EvidenceCollector 跳过: %s", e)
         return memories
 
-    def _annotate_temporal(self, memories: list[dict]) -> list[dict]:
+    def _annotate_temporal(self, memories: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """通过 TemporalSystem 标注时间信息。"""
         try:
             from mci_world_model._sys.chrono import TemporalSystem
@@ -148,7 +215,7 @@ class JEPAEncoder:
             logger.debug("TemporalSystem 跳过: %s", e)
         return memories
 
-    def _encode_differentiable(self, memories: list[dict]) -> CausalWorldModelState:
+    def _encode_differentiable(self, memories: list[dict[str, Any]]) -> CausalWorldModelState:
         """
         M3: 可微 GAT 编码器。
 
@@ -245,9 +312,7 @@ class JEPAEncoder:
     # 图张量转换
     # -----------------------------------------------------------------
 
-    def to_graph_tensors(
-        self, state: CausalWorldModelState
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    def to_graph_tensors(self, state: CausalWorldModelState) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
         """
         将 CausalWorldModelState 转换为 GNN 可用的张量。
 
@@ -331,7 +396,7 @@ class JEPAEncoder:
             n_novel=sum(1 for e in causal_edges if e.get("verdict") == "novel"),
             n_suppressed=sum(1 for e in causal_edges if e.get("verdict") == "suppressed"),
             timestamp=metadata.get("timestamp", "") if metadata else "",
-            # v4.0.0: 从 metadata 注入时空与认知元数据
+            # v3.1.0: 从 metadata 注入时空与认知元数据
             temporal_info=metadata.get("temporal_info") if metadata else None,
             cognitive_gaps=metadata.get("cognitive_gaps", []) if metadata else [],
         )
