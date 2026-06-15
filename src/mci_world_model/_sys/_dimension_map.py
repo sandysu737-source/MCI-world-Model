@@ -1334,7 +1334,7 @@ def _run_tests():
 
     info = tm.get_trigram_energy_harmony(TrigramType.QIAN)
     test("乾 energy harmony has trigram name", info["trigram"] == "乾")
-    test("乾 energy type is metal", info["energy_type"] == "metal")
+    test("乾 energy type is generative (CEWM)", info["energy_type"] == "generative")
     test("乾 has heavenly stems", len(info["heavenly_stems"]) == 2)
     test("乾 has earthly branches", len(info["earthly_branches"]) == 2)
     test("乾 has prior direction", info["prior_position"] == "south")
@@ -1347,12 +1347,12 @@ def _run_tests():
     info = tm.get_stem_trigram_energy(TimeStem.JIA)
     test("甲 stem info has stem name", info["stem"] == "甲")
     test("甲 maps to 乾", info["trigram"] == "乾")
-    test("甲 energy type is metal", info["energy_type"] == "metal")
+    test("甲 energy type is generative (CEWM)", info["energy_type"] == "generative")
 
     info = tm.get_stem_trigram_energy(TimeStem.REN)
     test("壬 stem info has stem name", info["stem"] == "壬")
     test("壬 maps to 坎", info["trigram"] == "坎")
-    test("壬 energy type is water", info["energy_type"] == "water")
+    test("壬 energy type is trust (CEWM)", info["energy_type"] == "trust")
 
     print("\n[7] Branch Trigram Energy Information")
     print("-" * 40)
@@ -1360,12 +1360,12 @@ def _run_tests():
     info = tm.get_branch_trigram_energy(TimeBranch.ZI)
     test("子 branch info has branch name", info["branch"] == "子")
     test("子 maps to 坎", info["trigram"] == "坎")
-    test("子 energy type is water", info["energy_type"] == "water")
+    test("子 energy type is trust (CEWM)", info["energy_type"] == "trust")
 
     info = tm.get_branch_trigram_energy(TimeBranch.MAO)
     test("卯 branch info has branch name", info["branch"] == "卯")
     test("卯 maps to 震", info["trigram"] == "震")
-    test("卯 energy type is wood", info["energy_type"] == "wood")
+    test("卯 energy type is semantic (CEWM)", info["energy_type"] == "semantic")
 
     print("\n[8] Stem-Trigram Relation Analysis")
     print("-" * 40)
@@ -1420,7 +1420,7 @@ def _run_tests():
 
     all_mappings = tm.get_all_trigram_mappings()
     test("Has 8 trigrams", len(all_mappings) == 8)
-    test("乾 mapping has energy type", all_mappings[0]["energy_type"] == "metal")
+    test("乾 mapping has energy type", all_mappings[0]["energy_type"] == "generative")
     test("乾 mapping has stems", len(all_mappings[0]["stems"]) == 2)
     test("乾 mapping has branches", len(all_mappings[0]["branches"]) == 2)
 

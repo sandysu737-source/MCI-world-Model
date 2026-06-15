@@ -965,14 +965,14 @@ def test_energy_bus():
     test("Five elements nodes created", len(bus2._nodes) == 5)
 
     # Check enhance connections exist
-    wood_node = bus2.get_node("wuxing_wood")
-    fire_node = bus2.get_node("wuxing_fire")
+    wood_node = bus2.get_node("element_wood")
+    fire_node = bus2.get_node("element_fire")
     test("Wood node exists", wood_node is not None)
     test("Fire node exists", fire_node is not None)
 
     # Test propagation through enhance cycle
-    bus2.propagate_energy("wuxing_wood", 0.3)
-    fire_intensity = bus2.get_node("wuxing_fire").intensity
+    bus2.propagate_energy("element_wood", 0.3)
+    fire_intensity = bus2.get_node("element_fire").intensity
     test("Fire intensity increased via propagation", fire_intensity > 1.0)
 
     # Test 5: Trigrams Network
@@ -984,9 +984,9 @@ def test_energy_bus():
 
     test("Trigram nodes created", len(bus3._nodes) == 8)
 
-    # Check QIAN (metal) and ZHEN (wood) have correct energy
+    # Check QIAN (generative in CEWM) has correct energy
     qian = bus3.get_node("trigram_0")
-    test("QIAN energy is metal", qian.energy_type == "metal")
+    test("QIAN energy is generative", qian.energy_type == "generative")
 
     # Test 6: Bus State
     print("\n[Test 6] Bus State")
@@ -1010,7 +1010,7 @@ def test_energy_bus():
     print("\n[Test 8] Node State Query")
     print("-" * 40)
 
-    node_state = bus2.get_node_state("wuxing_wood")
+    node_state = bus2.get_node_state("element_wood")
     test("Node state has intensity", "intensity" in node_state)
     test("Node state has energy_level", "energy_level" in node_state)
     test("Node state has connections", "connections" in node_state)

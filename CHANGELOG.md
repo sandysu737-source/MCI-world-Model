@@ -3,6 +3,55 @@
 所有本项目显著变更都记录在此文件。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [4.0.0] - 2026-06-03
+
+### 🎉 CEWM (Cognitive-Enhanced World Model) 完整迭代交付
+
+**v4.0.0 是 CEWM 五阶段迭代的最终交付版本**，在 v3.3.0 基础上完成 Phase 1-5 全部特性。
+
+### Added — Phase 1-5 全量特性集
+
+**Phase 1 (v3.4.0) — 四元融合因果建模体系:**
+- 能量中心因果发现 (CausalDiscovery) + 证据累积 (EvidenceAccumulator)
+- 四元融合量化: 能量×因果×时间×语义四维统一
+- 测试: 1765 passed
+
+**Phase 2 (v3.5.0) — _sys→sdk 能力释放:**
+- 能量中心能力从 `_sys/` 释放至 `sdk/` 层公开 API
+- EnergyCenterOrchestrator + EnergyFlowOptimizer
+- 测试: 1813 passed
+
+**Phase 3 (v3.6.0) — 认知环闭环:**
+- Perception → WorldModel → Configurator → Cost → Actor → STM 六模块闭环
+- CognitiveScorecard 六维评分 + CognitiveHealthMonitor
+- 测试: 1870 passed
+
+**Phase 4 (v3.7.0) — 认知诊断系统:**
+- **MetaDiagnoser** (`sdk/_meta_diagnoser.py`): 学习型认知诊断，10 种 FailurePattern + SurpriseSignal + 六维健康度
+- **NegativeHeuristic** (`sdk/_negative_heuristic.py`): Lakatos 负面启发法，7 条硬核规则 (HC-1~HC-7)
+- **HierarchicalConfigurator 升级**: multi_objective_optimize() 三目标优化 + diagnose_and_configure()
+- 测试: 1916 passed
+
+**Phase 5 (v4.0.0) — 基准验证体系:**
+- **CEWM 六维认知基准** (`benchmarks/cognitive/test_cewm_cognitive.py`): D1-D6 30 个测试
+- **噪声鲁棒性基准** (`benchmarks/test_noise_robustness.py`): N1-N4 + MSE 13 个测试
+- **临床营养验证** (`benchmarks/clinical/test_clinical_nutrition.py`): C1-C4 12 个测试，10 个临床案例
+- 基准测试: 76 passed
+
+### Fixed — _sys/ 模块历史技术债
+
+- **EnergyBus 测试**: 节点 ID 从 `wuxing_*` 修正为 `element_*`
+- **TemporalCore.get_cycle_name()**: 支持取模回绕 (index 60 → 0)
+- **CategoryCore/DimensionMap 测试**: energy_type 断言对齐 CEWM 认知能量类型
+- 全部 4 个 xfail 移除，0 xfailed
+
+### 📊 核心代码指标
+
+- 测试套件: **1920 passed**, 0 xfailed, 0 failed
+- 基准测试: **76 passed**
+- 新增组件: MetaDiagnoser / NegativeHeuristic / SurpriseSignal + 15 个导出符号
+- 三层导出: `_sys/__init__.py` → `sdk/__init__.py` → `__init__.py`
+
 ## [3.3.0] - 2026-06-03
 
 ### Added — 多模态因果世界模型 + Phase 1 P0 三大特性
@@ -157,3 +206,4 @@ MCI World Model **V3.0.0** 是世界模型引擎**正式独立成仓**的第一�
 
 [3.0.0]: https://github.com/sandysu737-source/mci-world-model/releases/tag/v3.0.0
 [3.3.0]: https://github.com/sandysu737-source/mci-world-model/releases/tag/v3.3.0
+[4.0.0]: https://github.com/sandysu737-source/mci-world-model/releases/tag/v4.0.0

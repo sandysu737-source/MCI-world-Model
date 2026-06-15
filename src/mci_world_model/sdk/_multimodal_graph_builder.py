@@ -102,7 +102,10 @@ class MultimodalGraphBuilder:
                 if len(series_a) < 3 or len(series_b) < 3:
                     continue
                 cross_edges = self.build_cross_modality_edges(
-                    series_a, series_b, mod_a, mod_b,
+                    series_a,
+                    series_b,
+                    mod_a,
+                    mod_b,
                 )
                 edges.extend(cross_edges)
 
@@ -145,29 +148,33 @@ class MultimodalGraphBuilder:
         for lag in range(0, self._max_lag + 1):
             corr_ab = self._vector_lagged_correlation(fa, fb, lag)
             if abs(corr_ab) >= self._min_corr:
-                edges.append({
-                    "cause": f"{modality_a}_feature",
-                    "effect": f"{modality_b}_feature",
-                    "correlation": round(corr_ab, 6),
-                    "lag": lag,
-                    "modality_pair": (modality_a, modality_b),
-                    "confidence": round(abs(corr_ab), 4),
-                    "direction": f"{modality_a}→{modality_b}",
-                })
+                edges.append(
+                    {
+                        "cause": f"{modality_a}_feature",
+                        "effect": f"{modality_b}_feature",
+                        "correlation": round(corr_ab, 6),
+                        "lag": lag,
+                        "modality_pair": (modality_a, modality_b),
+                        "confidence": round(abs(corr_ab), 4),
+                        "direction": f"{modality_a}→{modality_b}",
+                    }
+                )
 
         # B → A (各 lag, lag > 0 避免重复)
         for lag in range(1, self._max_lag + 1):
             corr_ba = self._vector_lagged_correlation(fb, fa, lag)
             if abs(corr_ba) >= self._min_corr:
-                edges.append({
-                    "cause": f"{modality_b}_feature",
-                    "effect": f"{modality_a}_feature",
-                    "correlation": round(corr_ba, 6),
-                    "lag": lag,
-                    "modality_pair": (modality_b, modality_a),
-                    "confidence": round(abs(corr_ba), 4),
-                    "direction": f"{modality_b}→{modality_a}",
-                })
+                edges.append(
+                    {
+                        "cause": f"{modality_b}_feature",
+                        "effect": f"{modality_a}_feature",
+                        "correlation": round(corr_ba, 6),
+                        "lag": lag,
+                        "modality_pair": (modality_b, modality_a),
+                        "confidence": round(abs(corr_ba), 4),
+                        "direction": f"{modality_b}→{modality_a}",
+                    }
+                )
 
         return edges
 
@@ -215,15 +222,17 @@ class MultimodalGraphBuilder:
 
         corr = self._scalar_correlation(mean_vals, mean_diffs)
         if abs(corr) >= self._min_corr:
-            return [{
-                "cause": f"{modality}_auto",
-                "effect": f"{modality}_delta",
-                "correlation": round(corr, 6),
-                "lag": 1,
-                "modality_pair": (modality, modality),
-                "confidence": round(abs(corr), 4),
-                "direction": f"{modality}→{modality}_next",
-            }]
+            return [
+                {
+                    "cause": f"{modality}_auto",
+                    "effect": f"{modality}_delta",
+                    "correlation": round(corr, 6),
+                    "lag": 1,
+                    "modality_pair": (modality, modality),
+                    "confidence": round(abs(corr), 4),
+                    "direction": f"{modality}→{modality}_next",
+                }
+            ]
         return []
 
     @staticmethod
@@ -243,7 +252,7 @@ class MultimodalGraphBuilder:
             相关系数 [-1, 1]
         """
         T = min(len(a), len(b))
-        if T <= lag + 1:
+        if lag + 1 >= T:
             return 0.0
 
         # 对齐: a[:T-lag], b[lag:T]
@@ -260,7 +269,7 @@ class MultimodalGraphBuilder:
         # Pearson 相关
         a_centered = a_scalar - np.mean(a_scalar)
         b_centered = b_scalar - np.mean(b_scalar)
-        denom = np.sqrt(np.sum(a_centered ** 2) * np.sum(b_centered ** 2))
+        denom = np.sqrt(np.sum(a_centered**2) * np.sum(b_centered**2))
         if denom < 1e-10:
             return 0.0
         return float(np.sum(a_centered * b_centered) / denom)
@@ -275,7 +284,7 @@ class MultimodalGraphBuilder:
         b = b[:n]
         a_c = a - np.mean(a)
         b_c = b - np.mean(b)
-        denom = np.sqrt(np.sum(a_c ** 2) * np.sum(b_c ** 2))
+        denom = np.sqrt(np.sum(a_c**2) * np.sum(b_c**2))
         if denom < 1e-10:
             return 0.0
         return float(np.sum(a_c * b_c) / denom)

@@ -39,6 +39,18 @@ def _make_bare_model():
     wm._jepa_encoder = None
     wm._jepa_predictor = None
     wm._do_calculus = None
+    wm._cognitive_loop = None
+    wm._meta_diagnoser = None
+    wm._multi_view_retriever = None
+    wm._surprise_detector = None
+    wm._plan_agent = None
+    wm._action_conditioned_predictor = None
+    wm._multi_branch_predictor = None
+    wm._reflection_synthesizer = None
+    wm._cognitive_diversity = None
+    wm._negative_heuristic = None
+    wm._parametric_memory = None
+    wm._energy_flow_predictor = None
 
     from mci_world_model.sdk._world_model import CausalWorldModelState
 

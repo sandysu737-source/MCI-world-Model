@@ -205,7 +205,7 @@ class EnergyCostModule:
                     energy_state = self._energy_core.get_energy_state(cause_energy, self._month_branch)
                     time_factor = self._energy_core.STRENGTH_MULTIPLIER.get(energy_state.strength, 1.0)
                 except Exception:
-                    logger.debug("energy state time_factor fallback", exc_info=True)
+                    logger.warning("energy state time_factor fallback", exc_info=True)
 
             # 增强模式下的低权重惩罚
             if energy_rel == "enhance" and rho < 0.3:

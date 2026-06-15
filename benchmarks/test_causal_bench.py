@@ -17,7 +17,6 @@ import time
 import numpy as np
 import pytest
 
-
 # =============================================================================
 # 共享 fixtures
 # =============================================================================
@@ -37,7 +36,7 @@ def causal_inference():
 @pytest.fixture(scope="module")
 def large_memories():
     """200 条记忆集合（覆盖 8 卦 + 5 能量类型）。"""
-    rng = np.random.default_rng(42)
+    _rng = np.random.default_rng(42)
     memories = []
     for i in range(200):
         memories.append(
@@ -68,7 +67,7 @@ def large_causal_graph():
 
     # 线性链 + 随机跳跃边
     for i in range(499):
-        cc.link(f"n{i}", f"n{i+1}")
+        cc.link(f"n{i}", f"n{i + 1}")
     # 200 条随机跳跃边
     for _ in range(200):
         a = rng.integers(0, 400)
@@ -95,7 +94,10 @@ class TestP1DirectInference:
         """同类别推理 (score=1.0)。"""
         result = benchmark(
             causal_inference.infer_relation,
-            "creative", "metal", "creative", "metal",
+            "creative",
+            "metal",
+            "creative",
+            "metal",
         )
         assert result["relation"] == "same"
 
@@ -103,7 +105,10 @@ class TestP1DirectInference:
         """语义相生推理 (score=0.8)。"""
         result = benchmark(
             causal_inference.infer_relation,
-            "creative", "metal", "light", "fire",
+            "creative",
+            "metal",
+            "light",
+            "fire",
         )
         assert result["relation"] == "generates"
 
@@ -111,7 +116,10 @@ class TestP1DirectInference:
         """语义相克推理 (score=0.3)。"""
         result = benchmark(
             causal_inference.infer_relation,
-            "creative", "metal", "wind", "wood",
+            "creative",
+            "metal",
+            "wind",
+            "wood",
         )
         assert result["relation"] == "contradicts"
 
@@ -119,7 +127,10 @@ class TestP1DirectInference:
         """能量相生推理 (score=0.7)。"""
         result = benchmark(
             causal_inference.infer_relation,
-            "abyss", "wood", "mountain", "fire",
+            "abyss",
+            "wood",
+            "mountain",
+            "fire",
         )
         assert result["relation"] == "generates"
 
@@ -127,12 +138,16 @@ class TestP1DirectInference:
         """无关系推理 (score=0.0)。"""
         result = benchmark(
             causal_inference.infer_relation,
-            "creative", "wood", "abyss", "wood",
+            "creative",
+            "wood",
+            "abyss",
+            "wood",
         )
         assert result["relation"] == "neutral"
 
     def test_infer_batch_64_combos(self, benchmark, causal_inference):
         """64 种组合批量推理（模拟检索场景）。"""
+
         def batch_infer():
             results = []
             for qc in CATEGORIES:
@@ -158,7 +173,10 @@ class TestP2MultiHopInference:
         """1 跳推理 (200 条记忆)。"""
         results = benchmark(
             causal_inference.multi_hop_inference,
-            "creative", "metal", large_memories, 1,
+            "creative",
+            "metal",
+            large_memories,
+            1,
         )
         assert len(results) == 200
 
@@ -166,7 +184,10 @@ class TestP2MultiHopInference:
         """2 跳推理 (200 条记忆)。"""
         results = benchmark(
             causal_inference.multi_hop_inference,
-            "creative", "metal", large_memories, 2,
+            "creative",
+            "metal",
+            large_memories,
+            2,
         )
         assert len(results) == 200
 
@@ -174,13 +195,16 @@ class TestP2MultiHopInference:
         """3 跳推理 (200 条记忆)。"""
         results = benchmark(
             causal_inference.multi_hop_inference,
-            "creative", "metal", large_memories, 3,
+            "creative",
+            "metal",
+            large_memories,
+            3,
         )
         assert len(results) == 200
 
     def test_3_hop_50_memories(self, benchmark, causal_inference):
         """3 跳推理 (50 条记忆，常见规模)。"""
-        rng = np.random.default_rng(99)
+        _rng = np.random.default_rng(99)
         memories = [
             {
                 "id": f"m{i}",
@@ -191,7 +215,10 @@ class TestP2MultiHopInference:
         ]
         results = benchmark(
             causal_inference.multi_hop_inference,
-            "creative", "metal", memories, 3,
+            "creative",
+            "metal",
+            memories,
+            3,
         )
         assert len(results) == 50
 

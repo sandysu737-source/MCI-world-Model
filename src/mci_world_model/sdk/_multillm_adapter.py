@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import json
 import logging
-import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -108,9 +108,7 @@ class OllamaProvider:
             import urllib.request
 
             data = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                url, data=data, headers={"Content-Type": "application/json"}, method="POST"
-            )
+            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 return result.get("response", "")
@@ -211,7 +209,7 @@ class MultiLLMAdapter:
                 if inst is not None:
                     self._provider_instances[name] = inst
             except Exception as e:
-                logger.debug(f"Provider '{name}' init skipped: {e}")
+                logger.warning("Provider '%s' init skipped: %s", name, e)
 
         # 检测可用性
         self._detect_availability()
@@ -307,14 +305,14 @@ class MultiLLMAdapter:
                 # 匹配最接近的标签
                 matched = self._match_label(result, labels)
                 return {"label": matched, "scores": {matched: 1.0}, "method": "llm"}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM 分类失败，降级为规则匹配: %s", e)
 
         # 降级: 规则匹配
         matched = self._rules_classify(text, labels)
         return {
             "label": matched,
-            "scores": {l: 1.0 if l == matched else 0.0 for l in labels},
+            "scores": {lbl: 1.0 if lbl == matched else 0.0 for lbl in labels},
             "method": "rules",
         }
 
@@ -399,3 +397,84 @@ class MultiLLMAdapter:
             "providers": providers_status,
             "mode": "llm" if self._available else "fallback",
         }
+
+    def reason_with_cf(
+        self,
+        prompt: str,
+        cf_result: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> str:
+        """v4.4.2: 基于反事实推演结果的再推理。
+
+        LLM↔CEWM 双向反馈闭环核心——LLM 接收 CEWM 反事实推演结果，
+        将结果融入后续推理，实现"如果选 A 会怎样 → CEWM 推演 → 改为选 B"的决策闭环。
+
+        Args:
+            prompt: 原始问题/提示词
+            cf_result: CounterfactualOracle.query() 的返回结果
+                {"best_scenario": str, "best_effect": float,
+                 "rankings": [...], "recommendation": str, "n_scenarios": int}
+            context: 额外上下文
+            **kwargs: 传递给 provider 的额外参数
+
+        Returns:
+            融合了反事实推演结果的推理文本
+        """
+        if cf_result is None or not cf_result.get("rankings"):
+            # 无 CF 结果，退化为普通 generate
+            return self.generate(prompt, context=context, **kwargs)
+
+        # 构建 CF 增强提示词
+        cf_prompt = self._build_cf_prompt(prompt, cf_result)
+
+        # 尝试活跃 provider
+        if self._active_provider is not None:
+            try:
+                inst = self._provider_instances[self._active_provider]
+                system = kwargs.pop(
+                    "system",
+                    "你是一个临床营养专家。请基于世界模型反事实推演结果，"
+                    "用中文给出推理过程和最终建议（不超过 300 字）。",
+                )
+                return inst.generate(cf_prompt, system=system, **kwargs)
+            except Exception as e:
+                logger.warning("reason_with_cf provider 失败: %s，降级", e)
+
+        # 降级: 基于 CF 结果的规则推理
+        return self._fallback_reason_with_cf(prompt, cf_result)
+
+    def _build_cf_prompt(self, prompt: str, cf_result: dict) -> str:
+        """构建 CF 增强提示词。"""
+        best = cf_result.get("best_scenario", "未知")
+        best_effect = cf_result.get("best_effect")
+        recommendation = cf_result.get("recommendation", "")
+        rankings = cf_result.get("rankings", [])
+
+        ranking_str = "\n".join(
+            f"  - {r['name']}: 效应={r.get('effect', 'N/A'):.3f}, "
+            f"置信度={r.get('confidence', 0):.0%}, "
+            f"排名={r.get('rank', -1) + 1}"
+            for r in rankings
+            if isinstance(r, dict)
+        )
+
+        return (
+            f"原始问题: {prompt}\n\n"
+            f"基于世界模型反事实推演结果:\n"
+            f"  最优方案: {best}\n"
+            f"  最优效应: {best_effect}\n"
+            f"  各方案推演:\n{ranking_str}\n"
+            f"  推荐理由: {recommendation}\n\n"
+            f"请基于以上反事实推演结果，给出你的推理过程和最终建议。"
+        )
+
+    def _fallback_reason_with_cf(self, prompt: str, cf_result: dict) -> str:
+        """无 LLM 时的降级 CF 推理。"""
+        best = cf_result.get("best_scenario", "未知")
+        recommendation = cf_result.get("recommendation", "")
+        is_uncertain = any(r.get("is_uncertain", False) for r in cf_result.get("rankings", []))
+
+        if is_uncertain:
+            return f"基于世界模型反事实推演，{best} 可能较优，但推演结果不确定，建议结合更多信息决策。"
+        return recommendation or f"推荐方案: {best}"

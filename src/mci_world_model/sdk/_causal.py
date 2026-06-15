@@ -166,6 +166,17 @@ class CausalEngine:
         """
         self.min_confidence = min_confidence
         self._causal_pairs_cache: list[tuple[dict, dict, str, float]] = []
+        # v3.3.1: 降级路径透明化 — 记录所有静默降级事件
+        self._degradation_log: list[str] = []
+
+    @property
+    def degradation_report(self) -> list[str]:
+        """v3.3.1: 返回所有降级事件记录，供调用方检查。
+
+        每次 ImportError 或运行时异常导致路径降级时，
+        会同时写入 logger.warning 和此列表。
+        """
+        return list(self._degradation_log)
 
     def find_causal_pairs(
         self,
@@ -237,7 +248,9 @@ class CausalEngine:
                         _, prior_matrix = syn.run_pipeline(memories)
                         dag.with_reflection_prior(prior_matrix)
                     except ImportError:
-                        logger.debug("ReflectionSynthesizer 不可用，降级为纯统计路径")
+                        msg = "ReflectionSynthesizer 不可用，降级为纯统计路径"
+                        logger.warning(msg)
+                        self._degradation_log.append(msg)
 
                 # ── v3.6.0: 参数化先验增强 ──
                 if use_parametric and parametric_model is not None:
@@ -247,7 +260,9 @@ class CausalEngine:
                         topo = TopologicalEnergyMatrix.build()
                         dag.with_parametric_prior(topo)
                     except ImportError:
-                        logger.debug("TopologicalEnergyMatrix 不可用，跳过参数化先验")
+                        msg = "TopologicalEnergyMatrix 不可用，跳过参数化先验"
+                        logger.warning(msg)
+                        self._degradation_log.append(msg)
 
                 stat_edges = dag.discover_hidden_edges()
 
@@ -270,7 +285,9 @@ class CausalEngine:
                         )
                     )
             except ImportError:
-                logger.debug("GaussianDAG 统计模块不可用，降级为纯关键词模式")
+                msg = "GaussianDAG 统计模块不可用，降级为纯关键词模式"
+                logger.warning(msg)
+                self._degradation_log.append(msg)
 
         # ── 路径 3: 参数化模型推理 (v3.6.0 新增) ──
         if use_parametric and parametric_model is not None and hasattr(parametric_model, "predict"):
@@ -301,7 +318,9 @@ class CausalEngine:
                                 )
                             )
             except Exception as e:
-                logger.debug("参数化推理失败: %s", e)
+                msg = f"参数化推理失败: {e}"
+                logger.warning(msg)
+                self._degradation_log.append(msg)
 
         # 按置信度降序
         pairs.sort(key=lambda x: x[3], reverse=True)
@@ -354,9 +373,13 @@ class CausalEngine:
                         }
                     ]
             except ImportError:
-                logger.debug("MCIWorldModel 不可用，回退到关键词模式")
+                msg = "MCIWorldModel 不可用，回退到关键词模式"
+                logger.warning(msg)
+                self._degradation_log.append(msg)
             except Exception as e:
-                logger.debug("干预预测失败: %s，回退到关键词模式", e)
+                msg = f"干预预测失败: {e}，回退到关键词模式"
+                logger.warning(msg)
+                self._degradation_log.append(msg)
 
         # ── 关键词路径 (现有逻辑) ──
         causes = []

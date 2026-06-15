@@ -37,7 +37,7 @@ MCI World Model 是强劲的「CPU」:
 | 项目 | 版本号 |
 |------|--------|
 | su-memory-sdk（记忆引擎） | V3.5.1 |
-| MCI World Model（世界模型） | V3.3.0（多模态因果世界模型） |
+| MCI World Model（世界模型） | V4.3.3（CEWM 认知增强世界模型 — 参数化记忆觉醒+能量流闭环） |
 
 🔗 上下游
 ==========
@@ -46,7 +46,7 @@ MCI World Model 是强劲的「CPU」:
 - 下游产品：MCI·焕 (mci-huan) / mci-kernel-integrations
 """
 
-__version__ = "3.3.0"
+__version__ = "4.3.3"
 __project__ = "MCI World Model"
 __brand__ = "MCI"
 
@@ -82,6 +82,9 @@ from mci_world_model._sys import (
     YinYang,
 )
 from mci_world_model.sdk import (
+    # v3.6.0: 因果图自适应 + 行动距离
+    ActionConditionedPredictor,
+    ActionGapMetric,
     # v3.0.8: BatchCounterfactualEngine
     BatchCounterfactualEngine,
     # 贝叶斯增强
@@ -91,12 +94,19 @@ from mci_world_model.sdk import (
     CausalGraph,
     # v3.0.7: CausalMLP
     CausalMLP,
+    CausalUpdater,
     CausalWorldModelState,
+    # v3.4.0: 闭环基础设施
+    CognitiveDiversity,
+    CognitiveLoopBus,
     CounterfactualEngine,
     # Pearl 三层
     DoCalculus,
     # 能量一致性
     EnergyConsistencyLoss,
+    # v3.5.0: 经验记忆系统
+    Experience,
+    ExperienceDB,
     FourierCausal,
     GaussianDAG,
     GNNPredictor,
@@ -108,11 +118,21 @@ from mci_world_model.sdk import (
     JEPATrainer,
     # V3.0.0 核心
     MCIWorldModel,
+    # v3.7.0: 认知诊断系统
+    MetaDiagnoser,
+    MultiBranchPredictor,
+    # v3.5.0: 五维融合检索器
+    MultiViewRetriever,
+    NegativeHeuristic,
     # 参数化记忆
     ParametricMemory,
     ParametricMemoryConfig,
     # v3.1.0: 物理量→因果边转换器
     PhysicalGraphBuilder,
+    # v4.3.2: PlanAgent
+    PlanAgent,
+    # v3.5.0: 查询规格
+    QuerySpec,
     # Reflection QA
     ReflectionSynthesizer,
     # SIGReg
@@ -138,6 +158,9 @@ __all__ = [
     # v3.0.8: BatchCounterfactualEngine
     "BatchCounterfactualEngine",
     "CausalWorldModelState",
+    # v3.4.0: 闭环基础设施
+    "CognitiveDiversity",
+    "CognitiveLoopBus",
     "CognitiveGap",
     # v3.0.1/v3.0.3: Configurator
     "ConfigAction",
@@ -148,6 +171,9 @@ __all__ = [
     # sdk — 能量一致性
     "EnergyConsistencyLoss",
     "EnergyCore",
+    # v3.5.0: 经验记忆系统
+    "Experience",
+    "ExperienceDB",
     "FourSymbols",
     "FourierCausal",
     "GNNPredictor",
@@ -163,9 +189,21 @@ __all__ = [
     "KnowledgeAging",
     # sdk — V3.0.0 核心
     "MCIWorldModel",
+    "MultiBranchPredictor",
+    # v3.5.0: 五维融合检索器
+    "MultiViewRetriever",
     # _sys — 元认知
     "MetaCognition",
     "MetaConfigurator",
+    # v3.6.0: 认知环闭环
+    "ActionConditionedPredictor",
+    "ActionGapMetric",
+    "CausalUpdater",
+    # v3.7.0: 认知诊断系统
+    "MetaDiagnoser",
+    "NegativeHeuristic",
+    # v4.3.2: PlanAgent
+    "PlanAgent",
     # v3.0.7: CausalMLP
     "CausalMLP",
     # sdk — 参数化记忆
@@ -176,6 +214,8 @@ __all__ = [
     "PerceptionPipeline",
     # v3.1.0: PhysicalGraphBuilder
     "PhysicalGraphBuilder",
+    # v3.5.0: 查询规格
+    "QuerySpec",
     # sdk — Reflection QA
     "ReflectionSynthesizer",
     # sdk — SIGReg

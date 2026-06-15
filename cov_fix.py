@@ -22,10 +22,7 @@ def _patched_init(self, *args, **kwargs):
     """Rewrite source kwarg: submodule → top-level package."""
     source = kwargs.get("source")
     if source:
-        kwargs["source"] = [
-            "mci_world_model" if s.startswith("mci_world_model.") else s
-            for s in source
-        ]
+        kwargs["source"] = ["mci_world_model" if s.startswith("mci_world_model.") else s for s in source]
     return _orig_init(self, *args, **kwargs)
 
 

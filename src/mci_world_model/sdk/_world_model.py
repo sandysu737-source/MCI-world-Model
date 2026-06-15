@@ -1,26 +1,37 @@
 """
-MCI World Model v3.0.6 — 能量-因果统一世界模型
-=================================================
+MCI World Model v4.3.3 — CEWM 认知增强世界模型
+=====================================================
 
 神经-符号因果推理系统的统一接口，
-v3.0.6: 能量-因果统一 — 对偶边表示 + EnergyFlowPredictor + 自动能量调节闭环 + 五维覆盖度。
+v4.3.3: 参数化记忆觉醒 + 能量流闭环。
 融合三层因果量化管道 + JEPA 编码器-预测器 + Pearl do-calculus 干预 +
 Pearl counterfactual 反事实推理 (L3)。
 
 核心能力:
 - discover():        三层因果发现 → 加权因果图 → JEPA 编码
-- predict_effect():  纯检索路径 + JEPA 预测路径（v3.0.3 统一）
+- predict_effect():  纯检索路径 + JEPA 预测路径
 - jepa_predict():    JEPA 潜空间预测 (encoder→state→predictor→next_state)
 - intervene():       Pearl do-operator 干预预测（Pearl L2）
 - decompose_effect(): 因果效应三分解 NDE/NIE/TE
-- query_counterfactual(): Pearl 反事实推理（v3.0.8 L3）
+- query_counterfactual(): Pearl 反事实推理（L3）
 - train_jepa():      JEPA 端到端训练（替代 train_parametric）
 - explain():         因果链回溯，人类可读解释
-- health_check():    全系统健康诊断
+- run_cognitive_loop():   Wiener 四环认知闭环传播（v4.3.0）
+- diagnose_failure():     MetaDiagnoser 认知失败诊断（v4.3.0）
+- retrieve_experiences(): MultiViewRetriever 五维经验检索（v4.3.0）
+- detect_surprise():      SurpriseDetector 惊奇误差检测（v4.3.1）
+- plan_action():          PlanAgent 因果决策前置规划（v4.3.2）
+- synthesize_training_data(): ReflectionSynthesizer MEMO QA 合成（v4.3.2）
+- assess_diversity():     CognitiveDiversity 五维多样性评估（v4.3.2）
+- check_admissibility():  NegativeHeuristic 硬核规则检查（v4.3.2）
+- train_parametric():     CausalMLP 参数化记忆训练（v4.3.3）
+- predict_causal_category(): CausalMLP 五范畴因果预测（v4.3.3）
+- predict_energy_flow():  五行生克能量流预测（v4.3.3）
+- health_check():        全系统健康诊断
 
 架构层次:
     ┌───────────────────────────────────────────┐
-    │        MCIWorldModel (v3.0.3 JEPA)        │
+    │        MCIWorldModel (v4.3.3 CEWM)        │
     │  ┌───────────────────────────────────┐    │
     │  │  JEPA Encoder + Predictor         │    │
     │  │  (潜空间因果图编码 → GNN/基线预测) │    │
@@ -53,6 +64,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -380,7 +392,7 @@ class CausalWorldModelState:
                 other_et = getattr(other.temporal_info, "energy_type", "")
                 dist_temporal = 0.0 if self_et == other_et else 1.0
             except Exception:
-                logger.debug("temporal distance calc failed", exc_info=True)
+                logger.warning("temporal distance calc failed", exc_info=True)
 
         # ── 5. v3.1.0: 信念距离 (置信度轨迹差异) ──
         dist_belief = 0.0
@@ -407,7 +419,7 @@ class CausalWorldModelState:
                         diffs.append(abs(sc - oc))
                     dist_belief = sum(diffs) / len(diffs) if diffs else 0.0
             except Exception:
-                logger.debug("belief distance calc failed", exc_info=True)
+                logger.warning("belief distance calc failed", exc_info=True)
 
         # ── 加权求和 ──
         # 归一化: 只对活跃的组件分配权重
@@ -563,6 +575,100 @@ class WorkingMemory:
         self.trajectory.clear()
         self._state = "IDLE"
 
+    def flush_to_experience_db(
+        self,
+        experience_db,
+        tags: list[str] | None = None,
+        context: dict | None = None,
+    ) -> list[str]:
+        """将工作记忆轨迹刷入 ExperienceDB 作为经验记忆。
+
+        v3.5.0: WorkingMemory ↔ ExperienceDB 集成。
+        每步轨迹转化为一条 Experience，包含代价信号和时空间编码。
+
+        Args:
+            experience_db: ExperienceDB 实例
+            tags: 语义标签（附加到所有经验）
+            context: 上下文信息
+
+        Returns:
+            存储的经验 ID 列表
+        """
+        from mci_world_model.sdk._experience_memory import Experience, ExperienceType
+
+        if not self.trajectory:
+            return []
+
+        exp_ids = []
+        base_tags = tags or []
+        base_context = context or {}
+
+        for step in self.trajectory:
+            # 根据代价信号判断经验类型
+            cost = step.cost_signal
+            if cost is not None and hasattr(cost, "total"):
+                exp_type = ExperienceType.SUCCESS if cost.total < 0.5 else ExperienceType.FAILURE
+            else:
+                exp_type = ExperienceType.TRANSITION
+
+            # 构建因果边（从状态属性推断）
+            causal_edges = []
+            state = step.state
+            if state is not None:
+                state_attrs = [a for a in dir(state) if not a.startswith("_")]
+                for attr in state_attrs[:3]:  # 最多取 3 个属性作为因果边
+                    causal_edges.append(("state", attr))
+
+            # 构建标签
+            step_tags = list(base_tags)
+            if cost is not None and hasattr(cost, "total"):
+                step_tags.append(f"cost_{cost.total:.1f}")
+
+            # 构建上下文
+            step_context = dict(base_context)
+            step_context["step_index"] = step.step_index
+            if step.stem_branch_code is not None:
+                step_context["stem_branch"] = str(step.stem_branch_code)
+
+            exp = Experience(
+                experience_type=exp_type,
+                tags=step_tags,
+                causal_edges=causal_edges,
+                outcome=f"step_{step.step_index}_cost_{cost.total:.4f}"
+                if cost and hasattr(cost, "total")
+                else f"step_{step.step_index}",
+                context=step_context,
+                timestamp=step.timestamp,
+                importance=step.temporal_weight,
+                state_snapshot=state,
+            )
+            exp_id = experience_db.store(exp)
+            exp_ids.append(exp_id)
+
+        # 清空工作记忆
+        self.clear()
+        return exp_ids
+
+    def retrieve_experience_hints(
+        self,
+        experience_db,
+        query_tags: list[str],
+        top_k: int = 3,
+    ):
+        """从 ExperienceDB 检索相关经验以指导当前决策。
+
+        v3.5.0: WorkingMemory ↔ ExperienceDB 集成。
+
+        Args:
+            experience_db: ExperienceDB 实例
+            query_tags: 查询语义标签
+            top_k: 返回数量
+
+        Returns:
+            检索结果列表
+        """
+        return experience_db.retrieve(query_tags=query_tags, top_k=top_k)
+
     def to_dict(self) -> dict:
         return {
             "max_length": self.max_length,
@@ -579,9 +685,9 @@ class WorkingMemory:
 
 class MCIWorldModel:
     """
-    MCI World Model v3.0.6 — 能量-因果统一世界模型。
+    MCI World Model v4.3.3 — CEWM 认知增强世界模型。
 
-    v3.0.6: 能量-因果统一（对偶边表示 + EnergyFlowPredictor + 自动调节闭环 + 五维覆盖度）。
+    v4.3.3: 参数化记忆觉醒 + 能量流闭环。
     统一了检索增强 + JEPA 编码器-预测器两种路径，
     提供 Pearl 因果层级（关联→干预→反事实）的完整接口。
 
@@ -646,12 +752,58 @@ class MCIWorldModel:
         self._do_calculus: object | None = None
         self._do_calculus_lock: threading.Lock = threading.Lock()
         self._intervention_history: list[dict] = []
+        # v3.3.1: 干预历史并发保护
+        self._intervention_history_lock: threading.Lock = threading.Lock()
 
         # P1 并发加固: 初始化锁 (防止多线程重复 initialize)
         self._init_lock: threading.Lock = threading.Lock()
 
         # P2 并发加固: 因果发现锁 (防止多线程同时 discover() 状态交错)
         self._discover_lock: threading.Lock = threading.Lock()
+
+        # v4.3.0 CEWM 组件 (懒加载)
+        self._cognitive_loop: object | None = None
+        self._meta_diagnoser: object | None = None
+        self._multi_view_retriever: object | None = None
+        self._surprise_detector: object | None = None  # v4.3.1 SurpriseDetector
+        self._plan_agent: object | None = None  # v4.3.2 PlanAgent
+        self._action_conditioned_predictor: object | None = None  # v4.3.2 ActionConditionedPredictor
+        self._multi_branch_predictor: object | None = None  # v4.3.2 MultiBranchPredictor
+        self._reflection_synthesizer: object | None = None  # v4.3.2 ReflectionSynthesizer
+        self._cognitive_diversity: object | None = None  # v4.3.2 CognitiveDiversity
+        self._negative_heuristic: object | None = None  # v4.3.2 NegativeHeuristic
+        self._parametric_memory: object | None = None  # v4.3.3 ParametricMemory
+        self._energy_flow_predictor: object | None = None  # v4.3.3 EnergyFlowPredictor
+
+        # v4.4.2: Phase 2 — 安全约束 + 反事实 Oracle
+        self._safety_monitor: object | None = None  # SafetyMonitor
+        self._cf_oracle: object | None = None  # CounterfactualOracle
+
+        # ── P6-P8 v6.0~v8.0: 新增模块 (懒加载) ──
+        self._law_discoverer_v2: object | None = None  # P6: AutonomousLawDiscovererV2
+        self._social_cognition: object | None = None  # P6: SocialCognition
+        self._self_repair: object | None = None  # P6: SelfRepairCognition
+        self._auto_scaler: object | None = None  # P7: AutoScaler
+        self._compliance_engine: object | None = None  # P7: ComplianceRuleEngine
+        self._plugin_manager: object | None = None  # P7: PluginManager
+        self._unified_modal_encoder: object | None = None  # P6: UnifiedModalEncoder
+        self._metacognition_v2: object | None = None  # P6: MetacognitionV2
+        self._medical_sdk: object | None = None  # P7: MedicalCausalSDK
+        self._legal_sdk: object | None = None  # P7: LegalComplianceSDK
+        self._engineering_sdk: object | None = None  # P7: EngineeringSafetySDK
+        self._auditable_causal: object | None = None  # P7: AuditableCausalReasoning
+        self._edge_cloud: object | None = None  # P7: EdgeCloudHybrid
+        self._cross_modal_causal: object | None = None  # P7: CrossModalCausalReasoner
+        self._causal_imagination: object | None = None  # P6: CausalImaginationEngine
+        self._differentiable_causal: object | None = None  # P6: DifferentiableCausalInference
+        self._domain_sdk: object | None = None  # P7: MCIDomainSDK
+        self._sci_pipeline: object | None = None  # P7: ScientificDiscoveryPipeline
+        self._hypothesis_gen: object | None = None  # P7: HypothesisGenerator
+        self._fusion_v2: object | None = None  # P8: NeuralSymbolicFusionV2
+        self._causal_gradient: object | None = None  # P8: CausalGradientPropagation
+        self._symbol_grounding: object | None = None  # P8: SymbolGroundingLearning
+        self._agi_protocol: object | None = None  # P8: AGIIntegrationProtocol
+        self._experiment_designer: object | None = None  # P8: ExperimentDesigner
 
         # 如果传入了 lite_pro，自动初始化
         if lite_pro is not None:
@@ -795,7 +947,7 @@ class MCIWorldModel:
             self._initialized = report["ready"]
 
             if report["ready"]:
-                logger.info("MCIWorldModel v3.1.0 JEPA 初始化完成")
+                logger.info("MCIWorldModel v4.3.3 CEWM 初始化完成")
             else:
                 logger.warning("MCIWorldModel 初始化不完整: %s", report["warnings"])
 
@@ -1222,7 +1374,7 @@ class MCIWorldModel:
                                 max_deviation,
                             )
                 except Exception as e:
-                    logger.debug("能量守恒验证跳过: %s", e)
+                    logger.warning("能量守恒验证跳过: %s", e)
 
             return predictions[:top_k] if predictions else self.predict_effect(cause, top_k=top_k)
 
@@ -1498,8 +1650,9 @@ class MCIWorldModel:
             "result": result.to_dict(),
             "timestamp": __import__("datetime").datetime.now().isoformat(),
         }
-        self._intervention_history.append(intervention_record)
-        self._state.do_interventions.append(intervention_record)
+        with self._intervention_history_lock:
+            self._intervention_history.append(intervention_record)
+            self._state.do_interventions.append(intervention_record)
 
         # ── 构建反事实图 (干预边被切断) ──
         try:
@@ -1759,26 +1912,77 @@ class MCIWorldModel:
         }
 
     def _trace_causal_chains(self, query: str, max_depth: int) -> list[dict]:
-        """追踪因果链。"""
-        chains = []
-        # 简单的关键词匹配追溯
-        for edge in self._state.causal_edges:
-            if "cause_idx" in edge and "effect_idx" in edge:
-                # 基于索引的边 — 需要映射回文本
-                chains.append(
-                    {
-                        "path": [
-                            f"节点 {edge['cause_idx']}",
-                            f"→ 节点 {edge['effect_idx']}",
-                        ],
-                        "confidence": edge.get("confidence", 0.5),
-                        "verdict": edge.get("verdict", "unknown"),
-                        "energy_relation": edge.get("energy_relation", "neutral"),
-                        "depth": 1,
-                    }
-                )
+        """追踪因果链 — v4.3.1 多跳 BFS 回溯。
 
-        chains.sort(key=lambda c: c["confidence"], reverse=True)
+        从匹配 query 的因果边出发，沿 effect→cause 方向链式回溯，
+        构建长度 ≤ max_depth 的多跳因果链（A→B→C→...）。
+        对每个节点尝试作为中间节点继续扩展，实现级联因果追溯。
+        """
+        edges = self._state.causal_edges
+        if not edges:
+            return []
+
+        # 1. 统一节点名：优先 "cause"/"effect" 字符串，否则用 idx 生成标签
+        def _node_name(e: dict, role: str) -> str:
+            s = e.get(role)  # "cause" or "effect"
+            if isinstance(s, str):
+                return s
+            idx = e.get(f"{role}_idx")
+            if idx is not None:
+                return f"节点 {idx}"
+            return f"{role}_{id(e)}"
+
+        # 2. 构建邻接表: cause → [(effect_name, edge), ...]
+        adj: dict[str, list[tuple[str, dict]]] = {}
+        for e in edges:
+            cause = _node_name(e, "cause")
+            effect = _node_name(e, "effect")
+            adj.setdefault(cause, []).append((effect, e))
+
+        # 3. 匹配 query — 模糊查找起始节点
+        query_lower = query.lower()
+        starts: list[tuple[str, dict]] = []
+        for e in edges:
+            cause = _node_name(e, "cause")
+            effect = _node_name(e, "effect")
+            if query_lower in cause.lower() or query_lower in effect.lower():
+                starts.append((cause, e))
+
+        if not starts:
+            return []
+
+        # 4. BFS 多跳遍历
+        chains: list[dict] = []
+        for start_cause, start_edge in starts:
+            path = [start_cause]
+            confs = [start_edge.get("confidence", 0.5)]
+            queue: list[tuple[str, int, list[str], list[float]]] = [(start_cause, 1, path, confs)]
+
+            while queue:
+                node, depth, path, confs = queue.pop(0)
+                if depth > max_depth:
+                    continue
+                if node not in adj:
+                    continue
+                for next_effect, next_edge in adj[node]:
+                    if next_effect in path:  # 防环
+                        continue
+                    new_path = [*path, f"→ {next_effect}"]
+                    new_confs = [*confs, next_edge.get("confidence", 0.5)]
+                    chains.append(
+                        {
+                            "path": new_path,
+                            "confidence": sum(new_confs) / len(new_confs),
+                            "verdict": next_edge.get("verdict", "predicted"),
+                            "energy_relation": next_edge.get("energy_relation", "neutral"),
+                            "depth": len(new_path) - 1,
+                        }
+                    )
+                    if depth + 1 <= max_depth:
+                        queue.append((next_effect, depth + 1, new_path, new_confs))
+
+        # 按深度（多跳优先）、置信度排序
+        chains.sort(key=lambda c: (c["depth"], c["confidence"]), reverse=True)
         return chains
 
     def _generate_explanation_summary(self, chains: list[dict], query: str) -> str:
@@ -1880,25 +2084,6 @@ class MCIWorldModel:
             logger.error("JEPA 训练失败: %s", e)
             return {"error": str(e)}
 
-    def train_parametric(
-        self,
-        qa_pairs: list,
-        output_dir: str = "./checkpoints/mci-world-model",
-    ) -> dict:
-        """
-        一键参数化训练（v3.6.0 — v3.1.0 降级为 train_jepa 别名）。
-
-        v3.1.0: 重路由到 JEPA 训练循环。
-
-        Args:
-            qa_pairs: Reflection QA 对列表
-            output_dir: checkpoint 输出目录
-
-        Returns:
-            训练统计
-        """
-        return self.train_jepa(qa_pairs=qa_pairs, output_dir=output_dir)
-
     # ────────────────────────────────────────────────
     # 健康检查
     # ────────────────────────────────────────────────
@@ -1906,8 +2091,8 @@ class MCIWorldModel:
     def health_check(self) -> dict:
         """全系统健康诊断。"""
         check = {
-            "version": "3.1.0",
-            "code_name": "MCI World Model v3.1.0 JEPA 编码器-预测器统一",
+            "version": "4.3.3",
+            "code_name": "MCI World Model v4.3.3 CEWM 认知增强",
             "initialized": self._initialized,
             "causal_pipeline": {
                 "edges_discovered": len(self._state.causal_edges),
@@ -1950,6 +2135,20 @@ class MCIWorldModel:
                 "lite_pro_connected": self._lite_pro is not None,
                 "n_memories": self._state.n_memories,
             },
+            "cewm_components": {
+                "cognitive_loop": self._cognitive_loop is not None,
+                "meta_diagnoser": self._meta_diagnoser is not None,
+                "multi_view_retriever": self._multi_view_retriever is not None,
+                "surprise_detector": self._surprise_detector is not None,
+                "plan_agent": self._plan_agent is not None,
+                "action_conditioned_predictor": self._action_conditioned_predictor is not None,
+                "multi_branch_predictor": self._multi_branch_predictor is not None,
+                "reflection_synthesizer": self._reflection_synthesizer is not None,
+                "cognitive_diversity": self._cognitive_diversity is not None,
+                "negative_heuristic": self._negative_heuristic is not None,
+                "parametric_memory": self._parametric_memory is not None,
+                "energy_flow_predictor": self._energy_flow_predictor is not None,
+            },
             "energy_coverage": self._compute_energy_coverage(),
             "roadmap": {
                 "v3.0.7": "parametric_memory_awakening ✓",
@@ -1978,6 +2177,30 @@ class MCIWorldModel:
                 "v3.0.3": "six_module_closed_loop ✓"
                 if self._perception is not None
                 else "six_module_closed_loop (pending)",
+                "v3.6.0": "cewm_engine_unified ✓" if hasattr(self, "cewm_step") else "cewm_engine (pending)",
+                "v4.3.0": "cewm_four_components ✓" if self._cognitive_loop is not None else "cewm_components (pending)",
+                "v4.3.1": "surprise_detector_integrated ✓"
+                if self._surprise_detector is not None
+                else "surprise_detector (pending)",
+                "v4.3.2": "cewm_six_modules_integrated ✓" if self._plan_agent is not None else "cewm_modules (pending)",
+                "v4.3.2-m2": "reflection_synthesizer_qa ✓"
+                if self._reflection_synthesizer is not None
+                else "reflection_synthesizer (pending)",
+                "v4.3.2-m3": "cognitive_diversity ✓"
+                if self._cognitive_diversity is not None
+                else "cognitive_diversity (pending)",
+                "v4.3.2-m4": "negative_heuristic ✓"
+                if self._negative_heuristic is not None
+                else "negative_heuristic (pending)",
+                "v4.3.3": "parametric_memory_awakening ✓"
+                if self._parametric_memory is not None
+                else "parametric_memory (pending)",
+                "v4.3.3-m2": "energy_flow_closed_loop ✓"
+                if self._energy_flow_predictor is not None
+                else "energy_flow (pending)",
+                "v4.3.3-m3": "cewm_twelve_components ✓"
+                if self._parametric_memory is not None and self._energy_flow_predictor is not None
+                else "cewm_twelve (pending)",
             },
             "status": self._compute_health_status(),
         }
@@ -2419,12 +2642,938 @@ class MCIWorldModel:
         """当前世界模型状态。"""
         return self._state
 
+    # ────────────────────────────────────────────────
+    # v3.6.0: CEWM 引擎统一闭环入口
+    # ────────────────────────────────────────────────
+
+    def cewm_step(
+        self,
+        observation: Any = None,
+        goal: Any = None,
+        action: Any = None,
+    ) -> dict[str, Any]:
+        """v3.6.0: CEWM 引擎一步驱动全流程。
+
+        统一闭环入口，整合五层架构:
+        1. 感知层 (Perception): 观测 → 世界状态
+        2. 认知层 (Cognition): 因果图更新 + 经验检索
+        3. 预测层 (Prediction): JEPA/因果预测
+        4. 行动层 (Action): 行动距离评估 + 决策
+        5. 反馈层 (Feedback): 预测误差 → 注意力调整
+
+        Example:
+            >>> wm = MCIWorldModel()
+            >>> result = wm.cewm_step(
+            ...     observation=PendulumState(theta=0.1, omega=0.0),
+            ...     goal=PendulumState(theta=0.0, omega=0.0),
+            ... )
+            >>> print(f"行动距离: {result['action_distance']:.3f}")
+            >>> print(f"预测误差: {result['prediction_error']:.3f}")
+
+        Args:
+            observation: 当前观测状态（支持 PendulumState/WorldState/dict）
+            goal: 目标状态
+            action: 已执行的动作（可选，用于反馈更新）
+
+        Returns:
+            CEWM 步骤结果字典:
+            {
+                "state": 当前世界状态,
+                "action_distance": 行动距离,
+                "physical_distance": 物理距离,
+                "prediction": 预测结果,
+                "prediction_error": 预测误差,
+                "causal_updates": 因果图更新记录数,
+                "attention_weights": 注意力权重,
+                "experience_hints": 经验提示数,
+            }
+        """
+        result: dict[str, Any] = {
+            "state": None,
+            "action_distance": 0.0,
+            "physical_distance": 0.0,
+            "prediction": None,
+            "prediction_error": 0.0,
+            "causal_updates": 0,
+            "attention_weights": {},
+            "experience_hints": 0,
+            "safety_violation": False,
+            "safety_reason": "",
+        }
+
+        # ── 1. 感知层: 观测 → 世界状态 ──
+        current_state = self._cewm_parse_state(observation)
+        goal_state = self._cewm_parse_state(goal)
+        result["state"] = current_state
+
+        # ── 1.5 安全层: v4.4.2 约束检查 ──
+        if self._safety_monitor is not None and current_state is not None:
+            from mci_world_model.sdk._safety import SafetyMonitor as _SM
+
+            if isinstance(self._safety_monitor, _SM):
+                safety_result = self._safety_monitor.check_all(current_state, action)
+                if not safety_result.passed:
+                    result["safety_violation"] = True
+                    result["safety_reason"] = safety_result.reason
+                    logger.warning("CEWM 安全违规: %s", safety_result.reason)
+                    return result
+
+        # ── 2. 认知层: 因果图 + 经验 ──
+        # v4.5.0: DeadlineMonitor 降级检查——如果已降级则跳过认知层
+        _degraded = False
+        if hasattr(self, "_deadline_monitor") and self._deadline_monitor is not None:
+            if self._deadline_monitor.is_degraded:
+                _degraded = True
+                logger.info("DeadlineMonitor 已降级，跳过认知层")
+
+        causal_updates = 0
+        experience_hints = 0
+
+        if not _degraded:
+            from mci_world_model.sdk._causal_updater import CausalUpdater
+
+            self._causal_updater = CausalUpdater()
+
+            if current_state is not None and goal_state is not None:
+                # 基于状态变化添加因果证据
+                state_change = self._cewm_state_change(current_state)
+                if state_change:
+                    records = self._causal_updater.update(
+                        {
+                            "edges": state_change,
+                            "confidence": 0.6,
+                        }
+                    )
+                    causal_updates = len(records)
+
+            # 经验检索
+            if hasattr(self, "_experience_db") and self._experience_db is not None:
+                try:
+                    hints = self._experience_db.retrieve(top_k=3)
+                    experience_hints = len(hints)
+                except Exception as e:
+                    logger.warning("经验检索跳过: %s", e)
+
+        result["causal_updates"] = causal_updates
+        result["experience_hints"] = experience_hints
+
+        # ── 3. 行动层: 距离评估 ──
+        if not hasattr(self, "_action_gap_metric"):
+            from mci_world_model.sdk._action_gap import ActionGapMetric
+
+            self._action_gap_metric = ActionGapMetric()
+
+        if current_state is not None and goal_state is not None:
+            gap_result = self._action_gap_metric.distance(current_state, goal_state)
+            result["action_distance"] = gap_result.action_distance
+            result["physical_distance"] = gap_result.physical_distance
+
+        # ── 4. 预测层: JEPA/因果预测 ──
+        prediction = None
+        pred_error = 0.0
+
+        try:
+            if self._jepa_predictor is not None and current_state is not None:
+                # 使用 JEPA 预测
+                predictions = self.jepa_predict(
+                    query=str(current_state) if hasattr(current_state, "__str__") else "state"
+                )
+                prediction = predictions
+        except Exception as e:
+            logger.warning("JEPA 预测跳过: %s", e)
+
+        # 预测误差（如果有 action，比较预测 vs 实际）
+        if action is not None and current_state is not None and goal_state is not None:
+            remaining_cost = self._action_gap_metric.action_cost(current_state, action, goal_state)
+            pred_error = remaining_cost / max(1.0, result["action_distance"])
+            result["prediction_error"] = min(1.0, pred_error)
+
+        result["prediction"] = prediction
+
+        # ── 5. 反馈层: 注意力调整 ──
+        if not hasattr(self, "_perception") or self._perception is None:
+            from mci_world_model._sys._perception_pipeline import PerceptionPipeline
+
+            self._perception = PerceptionPipeline()
+
+        if hasattr(self._perception, "attention_policy"):
+            feedback = {
+                "prediction_error": result.get("prediction_error", 0.0),
+            }
+            # 基于预测误差调整各通道权重
+            weights = self._perception.attention_policy(feedback)
+            result["attention_weights"] = weights
+
+        return result
+
+    def cewm_step_fast(
+        self,
+        observation: Any = None,
+        goal: Any = None,
+        action: Any = None,
+    ) -> dict[str, Any]:
+        """v4.5.0: CEWM 快速路径——跳过认知诊断/经验检索，仅做预测+安全。
+
+        适用于硬实时场景，牺牲部分精度换取低延迟。
+
+        与 cewm_step() 的区别:
+        - 跳过认知层 (因果图更新 + 经验检索)
+        - 跳过反馈层 (注意力调整)
+        - 保留安全检查 (如已配置 SafetyMonitor)
+        - 保留行动距离评估
+        - 保留 JEPA 预测
+
+        Args:
+            observation: 当前观测状态
+            goal: 目标状态
+            action: 已执行的动作
+
+        Returns:
+            精简的 CEWM 步骤结果字典
+        """
+        import time as _time
+
+        t0 = _time.monotonic()
+
+        result: dict[str, Any] = {
+            "state": None,
+            "action_distance": 0.0,
+            "physical_distance": 0.0,
+            "prediction": None,
+            "prediction_error": 0.0,
+            "safety_violation": False,
+            "safety_reason": "",
+            "latency_ms": 0.0,
+            "fast_path": True,
+        }
+
+        # ── 1. 感知层: 观测 → 世界状态 ──
+        current_state = self._cewm_parse_state(observation)
+        goal_state = self._cewm_parse_state(goal)
+        result["state"] = current_state
+
+        # ── 1.5 安全层 ──
+        if self._safety_monitor is not None and current_state is not None:
+            from mci_world_model.sdk._safety import SafetyMonitor as _SM
+
+            if isinstance(self._safety_monitor, _SM):
+                safety_result = self._safety_monitor.check_all(current_state, action)
+                if not safety_result.passed:
+                    result["safety_violation"] = True
+                    result["safety_reason"] = safety_result.reason
+                    result["latency_ms"] = (_time.monotonic() - t0) * 1000.0
+                    return result
+
+        # ── 2. 行动层: 距离评估 ──
+        if not hasattr(self, "_action_gap_metric"):
+            from mci_world_model.sdk._action_gap import ActionGapMetric
+
+            self._action_gap_metric = ActionGapMetric()
+
+        if current_state is not None and goal_state is not None:
+            gap_result = self._action_gap_metric.distance(current_state, goal_state)
+            result["action_distance"] = gap_result.action_distance
+            result["physical_distance"] = gap_result.physical_distance
+
+        # ── 3. 预测层: JEPA ──
+        try:
+            if self._jepa_predictor is not None and current_state is not None:
+                predictions = self.jepa_predict(
+                    query=str(current_state) if hasattr(current_state, "__str__") else "state"
+                )
+                result["prediction"] = predictions
+        except Exception:
+            pass  # 快速路径: 预测失败不阻塞
+
+        # ── 4. 紧急停止检查 ──
+        if hasattr(self, "_emergency_stop") and self._emergency_stop is not None:
+            if self._emergency_stop.is_stopped:
+                result["safety_violation"] = True
+                result["safety_reason"] = "emergency_stop"
+
+        result["latency_ms"] = (_time.monotonic() - t0) * 1000.0
+        return result
+
+    # ────────────────────────────────────────────────
+    # v4.3.0 CEWM 组件集成
+    # ────────────────────────────────────────────────
+
+    def run_cognitive_loop(
+        self,
+        layer_errors: dict[str, float] | None = None,
+        n_rounds: int = 1,
+    ) -> dict[str, Any]:
+        """Wiener 四环认知闭环传播（v4.3.0）。
+
+        收集各层误差信号并执行跨层传播，输出参数调整量。
+
+        Args:
+            layer_errors: 各层误差信号 {"perception": 0.5, "cognition": 0.3, ...}
+            n_rounds: 传播轮数（默认 1）
+
+        Returns:
+            传播结果: {"total_energy", "converged", "deltas", "health"}
+        """
+        from mci_world_model.sdk._cognitive_loop import (
+            CognitiveLayer,
+            CognitiveLoopBus,
+        )
+
+        if self._cognitive_loop is None:
+            self._cognitive_loop = CognitiveLoopBus()
+
+        bus = self._cognitive_loop
+
+        # 注入误差信号
+        if layer_errors:
+            layer_map = {
+                "perception": CognitiveLayer.PERCEPTION,
+                "cognition": CognitiveLayer.COGNITION,
+                "prediction": CognitiveLayer.PREDICTION,
+                "action": CognitiveLayer.ACTION,
+            }
+            for name, magnitude in layer_errors.items():
+                layer = layer_map.get(name)
+                if layer is not None:
+                    bus.inject_error(layer, magnitude=float(magnitude))
+
+        # 传播
+        if n_rounds <= 1:
+            prop = bus.propagate()
+            results = [prop]
+        else:
+            results = bus.propagate_n(n_rounds, early_stop=False)
+
+        last = results[-1]
+        health = bus.health_report()
+
+        return {
+            "total_energy": last.total_energy,
+            "converged": last.converged,
+            "deltas": {layer.name: float(d[0]) for layer, d in last.deltas.items()},
+            "health": {
+                "bottleneck_layer": health.bottleneck_layer.name if health.bottleneck_layer else None,
+                "overall_health": health.overall_health,
+                "oscillation_detected": health.oscillation_detected,
+            },
+        }
+
+    def diagnose_failure(
+        self,
+        surprise_signals: list[dict[str, Any]] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """认知失败诊断（v4.3.0 MetaDiagnoser 集成）。
+
+        基于惊奇信号匹配已知失败模式，追溯根因链。
+
+        Args:
+            surprise_signals: 惊奇信号列表
+            context: 附加上下文
+
+        Returns:
+            诊断结果 dict: {"pattern", "severity", "confidence", "recommendation"}
+        """
+        from mci_world_model.sdk._meta_diagnoser import MetaDiagnoser
+
+        if self._meta_diagnoser is None:
+            self._meta_diagnoser = MetaDiagnoser()
+
+        if not surprise_signals:
+            # v4.3.1: 优先从 SurpriseDetector 提取信号
+            if self._surprise_detector is not None:
+                stats = self._surprise_detector.running_statistics()
+                surprise_signals = [
+                    {
+                        "state_distance": stats.get("mean_surprise", 0.0),
+                        "vector_deviation": stats.get("surprise_std", 0.0),
+                        "direction_error": stats.get("anomaly_rate", 0.0),
+                    }
+                ]
+            # 从认知闭环提取误差信号
+            elif self._cognitive_loop is not None:
+                bus = self._cognitive_loop
+                stats = bus.running_statistics()
+                surprise_signals = [
+                    {
+                        "state_distance": stats.get("mean_energy", 0.0),
+                        "vector_deviation": stats.get("energy_std", 0.0),
+                        "direction_error": stats.get("max_layer_energy", 0.0),
+                    }
+                ]
+            else:
+                return {"pattern": None, "severity": 0.0, "recommendation": "无信号可诊断"}
+
+        result = self._meta_diagnoser.diagnose(surprise_signals, context=context)
+
+        return {
+            "pattern": result.pattern.name if result.pattern else None,
+            "severity": result.severity.value if hasattr(result.severity, "value") else result.severity,
+            "confidence": result.confidence,
+            "recommendation": result.recommendation,
+            "root_cause_chain": result.root_cause_chain.chain if result.root_cause_chain else [],
+            "health_scores": result.health_scores or {},
+        }
+
+    def retrieve_experiences(
+        self,
+        tags: list[str] | None = None,
+        causal_edges: list[tuple[str, str]] | None = None,
+        context: dict[str, str] | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        """五维融合经验检索（v4.3.0 MultiViewRetriever 集成）。
+
+        综合语义/因果/时间/上下文/结构五维视角检索历史经验。
+
+        Args:
+            tags: 语义标签
+            causal_edges: 因果边列表
+            context: 上下文信息
+            top_k: 返回数量
+
+        Returns:
+            按综合分数降序排列的检索结果列表
+        """
+        from mci_world_model.sdk._experience_memory import ExperienceDB
+        from mci_world_model.sdk._multi_view_retriever import (
+            MultiViewRetriever,
+            QuerySpec,
+        )
+
+        if self._multi_view_retriever is None:
+            # 复用已有 ExperienceDB 或创建新的
+            if hasattr(self, "_experience_db") and self._experience_db is not None:
+                exp_db = self._experience_db
+            else:
+                exp_db = ExperienceDB()
+            self._multi_view_retriever = MultiViewRetriever(experience_db=exp_db)
+
+        query = QuerySpec(
+            tags=tags or [],
+            causal_edges=causal_edges or [],
+            context=context or {},
+        )
+
+        results = self._multi_view_retriever.retrieve(query, top_k=top_k)
+
+        return [
+            {
+                "experience_id": r.experience.experience_id
+                if hasattr(r.experience, "experience_id")
+                else str(r.experience),
+                "score": r.score,
+                "view_scores": r.view_scores,
+                "strategy": r.strategy,
+            }
+            for r in results
+        ]
+
+    def detect_surprise(
+        self,
+        predicted: Any = None,
+        actual: Any = None,
+        threshold: float = 0.5,
+    ) -> dict[str, Any]:
+        """惊奇误差检测（v4.3.1 SurpriseDetector 集成）。
+
+        量化预测状态与实际观测状态的偏差，输出惊奇信号。
+        作为 diagnose_failure() 的前置量化步骤。
+
+        Args:
+            predicted: 预测状态 (WorldState/dict/PendulumState)
+            actual: 实际观测状态
+            threshold: 惊奇度阈值 [0, 1]
+
+        Returns:
+            {"score": float, "is_anomaly": bool, "breakdown": dict, "stats": dict}
+        """
+        from mci_world_model.sdk._surprise_detector import SurpriseDetector
+
+        if self._surprise_detector is None:
+            self._surprise_detector = SurpriseDetector(threshold=threshold)
+        elif abs(self._surprise_detector.threshold - threshold) > 1e-6:
+            self._surprise_detector.threshold = threshold
+
+        # 解析状态
+        pred_state = self._cewm_parse_state(predicted)
+        actual_state = self._cewm_parse_state(actual)
+
+        if pred_state is None or actual_state is None:
+            return {
+                "score": 0.0,
+                "is_anomaly": False,
+                "breakdown": {},
+                "stats": {},
+                "note": "insufficient_state_input",
+            }
+
+        signal = self._surprise_detector.compute_surprise(pred_state, actual_state)
+        stats = self._surprise_detector.running_statistics()
+
+        return {
+            "score": signal.score,
+            "is_anomaly": signal.is_anomaly,
+            "threshold": signal.threshold,
+            "breakdown": signal.breakdown,
+            "stats": stats,
+        }
+
+    def plan_action(
+        self,
+        current: Any = None,
+        goal: Any = None,
+        max_horizon: int = 5,
+        n_branches: int = 3,
+        predictor_backend: str = "auto",
+    ) -> dict[str, Any]:
+        """因果决策前置规划（v4.4.0 PlanAgent 泛化集成）。
+
+        '先模拟后执行'模式：候选动作 → 多分支推演 → 选最优 Plan。
+
+        v4.4.0: 支持任意 WorldState 类型，通过 predictor_backend 参数
+        选择预测器后端。'auto' 模式自动根据状态类型选择预测器。
+
+        Args:
+            current: 当前状态 (WorldState/dict/PendulumState/CartState)
+            goal: 目标状态
+            max_horizon: 最大规划步数
+            n_branches: 分支数
+            predictor_backend: 预测器后端 ('auto'/'pendulum'/'cart')
+
+        Returns:
+            Plan dict: {"actions": [...], "expected_cost": float, "confidence": float, ...}
+        """
+        from mci_world_model.sdk._action_conditioned_predictor import (
+            CartPhysicsPredictor,
+            PendulumPhysicsPredictor,
+        )
+        from mci_world_model.sdk._plan_agent import PlanAgent
+
+        cur = self._cewm_parse_state(current)
+        gl = self._cewm_parse_state(goal)
+
+        if cur is None or gl is None:
+            return {
+                "status": "insufficient_state",
+                "plan": None,
+                "actions": [],
+                "expected_cost": 0.0,
+                "confidence": 0.0,
+            }
+
+        if self._plan_agent is None:
+            # v4.4.0: 根据 predictor_backend 或状态类型选择预测器
+            if self._action_conditioned_predictor is None:
+                if predictor_backend == "auto":
+                    # 自动选择: 检查状态类型
+                    if hasattr(cur, "x") and hasattr(cur, "v") and not hasattr(cur, "theta"):
+                        self._action_conditioned_predictor = CartPhysicsPredictor()
+                    else:
+                        self._action_conditioned_predictor = PendulumPhysicsPredictor()
+                elif predictor_backend == "cart":
+                    self._action_conditioned_predictor = CartPhysicsPredictor()
+                else:
+                    self._action_conditioned_predictor = PendulumPhysicsPredictor()
+            if self._multi_branch_predictor is None:
+                from mci_world_model.sdk._multi_branch_predictor import MultiBranchPredictor
+
+                self._multi_branch_predictor = MultiBranchPredictor(self._action_conditioned_predictor)
+            self._plan_agent = PlanAgent(
+                predictor=self._action_conditioned_predictor,
+                cost_module=self._cost_module,
+                multi_branch=self._multi_branch_predictor,
+                surprise_detector=self._surprise_detector,
+            )
+
+        plan = self._plan_agent.plan(cur, gl, max_horizon=max_horizon, n_branches=n_branches)
+        return plan.to_dict()
+
+    def synthesize_training_data(
+        self,
+        memories: list[dict] | None = None,
+    ) -> dict[str, Any]:
+        """因果 QA 训练数据合成（v4.3.2 ReflectionSynthesizer 集成）。
+
+        基于 MEMO 框架从因果记忆生成训练 QA 对。
+
+        Returns:
+            {"qa_pairs": [...], "n_pairs": int, "report": dict, "ready": bool}
+        """
+        from mci_world_model.sdk._reflection_synthesizer import ReflectionSynthesizer
+
+        if self._reflection_synthesizer is None:
+            self._reflection_synthesizer = ReflectionSynthesizer()
+
+        if not memories:
+            return {"qa_pairs": [], "n_pairs": 0, "report": {}, "ready": False}
+
+        pairs, prior = self._reflection_synthesizer.run_pipeline(memories)
+        report = self._reflection_synthesizer.training_data_report(pairs)
+
+        return {
+            "qa_pairs": [
+                {
+                    "cause": p.cause_text,
+                    "effect": p.effect_text,
+                    "confidence": p.confidence,
+                    "energy_relation": p.energy_relation,
+                }
+                for p in pairs
+            ],
+            "n_pairs": len(pairs),
+            "prior_matrix_shape": list(prior.shape) if prior is not None else None,
+            "report": report,
+            "ready": report.get("ready_for_training", False),
+        }
+
+    def assess_diversity(
+        self,
+        states: list | None = None,
+        prediction_errors: list[float] | None = None,
+    ) -> dict[str, Any]:
+        """五维认知多样性评估（v4.3.2 CognitiveDiversity 集成）。
+
+        Returns:
+            {"diversity_vector": dict, "ashby_satisfied": bool}
+        """
+        from mci_world_model.sdk._cognitive_diversity import CognitiveDiversity
+
+        if self._cognitive_diversity is None:
+            self._cognitive_diversity = CognitiveDiversity()
+
+        dv = self._cognitive_diversity.compute(
+            states=states,
+            prediction_errors=prediction_errors,
+        )
+        return {
+            "diversity_vector": dv.to_dict(),
+            "ashby_satisfied": dv.to_dict()["ashby_satisfied"],
+            "ashby_ratio": dv.to_dict()["ashby_ratio"],
+        }
+
+    def check_admissibility(
+        self,
+        change: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """硬核规则可接受性检查（v4.3.2 NegativeHeuristic 集成）。
+
+        Lakatos 研究纲领框架：check if a proposed change violates hard-core rules.
+
+        Returns:
+            {"admissible": bool, "violations": list, "suggestions": list}
+        """
+        from mci_world_model.sdk._negative_heuristic import (
+            NegativeHeuristic,
+            ProposedChange,
+        )
+
+        if self._negative_heuristic is None:
+            self._negative_heuristic = NegativeHeuristic()
+
+        if change is None:
+            return {"admissible": True, "violations": [], "suggestions": [], "status": "no_change_provided"}
+
+        pc = ProposedChange(**change) if isinstance(change, dict) else change
+        violations = self._negative_heuristic.violations(pc)
+        # protective_belt_suggestions 基于诊断结果 (dict), 非 ProposedChange
+        suggestions = self._negative_heuristic.protective_belt_suggestions()
+
+        return {
+            "admissible": self._negative_heuristic.is_admissible(pc),
+            "violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "rule_name": v.rule_name,
+                    "severity": v.severity.name if hasattr(v.severity, "name") else str(v.severity),
+                    "description": v.description,
+                }
+                for v in violations
+            ],
+            "suggestions": [
+                {
+                    "target": s.target,
+                    "action": s.action,
+                    "priority": s.priority,
+                    "rationale": s.rationale,
+                }
+                for s in suggestions
+            ],
+            "hard_core_status": self._negative_heuristic.hard_core_status(),
+        }
+
+    # ── v4.3.3 ParametricMemory ────────────────────────────────────────────
+
+    def train_parametric(
+        self,
+        qa_pairs: list | None = None,
+        num_epochs: int = 10,
+        learning_rate: float = 0.01,
+    ) -> dict:
+        """v4.3.3: CausalMLP 参数化记忆训练。
+
+        将 ReflectionSynthesizer 输出的 QA 对训练为小型因果推断网络（~15K 参数），
+        突破 TF-IDF 检索天花板（\"50% 隐藏因果对\"）。
+
+        Args:
+            qa_pairs: SynthesizedQAPair 或 dict 列表；None 则尝试自动获取
+            num_epochs: 训练轮数 (默认 10)
+            learning_rate: 学习率 (默认 0.01)
+
+        Returns:
+            {"status": ..., "n_params": ..., "final_loss": ..., "n_samples": ...}
+        """
+        from mci_world_model.sdk._parametric_memory import (
+            ParametricMemory,
+            ParametricMemoryConfig,
+        )
+
+        if self._parametric_memory is None:
+            config = ParametricMemoryConfig(
+                num_epochs=num_epochs,
+                learning_rate=learning_rate,
+            )
+            self._parametric_memory = ParametricMemory(config)
+
+        if qa_pairs is None:
+            return {"status": "no_training_data", "trainable": False}
+
+        _n, report = self._parametric_memory.prepare_training_data(qa_pairs)
+        if not report["meets_minimum"]:
+            return {"status": "insufficient_data", **report}
+
+        stats = self._parametric_memory.train()
+        return {
+            "status": "trained",
+            "n_params": stats.get("n_trainable_params", 0),
+            **stats,
+        }
+
+    def predict_causal_category(
+        self,
+        cause: str,
+        top_k: int = 3,
+    ) -> dict:
+        """v4.3.3: CausalMLP 五范畴因果分类预测。
+
+        给定原因文本，预测其所属因果范畴（causal/semantic/spacetime/generative/trust）。
+        突破关键词匹配天花板 — 即使无共享关键词也能参数化推理。
+
+        Args:
+            cause: 原因文本
+            top_k: 返回前 K 个最高概率类别
+
+        Returns:
+            {"status": "ok"|"not_trained", "predictions": [...], "probs": {...}, "n_params": int}
+        """
+        from mci_world_model.sdk._parametric_memory import ParametricMemory
+
+        if self._parametric_memory is None:
+            self._parametric_memory = ParametricMemory()
+
+        if not self._parametric_memory.is_trained:
+            return {
+                "status": "not_trained",
+                "predictions": [],
+                "probs": {},
+            }
+
+        predictions = self._parametric_memory.predict(cause, top_k=top_k)
+        probs = self._parametric_memory.predict_probs(cause)
+
+        return {
+            "status": "ok",
+            "cause": cause,
+            "predictions": predictions,
+            "probs": probs,
+            "n_params": self._parametric_memory.model.n_trainable_params if self._parametric_memory.model else 0,
+        }
+
+    def predict_energy_flow(
+        self,
+        steps: int = 5,
+    ) -> dict:
+        """v4.3.3: 基于五行生克的能量流多步预测。
+
+        闭合 JEPA 在能量维度上的预测盲区，模拟能量在五维空间的流转趋势。
+
+        Args:
+            steps: 预测步数 (默认 5)
+
+        Returns:
+            {"steps": int, "flow": [...], "anomaly_detected": bool, "current_ratios": {...}}
+        """
+        from mci_world_model.sdk._energy_flow_predictor import EnergyFlowPredictor
+
+        if self._energy_flow_predictor is None:
+            if self._energy_core is None:
+                self._get_energy_core()
+            self._energy_flow_predictor = EnergyFlowPredictor(self._energy_core)
+
+        current_ratios = self._compute_energy_coverage()
+        ratios = current_ratios.get("ratios", {})
+        if not ratios:
+            ratios = {
+                "semantic": 0.2,
+                "causal": 0.2,
+                "spacetime": 0.2,
+                "generative": 0.2,
+                "trust": 0.2,
+            }
+
+        flow = self._energy_flow_predictor.predict(ratios, steps=steps)
+        anomaly = self._energy_flow_predictor.detect_anomaly(flow)
+
+        return {
+            "steps": steps,
+            "flow": flow,
+            "anomaly_detected": anomaly,
+            "current_ratios": ratios,
+        }
+
+    def _cewm_parse_state(self, obs: Any) -> Any:
+        """解析观测为状态对象。
+
+        v4.4.0: 泛化为使用 StateParserRegistry，
+        不再硬编码 PendulumState 解析逻辑。
+        """
+        if obs is None:
+            return None
+
+        # 优先使用注册表解析
+        if not hasattr(self, "_state_parser_registry"):
+            from mci_world_model.sdk._protocols import StateParserRegistry
+
+            self._state_parser_registry = StateParserRegistry.default()
+
+        parsed = self._state_parser_registry.parse(obs)
+        if parsed is not None:
+            return parsed
+
+        # 回退：无法解析则原样返回
+        return obs
+
+    def _cewm_state_change(self, state: Any) -> list[tuple[str, str]]:
+        """从状态变化提取因果边。
+
+        v4.4.0: 泛化为支持任意 WorldState，
+        不再硬编码 theta/omega。
+        """
+        edges: list[tuple[str, str]] = []
+
+        # PendulumState 特殊处理: theta ↔ omega 因果关系
+        if hasattr(state, "theta") and hasattr(state, "omega"):
+            if abs(state.theta) > 0.01:
+                edges.append(("theta", "omega"))
+            if abs(state.omega) > 0.01:
+                edges.append(("omega", "theta"))
+            return edges
+
+        # CartState: x ↔ v 因果关系
+        if hasattr(state, "x") and hasattr(state, "v"):
+            if abs(state.x) > 0.01:
+                edges.append(("x", "v"))
+            if abs(state.v) > 0.01:
+                edges.append(("v", "x"))
+            return edges
+
+        # RobotWorldState: joint_positions ↔ joint_velocities 因果关系
+        if hasattr(state, "joint_positions") and hasattr(state, "joint_velocities"):
+            try:
+                pos = state.joint_positions
+                vel = state.joint_velocities
+                if pos is not None and vel is not None:
+                    for i in range(len(pos)):
+                        if abs(float(pos[i])) > 0.01:
+                            edges.append((f"joint_pos_{i}", f"joint_vel_{i}"))
+                        if abs(float(vel[i])) > 0.01:
+                            edges.append((f"joint_vel_{i}", f"joint_pos_{i + 1}"))
+            except Exception:
+                pass
+            return edges
+
+        # 通用 WorldState: 基于 to_vector() 维度
+        if hasattr(state, "to_vector"):
+            vec = state.to_vector()
+            for i in range(len(vec)):
+                if abs(float(vec[i])) > 0.01:
+                    for j in range(len(vec)):
+                        if i != j:
+                            edges.append((f"dim_{i}", f"dim_{j}"))
+        return edges
+
+    # ────────────────────────────────────────────────
+    # v6.0~v8.0 / P6-P8: 新增模块方法
+    # ────────────────────────────────────────────────
+
+    def discover_causal_structure(self, data: np.ndarray, var_names: list[str]) -> dict:
+        """P6: 自主因果结构发现 (AutonomousLawDiscovererV2)。"""
+        if self._law_discoverer_v2 is None:
+            from mci_world_model.sdk._autonomous_law_discoverer_v2 import AutonomousLawDiscovererV2
+
+            self._law_discoverer_v2 = AutonomousLawDiscovererV2()
+        report = self._law_discoverer_v2.discover_causal_structure(data, var_names=var_names)
+        return {"n_variables": report.n_variables, "n_edges": report.n_edges, "is_consistent": report.is_consistent}
+
+    def unified_encode(self, modality: str, features: np.ndarray) -> dict:
+        """P6: 统一模态编码 (UnifiedModalEncoder)。"""
+        if self._unified_modal_encoder is None:
+            from mci_world_model.sdk._unified_modal_encoder import UnifiedModalEncoder
+
+            self._unified_modal_encoder = UnifiedModalEncoder()
+        result = self._unified_modal_encoder.encode(modality, features)
+        return {"modality": result.modality, "dim": len(result.shared_vector)}
+
+    def reason_cross_modal(self, observations: list[dict]) -> dict:
+        """P7: 跨模态因果推理 (CrossModalCausalReasoner)。"""
+        if self._cross_modal_causal is None:
+            from mci_world_model.sdk._cross_modal_causal import CrossModalCausalReasoner
+
+            self._cross_modal_causal = CrossModalCausalReasoner()
+        for obs in observations:
+            self._cross_modal_causal.add_observation(obs)
+        result = self._cross_modal_causal.reason()
+        return {"n_links": len(result.links), "total_strength": result.total_strength}
+
+    def imagine(self, causal_matrix: np.ndarray, intervention: dict) -> dict:
+        """P6: 因果想象/反事实模拟 (CausalImaginationEngine)。"""
+        if self._causal_imagination is None:
+            from mci_world_model.sdk._causal_imagination import CausalImaginationEngine
+
+            self._causal_imagination = CausalImaginationEngine()
+        world = self._causal_imagination.imagine(causal_matrix, intervention)
+        return {"plausibility": world.plausibility, "difference": world.difference}
+
+    def self_repair(self, prediction: np.ndarray, actual: np.ndarray) -> dict:
+        """P6: 自修复认知 (SelfRepairCognition)。"""
+        if self._self_repair is None:
+            from mci_world_model.sdk._self_repair_cognition import SelfRepairCognition
+
+            self._self_repair = SelfRepairCognition()
+        anomaly = self._self_repair.detect_anomaly(prediction, actual)
+        return {"is_anomaly": anomaly.is_anomaly, "diagnosis": anomaly.diagnosis}
+
+    def reason_with_audit(self, hypothesis: str, evidence: list[dict]) -> dict:
+        """P7: 带审计轨迹的因果推理 (AuditableCausalReasoning)。"""
+        if self._auditable_causal is None:
+            from mci_world_model.sdk._auditable_causal import AuditableCausalReasoning
+
+            self._auditable_causal = AuditableCausalReasoning()
+        trail = self._auditable_causal.begin(hypothesis)
+        for e in evidence:
+            self._auditable_causal.add_evidence_step(
+                trail, e.get("name", ""), e.get("data", {}), e.get("confidence", 0.5)
+            )
+        trail = self._auditable_causal.conclude(trail, "synthesized")
+        validation = self._auditable_causal.verify_trail(trail)
+        return {"trail_id": trail.trail_id, "is_valid": validation.get("is_valid", False)}
+
     def __repr__(self) -> str:
         status = self._compute_health_status()
         jepa_ready = self._jepa_predictor is not None
         gnn_label = "[GNN]" if self._is_gnn_predictor() else ""
         return (
-            f"MCIWorldModel(v3.0.3{gnn_label}, {len(self._state.causal_edges)} edges, "
+            f"MCIWorldModel(v4.3.3{gnn_label}, {len(self._state.causal_edges)} edges, "
             f"jepa={'✓' if jepa_ready else '✗'}, "
             f"status={status})"
         )

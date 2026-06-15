@@ -26,8 +26,6 @@ from mci_world_model._sys.evidence import (
     EvidenceRecord,
     SourceProfile,
 )
-from mci_world_model._sys.bayesian import BetaDistribution
-
 
 # =============================================================================
 # Fixtures
@@ -67,7 +65,9 @@ def populated_collector():
             context=f"negative_{i}",
         )
     col.collect(belief_id="belief_2", is_positive=True, source="external_db", source_type="external", weight=1.0)
-    col.collect(belief_id="belief_2", is_positive=False, source="user_feedback", source_type="user_feedback", weight=1.0)
+    col.collect(
+        belief_id="belief_2", is_positive=False, source="user_feedback", source_type="user_feedback", weight=1.0
+    )
 
     return col
 
@@ -112,14 +112,12 @@ class TestSourceProfile:
 
     def test_update_reliability_correct(self):
         profile = SourceProfile(source_id="test", source_type="test")
-        initial_score = profile.reliability_score
         profile.update_reliability(was_correct=True)
         assert profile.total_evidence == 1
         assert profile.verified_evidence == 1
 
     def test_update_reliability_incorrect(self):
         profile = SourceProfile(source_id="test", source_type="test")
-        initial_score = profile.reliability_score
         profile.update_reliability(was_correct=False)
         assert profile.total_evidence == 1
         assert profile.contradicted_evidence == 1

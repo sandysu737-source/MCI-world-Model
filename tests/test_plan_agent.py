@@ -21,11 +21,9 @@ from mci_world_model.sdk._action_conditioned_predictor import (
     PendulumJEPAPredictor,
     PendulumPhysicsPredictor,
 )
-from mci_world_model.sdk._multi_branch_predictor import MultiBranchPredictor
 from mci_world_model.sdk._plan_agent import Plan, PlanAgent
 from mci_world_model.sdk._surprise_detector import SurpriseDetector
 from mci_world_model.sdk._world_state import PendulumAction, PendulumState
-
 
 # =============================================================================
 # Fixtures
@@ -204,12 +202,12 @@ class TestExecute:
 
     def test_empty_plan(self, agent, tilted):
         empty_plan = Plan(actions=[])
-        final, report = agent.execute(empty_plan, tilted)
+        _final, report = agent.execute(empty_plan, tilted)
         assert report["n_steps_executed"] == 0
 
     def test_with_surprise_detection(self, agent_with_surprise, tilted, goal):
         plan = agent_with_surprise.plan(tilted, goal, max_horizon=2)
-        final, report = agent_with_surprise.execute(plan, tilted)
+        _final, report = agent_with_surprise.execute(plan, tilted)
         assert "n_surprises" in report
 
 
@@ -286,7 +284,7 @@ class TestEndToEnd:
         """从倾斜状态规划执行后，omega 应向平衡方向移动。"""
         tilted = PendulumState(theta=1.0, omega=0.0)
         plan = agent.plan_with_lookahead(tilted, goal, horizon=3)
-        final, report = agent.execute(plan, tilted)
+        final, _report = agent.execute(plan, tilted)
         # dt=0.01 下 theta 变化很小，但 omega 应该变为负值（推向平衡方向）
         assert final.omega < tilted.omega or final.distance(goal) < tilted.distance(goal)
 
@@ -333,11 +331,14 @@ class TestDefaultCandidates:
         class DummyState(WorldState):
             def to_vector(self):
                 return np.array([1.0])
+
             @classmethod
             def from_vector(cls, vec):
                 return cls()
+
             def distance(self, other):
                 return 0.0
+
             def copy(self):
                 return DummyState()
 

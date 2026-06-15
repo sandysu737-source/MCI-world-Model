@@ -59,16 +59,18 @@ def generate_synthetic_patient(seed: int = 42, n_days: int = 30) -> list[dict]:
         nrs = max(0, min(7, nrs_base + nrs_effect + rng.normal(0, 0.3)))
         weight += rng.normal(0, 0.3) + 0.05 * (calorie - cal_base) / 150
 
-        timeline.append({
-            "day": day,
-            "albumin": round(alb, 1),
-            "prealbumin": round(prealb, 1),
-            "calorie_intake": round(calorie, 0),
-            "protein_intake": round(protein, 1),
-            "medication_dose": round(med, 1),
-            "nrs2002_score": round(nrs, 1),
-            "body_weight": round(weight, 1),
-        })
+        timeline.append(
+            {
+                "day": day,
+                "albumin": round(alb, 1),
+                "prealbumin": round(prealb, 1),
+                "calorie_intake": round(calorie, 0),
+                "protein_intake": round(protein, 1),
+                "medication_dose": round(med, 1),
+                "nrs2002_score": round(nrs, 1),
+                "body_weight": round(weight, 1),
+            }
+        )
 
     return timeline
 
@@ -105,11 +107,13 @@ def multimodal_signals():
     signals = []
     for day in range(1, 31):
         for name in ("albumin", "calorie_intake", "nrs2002_score", "prealbumin"):
-            signals.append(MultimodalSignal(
-                signal_type=SignalType.NUMERICAL,
-                value=float(rng.uniform(25, 45)) if name == "albumin" else float(rng.uniform(800, 2500)),
-                timestamp=f"day_{day}",
-                source="lab_report",
-                metadata={"name": name},
-            ))
+            signals.append(
+                MultimodalSignal(
+                    signal_type=SignalType.NUMERICAL,
+                    value=float(rng.uniform(25, 45)) if name == "albumin" else float(rng.uniform(800, 2500)),
+                    timestamp=f"day_{day}",
+                    source="lab_report",
+                    metadata={"name": name},
+                )
+            )
     return signals

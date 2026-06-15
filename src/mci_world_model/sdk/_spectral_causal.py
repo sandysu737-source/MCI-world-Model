@@ -322,7 +322,7 @@ class GaussianDAG:
                         if node and mem_id in str(getattr(node, "memory_ids", [])):
                             return etype
                     except Exception as e:
-                        logger.debug(
+                        logger.warning(
                             "_infer_energy_type: failed to query energy_bus node %s%s: %s",
                             prefix,
                             etype,
@@ -410,7 +410,7 @@ class GaussianDAG:
                         rel = analyze_relation(mem_etype_a, mem_etype_b)
                         energy_rel = rel.relation.value
                     except ImportError:
-                        pass
+                        pass  # 能量模块不可用，energy_rel 保持默认值
 
                 edges.append(
                     {

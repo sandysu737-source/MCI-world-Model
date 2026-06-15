@@ -20,7 +20,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-
 # =============================================================================
 # T1: JEPAEncoder encode 延迟
 # =============================================================================
@@ -157,11 +156,13 @@ class TestCounterfactualBatchLatency:
                 "prealbumin": round(rng.uniform(150, 350), 1),
                 "body_weight": round(rng.uniform(50, 90), 1),
             }
-            scenarios.append({
-                "evidence": evidence,
-                "do_x": {"calorie_intake": round(base_cal + 500, 0)},
-                "target": "albumin",
-            })
+            scenarios.append(
+                {
+                    "evidence": evidence,
+                    "do_x": {"calorie_intake": round(base_cal + 500, 0)},
+                    "target": "albumin",
+                }
+            )
         return scenarios
 
     def test_cf_batch_100(self, benchmark, batch_engine, batch_scenarios):
@@ -296,7 +297,7 @@ class TestCausalChainLatency:
         for i in range(100):
             cc.add(f"n{i}", energy_type=energy_types[i % 5])
         for i in range(99):
-            cc.link(f"n{i}", f"n{i+1}")
+            cc.link(f"n{i}", f"n{i + 1}")
         return cc
 
     def test_propagate_100_nodes(self, benchmark, large_causal_chain):
@@ -331,25 +332,25 @@ class TestEvidenceCollectorLatency:
         from mci_world_model._sys.evidence import EvidenceCollector
 
         ec = EvidenceCollector()
-        ec.add_source("lab_report", reliability=0.9)
-        ec.add_source("clinical_note", reliability=0.75)
-        ec.add_source("patient_report", reliability=0.6)
+        ec.register_source("lab_report", initial_reliability=0.9)
+        ec.register_source("clinical_note", initial_reliability=0.75)
+        ec.register_source("patient_report", initial_reliability=0.6)
         for i in range(50):
+            source = "lab_report" if i % 3 == 0 else "clinical_note" if i % 3 == 1 else "patient_report"
             ec.collect(
-                evidence_id=f"ev_{i}",
-                content=f"evidence_{i}",
-                source="lab_report" if i % 3 == 0 else "clinical_note" if i % 3 == 1 else "patient_report",
-                confidence=0.5 + (i % 50) / 100,
-                evidence_type="observation",
+                belief_id=f"belief_{i % 10}",
+                is_positive=(i % 2 == 0),
+                source=source,
+                weight=0.5 + (i % 50) / 100,
             )
         return ec
 
     def test_detect_conflicts(self, benchmark, populated_collector):
         """50 条证据冲突检测延迟。"""
-        conflicts = benchmark(populated_collector.detect_conflicts)
+        conflicts = benchmark(populated_collector.detect_evidence_conflicts, "belief_0")
         assert isinstance(conflicts, list)
 
     def test_evidence_strength(self, benchmark, populated_collector):
         """证据强度计算延迟。"""
-        strength = benchmark(populated_collector.get_evidence_strength)
+        strength = benchmark(populated_collector.compute_evidence_strength, "belief_0")
         assert isinstance(strength, dict)

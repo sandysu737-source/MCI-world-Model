@@ -421,6 +421,179 @@ class HierarchicalConfigurator:
         if len(self._feedback_scores) > 10:
             self._feedback_scores.pop(0)
 
+    # -----------------------------------------------------------------
+    # v3.7.0: 多目标优化协调 (Multi-Objective Coordination)
+    # -----------------------------------------------------------------
+
+    def multi_objective_optimize(
+        self,
+        prediction_error: float = 0.0,
+        cognitive_gap_score: float = 0.0,
+        energy_balance_score: float = 0.0,
+        weights: dict[str, float] | None = None,
+    ) -> dict:
+        """v3.7.0: 多目标优化 — 综合预测误差 + 认知空洞 + 能量平衡。
+
+        使用加权线性组合生成综合优化评分，并基于各维度贡献
+        输出优化建议方向。
+
+        Args:
+            prediction_error: 预测误差 [0, 1]，越低越好
+            cognitive_gap_score: 认知空洞评分 [0, 1]，越低越好
+            energy_balance_score: 能量平衡评分 [0, 1]，越高越好
+            weights: 各目标权重，默认均等
+
+        Returns:
+            dict 包含:
+                - composite_score: 综合评分 [0, 1]
+                - dominant_objective: 主导优化目标
+                - recommendations: 优化建议列表
+                - pareto_frontier: 各目标的 Pareto 状态
+        """
+        w = weights or {
+            "prediction": 0.40,
+            "cognitive": 0.35,
+            "energy": 0.25,
+        }
+
+        # 归一化：预测误差和认知空洞取反（越低越好 → 越高越好）
+        pred_score = 1.0 - min(1.0, max(0.0, prediction_error))
+        cog_score = 1.0 - min(1.0, max(0.0, cognitive_gap_score))
+        eng_score = min(1.0, max(0.0, energy_balance_score))
+
+        composite = (
+            w.get("prediction", 0.40) * pred_score
+            + w.get("cognitive", 0.35) * cog_score
+            + w.get("energy", 0.25) * eng_score
+        )
+
+        # 主导目标：最差维度优先优化
+        dimensions = {
+            "prediction": pred_score,
+            "cognitive": cog_score,
+            "energy": eng_score,
+        }
+        dominant = min(dimensions, key=dimensions.get)
+
+        # 生成建议
+        recommendations = []
+        if pred_score < 0.5:
+            recommendations.append(
+                {
+                    "target": "prediction",
+                    "action": "增加训练数据多样性或调整预测模型参数",
+                    "urgency": "high" if pred_score < 0.3 else "medium",
+                }
+            )
+        if cog_score < 0.5:
+            recommendations.append(
+                {
+                    "target": "cognitive",
+                    "action": "触发认知空洞填充（扩展因果图/增加经验库覆盖）",
+                    "urgency": "high" if cog_score < 0.3 else "medium",
+                }
+            )
+        if eng_score < 0.5:
+            recommendations.append(
+                {
+                    "target": "energy",
+                    "action": "调整能量分配权重恢复五维平衡",
+                    "urgency": "high" if eng_score < 0.3 else "medium",
+                }
+            )
+
+        # Pareto 状态：如果所有维度都 >= 0.6，认为达到 Pareto 均衡
+        pareto_optimal = all(v >= 0.6 for v in dimensions.values())
+
+        return {
+            "composite_score": round(composite, 4),
+            "dominant_objective": dominant,
+            "dimension_scores": {k: round(v, 4) for k, v in dimensions.items()},
+            "recommendations": recommendations,
+            "pareto_frontier": {
+                "is_optimal": pareto_optimal,
+                "weakest": dominant,
+                "weakest_score": round(dimensions[dominant], 4),
+            },
+        }
+
+    def diagnose_and_configure(
+        self,
+        world_model,
+        diagnosis_result: dict | None = None,
+        gaps: list | None = None,
+    ) -> dict:
+        """v3.7.0: 诊断驱动配置 — 整合 MetaDiagnoser + NegativeHeuristic + 多目标优化。
+
+        流程:
+            1. MetaDiagnoser 诊断 → 失败模式 + 根因链
+            2. NegativeHeuristic 检查 → 确保变更不违反硬核
+            3. HierarchicalConfigurator.configure() → 生成配置动作
+            4. 多目标优化 → 综合评估
+
+        Args:
+            world_model: MCIWorldModel 实例
+            diagnosis_result: MetaDiagnoser 诊断结果
+            gaps: 认知空洞列表
+
+        Returns:
+            dict 包含:
+                - actions: 配置动作列表
+                - heuristic_check: 硬核检查结果
+                - optimization: 多目标优化结果
+        """
+        from mci_world_model.sdk._negative_heuristic import (
+            ChangeType,
+            NegativeHeuristic,
+            ProposedChange,
+        )
+
+        nh = NegativeHeuristic()
+
+        # 从诊断结果提取建议变更
+        pattern = ""
+        heuristic_ok = True
+        heuristic_violations = []
+        if diagnosis_result:
+            pattern = diagnosis_result.get("pattern", "")
+            # 将诊断建议转化为 ProposedChange 并检查
+            suggested = diagnosis_result.get("suggested_changes", [])
+            for s in suggested:
+                change = ProposedChange(
+                    description=s.get("description", ""),
+                    affected_components=s.get("components", []),
+                    change_type=ChangeType(s.get("type", "modify")),
+                    source="diagnosis",
+                )
+                viols = nh.violations(change)
+                if viols:
+                    heuristic_ok = False
+                    heuristic_violations.extend([v.rule_id for v in viols])
+
+        # 执行分层配置
+        actions = self.configure(world_model, gaps)
+
+        # 多目标优化评估
+        pred_error = diagnosis_result.get("prediction_error", 0.5) if diagnosis_result else 0.5
+        cog_gap = diagnosis_result.get("cognitive_gap_score", 0.5) if diagnosis_result else 0.5
+        eng_balance = diagnosis_result.get("energy_balance_score", 0.5) if diagnosis_result else 0.5
+
+        optimization = self.multi_objective_optimize(
+            prediction_error=pred_error,
+            cognitive_gap_score=cog_gap,
+            energy_balance_score=eng_balance,
+        )
+
+        return {
+            "pattern": pattern,
+            "actions": actions,
+            "heuristic_check": {
+                "is_admissible": heuristic_ok,
+                "violations": heuristic_violations,
+            },
+            "optimization": optimization,
+        }
+
 
 # =============================================================================
 # v3.0.4: 能量分布提取器

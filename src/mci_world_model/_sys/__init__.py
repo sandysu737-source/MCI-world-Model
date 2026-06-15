@@ -129,8 +129,46 @@ from mci_world_model._sys._unified_unit import create_unified_unit
 get_seasonal_energy_state = None
 EnergyRelationsType = None
 
-# MultiViewRetriever 占位：5 维融合检索器在未来版本提供，当前为 stub
-MultiViewRetriever = None
+# v3.5.0: MultiViewRetriever 五维融合检索器（由 sdk/__init__.py 延迟注入，避免循环导入）
+# 实际导入发生在 sdk/__init__.py 末尾的 _sys late-binding 块
+MultiViewRetriever = None  # type: ignore[assignment]
+ExperienceDB = None  # type: ignore[assignment]
+Experience = None  # type: ignore[assignment]
+ExperienceType = None  # type: ignore[assignment]
+ExperienceDBStats = None  # type: ignore[assignment]
+RetrievalResult = None  # type: ignore[assignment]
+FusionStrategy = None  # type: ignore[assignment]
+MultiViewResult = None  # type: ignore[assignment]
+MultiViewStats = None  # type: ignore[assignment]
+QuerySpec = None  # type: ignore[assignment]
+RetrievalView = None  # type: ignore[assignment]
+
+# v3.6.0: CausalUpdater + ActionGapMetric（由 sdk/__init__.py 延迟注入）
+CausalUpdater = None  # type: ignore[assignment]
+CausalEdge = None  # type: ignore[assignment]
+CausalUpdaterStats = None  # type: ignore[assignment]
+EdgeAction = None  # type: ignore[assignment]
+UpdateRecord = None  # type: ignore[assignment]
+ActionGapMetric = None  # type: ignore[assignment]
+ActionCostResult = None  # type: ignore[assignment]
+ActionGapConfig = None  # type: ignore[assignment]
+
+# v3.7.0: MetaDiagnoser + NegativeHeuristic（由 sdk/__init__.py 延迟注入）
+MetaDiagnoser = None  # type: ignore[assignment]
+SurpriseSignal = None  # type: ignore[assignment]
+FailurePattern = None  # type: ignore[assignment]
+SeverityLevel = None  # type: ignore[assignment]
+PatternMatch = None  # type: ignore[assignment]
+RootCauseChain = None  # type: ignore[assignment]
+DiagnosisResult = None  # type: ignore[assignment]
+MetaDiagnoserStats = None  # type: ignore[assignment]
+NegativeHeuristic = None  # type: ignore[assignment]
+ProposedChange = None  # type: ignore[assignment]
+ChangeType = None  # type: ignore[assignment]
+HardCoreViolation = None  # type: ignore[assignment]
+ProtectiveBeltSuggestion = None  # type: ignore[assignment]
+NegativeHeuristicStats = None  # type: ignore[assignment]
+RuleSeverity = None  # type: ignore[assignment]
 
 # 别名：保持 world_model.py 的历史接口名仍可导入
 EnergyStateInfo = EnergyState
@@ -186,9 +224,6 @@ from mci_world_model._sys._unified_unit import (
     UnifiedInfoUnit,
 )
 
-# 元认知
-from mci_world_model._sys.awareness import CognitiveGap, KnowledgeAging
-
 # 贝叶斯系统
 from mci_world_model._sys.bayesian import BayesianEngine
 
@@ -203,7 +238,15 @@ from mci_world_model._sys.chrono import (
     TemporalSystem,
     TianGan,
 )
-from mci_world_model._sys.meta_cognition import MetaCognition
+
+# 元认知（v3.4.0: 统一模块）
+from mci_world_model._sys.meta_cognition import (
+    CognitiveGap,
+    CognitiveScoreCard,
+    KnowledgeAging,
+    MetaCognition,
+    RootCauseNode,
+)
 
 __all__ = [
     # 贝叶斯
@@ -226,7 +269,6 @@ __all__ = [
     # 因果
     "CausalChain",
     "CausalInference",
-    "CognitiveGap",
     # v3.0.1: Configurator
     "ConfigAction",
     "DiZhi",
@@ -257,14 +299,54 @@ __all__ = [
     "FourSymbols",
     # 关键词映射
     "KEYWORDS_TO_CATEGORY",
-    "KnowledgeAging",
     # 记忆类型
     "MEMORY_TYPE_TO_CATEGORY",
     "MONTH_ENERGY_STATE",
     "MemoryNodeEnergy",
-    # 元认知
-    "MetaConfigurator",
+    # v3.5.0: 经验记忆系统
+    "Experience",
+    "ExperienceDB",
+    "ExperienceDBStats",
+    "ExperienceType",
+    "FusionStrategy",
+    "MultiViewResult",
+    "MultiViewRetriever",
+    "MultiViewStats",
+    "QuerySpec",
+    "RetrievalResult",
+    "RetrievalView",
+    # v3.6.0: 因果图自适应 + 行动距离
+    "CausalUpdater",
+    "CausalEdge",
+    "CausalUpdaterStats",
+    "EdgeAction",
+    "UpdateRecord",
+    "ActionGapMetric",
+    "ActionCostResult",
+    "ActionGapConfig",
+    # v3.7.0: 认知诊断系统
+    "MetaDiagnoser",
+    "SurpriseSignal",
+    "FailurePattern",
+    "SeverityLevel",
+    "PatternMatch",
+    "RootCauseChain",
+    "DiagnosisResult",
+    "MetaDiagnoserStats",
+    "NegativeHeuristic",
+    "ProposedChange",
+    "ChangeType",
+    "HardCoreViolation",
+    "ProtectiveBeltSuggestion",
+    "NegativeHeuristicStats",
+    "RuleSeverity",
+    # 元认知（v3.4.0 统一模块）
     "MetaCognition",
+    "MetaConfigurator",
+    "CognitiveGap",
+    "CognitiveScoreCard",
+    "KnowledgeAging",
+    "RootCauseNode",
     "PatternInference",
     # v3.0.3: Perception
     "PerceptionPipeline",

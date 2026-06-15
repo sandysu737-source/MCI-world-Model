@@ -228,7 +228,7 @@ class PhysicalGraphBuilder:
                     if np.isfinite(val):
                         matrix[t, j] = val
                 except (TypeError, ValueError):
-                    pass
+                    pass  # 非数值数据跳过，矩阵单元保持 NaN
         return matrix
 
     def _compute_lagged_correlation(
@@ -345,7 +345,7 @@ def signals_to_timeline(signals: list, n_days: int = 30) -> list[dict]:
     from mci_world_model._sys._perception_pipeline import PerceptionPipeline
 
     pipeline = PerceptionPipeline()
-    features = pipeline.process_multimodal(signals)
+    features = pipeline.process_multimodal(signals, enable_fusion=False)
 
     # 从处理后的特征重建按天分组结构
     for feat in features:

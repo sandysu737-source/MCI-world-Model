@@ -17,7 +17,6 @@ import pytest
 
 from mci_world_model.sdk._multimodal_graph_builder import MultimodalGraphBuilder
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -36,10 +35,12 @@ def correlated_timeline():
     base = np.cumsum(rng.randn(T))
     timeline = []
     for t in range(T):
-        timeline.append({
-            "vision": np.array([base[t] + rng.randn() * 0.1, base[t] * 0.5]),
-            "audio": np.array([base[t] + rng.randn() * 0.1, base[t] * 0.3]),
-        })
+        timeline.append(
+            {
+                "vision": np.array([base[t] + rng.randn() * 0.1, base[t] * 0.5]),
+                "audio": np.array([base[t] + rng.randn() * 0.1, base[t] * 0.3]),
+            }
+        )
     return timeline
 
 
@@ -50,10 +51,12 @@ def uncorrelated_timeline():
     T = 20
     timeline = []
     for t in range(T):
-        timeline.append({
-            "vision": rng.randn(2),
-            "audio": rng.randn(2),
-        })
+        timeline.append(
+            {
+                "vision": rng.randn(2),
+                "audio": rng.randn(2),
+            }
+        )
     return timeline
 
 
@@ -160,7 +163,10 @@ class TestBuildCrossModalityEdges:
         features_a = np.column_stack([base, base * 0.5])
         features_b = np.column_stack([base + rng.randn(T) * 0.1, base * 0.3])
         edges = builder.build_cross_modality_edges(
-            features_a, features_b, "vision", "audio",
+            features_a,
+            features_b,
+            "vision",
+            "audio",
         )
         assert len(edges) > 0
         for edge in edges:
@@ -176,7 +182,10 @@ class TestBuildCrossModalityEdges:
         features_a = rng.randn(T, 2)
         features_b = rng.randn(T, 2)
         edges = builder.build_cross_modality_edges(
-            features_a, features_b, "vision", "audio",
+            features_a,
+            features_b,
+            "vision",
+            "audio",
         )
         # 可能有少量偶然相关，但应少于强相关的情况
         assert len(edges) < 10
@@ -186,7 +195,10 @@ class TestBuildCrossModalityEdges:
         features_a = np.array([[1.0], [2.0]])
         features_b = np.array([[1.0], [2.0]])
         edges = builder.build_cross_modality_edges(
-            features_a, features_b, "a", "b",
+            features_a,
+            features_b,
+            "a",
+            "b",
         )
         assert edges == []
 
@@ -224,8 +236,7 @@ class TestThresholdSensitivity:
         T = 20
         base = np.cumsum(rng.randn(T))
         timeline = [
-            {"vision": np.array([base[t]]), "audio": np.array([base[t] * 0.5 + rng.randn() * 0.5])}
-            for t in range(T)
+            {"vision": np.array([base[t]]), "audio": np.array([base[t] * 0.5 + rng.randn() * 0.5])} for t in range(T)
         ]
         b_low = MultimodalGraphBuilder(min_correlation=0.1)
         b_high = MultimodalGraphBuilder(min_correlation=0.9)

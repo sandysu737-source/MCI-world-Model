@@ -86,6 +86,7 @@ class JEPATrainer:
         alpha_energy: float = 0.1,
         beta_cons: float = 0.05,
         parametric_memory=None,
+        use_learnable_encoder: bool = False,
     ):
         """
         Args:
@@ -95,6 +96,7 @@ class JEPATrainer:
             alpha_energy: 能量损失权重
             beta_cons: 能量守恒损失权重
             parametric_memory: v3.0.7 ParametricMemory 实例（可选）
+            use_learnable_encoder: v5.0.0 是否启用可学习编码器训练
         """
         self.encoder = encoder
         self.predictor = predictor
@@ -102,6 +104,14 @@ class JEPATrainer:
         self.alpha_energy = alpha_energy
         self.beta_cons = beta_cons
         self._parametric_memory = parametric_memory
+        self._use_learnable_encoder = use_learnable_encoder
+        self._learnable_encoder = None
+
+        # v5.0.0: 从 encoder 提取可学习编码器
+        if use_learnable_encoder and hasattr(encoder, "learnable_encoder") and encoder.learnable_encoder is not None:
+            self._learnable_encoder = encoder.learnable_encoder
+            logger.info("v5.0.0: 可学习编码器已接入训练器")
+
         self._stats = JEPATrainingStats(
             alpha_energy=alpha_energy,
             beta_cons=beta_cons,
@@ -114,6 +124,9 @@ class JEPATrainer:
             alpha_energy=alpha_energy,
             beta_causal=beta_cons,
         )
+
+        # v5.0.0: 编码器训练统计
+        self._encoder_loss_history: list[float] = []
 
     def _detect_gnn(self) -> bool:
         """检测预测器是否支持可微训练（M2 GNN）。"""
@@ -210,6 +223,73 @@ class JEPATrainer:
         self._stats.n_pairs = len(ds)
 
         return self._stats
+
+    # -----------------------------------------------------------------
+    # v5.0.0: 可学习编码器训练
+    # -----------------------------------------------------------------
+
+    def train_encoder(
+        self,
+        state_vectors: np.ndarray,
+        n_epochs: int = 100,
+        learning_rate: float = 0.01,
+    ) -> dict[str, Any]:
+        """
+        v5.0.0: 训练可学习状态编码器。
+
+        使用自编码器重建损失训练 LearnableStateEncoder。
+        每步: training_forward → compute_gradients → apply_gradients
+
+        Args:
+            state_vectors: shape (N, state_dim) 训练数据
+            n_epochs: 训练轮数
+            learning_rate: 学习率
+
+        Returns:
+            {"final_loss": float, "loss_history": list[float], "n_epochs": int}
+        """
+        if self._learnable_encoder is None:
+            logger.warning("无可学习编码器，跳过编码器训练")
+            return {"final_loss": 0.0, "loss_history": [], "n_epochs": 0}
+
+        state_vectors = np.atleast_2d(np.asarray(state_vectors, dtype=np.float64))
+        loss_history: list[float] = []
+
+        for epoch in range(n_epochs):
+            # 每轮洗牌数据
+            indices = np.random.permutation(len(state_vectors))
+            epoch_losses: list[float] = []
+
+            for idx in indices:
+                x = state_vectors[idx]
+                self._learnable_encoder.training_forward(x)
+                result = self._learnable_encoder.compute_gradients(x)
+                self._learnable_encoder.apply_gradients(result["grads"], lr=learning_rate)
+                epoch_losses.append(result["mse"])
+
+            avg_loss = float(np.mean(epoch_losses))
+            loss_history.append(avg_loss)
+
+            if (epoch + 1) % 50 == 0:
+                logger.info(
+                    "Encoder Epoch %d/%d | MSE: %.6f",
+                    epoch + 1,
+                    n_epochs,
+                    avg_loss,
+                )
+
+        self._encoder_loss_history.extend(loss_history)
+
+        return {
+            "final_loss": loss_history[-1] if loss_history else 0.0,
+            "loss_history": loss_history,
+            "n_epochs": n_epochs,
+        }
+
+    @property
+    def encoder_loss_history(self) -> list[float]:
+        """v5.0.0: 编码器训练损失历史。"""
+        return self._encoder_loss_history
 
     # -----------------------------------------------------------------
     # GNN 可微训练步 (M2)

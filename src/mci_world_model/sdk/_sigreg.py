@@ -206,9 +206,9 @@ def apply_sigreg_to_index(
 
 def _self_test():
     """Quick self-test for SIGReg."""
-    # 构造有偏嵌入 (所有向量在第一象限 → 低各向同性)
-    np.random.seed(42)
-    biased = np.abs(np.random.randn(100, 768))  # 均值偏移
+    # v3.3.1: 使用局部 RandomState 避免污染全局 RNG
+    rng = np.random.RandomState(42)
+    biased = np.abs(rng.randn(100, 768))  # 均值偏移
 
     sigreg = SIGReg(lambda_reg=0.1)
     iso_before = sigreg.compute_isotropy_score(biased)

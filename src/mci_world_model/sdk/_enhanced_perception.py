@@ -19,8 +19,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import numpy as np
-
 logger = logging.getLogger(__name__)
 
 
@@ -129,13 +127,15 @@ class EnhancedPerception:
                 m = re.search(pat, text, re.IGNORECASE)
                 if m and name not in seen:
                     seen.add(name)
-                    signals.append({
-                        "signal_type": "numerical",
-                        "name": name,
-                        "value": float(m.group(1)),
-                        "unit": unit or "unknown",
-                        "source": "text_extraction",
-                    })
+                    signals.append(
+                        {
+                            "signal_type": "numerical",
+                            "name": name,
+                            "value": float(m.group(1)),
+                            "unit": unit or "unknown",
+                            "source": "text_extraction",
+                        }
+                    )
                     break
 
         return signals
@@ -201,7 +201,7 @@ class EnhancedPerception:
             return signals
 
         try:
-            return self._pipeline.process_multimodal(multimodal)
+            return self._pipeline.process_multimodal(multimodal, enable_fusion=False)
         except Exception as e:
             logger.warning(f"Signal processing failed: {e}")
             return signals  # 降级: 返回原始信号
@@ -232,7 +232,7 @@ class EnhancedPerception:
                 )
                 result.append(ms)
             except Exception as e:
-                logger.debug(f"Skip signal conversion: {e}")
+                logger.warning("Skip signal conversion: %s", e)
 
         return result
 

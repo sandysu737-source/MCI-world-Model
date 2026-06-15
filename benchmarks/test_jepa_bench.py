@@ -12,9 +12,7 @@ MCI World Model — JEPA 训练/预测性能基准测试
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
-
 
 # =============================================================================
 # 共享 fixtures

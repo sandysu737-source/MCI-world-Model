@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sandysu737-source/mci-world-model/actions/workflows/ci.yml/badge.svg)](https://github.com/sandysu737-source/mci-world-model/actions)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-3.0.0-orange)](https://github.com/sandysu737-source/mci-world-model/releases)
+[![Version](https://img.shields.io/badge/version-4.3.3-orange)](https://github.com/sandysu737-source/mci-world-model/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Memor-Engine](https://img.shields.io/badge/su--memory--sdk-%3E%3D3.5.1-blue)](https://github.com/sandysu737-source/su-memory-sdk)
 

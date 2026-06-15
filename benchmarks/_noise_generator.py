@@ -49,19 +49,68 @@ SEMANTIC_SYNONYMS: list[tuple[str, list[str]]] = [
 # ==========================================================================
 
 RANDOM_NOUNS: list[str] = [
-    "报告", "系统", "项目", "会议", "方案", "流程", "标准", "资源",
-    "部门", "平台", "模块", "接口", "协议", "框架", "策略", "机制",
-    "配置", "版本", "需求", "文档", "组件", "引擎", "节点", "通道",
+    "报告",
+    "系统",
+    "项目",
+    "会议",
+    "方案",
+    "流程",
+    "标准",
+    "资源",
+    "部门",
+    "平台",
+    "模块",
+    "接口",
+    "协议",
+    "框架",
+    "策略",
+    "机制",
+    "配置",
+    "版本",
+    "需求",
+    "文档",
+    "组件",
+    "引擎",
+    "节点",
+    "通道",
 ]
 
 RANDOM_VERBS: list[str] = [
-    "完成", "更新", "优化", "调整", "发布", "配置", "部署", "验证",
-    "测试", "审核", "提交", "执行", "处理", "生成", "同步", "初始化",
+    "完成",
+    "更新",
+    "优化",
+    "调整",
+    "发布",
+    "配置",
+    "部署",
+    "验证",
+    "测试",
+    "审核",
+    "提交",
+    "执行",
+    "处理",
+    "生成",
+    "同步",
+    "初始化",
 ]
 
 RANDOM_ADJECTIVES: list[str] = [
-    "新的", "主要", "重要", "关键", "基本", "核心", "标准", "通用",
-    "高级", "基础", "完整", "高效", "稳定", "安全", "可靠", "灵活",
+    "新的",
+    "主要",
+    "重要",
+    "关键",
+    "基本",
+    "核心",
+    "标准",
+    "通用",
+    "高级",
+    "基础",
+    "完整",
+    "高效",
+    "稳定",
+    "安全",
+    "可靠",
+    "灵活",
 ]
 
 # ==========================================================================
@@ -114,10 +163,8 @@ class NoiseGenerator:
         同一 content + salt 永远产生相同的随机序列，
         不同 content 产生不同但可复现的序列。
         """
-        h = hashlib.sha256(
-            f"{self._master_seed}:{content}:{salt}".encode()
-        ).digest()
-        seed_int = int.from_bytes(h[:8], "big") % (2 ** 31)
+        h = hashlib.sha256(f"{self._master_seed}:{content}:{salt}".encode()).digest()
+        seed_int = int.from_bytes(h[:8], "big") % (2**31)
         return random.Random(seed_int)
 
     # ------------------------------------------------------------------
@@ -201,9 +248,7 @@ class NoiseGenerator:
         格式: [形容词] + [名词] + [动词] + [名词] + 状态描述
         确保不通往任何因果记忆。
         """
-        rng = self._hash_deterministic(
-            original or str(self._rng.random()), "random"
-        )
+        rng = self._hash_deterministic(original or str(self._rng.random()), "random")
 
         adj = rng.choice(RANDOM_ADJECTIVES)
         noun1 = rng.choice(RANDOM_NOUNS)
@@ -242,7 +287,7 @@ class NoiseGenerator:
         # 如果不足 2 个，随机取字符片段
         while len(keywords) < 2 and len(original) > 4:
             start = rng.randint(0, len(original) - 3)
-            fragment = original[start:start + 2]
+            fragment = original[start : start + 2]
             if fragment not in keywords:
                 keywords.append(fragment)
 
@@ -251,9 +296,7 @@ class NoiseGenerator:
 
         # 填入对抗模板 (为所有可能的占位符提供随机值)
         template = rng.choice(ADVERSARIAL_STRATEGIES)
-        fill_vals = {
-            k: rng.choice(v) for k, v in ADVERSARIAL_FILL.items()
-        }
+        fill_vals = {k: rng.choice(v) for k, v in ADVERSARIAL_FILL.items()}
 
         result = template.format(
             keyword_a=keywords[0] if len(keywords) > 0 else "系统",
@@ -292,8 +335,10 @@ class NoiseGenerator:
         for gt_id, gt_content in zip(ground_truth_ids, ground_truth_contents, strict=False):
             noises = self.generate([gt_content], noise_level=noise_level)
             for k, noise_text in enumerate(noises):
-                noise_memories.append({
-                    "id": f"n_{gt_id}_{k}",
-                    "content": noise_text,
-                })
+                noise_memories.append(
+                    {
+                        "id": f"n_{gt_id}_{k}",
+                        "content": noise_text,
+                    }
+                )
         return noise_memories

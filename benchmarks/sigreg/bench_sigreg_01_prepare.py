@@ -24,6 +24,7 @@ HotpotQA dev 集 + bge-small-zh-v1.5 编码 + 落盘缓存。
   python bench_sigreg_01_prepare.py --cache-dir /tmp/sigreg-bench --n-passages 7405 --n-queries 500
   python bench_sigreg_01_prepare.py --force    # 删除旧缓存重新跑
 """
+
 from __future__ import annotations
 
 import argparse
@@ -57,6 +58,7 @@ sys.path.insert(0, str(MCI_WORLD_MODEL_SRC))
 # 1. 数据集
 # ============================================================
 
+
 def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 42):
     """
     加载 HotpotQA distractor dev set (官方 7,405 paragraphs, 500 multi-hop queries)。
@@ -66,6 +68,7 @@ def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 
     """
     try:
         from datasets import load_dataset
+
         print("[1/3] 正在从 HuggingFace 加载 hotpot_qa 'distractor' 配置的 validation split ...")
         ds = load_dataset("hotpot_qa", "distractor", split="validation", trust_remote_code=True)
         print(f"      加载成功: {len(ds)} 条 validation 样本")
@@ -74,9 +77,9 @@ def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 
         return _synthetic_corpus(n_passages, n_queries, seed)
 
     # 收集所有 supporting facts 做 passage corpus
-    seen: dict[str, str] = {}     # passage_id -> passage text
+    seen: dict[str, str] = {}  # passage_id -> passage text
     queries: list[dict] = []
-    rng = np.random.default_rng(seed)
+    _rng = np.random.default_rng(seed)
 
     for i, ex in enumerate(ds):
         ctx_titles = ex["context"]["title"]
@@ -89,12 +92,14 @@ def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 
             if pid not in seen:
                 seen[pid] = " ".join(sents)
 
-        queries.append({
-            "qid": ex["id"],
-            "question": ex["question"],
-            "answer": ex["answer"],
-            "gold_passage_ids": list(sp_titles),
-        })
+        queries.append(
+            {
+                "qid": ex["id"],
+                "question": ex["question"],
+                "answer": ex["answer"],
+                "gold_passage_ids": list(sp_titles),
+            }
+        )
 
     # 取前 n_passages 个 passage
     all_pids = list(seen.keys())[:n_passages]
@@ -110,20 +115,54 @@ def load_hotpotqa_dev(n_passages: int = 7405, n_queries: int = 500, seed: int = 
 
 def _synthetic_corpus(n_passages: int, n_queries: int, seed: int):
     """离线 fallback: 100 个领域的 Wikipedia 风格段落, 500 条模板查询。"""
-    rng = np.random.default_rng(seed)
+    _rng = np.random.default_rng(seed)
     domains = [
-        "neuroscience", "physics", "chemistry", "biology", "computer science",
-        "mathematics", "medicine", "engineering", "astronomy", "geology",
+        "neuroscience",
+        "physics",
+        "chemistry",
+        "biology",
+        "computer science",
+        "mathematics",
+        "medicine",
+        "engineering",
+        "astronomy",
+        "geology",
     ]
     entities = [
-        f"Dr. {n} {s}" for n in "Alice Bob Carol David Elena Frank Grace Henry Ivan Judy"
-            .split() for s in "Chen Kumar Williams Smith Rodriguez Zhang Park Liu Tanaka Müller"
-            .split()
+        f"Dr. {n} {s}"
+        for n in ["Alice", "Bob", "Carol", "David", "Elena", "Frank", "Grace", "Henry", "Ivan", "Judy"]
+        for s in ["Chen", "Kumar", "Williams", "Smith", "Rodriguez", "Zhang", "Park", "Liu", "Tanaka", "Müller"]
     ][:100]
-    universities = ["MIT", "Stanford", "Harvard", "Oxford", "Cambridge", "Caltech",
-                    "Princeton", "Yale", "Berkeley", "CMU", "ETH", "Tokyo"]
-    cities = ["Tokyo", "London", "Paris", "Berlin", "Singapore", "Seoul", "Toronto",
-              "Sydney", "Madrid", "Rome", "Mumbai", "Cairo", "Moscow", "Beijing"]
+    universities = [
+        "MIT",
+        "Stanford",
+        "Harvard",
+        "Oxford",
+        "Cambridge",
+        "Caltech",
+        "Princeton",
+        "Yale",
+        "Berkeley",
+        "CMU",
+        "ETH",
+        "Tokyo",
+    ]
+    cities = [
+        "Tokyo",
+        "London",
+        "Paris",
+        "Berlin",
+        "Singapore",
+        "Seoul",
+        "Toronto",
+        "Sydney",
+        "Madrid",
+        "Rome",
+        "Mumbai",
+        "Cairo",
+        "Moscow",
+        "Beijing",
+    ]
 
     corpus = []
     for i in range(n_passages):
@@ -145,12 +184,14 @@ def _synthetic_corpus(n_passages: int, n_queries: int, seed: int):
         dom = domains[(i + 5) % len(domains)]
         yr = 2000 + ((i + 7) % 25)
         gold_pid = f"synth::{(i % n_passages):05d}"
-        queries.append({
-            "qid": f"synth_q::{i:05d}",
-            "question": f"Which {dom} researcher at {univ} started in {yr}?",
-            "answer": ent,
-            "gold_passage_ids": [gold_pid],
-        })
+        queries.append(
+            {
+                "qid": f"synth_q::{i:05d}",
+                "question": f"Which {dom} researcher at {univ} started in {yr}?",
+                "answer": ent,
+                "gold_passage_ids": [gold_pid],
+            }
+        )
     print(f"      合成数据: {len(corpus)} passages, {len(queries)} queries")
     return corpus, queries
 
@@ -159,8 +200,10 @@ def _synthetic_corpus(n_passages: int, n_queries: int, seed: int):
 # 2. 编码
 # ============================================================
 
-def encode_with_bge(texts: list[str], model_name: str = "BAAI/bge-small-en-v1.5",
-                    batch_size: int = 64, normalize: bool = False) -> np.ndarray:
+
+def encode_with_bge(
+    texts: list[str], model_name: str = "BAAI/bge-small-en-v1.5", batch_size: int = 64, normalize: bool = False
+) -> np.ndarray:
     """
     用 sentence-transformers 编码文本, 返回 (n, d) float32。
 
@@ -174,6 +217,7 @@ def encode_with_bge(texts: list[str], model_name: str = "BAAI/bge-small-en-v1.5"
     """
     print(f"[2/3] 加载 sentence-transformers 模型: {model_name}")
     from sentence_transformers import SentenceTransformer
+
     model = SentenceTransformer(model_name, device="cpu")
     d = model.get_sentence_embedding_dimension()
     print(f"      模型加载完毕, embedding dim = {d}")
@@ -193,6 +237,7 @@ def encode_with_bge(texts: list[str], model_name: str = "BAAI/bge-small-en-v1.5"
 # ============================================================
 # 3. 落盘
 # ============================================================
+
 
 def save_outputs(cache_dir: Path, corpus, queries, passage_embs, query_embs):
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -230,23 +275,26 @@ def save_outputs(cache_dir: Path, corpus, queries, passage_embs, query_embs):
 # main
 # ============================================================
 
+
 def main():
     parser = argparse.ArgumentParser(description="Prepare HotpotQA + bge embeddings for SIGReg benchmarks")
-    parser.add_argument("--cache-dir", type=Path,
-                        default=Path(__file__).resolve().parent / "cache",
-                        help="缓存目录 (默认 ./cache)")
+    parser.add_argument(
+        "--cache-dir", type=Path, default=Path(__file__).resolve().parent / "cache", help="缓存目录 (默认 ./cache)"
+    )
     parser.add_argument("--n-passages", type=int, default=7405)
     parser.add_argument("--n-queries", type=int, default=500)
     parser.add_argument("--model", type=str, default="BAAI/bge-small-en-v1.5")
     parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--normalize-bge", action="store_true",
-                        help="对 bge 输出做 L2 归一化 (默认不做, 让 SIGReg 处理)")
+    parser.add_argument(
+        "--normalize-bge", action="store_true", help="对 bge 输出做 L2 归一化 (默认不做, 让 SIGReg 处理)"
+    )
     parser.add_argument("--force", action="store_true", help="删除旧缓存并重跑")
     args = parser.parse_args()
 
     cache = args.cache_dir.resolve()
     if args.force and cache.exists():
         import shutil
+
         shutil.rmtree(cache)
         print(f"[FORCE] 已删除 {cache}")
 
@@ -257,12 +305,8 @@ def main():
 
     corpus, queries = load_hotpotqa_dev(args.n_passages, args.n_queries)
     do_normalize = args.normalize_bge  # 默认 False (P0-R4 修复)
-    passage_embs = encode_with_bge(
-        [c["text"] for c in corpus], args.model, args.batch_size, normalize=do_normalize
-    )
-    query_embs = encode_with_bge(
-        [q["question"] for q in queries], args.model, args.batch_size, normalize=do_normalize
-    )
+    passage_embs = encode_with_bge([c["text"] for c in corpus], args.model, args.batch_size, normalize=do_normalize)
+    query_embs = encode_with_bge([q["question"] for q in queries], args.model, args.batch_size, normalize=do_normalize)
     save_outputs(cache, corpus, queries, passage_embs, query_embs)
     print("\n✅ 准备完成。后续 bench 脚本可直接读取 cache/。")
 

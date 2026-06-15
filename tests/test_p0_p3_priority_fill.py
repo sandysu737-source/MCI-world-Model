@@ -145,7 +145,7 @@ class TestBayesianAugmenterInit:
 
         # Capture original add before augmentation
         original_add = mock_client.add
-        aug = BayesianAugmenter(mock_client, enable_auto_sync=True)
+        BayesianAugmenter(mock_client, enable_auto_sync=True)
 
         # Call hooked add — should call original and sync
         result = mock_client.add("test content", metadata={"tags": ["test"]})
@@ -179,10 +179,12 @@ class TestBayesianAugmenterReport:
         assert report["status"] == "no_data"
         assert report["summary"]["total_feedback"] == 0
 
-    def test_print_accuracy_report_no_data(self, aug_no_data, capsys):
-        aug_no_data.print_accuracy_report()
-        captured = capsys.readouterr()
-        assert "BayesianAugmenter" in captured.out
+    def test_print_accuracy_report_no_data(self, aug_no_data, caplog):
+        import logging
+
+        with caplog.at_level(logging.INFO, logger="mci_world_model.sdk.bayesian_augmenter"):
+            aug_no_data.print_accuracy_report()
+        assert "BayesianAugmenter" in caplog.text
 
     def test_accuracy_report_with_data(self, aug_no_data):
         from mci_world_model.sdk.bayesian_augmenter import AccuracyRecord
@@ -222,7 +224,9 @@ class TestBayesianAugmenterReport:
             aug_no_data._accuracy_records.append(AccuracyRecord(i, "original", f"q{i}", 0.5, 0.5, 0.0, 0.0))
         assert len(aug_no_data._accuracy_records) == 1100
 
-    def test_print_accuracy_report_with_data(self, aug_no_data, capsys):
+    def test_print_accuracy_report_with_data(self, aug_no_data, caplog):
+        import logging
+
         from mci_world_model.sdk.bayesian_augmenter import AccuracyRecord
 
         aug_no_data._accuracy_records = [
@@ -230,9 +234,9 @@ class TestBayesianAugmenterReport:
             AccuracyRecord(0, "bayesian", "q1", 0.75, 0.8, -0.05, 0.05),
         ]
         aug_no_data._feedback_count = 1
-        aug_no_data.print_accuracy_report()
-        captured = capsys.readouterr()
-        assert "MAE" in captured.out
+        with caplog.at_level(logging.INFO, logger="mci_world_model.sdk.bayesian_augmenter"):
+            aug_no_data.print_accuracy_report()
+        assert "MAE" in caplog.text
 
 
 class TestBayesianAugmenterPersistence:
@@ -750,7 +754,7 @@ class TestGATEncoderGradients:
         assert np.allclose(grads["W_k"], 0.0)
 
     def test_compute_gradients_with_cache(self, encoder, X):
-        A_enc = encoder.training_forward(X)
+        encoder.training_forward(X)
         dA = np.ones((6, 6), dtype=np.float64) * 0.01
         grads = encoder.compute_gradients(dA)
         assert grads["W_q"].shape == (4, 8)
@@ -1435,11 +1439,13 @@ class TestBayesianAugmenterAccuracyReport:
         if bayes_stats:
             assert bayes_stats["mae"] >= 0
 
-    def test_print_accuracy_report_with_data(self, aug_with_data, capsys):
+    def test_print_accuracy_report_with_data(self, aug_with_data, caplog):
         """print_accuracy_report 有数据时输出格式化报告"""
-        aug_with_data.print_accuracy_report()
-        captured = capsys.readouterr()
-        assert "准确度对比报告" in captured.out
+        import logging
+
+        with caplog.at_level(logging.INFO, logger="mci_world_model.sdk.bayesian_augmenter"):
+            aug_with_data.print_accuracy_report()
+        assert "准确度对比报告" in caplog.text
 
 
 class TestBayesianAugmenterValidation:
@@ -1480,12 +1486,14 @@ class TestBayesianAugmenterValidation:
         assert result["results"] == []
         assert result["summary"]["test_count"] == 0
 
-    def test_run_validation_suite_verbose(self, aug, capsys):
+    def test_run_validation_suite_verbose(self, aug, caplog):
         """verbose 模式输出验证结果"""
+        import logging
+
         test_queries = [{"query": "测试", "expected_memory_ids": ["mem_1"]}]
-        aug.run_validation_suite(test_queries, verbose=True)
-        captured = capsys.readouterr()
-        assert "批量对比验证" in captured.out
+        with caplog.at_level(logging.INFO, logger="mci_world_model.sdk.bayesian_augmenter"):
+            aug.run_validation_suite(test_queries, verbose=True)
+        assert "批量对比验证" in caplog.text
 
 
 # =============================================================================

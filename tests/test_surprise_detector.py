@@ -13,12 +13,10 @@ tests/test_surprise_detector.py — SurpriseDetector 测试
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from mci_world_model.sdk._surprise_detector import SurpriseDetector, SurpriseSignal
+from mci_world_model.sdk._surprise_detector import SurpriseDetector
 from mci_world_model.sdk._world_state import PendulumState
-
 
 # =============================================================================
 # Fixtures

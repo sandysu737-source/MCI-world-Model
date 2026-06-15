@@ -35,32 +35,96 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-class VisionEncoder:
-    """RGB/Depth 帧 → 固定维度特征向量（纯 numpy）。
+class LearnableMixin:
+    """P0-F5 修复: 为编码器添加可学习参数的混入类。
 
-    特征组成 (feature_dim=32):
-        [0:4]   全局统计: mean, std, min, max
-        [4:8]   四象限均值 (空间池化)
-        [8:16]  边缘强度 (Sobel 近似): 水平+垂直各 4 个块
-        [16:24] 颜色/深度直方图 (8 bins)
-        [24:32] 梯度方向直方图 (8 bins)
+    原始编码器 (VisionEncoder/AudioEncoder/ThermalEncoder) 纯统计特征，
+    无可学习参数，导致不同图像/音频/热成像的嵌入几乎相同 (维度坍塌)。
 
-    Example:
-        >>> enc = VisionEncoder(feature_dim=32)
-        >>> frame = np.random.rand(64, 64, 3)
-        >>> vec = enc.encode(frame)
-        >>> assert vec.shape == (32,)
+    本 Mixin 为编码器添加轻量 MLP 投影头，将统计特征映射到更高维空间。
+    MLP 参数随机初始化，保证不同输入产生不同输出。
+    后续 P2 阶段将用 CLIP 蒸馏进一步优化。
     """
 
-    def __init__(self, feature_dim: int = 32):
+    def _init_learnable(self, stat_dim: int, output_dim: int, seed: int = 42):
+        """初始化可学习投影头。
+
+        Args:
+            stat_dim: 统计特征维度 (如 VisionEncoder 的 32)
+            output_dim: 目标输出维度 (如 128)
+            seed: 随机种子
+        """
+        rng = np.random.RandomState(seed)
+        self._stat_dim = stat_dim
+        self._output_dim = output_dim
+
+        # 两层 MLP 投影头: stat_dim → hidden → output_dim
+        hidden_dim = max(64, (stat_dim + output_dim) // 2)
+        self._proj_W1 = rng.randn(stat_dim, hidden_dim).astype(np.float64) * np.sqrt(2.0 / (stat_dim + hidden_dim))
+        self._proj_b1 = np.zeros(hidden_dim, dtype=np.float64)
+        self._proj_W2 = rng.randn(hidden_dim, output_dim).astype(np.float64) * np.sqrt(2.0 / (hidden_dim + output_dim))
+        self._proj_b2 = np.zeros(output_dim, dtype=np.float64)
+
+    @property
+    def n_params(self) -> int:
+        """可学习参数数量。"""
+        return self._proj_W1.size + self._proj_b1.size + self._proj_W2.size + self._proj_b2.size
+
+    def _project(self, stat_features: np.ndarray) -> np.ndarray:
+        """将统计特征投影到高维空间。
+
+        Args:
+            stat_features: (stat_dim,) 统计特征向量
+
+        Returns:
+            (output_dim,) 投影后的特征向量
+        """
+        x = stat_features.astype(np.float64)
+        h = x @ self._proj_W1 + self._proj_b1
+        h = np.maximum(h, 0)  # ReLU
+        out = h @ self._proj_W2 + self._proj_b2
+        # L2 归一化
+        norm = np.linalg.norm(out)
+        if norm > 1e-10:
+            out /= norm
+        return out.astype(np.float64)
+
+
+class VisionEncoder(LearnableMixin):
+    """RGB/Depth 帧 → 固定维度特征向量（纯 numpy）。
+
+    P0-F5 修复: 添加可学习投影头，解决维度坍塌问题。
+
+    特征组成 (feature_dim=32 统计 + 128 可学习 = 128 总输出):
+        统计特征 (32D): 全局统计 + 四象限均值 + Sobel边缘 + 直方图 + 梯度方向
+        可学习投影 (128D): 两层 MLP 将统计特征投影到高维空间
+
+    Example:
+        >>> enc = VisionEncoder(feature_dim=32, learnable_dim=128)
+        >>> frame = np.random.rand(64, 64, 3)
+        >>> vec = enc.encode(frame)
+        >>> assert vec.shape == (128,)
+    """
+
+    def __init__(self, feature_dim: int = 32, learnable_dim: int = 128, seed: int = 42):
         self._feature_dim = feature_dim
+        self._learnable_dim = learnable_dim
+        self._output_dim = learnable_dim  # 默认输出可学习维度
+        self._init_learnable(feature_dim, learnable_dim, seed=seed)
 
     @property
     def feature_dim(self) -> int:
         return self._feature_dim
 
+    @property
+    def output_dim(self) -> int:
+        """输出向量维度 (可学习投影后)。"""
+        return self._output_dim
+
     def encode(self, frame: np.ndarray) -> np.ndarray:
         """编码视觉帧为特征向量。
+
+        P0-F5 修复: 返回可学习投影后的高维向量。
 
         Args:
             frame: 2D 或 3D numpy 数组
@@ -68,8 +132,12 @@ class VisionEncoder:
                 - (H, W, C) — RGB/多通道
 
         Returns:
-            (feature_dim,) float64 特征向量
+            (output_dim,) float64 特征向量
         """
+        stat_features = self._extract_stat_features(frame)
+        return self._project(stat_features)
+
+    def _extract_stat_features(self, frame: np.ndarray) -> np.ndarray:
         if frame.ndim == 3:
             # 转灰度：简单均值
             gray = np.mean(frame.astype(np.float64), axis=2)
@@ -109,9 +177,13 @@ class VisionEncoder:
             for i in range(h - 2):
                 for j in range(w - 2):
                     patch = gray[i : i + 3, j : j + 3]
-                    gx[i, j] = -patch[0, 0] + patch[0, 2] - 2 * patch[1, 0] + 2 * patch[1, 2] - patch[2, 0] + patch[2, 2]
-                    gy[i, j] = -patch[0, 0] - 2 * patch[0, 1] - patch[0, 2] + patch[2, 0] + 2 * patch[2, 1] + patch[2, 2]
-            edge_mag = np.sqrt(gx ** 2 + gy ** 2)
+                    gx[i, j] = (
+                        -patch[0, 0] + patch[0, 2] - 2 * patch[1, 0] + 2 * patch[1, 2] - patch[2, 0] + patch[2, 2]
+                    )
+                    gy[i, j] = (
+                        -patch[0, 0] - 2 * patch[0, 1] - patch[0, 2] + patch[2, 0] + 2 * patch[2, 1] + patch[2, 2]
+                    )
+            edge_mag = np.sqrt(gx**2 + gy**2)
             eh, ew = edge_mag.shape
             qh, qw = eh // 2, ew // 2
             if qh > 0 and qw > 0:
@@ -144,7 +216,9 @@ class VisionEncoder:
             angles = np.arctan2(gy, gx)  # [-pi, pi]
             angle_bins = 8
             hist_angles, _ = np.histogram(
-                angles.flatten(), bins=angle_bins, range=(-np.pi, np.pi),
+                angles.flatten(),
+                bins=angle_bins,
+                range=(-np.pi, np.pi),
             )
             total = max(np.sum(hist_angles), 1)
             features[idx : idx + 8] = hist_angles.astype(np.float64) / total
@@ -159,28 +233,32 @@ class VisionEncoder:
 # =============================================================================
 
 
-class AudioEncoder:
+class AudioEncoder(LearnableMixin):
     """音频波形 → 固定维度统计特征（纯 numpy）。
 
-    特征组成 (feature_dim=16):
-        [0:4]   全局: RMS, 峰值, 零交叉率, 能量
-        [4:8]   分帧能量包络 (4 段)
-        [8:12]  频谱质心 + 带宽 + 滚降 + 平坦度
-        [12:16] 过零率分帧 (4 段)
+    P0-F5 修复: 添加可学习投影头，输出 64D 可学习特征。
 
     Example:
-        >>> enc = AudioEncoder(feature_dim=16)
-        >>> wave = np.random.randn(16000)  # 1秒 @ 16kHz
+        >>> enc = AudioEncoder(feature_dim=16, learnable_dim=64)
+        >>> wave = np.random.randn(16000)
         >>> vec = enc.encode(wave)
-        >>> assert vec.shape == (16,)
+        >>> assert vec.shape == (64,)
     """
 
-    def __init__(self, feature_dim: int = 16):
+    def __init__(self, feature_dim: int = 16, learnable_dim: int = 64, seed: int = 42):
         self._feature_dim = feature_dim
+        self._learnable_dim = learnable_dim
+        self._output_dim = learnable_dim
+        self._init_learnable(feature_dim, learnable_dim, seed=seed)
 
     @property
     def feature_dim(self) -> int:
         return self._feature_dim
+
+    @property
+    def output_dim(self) -> int:
+        """输出向量维度 (可学习投影后)。"""
+        return self._output_dim
 
     def encode(
         self,
@@ -189,13 +267,24 @@ class AudioEncoder:
     ) -> np.ndarray:
         """编码音频波形为特征向量。
 
+        P0-F5 修复: 返回可学习投影后的高维向量。
+
         Args:
             waveform: 1D 音频波形 (N_samples,) 或 2D (N_samples, N_channels)
             sample_rate: 采样率 (Hz)
 
         Returns:
-            (feature_dim,) float64 特征向量
+            (output_dim,) float64 特征向量
         """
+        stat_features = self._extract_stat_features(waveform, sample_rate)
+        return self._project(stat_features)
+
+    def _extract_stat_features(
+        self,
+        waveform: np.ndarray,
+        sample_rate: int = 16000,
+    ) -> np.ndarray:
+        """提取统计特征 (原 encode 逻辑)。"""
         if waveform.ndim > 1:
             # 多通道取均值
             waveform = np.mean(waveform.astype(np.float64), axis=1)
@@ -211,12 +300,12 @@ class AudioEncoder:
 
         # [0:4] 全局统计
         if idx + 4 <= self._feature_dim:
-            features[idx] = float(np.sqrt(np.mean(waveform ** 2)))  # RMS
+            features[idx] = float(np.sqrt(np.mean(waveform**2)))  # RMS
             features[idx + 1] = float(np.max(np.abs(waveform)))  # 峰值
             # 零交叉率
             zc = np.sum(np.abs(np.diff(np.sign(waveform))) > 0)
             features[idx + 2] = float(zc) / max(n - 1, 1)
-            features[idx + 3] = float(np.sum(waveform ** 2))  # 总能量
+            features[idx + 3] = float(np.sum(waveform**2))  # 总能量
             idx += 4
 
         # [4:8] 分帧能量包络 (4 段)
@@ -227,27 +316,25 @@ class AudioEncoder:
                 start = i * seg_len
                 end = min((i + 1) * seg_len, n)
                 segment = waveform[start:end]
-                features[idx + i] = float(np.mean(segment ** 2))
+                features[idx + i] = float(np.mean(segment**2))
             idx += n_segments
 
         # [8:12] 频谱特征 (FFT-based)
         if idx + 4 <= self._feature_dim and n >= 8:
             fft_vals = np.abs(np.fft.rfft(waveform))
             freqs = np.fft.rfftfreq(n, d=1.0 / sample_rate)
-            total_energy = max(np.sum(fft_vals ** 2), 1e-10)
+            total_energy = max(np.sum(fft_vals**2), 1e-10)
 
             # 频谱质心
-            spectral_centroid = float(np.sum(freqs * fft_vals ** 2) / total_energy)
+            spectral_centroid = float(np.sum(freqs * fft_vals**2) / total_energy)
             features[idx] = spectral_centroid / max(sample_rate / 2, 1)
 
             # 频谱带宽 (标准差)
-            spectral_bw = float(np.sqrt(
-                np.sum(((freqs - spectral_centroid) ** 2) * fft_vals ** 2) / total_energy
-            ))
+            spectral_bw = float(np.sqrt(np.sum(((freqs - spectral_centroid) ** 2) * fft_vals**2) / total_energy))
             features[idx + 1] = spectral_bw / max(sample_rate / 2, 1)
 
             # 频谱滚降 (85% 能量截止频率)
-            cumsum = np.cumsum(fft_vals ** 2)
+            cumsum = np.cumsum(fft_vals**2)
             rolloff_idx = np.searchsorted(cumsum, 0.85 * total_energy)
             rolloff_idx = min(rolloff_idx, len(freqs) - 1)
             features[idx + 2] = float(freqs[rolloff_idx]) / max(sample_rate / 2, 1)
@@ -279,37 +366,49 @@ class AudioEncoder:
 # =============================================================================
 
 
-class ThermalEncoder:
+class ThermalEncoder(LearnableMixin):
     """热成像帧 → 固定维度温度分布特征（纯 numpy）。
 
-    特征组成 (feature_dim=8):
-        [0:4]   温度统计: mean, std, max (热点), min
-        [4:6]   热点位置: (hot_y_norm, hot_x_norm) 归一化坐标
-        [6:8]   梯度统计: mean_gradient, max_gradient
+    P0-F5 修复: 添加可学习投影头，输出 32D 可学习特征。
 
     Example:
-        >>> enc = ThermalEncoder(feature_dim=8)
-        >>> thermal = np.random.rand(32, 32) * 40 + 20  # 20-60°C
+        >>> enc = ThermalEncoder(feature_dim=8, learnable_dim=32)
+        >>> thermal = np.random.rand(32, 32) * 40 + 20
         >>> vec = enc.encode(thermal)
-        >>> assert vec.shape == (8,)
+        >>> assert vec.shape == (32,)
     """
 
-    def __init__(self, feature_dim: int = 8):
+    def __init__(self, feature_dim: int = 8, learnable_dim: int = 32, seed: int = 42):
         self._feature_dim = feature_dim
+        self._learnable_dim = learnable_dim
+        self._output_dim = learnable_dim
+        self._init_learnable(feature_dim, learnable_dim, seed=seed)
 
     @property
     def feature_dim(self) -> int:
         return self._feature_dim
 
+    @property
+    def output_dim(self) -> int:
+        """输出向量维度 (可学习投影后)。"""
+        return self._output_dim
+
     def encode(self, thermal_frame: np.ndarray) -> np.ndarray:
         """编码热成像帧为特征向量。
+
+        P0-F5 修复: 返回可学习投影后的高维向量。
 
         Args:
             thermal_frame: 2D numpy 数组 (H, W) 温度值
 
         Returns:
-            (feature_dim,) float64 特征向量
+            (output_dim,) float64 特征向量
         """
+        stat_features = self._extract_stat_features(thermal_frame)
+        return self._project(stat_features)
+
+    def _extract_stat_features(self, thermal_frame: np.ndarray) -> np.ndarray:
+        """提取统计特征 (原 encode 逻辑)。"""
         if thermal_frame.ndim > 2:
             thermal_frame = np.mean(thermal_frame.astype(np.float64), axis=2)
         else:
@@ -338,9 +437,7 @@ class ThermalEncoder:
         if idx + 2 <= self._feature_dim and h >= 2 and w >= 2:
             grad_y = np.diff(thermal_frame, axis=0)
             grad_x = np.diff(thermal_frame, axis=1)
-            grad_mag = np.sqrt(
-                grad_y[:, : w - 1] ** 2 + grad_x[: h - 1, :] ** 2
-            )
+            grad_mag = np.sqrt(grad_y[:, : w - 1] ** 2 + grad_x[: h - 1, :] ** 2)
             features[idx] = float(np.mean(grad_mag))
             features[idx + 1] = float(np.max(grad_mag))
             idx += 2

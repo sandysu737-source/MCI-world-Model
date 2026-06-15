@@ -168,7 +168,7 @@ class EnergyPropagationPredictor(JEPAPredictor):
 
             self._energy_bus = create_complete_energy_network()
         except Exception as e:
-            logger.debug("EnergyBus 初始化失败（回退到轻量模式）: %s", e)
+            logger.warning("EnergyBus 初始化失败（回退到轻量模式）: %s", e)
 
     def predict(self, state: CausalWorldModelState) -> CausalWorldModelState:
         """
@@ -245,7 +245,7 @@ class BeliefPropagationPredictor(JEPAPredictor):
 
             self._engine = BayesianEngine()
         except Exception as e:
-            logger.debug("BayesianEngine 初始化失败: %s", e)
+            logger.warning("BayesianEngine 初始化失败: %s", e)
 
     def predict(self, state: CausalWorldModelState) -> CausalWorldModelState:
         """

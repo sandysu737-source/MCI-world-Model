@@ -4,22 +4,22 @@ Target: causal.py 9% -> 40%+ coverage
 """
 
 import time
+
 import pytest
 
 from mci_world_model._sys.causal import (
-    CausalChain,
-    CausalInference,
+    BRANCH_OPPOSE,
+    BRANCH_TEMPORAL,
     CATEGORY_CAUSALITY,
     CATEGORY_ENERGY_MAP,
     ENERGY_ENHANCE,
     ENERGY_SUPPRESS,
-    BRANCH_TEMPORAL,
-    BRANCH_OPPOSE,
-    ENERGY_BRANCH,
+    CausalChain,
+    CausalInference,
 )
 
-
 # ── Helpers ──────────────────────────────────────────────────
+
 
 def _make_chain_with_nodes(n=5):
     """Create a CausalChain with n nodes (a0..a{n-1}) linked linearly."""
@@ -35,6 +35,7 @@ def _make_chain_with_nodes(n=5):
 # ============================================================
 # Constants sanity checks
 # ============================================================
+
 
 class TestConstants:
     def test_energy_enhance_cycle(self):
@@ -70,6 +71,7 @@ class TestConstants:
 # ============================================================
 # CausalChain — Layer 1: Direct Causality
 # ============================================================
+
 
 class TestCausalChainAdd:
     def test_add_basic(self):
@@ -129,6 +131,7 @@ class TestCausalChainLink:
 # CausalChain — Layer 2: Semantic Causality
 # ============================================================
 
+
 class TestLinkWithCategory:
     def test_generates_enhance(self):
         cc = CausalChain()
@@ -186,6 +189,7 @@ class TestLinkWithCategory:
 # CausalChain — Layer 3: Energy Flow Causality
 # ============================================================
 
+
 class TestLinkWithEnergy:
     def test_enhance_flow(self):
         cc = CausalChain()
@@ -241,6 +245,7 @@ class TestLinkWithEnergy:
 # ============================================================
 # CausalChain — Layer 4: Temporal Causality
 # ============================================================
+
 
 class TestLinkTemporal:
     def test_basic_temporal(self):
@@ -299,6 +304,7 @@ class TestLinkWithTimecode:
 # CausalChain — Propagation
 # ============================================================
 
+
 class TestPropagate:
     def test_simple_propagation(self):
         cc, ids = _make_chain_with_nodes(3)
@@ -343,6 +349,7 @@ class TestPropagate:
 # CausalChain — Energy Balance
 # ============================================================
 
+
 class TestEnergyBalance:
     def test_apply_balance_no_history(self):
         cc = CausalChain()
@@ -377,6 +384,7 @@ class TestEnergyBalance:
 # ============================================================
 # CausalChain — Coverage
 # ============================================================
+
 
 class TestCoverage:
     def test_empty_ids(self):
@@ -421,6 +429,7 @@ class TestCoverage:
 # ============================================================
 # CausalChain — Conflict Detection
 # ============================================================
+
 
 class TestDetectConflicts:
     def test_energy_suppress_conflict(self):
@@ -500,6 +509,7 @@ class TestDetectConflicts:
 # CausalChain — Causal Path
 # ============================================================
 
+
 class TestGetCausalPath:
     def test_same_source_target(self):
         cc, ids = _make_chain_with_nodes(3)
@@ -530,6 +540,7 @@ class TestGetCausalPath:
 # ============================================================
 # CausalChain — Aging
 # ============================================================
+
 
 class TestGetAging:
     def test_recent_memory_no_aging(self):
@@ -571,6 +582,7 @@ class TestGetAging:
 # CausalChain — _contradicts static method
 # ============================================================
 
+
 class TestContradicts:
     def test_positive_vs_negative(self):
         assert CausalChain._contradicts("yes I know", "no I cannot") is True
@@ -593,6 +605,7 @@ class TestContradicts:
 # ============================================================
 # CausalInference — infer_relation
 # ============================================================
+
 
 class TestInferRelation:
     def setup_method(self):
@@ -683,6 +696,7 @@ class TestInferRelation:
 # CausalInference — multi_hop_inference
 # ============================================================
 
+
 class TestMultiHopInference:
     def setup_method(self):
         self.ci = CausalInference()
@@ -724,7 +738,7 @@ class TestMultiHopInference:
         ]
         results = self.ci.multi_hop_inference("creative", "metal", memories)
         # m1 has no category -> should have score 0
-        m1_result = [r for r in results if r["id"] == "m1"][0]
+        m1_result = next(r for r in results if r["id"] == "m1")
         assert m1_result["hop_score"] == 0.0
 
     def test_payload_fallback(self):
@@ -754,6 +768,7 @@ class TestMultiHopInference:
 # ============================================================
 # CausalInference — build_reasoning_chain
 # ============================================================
+
 
 class TestBuildReasoningChain:
     def setup_method(self):
@@ -818,6 +833,7 @@ class TestBuildReasoningChain:
 # CausalInference — _dfs_longest
 # ============================================================
 
+
 class TestDfsLongest:
     def test_single_node(self):
         adj = {}
@@ -826,6 +842,7 @@ class TestDfsLongest:
 
     def test_linear_chain(self):
         from collections import defaultdict
+
         adj = defaultdict(list)
         adj["a"].append(("b", 0.8))
         adj["b"].append(("c", 0.6))
@@ -834,6 +851,7 @@ class TestDfsLongest:
 
     def test_branching(self):
         from collections import defaultdict
+
         adj = defaultdict(list)
         adj["a"].append(("b", 0.8))
         adj["a"].append(("c", 0.5))

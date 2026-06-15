@@ -22,8 +22,7 @@ from mci_world_model._sys._energy_core import (
     EnergyFlow,
     EnergyState,
 )
-from mci_world_model._sys._enums import EnergyPattern, EnergyRelation, StrengthState, EnergyType
-
+from mci_world_model._sys._enums import EnergyPattern, EnergyRelation, EnergyType, StrengthState
 
 # =============================================================================
 # Fixtures

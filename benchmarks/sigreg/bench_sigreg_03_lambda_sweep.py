@@ -18,6 +18,7 @@ bench_sigreg_03_lambda_sweep.py
   python bench_sigreg_03_lambda_sweep.py --cache-dir ./cache --top-k 5
   python bench_sigreg_03_lambda_sweep.py --lambdas "0.0,0.01,0.05,0.1,0.5"
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,7 +28,7 @@ import os
 import platform
 import sys
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 # ============================================================
@@ -37,15 +38,15 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
+import faiss
 import numpy as np
-import faiss  # noqa: E402
 
 faiss.omp_set_num_threads(1)  # FAISS HNSW 建索引锁单线程
 
 MCI_WORLD_MODEL_SRC = Path(__file__).resolve().parent.parent.parent / "src"
 sys.path.insert(0, str(MCI_WORLD_MODEL_SRC))
 
-from mci_world_model.sdk._sigreg import SIGReg  # noqa: E402
+from mci_world_model.sdk._sigreg import SIGReg
 
 # ============================================================
 # 全局常量
@@ -56,6 +57,7 @@ REPRODUCIBILITY_SEED = 42  # P0-R2: passage/query 共用同一 sketch 矩阵
 # ============================================================
 # 工具 (与脚本 2 相同)
 # ============================================================
+
 
 @dataclass
 class LambdaPointResult:
@@ -81,30 +83,26 @@ def recall_at_k(index, query_embs: np.ndarray, gold_lists: list[list[int]], k: i
     t0 = time.perf_counter()
     _, I = index.search(np.ascontiguousarray(query_embs.astype(np.float32)), k)
     qt = time.perf_counter() - t0
-    hits = sum(
-        1 for i, golds in enumerate(gold_lists)
-        if any(g in set(I[i].tolist()) for g in golds)
-    )
+    hits = sum(1 for i, golds in enumerate(gold_lists) if any(g in set(I[i].tolist()) for g in golds))
     return hits / n if n else 0.0, qt
 
 
 def make_gold_lists(queries, pid_to_idx):
-    return [[pid_to_idx[pid] for pid in q["gold_passage_ids"] if pid in pid_to_idx]
-            for q in queries]
+    return [[pid_to_idx[pid] for pid in q["gold_passage_ids"] if pid in pid_to_idx] for q in queries]
 
 
 # ============================================================
 # 主流程
 # ============================================================
 
+
 def main():
     parser = argparse.ArgumentParser(description="SIGReg λ-sweep on retrieval Recall@5")
-    parser.add_argument("--cache-dir", type=Path,
-                        default=Path(__file__).resolve().parent / "cache")
+    parser.add_argument("--cache-dir", type=Path, default=Path(__file__).resolve().parent / "cache")
     parser.add_argument("--top-k", type=int, default=5)
-    parser.add_argument("--lambdas", type=str,
-                        default="0.000,0.005,0.010,0.020,0.050,0.100,0.200,0.500",
-                        help="逗号分隔的 λ 值列表")
+    parser.add_argument(
+        "--lambdas", type=str, default="0.000,0.005,0.010,0.020,0.050,0.100,0.200,0.500", help="逗号分隔的 λ 值列表"
+    )
     parser.add_argument("--sketch-dim", type=int, default=64)
     parser.add_argument("--hnsw-m", type=int, default=32)
     parser.add_argument("--hnsw-efc", type=int, default=64)
@@ -136,7 +134,7 @@ def main():
     print(f"       isotropy(raw bge embeddings) = {iso_raw:.3e}")
 
     # 预热: baseline
-    print(f"\n--- baseline (λ=0, no SIGReg) ---")
+    print("\n--- baseline (λ=0, no SIGReg) ---")
     idx_raw, build_raw = build_hnsw(raw_norm, args.hnsw_m, args.hnsw_efc, args.hnsw_efs)
     recall_raw, query_raw = recall_at_k(idx_raw, q_norm, gold_lists, args.top_k)
     print(f"  Recall@{args.top_k} = {recall_raw:.4f}   build={build_raw:.2f}s  query={query_raw:.2f}s")
@@ -164,7 +162,9 @@ def main():
         if lam in completed_lambdas:
             r_dict = completed_lambdas[lam]
             results.append(LambdaPointResult(**r_dict))
-            print(f"\n--- [{idx}/{len(lambda_values)}] λ = {lam} (cached) Recall@{args.top_k}={r_dict['recall_at_k']:.4f} ---")
+            print(
+                f"\n--- [{idx}/{len(lambda_values)}] λ = {lam} (cached) Recall@{args.top_k}={r_dict['recall_at_k']:.4f} ---"
+            )
             continue
 
         print(f"\n--- [{idx}/{len(lambda_values)}] λ = {lam} ---")
@@ -204,32 +204,34 @@ def main():
 
     # 输出 JSON
     out_path = cache / "results_lambda_sweep.json"
-    out_path.write_text(json.dumps(
-        {
-            "config": {
-                "top_k": args.top_k,
-                "sketch_dim": args.sketch_dim,
-                "hnsw_m": args.hnsw_m,
-                "hnsw_efc": args.hnsw_efc,
-                "hnsw_efs": args.hnsw_efs,
-                "n_passages": int(passage_embs.shape[0]),
-                "n_queries": int(query_embs.shape[0]),
-                "reproducibility_seed": REPRODUCIBILITY_SEED,
-                "single_threaded": True,
-                "granularity": "paragraph-level",
+    out_path.write_text(
+        json.dumps(
+            {
+                "config": {
+                    "top_k": args.top_k,
+                    "sketch_dim": args.sketch_dim,
+                    "hnsw_m": args.hnsw_m,
+                    "hnsw_efc": args.hnsw_efc,
+                    "hnsw_efs": args.hnsw_efs,
+                    "n_passages": int(passage_embs.shape[0]),
+                    "n_queries": int(query_embs.shape[0]),
+                    "reproducibility_seed": REPRODUCIBILITY_SEED,
+                    "single_threaded": True,
+                    "granularity": "paragraph-level",
+                },
+                "baseline": {
+                    "lambda_reg": 0.0,
+                    "isotropy": iso_raw,
+                    "recall_at_k": recall_raw,
+                    "build_time_s": build_raw,
+                    "query_time_s": query_raw,
+                },
+                "sweep": [asdict(r) for r in results],
             },
-            "baseline": {
-                "lambda_reg": 0.0,
-                "isotropy": iso_raw,
-                "recall_at_k": recall_raw,
-                "build_time_s": build_raw,
-                "query_time_s": query_raw,
-            },
-            "sweep": [asdict(r) for r in results],
-        },
-        indent=2,
-        ensure_ascii=False,
-    ))
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
 
     # 报告
     print("\n" + "=" * 78)
@@ -240,8 +242,10 @@ def main():
     print(f"  {'0.000':>8}  {iso_raw:>11.3e}  {recall_raw:>10.4f}  {'—':>11}  {build_raw:>10.2f}")
     for r in results:
         delta = r.recall_at_k - recall_raw
-        print(f"  {r.lambda_reg:>8.3f}  {r.isotropy_after:>11.3e}  {r.recall_at_k:>10.4f}  "
-              f"{delta:>+11.4f}  {r.build_time_s:>10.2f}")
+        print(
+            f"  {r.lambda_reg:>8.3f}  {r.isotropy_after:>11.3e}  {r.recall_at_k:>10.4f}  "
+            f"{delta:>+11.4f}  {r.build_time_s:>10.2f}"
+        )
     print("  " + "-" * 64)
 
     # 找最佳
@@ -262,34 +266,37 @@ def main():
 
 def _save_partial(path: Path, args, results, iso_raw, recall_raw, build_raw, query_raw):
     """每个 λ 点完成后立即写盘, 支持断点续跑。"""
-    path.write_text(json.dumps(
-        {
-            "config": {
-                "top_k": args.top_k,
-                "sketch_dim": args.sketch_dim,
-                "hnsw_m": args.hnsw_m,
-                "hnsw_efc": args.hnsw_efc,
-                "hnsw_efs": args.hnsw_efs,
-                "reproducibility_seed": REPRODUCIBILITY_SEED,
-                "single_threaded": True,
+    path.write_text(
+        json.dumps(
+            {
+                "config": {
+                    "top_k": args.top_k,
+                    "sketch_dim": args.sketch_dim,
+                    "hnsw_m": args.hnsw_m,
+                    "hnsw_efc": args.hnsw_efc,
+                    "hnsw_efs": args.hnsw_efs,
+                    "reproducibility_seed": REPRODUCIBILITY_SEED,
+                    "single_threaded": True,
+                },
+                "baseline": {
+                    "lambda_reg": 0.0,
+                    "isotropy": iso_raw,
+                    "recall_at_k": recall_raw,
+                    "build_time_s": build_raw,
+                    "query_time_s": query_raw,
+                },
+                "sweep": [asdict(r) for r in results],
             },
-            "baseline": {
-                "lambda_reg": 0.0,
-                "isotropy": iso_raw,
-                "recall_at_k": recall_raw,
-                "build_time_s": build_raw,
-                "query_time_s": query_raw,
-            },
-            "sweep": [asdict(r) for r in results],
-        },
-        indent=2,
-        ensure_ascii=False,
-    ))
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
 
 
 def _write_env_info(cache: Path):
     """写入环境元数据, 方便复现。"""
     import mci_world_model
+
     info = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "platform": platform.platform(),

@@ -182,6 +182,139 @@ class TestSysFoundationEnums:
 # =============================================================================
 
 
+class TestSysToSdkPenetration:
+    """v3.3.1: _sys.__all__ 每个符号必须穿透到 sdk.__all__。
+
+    这是一个自动化门禁：当 _sys 层新增符号但忘记同步到 sdk 导出时，
+    本测试会立即失败，防止能力泄露问题再次发生。
+    """
+
+    def test_sys_all_subset_of_sdk_all(self):
+        """_sys.__all__ 的每个符号必须在 sdk.__all__ 中出现。"""
+        from mci_world_model import _sys, sdk
+
+        sys_all = set(getattr(_sys, "__all__", []))
+        sdk_all = set(getattr(sdk, "__all__", []))
+        gap = sorted(sys_all - sdk_all)
+        assert not gap, (
+            f"_sys→sdk 穿透断裂: {len(gap)} 个符号未导出到 SDK:\n"
+            + "\n".join(f"  {s}" for s in gap)
+            + f"\n\n请在 sdk/__init__.py 中补充这 {len(gap)} 个符号的导入和 __all__ 注册。"
+        )
+
+    def test_sys_symbols_actually_importable(self):
+        """_sys.__all__ 每个符号必须能从 sdk 实际 getattr 到。"""
+        from mci_world_model import _sys, sdk
+
+        failed = []
+        for name in getattr(_sys, "__all__", []):
+            if not hasattr(sdk, name):
+                failed.append(name)
+        assert not failed, f"{len(failed)} 个 _sys 符号无法从 sdk 访问:\n" + "\n".join(f"  {s}" for s in failed)
+
+    def test_penetration_rate_100(self):
+        """_sys→sdk 穿透率必须达到 100%。"""
+        from mci_world_model import _sys, sdk
+
+        sys_all = set(getattr(_sys, "__all__", []))
+        sdk_all = set(getattr(sdk, "__all__", []))
+        covered = len(sys_all & sdk_all)
+        total = len(sys_all)
+        rate = covered / total if total > 0 else 0
+        assert rate == 1.0, f"_sys→sdk 穿透率 {rate:.1%} ({covered}/{total}) 未达 100%。缺少 {total - covered} 个符号。"
+
+
+class TestTemporalSymbolsFunctional:
+    """v3.3.1: 时空/时序核心符号从 SDK 导入后功能正常。"""
+
+    def test_temporal_system_methods(self):
+        """TemporalSystem 的 8 个核心方法可调用。"""
+        from datetime import date
+
+        from mci_world_model.sdk import TemporalSystem
+
+        ts = TemporalSystem()
+        # date_to_time_code
+        tc = ts.date_to_time_code(date(2024, 1, 15))
+        assert tc is not None
+        # get_current_time_code
+        curr = ts.get_current_time_code()
+        assert curr is not None
+        # get_jiazi_position
+        pos = ts.get_jiazi_position(date(2024, 6, 1))
+        assert isinstance(pos, (int, float))
+        # temporal_similarity
+        sim = ts.temporal_similarity(date(2024, 1, 1), date(2024, 1, 2))
+        assert 0.0 <= sim <= 1.0
+        # calculate_time_decay
+        decay = ts.calculate_time_decay(30, "木")
+        assert 0.0 <= decay <= 1.0
+
+    def test_temporal_info_dataclass(self):
+        """TemporalInfo 可作为数据容器实例化。"""
+        from mci_world_model.sdk import TemporalInfo
+
+        info = TemporalInfo(
+            tian_gan="甲",
+            di_zhi="子",
+            time_code="甲子",
+            energy_type="木",
+            yin_yang="阳",
+            season="冬",
+            is_birthday=False,
+        )
+        assert info.tian_gan == "甲"
+        assert info.di_zhi == "子"
+
+    def test_dizhi_tiangan_enums(self):
+        """DiZhi/TianGan 枚举含正确数量。"""
+        from mci_world_model.sdk import DiZhi, TianGan
+
+        assert len(DiZhi.NAMES) == 12
+        assert len(TianGan.NAMES) == 10
+
+    def test_time_code_factory(self):
+        """create_time_code 工厂函数可用。"""
+        from mci_world_model.sdk import create_time_code
+
+        tc = create_time_code(0, 0)  # stem_idx=0, branch_idx=0
+        assert tc is not None
+
+    def test_spatial_data_tables(self):
+        """时空数据表（地支冲合刑、天干冲合）非空且类型正确。"""
+        from mci_world_model.sdk import (
+            BRANCH_CHONG,
+            BRANCH_CHONG_MAP,
+            BRANCH_HE,
+            BRANCH_XING,
+            STEM_CHONG,
+            STEM_HE,
+            STEM_HE_MAP,
+        )
+
+        # BRANCH_CHONG/HE 是 dict 而非 set（地支枚举→地支枚举映射）
+        assert isinstance(BRANCH_CHONG, dict) and len(BRANCH_CHONG) > 0
+        assert isinstance(BRANCH_HE, dict) and len(BRANCH_HE) > 0
+        assert isinstance(BRANCH_XING, dict) and len(BRANCH_XING) > 0
+        assert isinstance(STEM_CHONG, (dict, set)) and len(STEM_CHONG) > 0
+        assert isinstance(STEM_HE, (dict, set)) and len(STEM_HE) > 0
+        assert isinstance(BRANCH_CHONG_MAP, dict) and len(BRANCH_CHONG_MAP) > 0
+        assert isinstance(STEM_HE_MAP, dict) and len(STEM_HE_MAP) > 0
+
+    def test_bayesian_engine_from_sdk(self):
+        """BayesianEngine 可从 SDK 导入并实例化。"""
+        from mci_world_model.sdk import BayesianEngine
+
+        engine = BayesianEngine()
+        assert engine is not None
+
+    def test_causal_chain_from_sdk(self):
+        """CausalChain 可从 SDK 导入。"""
+        from mci_world_model.sdk import CausalChain
+
+        assert CausalChain is not None
+
+
 class TestNoSuMemoryResidue:
     """独立成仓后，源码中不应再出现 su_memory.* 引用。"""
 

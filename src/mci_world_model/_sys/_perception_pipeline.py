@@ -257,9 +257,15 @@ class PerceptionPipeline:
     def process_multimodal(
         self,
         signals: list[MultimodalSignal],
-    ) -> list[dict]:
+        fusion_strategy: str = "attention",
+        enable_fusion: bool = True,
+    ) -> list[dict] | PerceivedFeatures:
         """
-        v3.1.0: 将多模态信号统一转换为因果发现可用的结构化特征。
+        v3.1.0/v4.5.0: 将多模态信号统一转换为因果发现可用的结构化特征。
+
+        v4.5.0: 默认启用融合 (enable_fusion=True)，返回 PerceivedFeatures
+        其中 world_state 为融合后 MultimodalWorldState。
+        如需旧版纯特征列表，设置 enable_fusion=False。
 
         处理策略:
         - NUMERICAL → 单值特征 + 五范畴映射
@@ -270,10 +276,17 @@ class PerceptionPipeline:
 
         Args:
             signals: MultimodalSignal 列表
+            fusion_strategy: 融合策略 "attention" / "weighted" / "concat"
+            enable_fusion: 是否默认启用融合 (v4.5.0 默认 True)
 
         Returns:
-            结构化特征列表 [{"feature_name": str, "value": float, "category": str, ...}, ...]
+            enable_fusion=True  → PerceivedFeatures (含融合后 world_state)
+            enable_fusion=False → list[dict] 结构化特征
         """
+        if enable_fusion:
+            result = self.process_multimodal_fused(signals, fusion_strategy=fusion_strategy)
+            return result
+
         self._state = "COLLECTING"
         if not signals:
             self._state = "COMPLETE"
@@ -356,7 +369,6 @@ class PerceptionPipeline:
             - 有本体感觉信号 (PROPRIOCEPTION) → PendulumState
             - 有多模态信号 (VISION + PROPRIOCEPTION) → MultimodalWorldState
         """
-        from mci_world_model._sys._sensor_paradigm import SensorModality
 
         # 注册表: modality → WorldState 类
         _STATE_REGISTRY: dict[str, type] = {}
@@ -442,8 +454,8 @@ class PerceptionPipeline:
 
         features = PerceivedFeatures()
 
-        # 1. 先做普通多模态处理
-        processed = self.process_multimodal(signals)
+        # 1. 先做普通多模态处理（enable_fusion=False 获取纯特征列表，避免递归）
+        processed = self.process_multimodal(signals, enable_fusion=False)
 
         # 2. 按模态分组收集特征向量
         modality_features: dict[str, np.ndarray] = {}
@@ -830,6 +842,118 @@ class PerceptionPipeline:
         except Exception as e:
             logger.warning("Perception semantic encode 跳过: %s", e)
             return []
+
+    # -----------------------------------------------------------------
+    # v3.6.0: 感知注意力调整 (Perception Attention Policy)
+    # -----------------------------------------------------------------
+
+    def attention_policy(
+        self,
+        feedback: dict[str, float] | None = None,
+        **kwargs,
+    ) -> dict[str, float]:
+        """v3.6.0: 基于反馈信号动态调整感知通道的采样权重。
+
+        理论基础:
+            感知环反向调整 — 失败的通道应获得更高的采样权重，
+            以便在下次感知中获得更多信息。成功的通道可以降低
+            权重以节省计算资源。
+
+        输入格式:
+            feedback = {
+                "semantic": -0.3,     # 负值 = 失败信号
+                "causal": 0.5,        # 正值 = 成功信号
+                "spacetime": -0.8,    # 强失败信号
+                "prediction_error": 0.7,  # 预测误差
+                "surprise": 0.9,      # 惊奇度
+            }
+
+        调整规则:
+            1. 失败信号 (feedback < 0) → 提升对应通道权重
+            2. 成功信号 (feedback > 0) → 降低对应通道权重
+            3. prediction_error → 全局提升所有通道权重
+            4. surprise → 提升所有通道 + 重置衰减
+            5. 最终权重归一化到 [0, 1]
+
+        Args:
+            feedback: 各通道反馈信号
+
+        Returns:
+            调整后的通道采样权重 dict
+        """
+        if feedback is None:
+            feedback = kwargs
+
+        # 默认五通道权重
+        if not hasattr(self, "_attention_weights"):
+            self._attention_weights: dict[str, float] = {
+                "semantic": 0.20,
+                "causal": 0.20,
+                "spacetime": 0.20,
+                "generative": 0.20,
+                "trust": 0.20,
+            }
+
+        weights = dict(self._attention_weights)
+        lr = 0.15  # 注意力学习率
+
+        # 1. 处理各通道反馈
+        channel_keys = {"semantic", "causal", "spacetime", "generative", "trust"}
+        for key in channel_keys:
+            if key in feedback:
+                signal = feedback[key]
+                if signal < 0:
+                    # 失败信号 → 提升权重
+                    weights[key] = weights[key] + lr * abs(signal)
+                elif signal > 0:
+                    # 成功信号 → 降低权重（但不低于 0.05）
+                    weights[key] = max(0.05, weights[key] - lr * signal * 0.5)
+
+        # 2. 预测误差 → 全局提升
+        pred_error = feedback.get("prediction_error", 0.0)
+        if pred_error > 0.3:
+            boost = lr * pred_error * 0.5
+            for key in weights:
+                weights[key] += boost
+
+        # 3. 惊奇度 → 全面增强
+        surprise = feedback.get("surprise", 0.0)
+        if surprise > 0.5:
+            for key, value in weights.items():
+                weights[key] = min(1.0, value * (1.0 + surprise * 0.3))
+
+        # 4. 归一化
+        total = sum(weights.values())
+        if total > 0:
+            weights = {k: v / total for k, v in weights.items()}
+
+        # 5. 持久化
+        self._attention_weights = dict(weights)
+
+        return dict(weights)
+
+    @property
+    def attention_weights(self) -> dict[str, float]:
+        """当前通道采样权重。"""
+        if not hasattr(self, "_attention_weights"):
+            return {
+                "semantic": 0.20,
+                "causal": 0.20,
+                "spacetime": 0.20,
+                "generative": 0.20,
+                "trust": 0.20,
+            }
+        return dict(self._attention_weights)
+
+    def reset_attention(self) -> None:
+        """重置注意力权重为均匀分布。"""
+        self._attention_weights = {
+            "semantic": 0.20,
+            "causal": 0.20,
+            "spacetime": 0.20,
+            "generative": 0.20,
+            "trust": 0.20,
+        }
 
 
 def category_to_energy(category: str) -> str:

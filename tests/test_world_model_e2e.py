@@ -79,7 +79,7 @@ class TestMCIWorldModelInit:
         wm, _ = initialized_wm
         check = wm.health_check()
         assert isinstance(check, dict)
-        assert check["version"] == "3.1.0"
+        assert check["version"] == "4.3.3"
         assert "causal_pipeline" in check
         assert "jepa_predictor" in check
         assert "energy_loss" in check
@@ -198,8 +198,8 @@ class TestTraining:
         assert isinstance(result, dict)
         # 可能返回 error 或包含 message
 
-    def test_train_parametric_is_alias(self):
-        """train_parametric 是 train_jepa 别名。"""
+    def test_train_param_returns_dict(self):
+        """train_parametric 返回 dict（v4.3.3 CausalMLP 训练）。"""
         wm = MCIWorldModel()
         result = wm.train_parametric(qa_pairs=[]) if hasattr(wm, "train_parametric") else {}
         assert isinstance(result, dict)

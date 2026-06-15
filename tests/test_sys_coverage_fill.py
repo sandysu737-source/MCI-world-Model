@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import time
 
-import numpy as np
 import pytest
-
 
 # =============================================================================
 # meta_cognition.py — 元认知模块
@@ -31,20 +29,22 @@ class TestMetaCognition:
         assert any(g["type"] == "domain" for g in gaps)
 
     def test_discover_gaps_domain_sufficient(self):
-        """fact >= 30%: 不产生 domain gap。"""
+        """fact >= 30% and other types balanced: 不产生 fact domain gap。"""
         from mci_world_model._sys.meta_cognition import MetaCognition
 
         mc = MetaCognition()
-        types = {"fact": 4, "other": 6}
+        types = {"fact": 4, "preference": 1, "other": 5}
         gaps = mc.discover_gaps(types, [], [])
-        assert not any(g["type"] == "domain" for g in gaps)
+        # fact=40% > 30%, preference=10% >= 10% → no domain gap
+        fact_gaps = [g for g in gaps if g["type"] == "domain" and "fact" in g.get("gap_id", g.get("description", ""))]
+        assert len(fact_gaps) == 0
 
     def test_discover_gaps_temporal_stale(self):
-        """时间空洞: 最旧记忆超过 30 天。"""
+        """时间空洞: 最旧记忆超过 60 天 (AGING_CRITICAL_DAYS) 且同类型 >3 条。"""
         from mci_world_model._sys.meta_cognition import MetaCognition
 
         mc = MetaCognition()
-        memories = [{"timestamp": time.time() - 86400 * 40}]
+        memories = [{"timestamp": time.time() - 86400 * 70, "type": "fact"}] * 5
         gaps = mc.discover_gaps({"fact": 5, "other": 5}, [], memories)
         assert any(g["type"] == "temporal" for g in gaps)
 
@@ -58,11 +58,11 @@ class TestMetaCognition:
         assert not any(g["type"] == "temporal" for g in gaps)
 
     def test_discover_gaps_causal_isolated(self):
-        """因果空洞: 超半数记忆无因果关联。"""
+        """因果空洞: 超 80% 记忆无因果关联 (>10条)。"""
         from mci_world_model._sys.meta_cognition import MetaCognition
 
         mc = MetaCognition()
-        memories = [{"causal": False}, {"causal": False}, {"causal": True}, {"causal": False}]
+        memories = [{"causal_parents": None, "causal_children": None}] * 12
         gaps = mc.discover_gaps({"fact": 5, "other": 5}, [], memories)
         assert any(g["type"] == "causal" for g in gaps)
 
@@ -194,21 +194,21 @@ class TestEnergyRelations:
     # ── analyze_relation ──
 
     def test_analyze_relation_enhance(self):
-        from mci_world_model._sys._energy_relations import analyze_relation, RelationType
+        from mci_world_model._sys._energy_relations import RelationType, analyze_relation
 
         rel = analyze_relation("wood", "fire")
         assert rel.relation == RelationType.ENHANCE
         assert rel.strength >= 0.8
 
     def test_analyze_relation_suppress(self):
-        from mci_world_model._sys._energy_relations import analyze_relation, RelationType
+        from mci_world_model._sys._energy_relations import RelationType, analyze_relation
 
         rel = analyze_relation("wood", "earth")
         assert rel.relation == RelationType.SUPPRESS
         assert rel.strength == 0.8
 
     def test_analyze_relation_same(self):
-        from mci_world_model._sys._energy_relations import analyze_relation, RelationType
+        from mci_world_model._sys._energy_relations import RelationType, analyze_relation
 
         rel = analyze_relation("wood", "wood")
         assert rel.relation == RelationType.SAME
@@ -291,7 +291,9 @@ class TestEnergyRelations:
     def test_energy_relation_dataclass(self):
         from mci_world_model._sys._energy_relations import EnergyRelation, RelationType
 
-        er = EnergyRelation(source="wood", target="fire", relation=RelationType.ENHANCE, strength=0.9, description="test")
+        er = EnergyRelation(
+            source="wood", target="fire", relation=RelationType.ENHANCE, strength=0.9, description="test"
+        )
         assert er.source == "wood"
         assert er.target == "fire"
         assert er.strength == 0.9
@@ -446,9 +448,7 @@ class TestCategoryCausalEngine:
         engine.add_node("n2", "火", "fire")
         engine.link("n1", "n2")
 
-        result = engine.query_with_energy_boost(
-            "n1", candidates=["n2"], base_scores={"n2": 0.5}
-        )
+        result = engine.query_with_energy_boost("n1", candidates=["n2"], base_scores={"n2": 0.5})
         assert isinstance(result, list)
         assert len(result) > 0
 

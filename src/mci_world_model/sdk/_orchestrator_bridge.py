@@ -33,12 +33,25 @@ MCI World Model v3.1.1 — Orchestrator 桥接
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# ── SafetyGuard 懒加载 ──
+_safety_guard: Any | None = None
+_safety_available: bool = False
+
+try:
+    from mci_sdk.safety_guard import SafetyGuard as _SafetyGuard
+
+    _safety_guard = _SafetyGuard()
+    _safety_available = True
+except ImportError as e:
+    logger.debug("mci_sdk.safety_guard not available: %s", e)
 
 
 # =============================================================================
@@ -129,6 +142,7 @@ class OrchestratorBridge:
             "PLAN_GENERATION": self._handle_plan_generation,
             "FOLLOWUP": self._handle_followup,
             "MONITORING": self._handle_monitoring,
+            "CF_QUERY": self._handle_cf_query,
         }
 
     # -----------------------------------------------------------------
@@ -148,6 +162,21 @@ class OrchestratorBridge:
         """
         params = params or {}
 
+        # ── SafetyGuard Layer 1: 输入安全检查 ──
+        if _safety_available and _safety_guard is not None:
+            # 检查意图参数中所有文本值
+            check_parts = [intent_type]
+            for _k, _v in params.items():
+                if isinstance(_v, str):
+                    check_parts.append(_v)
+                elif isinstance(_v, dict):
+                    check_parts.extend(str(v) for v in _v.values() if isinstance(v, str))
+                elif isinstance(_v, list):
+                    check_parts.extend(str(v) for v in _v if isinstance(v, str))
+            check_text = " ".join(check_parts)
+            if _safety_guard.should_block(check_text):
+                return AgentResult.fail(intent_type, "输入被安全策略拦截")
+
         # 检查自定义注册表
         if intent_type in _INTENT_REGISTRY:
             try:
@@ -163,10 +192,19 @@ class OrchestratorBridge:
             return AgentResult.fail(intent_type, f"Unknown intent type: {intent_type}")
 
         try:
-            return handler(params)
+            result = handler(params)
         except Exception as e:
             logger.error(f"Intent '{intent_type}' execution failed: {e}", exc_info=True)
             return AgentResult.fail(intent_type, str(e))
+
+        # ── SafetyGuard Layer 1: 输出脱敏 ──
+        if _safety_available and _safety_guard is not None and result.success:
+            result_str = str(result.data)
+            sanitized = _safety_guard.sanitize_output(result_str)
+            if sanitized != result_str:
+                logger.info("OrchestratorBridge: output sanitized by SafetyGuard")
+
+        return result
 
     def execute_workflow(self, workflow_name: str, patient_id: str, context: dict[str, Any] | None = None) -> dict:
         """
@@ -229,8 +267,8 @@ class OrchestratorBridge:
             summary_prompt = f"患者 {patient_id} 的 {workflow_name} 结果汇总。"
             try:
                 summary_parts.append(self._multillm.generate(summary_prompt))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM 汇总生成跳过: %s", e)
 
         return {
             "workflow": workflow_name,
@@ -288,7 +326,7 @@ class OrchestratorBridge:
         strengths = {}
         for i in range(len(nodes) - 1):
             cs = bn.query_causal_strength(nodes[i], nodes[i + 1])
-            strengths[f"{nodes[i]}->{nodes[i+1]}"] = cs
+            strengths[f"{nodes[i]}->{nodes[i + 1]}"] = cs
 
         return AgentResult.ok(
             "SCREENING",
@@ -323,7 +361,6 @@ class OrchestratorBridge:
             return AgentResult.fail("ASSESSMENT", "do_x (intervention) parameter required")
 
         # 构建因果图
-        all_nodes = set(evidence.keys()) | set(do_x.keys()) | {target}
         cg = CausalGraph()
 
         # 启发式: 从 evidence → target 建立边
@@ -392,7 +429,7 @@ class OrchestratorBridge:
                 return AgentResult.fail("PLAN_GENERATION", f"encode failed: {e}")
 
         # 预测
-        predicted_state = predictor.predict(state)
+        predictor.predict(state)
 
         # 方案生成 (使用 MultiLLM 增强)
         plan_narrative = ""
@@ -406,8 +443,8 @@ class OrchestratorBridge:
                     "基于以上信息，生成一份简洁的营养方案（3-5 条建议）。"
                 )
                 plan_narrative = self._multillm.generate(prompt)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("LLM 方案生成跳过: %s", e)
 
         return AgentResult.ok(
             "PLAN_GENERATION",
@@ -428,7 +465,7 @@ class OrchestratorBridge:
         from mci_world_model.sdk._physical_graph_builder import PhysicalGraphBuilder
 
         timeline = params.get("timeline", [])
-        patient_id = params.get("patient_id", "unknown")
+        _patient_id = params.get("patient_id", "unknown")
 
         if not timeline:
             return AgentResult.fail("FOLLOWUP", "timeline data required")
@@ -445,7 +482,7 @@ class OrchestratorBridge:
         if novel_edges:
             followup_suggestions.append(
                 f"新发现 {len(novel_edges)} 条因果边: "
-                + ", ".join(f"{e.get('metric_a','?')}-{e.get('metric_b','?')}" for e in novel_edges[:3])
+                + ", ".join(f"{e.get('metric_a', '?')}-{e.get('metric_b', '?')}" for e in novel_edges[:3])
             )
 
         # 关键指标趋势
@@ -455,7 +492,9 @@ class OrchestratorBridge:
             values = [d.get(metric, 0) for d in timeline[-7:] if metric in d]
             if values:
                 avg = np.mean(values)
-                trend = "上升" if values[-1] > values[0] * 1.05 else ("下降" if values[-1] < values[0] * 0.95 else "持平")
+                trend = (
+                    "上升" if values[-1] > values[0] * 1.05 else ("下降" if values[-1] < values[0] * 0.95 else "持平")
+                )
                 trends[metric] = {"avg": round(float(avg), 1), "trend": trend}
 
         return AgentResult.ok(
@@ -484,13 +523,76 @@ class OrchestratorBridge:
             values = [d.get(metric) for d in timeline if metric in d]
             if len(values) >= 3:
                 recent_mean = np.mean(values[-3:])
-                baseline_mean = np.mean(values[:-3]) if len(values) > 3 else recent_mean
+                # baseline_mean 保留用于未来趋势对比扩展
+                _ = np.mean(values[:-3]) if len(values) > 3 else recent_mean
 
                 # 白蛋白 < 30 → 警报
                 if metric == "albumin" and recent_mean < 30:
-                    alerts.append({"metric": metric, "severity": "warning", "value": round(float(recent_mean), 1), "threshold": 30})
+                    alerts.append(
+                        {
+                            "metric": metric,
+                            "severity": "warning",
+                            "value": round(float(recent_mean), 1),
+                            "threshold": 30,
+                        }
+                    )
                 # NRS2002 >= 3 → 警报
                 if metric == "nrs2002_score" and recent_mean >= 3:
-                    alerts.append({"metric": metric, "severity": "warning", "value": round(float(recent_mean), 1), "threshold": 3})
+                    alerts.append(
+                        {"metric": metric, "severity": "warning", "value": round(float(recent_mean), 1), "threshold": 3}
+                    )
 
         return AgentResult.ok("MONITORING", {"alerts": alerts, "total_days": len(timeline)})
+
+    def _handle_cf_query(self, params: dict) -> AgentResult:
+        """
+        CF_QUERY → CounterfactualOracle.batch_what_if() + rank_scenarios()
+
+        v4.4.2: LLM↔CEWM 反馈闭环核心——LLM 可以查询 CEWM 的
+        反事实推演结果，并将结果融入后续推理。
+
+        Params:
+            hypotheses: list[dict] — 反事实假设列表
+                [{"name": "A", "intervention": {...}, "target": "..."}]
+            goal: str — 优化目标描述
+            target_direction: str — 'higher_is_better' 或 'lower_is_better'
+        """
+        from mci_world_model.sdk._counterfactual_oracle import (
+            CounterfactualOracle,
+        )
+
+        hypotheses = params.get("hypotheses", [])
+        if not hypotheses:
+            return AgentResult.fail("CF_QUERY", "hypotheses parameter required")
+
+        goal = params.get("goal", "maximize")
+        target_direction = params.get("target_direction", "higher_is_better")
+
+        # 构建 Oracle（优先使用 world_model 上的实例）
+        oracle = None
+        if (
+            self._world_model is not None
+            and hasattr(self._world_model, "_cf_oracle")
+            and self._world_model._cf_oracle is not None
+        ):
+            oracle = self._world_model._cf_oracle
+        else:
+            oracle = CounterfactualOracle(world_model=self._world_model)
+
+        # 完整查询流程
+        result = oracle.query(
+            hypotheses=hypotheses,
+            goal=goal,
+            target_direction=target_direction,
+        )
+
+        return AgentResult.ok(
+            "CF_QUERY",
+            {
+                "best_scenario": result.get("best_scenario"),
+                "best_effect": result.get("best_effect"),
+                "rankings": result.get("rankings", []),
+                "recommendation": result.get("recommendation", ""),
+                "n_scenarios": result.get("n_scenarios", 0),
+            },
+        )

@@ -52,12 +52,14 @@ class JEPAEncoder:
         world_model,
         differentiable: bool = False,
         gat_key_dim: int = 16,
+        learnable_encoder=None,
     ):
         """
         Args:
             world_model: MCIWorldModel 实例（含 discover() 能力）
             differentiable: 是否启用 M3 可微 GAT 编码器
             gat_key_dim: GAT 注意力键维度
+            learnable_encoder: v5.0.0 LearnableStateEncoder 实例（可选）
         """
         self._wm = world_model
         self._differentiable = differentiable
@@ -67,6 +69,9 @@ class JEPAEncoder:
         self._gat_encoder = None
         if differentiable:
             self._init_gat_encoder(key_dim=gat_key_dim)
+
+        # v5.0.0: 可学习状态编码器
+        self._learnable_encoder = learnable_encoder
 
     @property
     def is_differentiable(self) -> bool:
@@ -102,12 +107,90 @@ class JEPAEncoder:
         """
         if signals is not None:
             # ── v3.1.0 物理世界路径 ──
+            # v5.0.0: 优先使用可学习编码器
+            if self._learnable_encoder is not None:
+                return self._encode_differentiable_physical(signals)
             return self._encode_via_physical_builder(signals)
 
         if memories is not None:
             return self._encode_via_memories(memories, use_parametric)
 
         return CausalWorldModelState.empty()
+
+    def _encode_differentiable_physical(self, signals: list[dict[str, Any]]) -> CausalWorldModelState:
+        """
+        v5.0.0: 使用 LearnableStateEncoder 编码物理信号。
+
+        流程:
+        1. 从 signals 提取状态向量 (to_vector)
+        2. 调用 LearnableStateEncoder.forward()
+        3. 将潜向量填充到 CausalWorldModelState 的 parametric_cache 字段
+        4. 同时使用 PhysicalGraphBuilder 构建因果边（保持因果推理能力）
+        """
+        if not signals:
+            return CausalWorldModelState.empty()
+
+        from mci_world_model.sdk._physical_graph_builder import PhysicalGraphBuilder
+
+        # 1. 使用 PhysicalGraphBuilder 获取因果边（不可微但提供因果结构）
+        builder = PhysicalGraphBuilder()
+
+        # 检测输入格式
+        if signals and hasattr(signals[0], "signal_type"):
+            from mci_world_model._sys._perception_pipeline import MultimodalSignal
+
+            if isinstance(signals[0], MultimodalSignal):
+                from mci_world_model.sdk._physical_graph_builder import signals_to_timeline
+
+                timeline = signals_to_timeline(signals)
+            else:
+                timeline = signals  # type: ignore
+        else:
+            timeline = signals  # type: ignore
+
+        edges = builder.build_graph(timeline)
+        timestamp = signals[0].get("timestamp", "") if isinstance(signals[0], dict) else ""
+
+        # 2. 提取状态向量并编码
+        latent = None
+        try:
+            if isinstance(signals[0], dict):
+                numeric_values = []
+                for sig in signals:
+                    for k, v in sig.items():
+                        if isinstance(v, (int, float)) and k not in ("day", "timestamp"):
+                            numeric_values.append(float(v))
+                if numeric_values:
+                    state_vector = np.array(numeric_values[: self._learnable_encoder.state_dim], dtype=np.float64)
+                    if len(state_vector) < self._learnable_encoder.state_dim:
+                        padded = np.zeros(self._learnable_encoder.state_dim, dtype=np.float64)
+                        padded[: len(state_vector)] = state_vector
+                        state_vector = padded
+                    latent = self._learnable_encoder.forward(state_vector)
+        except Exception as e:
+            logger.debug("可学习编码跳过: %s", e)
+
+        # 3. 构建状态
+        state = CausalWorldModelState(
+            causal_edges=edges,
+            n_novel=sum(1 for e in edges if e.get("verdict") == "novel"),
+            n_confirmed=sum(1 for e in edges if e.get("verdict") == "confirmed"),
+            n_memories=len(timeline),
+            timestamp=timestamp,
+        )
+
+        # 4. 将潜向量存入 parametric_cache
+        if latent is not None:
+            if not hasattr(state, "parametric_cache") or state.parametric_cache is None:
+                state.parametric_cache = {}
+            state.parametric_cache["learnable_latent"] = latent.tolist()
+
+        return state
+
+    @property
+    def learnable_encoder(self):
+        """返回 v5.0.0 可学习编码器实例。"""
+        return self._learnable_encoder
 
     def _encode_via_physical_builder(self, signals: list[dict[str, Any]]) -> CausalWorldModelState:
         """
@@ -209,8 +292,8 @@ class JEPAEncoder:
                     try:
                         temporal_info = ts.encode(timestamp)
                         mem["_temporal"] = temporal_info
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("时序编码跳过单条: %s", e)
         except Exception as e:
             logger.debug("TemporalSystem 跳过: %s", e)
         return memories

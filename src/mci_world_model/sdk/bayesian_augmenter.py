@@ -741,8 +741,8 @@ class BayesianAugmenter:
                             source="user_feedback",
                             note=f"Not relevant to: {query}",
                         )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("反馈信念更新跳过: %s", e)
 
             result["beliefs_updated"] = len(expected_memory_ids)
 
@@ -755,8 +755,8 @@ class BayesianAugmenter:
                 events = prev_pred.get("event_predictions", [])
                 if events:
                     original_prob = events[0].get("confidence", 0.5)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("原始预测概率获取跳过: %s", e)
 
             # 评估贝叶斯系统的概率
             bayesian_prob = 0.5
@@ -815,8 +815,8 @@ class BayesianAugmenter:
                         actual_outcome=expected_outcome,
                     )
                     result["calibration_updated"] = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("校准结果记录跳过: %s", e)
 
         return result
 
@@ -911,42 +911,46 @@ class BayesianAugmenter:
     def print_accuracy_report(self):
         """打印格式化的准确度报告"""
         report = self.get_accuracy_report()
-        print("\n" + "=" * 60)
-        print("📊 BayesianAugmenter 双路径准确度对比报告")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("BayesianAugmenter 双路径准确度对比报告")
+        logger.info("=" * 60)
 
         if report.get("status") == "no_data":
-            print(f"\n  ⚠️  {report['message']}")
-            print(f"  💡 {report['suggestion']}")
-            print("\n" + "=" * 60)
+            logger.warning("%s", report["message"])
+            logger.info("%s", report["suggestion"])
+            logger.info("=" * 60)
             return
 
         summary = report["summary"]
         orig = report["original_stats"]
         bayes = report["bayesian_stats"]
 
-        print(f"\n  📈 总体: {summary['total_feedback']} 次反馈, {summary['total_records']} 条准确度记录")
-        print(f"\n  {'指标':<15} {'原始':>10} {'贝叶斯':>10} {'改善':>10}")
-        print(f"  {'─' * 15} {'─' * 10} {'─' * 10} {'─' * 10}")
-        print(
-            f"  {'MAE':<15} {orig.get('mae', 0):>10.4f} {bayes.get('mae', 0):>10.4f} {summary['improvement_pct']:>+9.1f}%"
+        logger.info("总体: %d 次反馈, %d 条准确度记录", summary["total_feedback"], summary["total_records"])
+        logger.info("  %-15s %10s %10s %10s", "指标", "原始", "贝叶斯", "改善")
+        logger.info("  %s %s %s %s", "─" * 15, "─" * 10, "─" * 10, "─" * 10)
+        logger.info(
+            "  %-15s %10.4f %10.4f %+9.1f%%",
+            "MAE",
+            orig.get("mae", 0),
+            bayes.get("mae", 0),
+            summary["improvement_pct"],
         )
-        print(f"  {'RMSE':<15} {orig.get('rmse', 0):>10.4f} {bayes.get('rmse', 0):>10.4f}")
-        print(f"  {'Median Error':<15} {orig.get('median_error', 0):>10.4f} {bayes.get('median_error', 0):>10.4f}")
-        print(f"  {'P90 Error':<15} {orig.get('p90_error', 0):>10.4f} {bayes.get('p90_error', 0):>10.4f}")
-        print(f"  {'Bias':<15} {orig.get('mean_bias', 0):>10.4f} {bayes.get('mean_bias', 0):>10.4f}")
+        logger.info("  %-15s %10.4f %10.4f", "RMSE", orig.get("rmse", 0), bayes.get("rmse", 0))
+        logger.info("  %-15s %10.4f %10.4f", "Median Error", orig.get("median_error", 0), bayes.get("median_error", 0))
+        logger.info("  %-15s %10.4f %10.4f", "P90 Error", orig.get("p90_error", 0), bayes.get("p90_error", 0))
+        logger.info("  %-15s %10.4f %10.4f", "Bias", orig.get("mean_bias", 0), bayes.get("mean_bias", 0))
 
-        print(f"\n  🎯 判定: {summary['verdict']}")
-        print(f"  💡 建议: {summary['recommendation']}")
+        logger.info("判定: %s", summary["verdict"])
+        logger.info("建议: %s", summary["recommendation"])
 
         if report.get("calibration") and report["calibration"].get("status") != "insufficient_data":
             cal = report["calibration"]
-            print("\n  📏 预测校准:")
-            print(f"     状态: {cal.get('status', 'N/A')}")
-            print(f"     Brier Score: {cal.get('brier_score', 0):.4f}")
-            print(f"     校准偏置: {cal.get('calibration_bias', 0):.4f}")
+            logger.info("  预测校准:")
+            logger.info("     状态: %s", cal.get("status", "N/A"))
+            logger.info("     Brier Score: %.4f", cal.get("brier_score", 0))
+            logger.info("     校准偏置: %.4f", cal.get("calibration_bias", 0))
 
-        print("\n" + "=" * 60)
+        logger.info("=" * 60)
 
     # ================================================================
     # 批量对比验证
@@ -1015,19 +1019,24 @@ class BayesianAugmenter:
         report = self.get_accuracy_report()
 
         if verbose:
-            print("\n" + "=" * 60)
-            print("📋 批量对比验证结果")
-            print("=" * 60)
-            print(f"\n  测试用例: {len(test_queries)}")
+            logger.info("=" * 60)
+            logger.info("批量对比验证结果")
+            logger.info("=" * 60)
+            logger.info("测试用例: %d", len(test_queries))
             if total_tested > 0:
-                print(f"  原始 Top-1 准确率: {orig_correct}/{total_tested} ({orig_correct / total_tested * 100:.1f}%)")
-                print(
-                    f"  贝叶斯 Top-1 准确率: {bayes_correct}/{total_tested} ({bayes_correct / total_tested * 100:.1f}%)"
+                logger.info(
+                    "  原始 Top-1 准确率: %d/%d (%.1f%%)", orig_correct, total_tested, orig_correct / total_tested * 100
+                )
+                logger.info(
+                    "  贝叶斯 Top-1 准确率: %d/%d (%.1f%%)",
+                    bayes_correct,
+                    total_tested,
+                    bayes_correct / total_tested * 100,
                 )
                 improv = (bayes_correct - orig_correct) / max(total_tested, 1) * 100
-                print(f"  准确率差异: {improv:+.1f}%")
-            print(f"\n  误差改善: {report.get('summary', {}).get('improvement_pct', 0):+.1f}%")
-            print("=" * 60)
+                logger.info("  准确率差异: %+.1f%%", improv)
+            logger.info("误差改善: %+.1f%%", report.get("summary", {}).get("improvement_pct", 0))
+            logger.info("=" * 60)
 
         return {
             "results": results,

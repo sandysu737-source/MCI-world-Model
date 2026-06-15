@@ -32,8 +32,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:
     from mci_world_model.sdk._action_conditioned_predictor import ActionConditionedPredictor
     from mci_world_model.sdk._cost_module import EnergyCostModule
@@ -254,14 +252,12 @@ class PlanAgent:
             predicted_trajectory=best_trajectory,
             expected_cost=best_eval.final_distance,
             confidence=round(confidence, 4),
-            reasoning=f"multi_branch_selection: branch={best_idx}, "
-                      f"improvement={improvement:.3f}",
+            reasoning=f"multi_branch_selection: branch={best_idx}, improvement={improvement:.3f}",
             metadata={
                 "n_branches": len(action_sequences),
                 "horizon": max_horizon,
                 "all_evals": [
-                    {"branch": e.branch_index, "rank": e.rank, "distance": round(e.final_distance, 6)}
-                    for e in evals
+                    {"branch": e.branch_index, "rank": e.rank, "distance": round(e.final_distance, 6)} for e in evals
                 ],
             },
         )
@@ -357,12 +353,12 @@ class PlanAgent:
             expected_cost=best_cost,
             confidence=round(confidence, 4),
             reasoning=f"lookahead_search: horizon={horizon}, "
-                      f"candidates={n_candidates}, "
-                      f"combinations={n_candidates ** horizon}",
+            f"candidates={n_candidates}, "
+            f"combinations={n_candidates**horizon}",
             metadata={
                 "horizon": horizon,
                 "n_candidates": n_candidates,
-                "total_combinations": n_candidates ** horizon,
+                "total_combinations": n_candidates**horizon,
             },
         )
 
@@ -400,11 +396,13 @@ class PlanAgent:
                 expected = plan.predicted_trajectory[i]
                 sig = self._surprise_detector.compute_surprise(expected, current)
                 if sig.is_anomaly:
-                    surprises.append({
-                        "step": i,
-                        "surprise_score": sig.score,
-                        "expected_vs_actual": sig.breakdown,
-                    })
+                    surprises.append(
+                        {
+                            "step": i,
+                            "surprise_score": sig.score,
+                            "expected_vs_actual": sig.breakdown,
+                        }
+                    )
 
         report = {
             "n_steps_executed": len(plan.actions),
@@ -457,10 +455,14 @@ class PlanAgent:
     def _generate_default_candidates(self, state: WorldState) -> list:
         """根据 WorldState 类型生成默认候选动作。
 
-        对 PendulumState 生成不同力矩的 PendulumAction。
-        对其他类型返回空列表。
+        v4.4.0: 泛化为支持 PendulumState / CartState / 任意 WorldState。
         """
-        from mci_world_model.sdk._world_state import PendulumAction, PendulumState
+        from mci_world_model.sdk._world_state import (
+            CartAction,
+            CartState,
+            PendulumAction,
+            PendulumState,
+        )
 
         if isinstance(state, PendulumState):
             return [
@@ -470,6 +472,17 @@ class PlanAgent:
                 PendulumAction(torque=2.0),
                 PendulumAction(torque=5.0),
             ]
+
+        if isinstance(state, CartState):
+            return [
+                CartAction(force=-5.0),
+                CartAction(force=-2.0),
+                CartAction(force=0.0),
+                CartAction(force=2.0),
+                CartAction(force=5.0),
+            ]
+
+        # 通用 WorldState: 无法生成候选动作
         return []
 
     # -----------------------------------------------------------------
@@ -477,7 +490,4 @@ class PlanAgent:
     # -----------------------------------------------------------------
 
     def __repr__(self) -> str:
-        return (
-            f"PlanAgent(predictor={self._predictor!r}, "
-            f"plans={self._plan_count}, executes={self._execute_count})"
-        )
+        return f"PlanAgent(predictor={self._predictor!r}, plans={self._plan_count}, executes={self._execute_count})"

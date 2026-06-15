@@ -12,13 +12,10 @@ tests/test_multi_branch_predictor.py — MultiBranchPredictor 测试
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pytest
 
 from mci_world_model.sdk._action_conditioned_predictor import (
-    ActionConditionedPredictor,
     PendulumJEPAPredictor,
     PendulumPhysicsPredictor,
 )
@@ -27,7 +24,6 @@ from mci_world_model.sdk._multi_branch_predictor import (
     MultiBranchPredictor,
 )
 from mci_world_model.sdk._world_state import PendulumAction, PendulumState
-
 
 # =============================================================================
 # Fixtures
@@ -129,7 +125,7 @@ class TestCompareBranches:
         """距 goal 最近的分支 rank=0。"""
         actions = [
             [PendulumAction(torque=-2.0)],  # 推向平衡
-            [PendulumAction(torque=2.0)],   # 推离平衡
+            [PendulumAction(torque=2.0)],  # 推离平衡
         ]
         branches = mbp.predict_branches(tilted_state, actions)
         evals = mbp.compare_branches(branches, goal)
@@ -250,7 +246,9 @@ class TestBranchEvaluation:
 
     def test_fields(self):
         ev = BranchEvaluation(
-            branch_index=0, final_distance=0.5, trajectory_length=3,
+            branch_index=0,
+            final_distance=0.5,
+            trajectory_length=3,
         )
         assert ev.rank == -1
         assert ev.total_distance == 0.0
@@ -281,7 +279,7 @@ class TestJEPAPredictorIntegration:
             [PendulumAction(torque=-2.0)],
             [PendulumAction(torque=2.0)],
         ]
-        idx, traj = mbp.best_branch(tilted_state, actions, goal)
+        _idx, traj = mbp.best_branch(tilted_state, actions, goal)
         assert len(traj) == 1
         assert isinstance(traj[0], PendulumState)
 

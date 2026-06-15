@@ -97,9 +97,7 @@ class MultimodalFusion:
         """获取或创建投影矩阵 (input_dim → output_dim)。"""
         if input_dim not in self._projections:
             scale = np.sqrt(2.0 / (input_dim + self._output_dim))
-            self._projections[input_dim] = (
-                self._rng.randn(input_dim, self._output_dim).astype(np.float64) * scale
-            )
+            self._projections[input_dim] = self._rng.randn(input_dim, self._output_dim).astype(np.float64) * scale
         return self._projections[input_dim]
 
     def _project(self, vec: np.ndarray) -> np.ndarray:
@@ -153,7 +151,7 @@ class MultimodalFusion:
     ) -> FusedRepresentation:
         """加权平均融合：对齐维度后按 confidence 加权。"""
         if confidences is None:
-            confidences = {k: 1.0 for k in features}
+            confidences = dict.fromkeys(features, 1.0)
 
         projected = {}
         for name, vec in features.items():
@@ -216,7 +214,7 @@ class MultimodalFusion:
         attention_weight = softmax(Q · K^T / sqrt(d))
         """
         if confidences is None:
-            confidences = {k: 1.0 for k in features}
+            confidences = dict.fromkeys(features, 1.0)
 
         sorted_names = sorted(features.keys())
         if len(sorted_names) == 1:

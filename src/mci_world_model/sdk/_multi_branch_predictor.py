@@ -24,7 +24,7 @@ MCI World Model v3.3.0 — MultiBranchPredictor 多分支未来推演引擎
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -147,11 +147,13 @@ class MultiBranchPredictor:
 
         for i, trajectory in enumerate(branches):
             if not trajectory:
-                evals.append(BranchEvaluation(
-                    branch_index=i,
-                    final_distance=float("inf"),
-                    trajectory_length=0,
-                ))
+                evals.append(
+                    BranchEvaluation(
+                        branch_index=i,
+                        final_distance=float("inf"),
+                        trajectory_length=0,
+                    )
+                )
                 continue
 
             final_state = trajectory[-1]
@@ -173,13 +175,15 @@ class MultiBranchPredictor:
             n_steps = len(trajectory)
             avg_step = total_dist / n_steps if n_steps > 0 else 0.0
 
-            evals.append(BranchEvaluation(
-                branch_index=i,
-                final_distance=final_dist,
-                trajectory_length=n_steps,
-                total_distance=total_dist,
-                avg_step_distance=avg_step,
-            ))
+            evals.append(
+                BranchEvaluation(
+                    branch_index=i,
+                    final_distance=final_dist,
+                    trajectory_length=n_steps,
+                    total_distance=total_dist,
+                    avg_step_distance=avg_step,
+                )
+            )
 
         # 按 final_distance 升序排列，赋 rank
         evals.sort(key=lambda e: e.final_distance)
@@ -247,14 +251,16 @@ class MultiBranchPredictor:
             try:
                 cf_results = counterfactual_engine.batch_query(interventions)
                 for i, cf in enumerate(cf_results):
-                    results.append({
-                        "intervention": interventions[i],
-                        "factual_value": getattr(cf, "factual_value", None),
-                        "counterfactual_value": getattr(cf, "counterfactual_value", None),
-                        "individual_effect": getattr(cf, "individual_effect", None),
-                        "status": getattr(cf, "status", "ok"),
-                        "method": "counterfactual_engine",
-                    })
+                    results.append(
+                        {
+                            "intervention": interventions[i],
+                            "factual_value": getattr(cf, "factual_value", None),
+                            "counterfactual_value": getattr(cf, "counterfactual_value", None),
+                            "individual_effect": getattr(cf, "individual_effect", None),
+                            "status": getattr(cf, "status", "ok"),
+                            "method": "counterfactual_engine",
+                        }
+                    )
             except Exception as e:
                 logger.warning("反事实引擎异常，降级为推演式: %s", e)
                 return self._what_if_rollout(state, interventions)
@@ -279,13 +285,15 @@ class MultiBranchPredictor:
             natural = self._predictor.predict(state.copy(), None, n_steps=1)
             natural_vec = natural[0].to_vector() if natural else state.to_vector()
 
-            results.append({
-                "intervention": intervention,
-                "natural_outcome": natural_vec.tolist() if len(natural_vec) < 100 else None,
-                "n_do_variables": len(do_x),
-                "target": target,
-                "method": "rollout_fallback",
-            })
+            results.append(
+                {
+                    "intervention": intervention,
+                    "natural_outcome": natural_vec.tolist() if len(natural_vec) < 100 else None,
+                    "n_do_variables": len(do_x),
+                    "target": target,
+                    "method": "rollout_fallback",
+                }
+            )
         return results
 
     # -----------------------------------------------------------------

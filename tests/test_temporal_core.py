@@ -160,13 +160,13 @@ class TestTemporalCoreNavigation:
         # index 30 = stem 0 (JIA) + 30 → JIA at 30, branch = 30%12 = 6 (WU)
         assert self.tc.get_cycle_name(30) == "甲午"
 
-    def test_get_cycle_name_negative_raises(self):
-        with pytest.raises(ValueError):
-            self.tc.get_cycle_name(-1)
+    def test_get_cycle_name_negative_wraps(self):
+        # v4.0.0: negative index wraps via modulo (e.g., -1 → 59 → 癸亥)
+        assert self.tc.get_cycle_name(-1) == "癸亥"
 
-    def test_get_cycle_name_out_of_range_raises(self):
-        with pytest.raises(ValueError):
-            self.tc.get_cycle_name(60)
+    def test_get_cycle_name_out_of_range_wraps(self):
+        # v4.0.0: index 60 wraps to 0 → 甲子
+        assert self.tc.get_cycle_name(60) == "甲子"
 
     def test_get_cycle_index_jia_zi(self):
         idx = self.tc.get_cycle_index(TimeStem.JIA, TimeBranch.ZI)
@@ -688,9 +688,9 @@ class TestGetCycleName:
     def test_get_cycle_name_59(self):
         assert get_cycle_name(59) == "癸亥"
 
-    def test_get_cycle_name_negative_raises(self):
-        with pytest.raises(ValueError):
-            get_cycle_name(-1)
+    def test_get_cycle_name_negative_wraps(self):
+        # v4.0.0: negative index wraps via modulo (e.g., -1 → 59 → 癸亥)
+        assert get_cycle_name(-1) == "癸亥"
 
 
 # =====================================================================

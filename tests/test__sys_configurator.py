@@ -11,9 +11,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, PropertyMock
-
-import pytest
+from unittest.mock import MagicMock
 
 from mci_world_model._sys._configurator import (
     ConfigAction,
@@ -21,7 +19,6 @@ from mci_world_model._sys._configurator import (
     MetaConfigurator,
     _extract_energy_ratios_from_state,
 )
-
 
 # =============================================================================
 # Helpers: Mock CognitiveGap
@@ -200,14 +197,26 @@ class TestMetaConfiguratorConfigure:
 
     def test_low_confidence_edges_triggers_m3(self):
         mc = MetaConfigurator()
-        edges = [{"confidence": 0.3}, {"confidence": 0.2}, {"confidence": 0.1}, {"confidence": 0.4}, {"confidence": 0.3}]
+        edges = [
+            {"confidence": 0.3},
+            {"confidence": 0.2},
+            {"confidence": 0.1},
+            {"confidence": 0.4},
+            {"confidence": 0.3},
+        ]
         wm = make_world_model(edges=edges)
         actions = mc.configure(wm, gaps=[make_causal_gap(severity=0.1)])
         assert any(a.action_type == "enable_m3" for a in actions)
 
     def test_low_confidence_no_jepa_suggests_retrain(self):
         mc = MetaConfigurator()
-        edges = [{"confidence": 0.3}, {"confidence": 0.2}, {"confidence": 0.1}, {"confidence": 0.4}, {"confidence": 0.3}]
+        edges = [
+            {"confidence": 0.3},
+            {"confidence": 0.2},
+            {"confidence": 0.1},
+            {"confidence": 0.4},
+            {"confidence": 0.3},
+        ]
         wm = make_world_model(with_jepa=False, edges=edges)
         actions = mc.configure(wm, gaps=[make_causal_gap(severity=0.1)])
         assert any(a.action_type == "suggest_retrain" for a in actions)

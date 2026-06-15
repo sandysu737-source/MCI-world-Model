@@ -264,7 +264,10 @@ class SurpriseDetector:
         self._threshold = new_threshold
         logger.info(
             "SurpriseDetector threshold adapted: %.4f (n=%d, mean=%.4f, std=%.4f)",
-            new_threshold, len(self._history), float(np.mean(arr)), float(np.std(arr)),
+            new_threshold,
+            len(self._history),
+            float(np.mean(arr)),
+            float(np.std(arr)),
         )
         return new_threshold
 
@@ -277,11 +280,238 @@ class SurpriseDetector:
         self._history.clear()
 
     # -----------------------------------------------------------------
+    # diagnose — 根因分析链 (v3.4.0, VSM System 3*)
+    # -----------------------------------------------------------------
+
+    def diagnose(
+        self,
+        signal: SurpriseSignal,
+        causal_graph: dict[str, list[str]] | None = None,
+        context: dict | None = None,
+    ) -> dict:
+        """对单个惊奇信号执行根因分析链。
+
+        VSM System 3* (异常审计):
+            SurpriseSignal → 维度分解 → 异常层定位 → 因果图追溯 → 根因报告
+
+        Args:
+            signal: 惊奇信号
+            causal_graph: 因果图邻接表 {node: [children]}（可选）
+            context: 附加上下文信息（可选）
+
+        Returns:
+            {
+                "root_cause_layer": str,       # 主要异常层
+                "dimension_analysis": dict,     # 三维度分析
+                "causal_chain": list[str],      # 因果链
+                "severity": float,              # 综合严重度
+                "recommendation": str,          # 建议
+                "details": dict,
+            }
+        """
+        breakdown = signal.breakdown
+        score = signal.score
+
+        # 1. 维度分析
+        dimension_analysis = self._analyze_dimensions(breakdown)
+
+        # 2. 定位主要异常层
+        root_cause_layer = self._locate_anomaly_layer(breakdown)
+
+        # 3. 因果图追溯
+        causal_chain: list[str] = []
+        if causal_graph:
+            causal_chain = self._trace_causal_chain(breakdown, causal_graph)
+
+        # 4. 生成建议
+        recommendation = self._generate_recommendation(root_cause_layer, score)
+
+        # 5. 严重度评估
+        severity = self._assess_severity(signal, dimension_analysis)
+
+        return {
+            "root_cause_layer": root_cause_layer,
+            "dimension_analysis": dimension_analysis,
+            "causal_chain": causal_chain,
+            "severity": round(severity, 6),
+            "recommendation": recommendation,
+            "details": {
+                "score": score,
+                "threshold": signal.threshold,
+                "is_anomaly": signal.is_anomaly,
+                "history_stats": self.running_statistics(),
+                "context": context or {},
+            },
+        }
+
+    def _analyze_dimensions(self, breakdown: dict[str, float]) -> dict[str, dict]:
+        """三维度独立分析。"""
+        result = {}
+        for dim, value in breakdown.items():
+            level = "normal"
+            if value > 0.6:
+                level = "critical"
+            elif value > 0.3:
+                level = "warning"
+            elif value > 0.1:
+                level = "mild"
+            result[dim] = {
+                "value": value,
+                "level": level,
+                "interpretation": self._interpret_dimension(dim, value),
+            }
+        return result
+
+    def _interpret_dimension(self, dim: str, value: float) -> str:
+        """解读维度含义。"""
+        interpretations = {
+            "state_distance": {
+                "critical": "世界状态发生剧烈变化，可能是外部干预或系统跳变",
+                "warning": "世界状态偏差显著，需检查感知通道是否异常",
+                "mild": "世界状态小幅偏离预期，属于正常波动范围",
+                "normal": "世界状态与预期一致",
+            },
+            "vector_deviation": {
+                "critical": "预测向量严重偏离实际，预测器可能需要重新校准",
+                "warning": "预测向量偏差显著，建议检查模型参数",
+                "mild": "预测向量轻微偏离，在容许范围内",
+                "normal": "预测向量与实际一致",
+            },
+            "direction_error": {
+                "critical": "预测方向完全错误，因果模型可能存在结构性问题",
+                "warning": "预测方向偏差显著，因果推断可能需要更新",
+                "mild": "预测方向轻微偏差，不影响整体推断",
+                "normal": "预测方向正确",
+            },
+        }
+        dim_map = interpretations.get(dim, {})
+        if value > 0.6:
+            return dim_map.get("critical", "异常")
+        elif value > 0.3:
+            return dim_map.get("warning", "偏差")
+        elif value > 0.1:
+            return dim_map.get("mild", "轻微波动")
+        return dim_map.get("normal", "正常")
+
+    def _locate_anomaly_layer(self, breakdown: dict[str, float]) -> str:
+        """基于惊奇度分解定位主要异常层。"""
+        if not breakdown:
+            return "unknown"
+
+        max_dim = max(breakdown, key=lambda k: breakdown[k])
+        layer_map = {
+            "state_distance": "perception",  # 感知环异常
+            "vector_deviation": "prediction",  # 预测环异常
+            "direction_error": "cognition",  # 认知环异常
+        }
+        return layer_map.get(max_dim, "unknown")
+
+    def _trace_causal_chain(self, breakdown: dict[str, float], graph: dict[str, list[str]]) -> list[str]:
+        """在因果图上追溯异常传播链。"""
+        chain: list[str] = []
+
+        # 从最大异常维度对应的节点开始追溯
+        max_dim = max(breakdown, key=lambda k: breakdown[k])
+        start_nodes = self._dim_to_nodes(max_dim)
+
+        visited: set[str] = set()
+        queue = list(start_nodes)
+
+        while queue and len(chain) < 5:
+            node = queue.pop(0)
+            if node in visited:
+                continue
+            visited.add(node)
+
+            # 查找因果图中的相关边
+            for parent, children in graph.items():
+                if node in children or node == parent:
+                    chain.append(f"{parent} → {node}")
+                    if parent not in visited:
+                        queue.append(parent)
+
+        return chain
+
+    def _dim_to_nodes(self, dim: str) -> list[str]:
+        """将异常维度映射到可能的因果图节点。"""
+        mapping = {
+            "state_distance": ["sensor", "encoder", "perception"],
+            "vector_deviation": ["predictor", "jepa", "forward_model"],
+            "direction_error": ["causal_graph", "do_calculus", "belief"],
+        }
+        return mapping.get(dim, ["unknown"])
+
+    def _generate_recommendation(self, layer: str, score: float) -> str:
+        """基于异常层和严重度生成建议。"""
+        recommendations = {
+            "perception": {
+                "high": "建议: 检查传感器校准状态，验证感知通道信号质量",
+                "low": "建议: 感知轻微偏差，可在下次校准周期时调整",
+            },
+            "cognition": {
+                "high": "建议: 因果模型可能需更新，建议重新运行因果发现算法",
+                "low": "建议: 因果推断轻微偏差，可积累更多观测后自动修正",
+            },
+            "prediction": {
+                "high": "建议: 预测器严重偏离，建议触发 PlanAgent 重规划",
+                "low": "建议: 预测器小幅偏差，可在自然演化中恢复",
+            },
+            "action": {
+                "high": "建议: 动作执行可能失败，需检查执行器状态",
+                "low": "建议: 动作效果轻微偏离，可微调控制参数",
+            },
+        }
+        layer_recs = recommendations.get(layer, recommendations["prediction"])
+        level = "high" if score > 0.5 else "low"
+        return layer_recs[level]
+
+    def _assess_severity(self, signal: SurpriseSignal, dimension_analysis: dict) -> float:
+        """综合评估严重度。"""
+        # 基础严重度 = 惊奇度
+        base_severity = signal.score
+
+        # 维度加权：关键维度贡献更大
+        critical_count = sum(1 for d in dimension_analysis.values() if d.get("level") == "critical")
+        warning_count = sum(1 for d in dimension_analysis.values() if d.get("level") == "warning")
+
+        # 多维度同时异常 → 严重度上升
+        multi_factor = 1.0 + 0.1 * critical_count + 0.05 * warning_count
+
+        # 历史异常率修正
+        stats = self.running_statistics()
+        anomaly_rate = stats.get("anomaly_rate", 0.0)
+        if anomaly_rate > 0.5:
+            # 频繁异常 → 可能系统性问题
+            history_factor = 1.2
+        else:
+            history_factor = 1.0
+
+        severity = base_severity * multi_factor * history_factor
+        return float(min(1.0, severity))
+
+    # -----------------------------------------------------------------
+    # batch_diagnose — 批量根因分析 (v3.4.0)
+    # -----------------------------------------------------------------
+
+    def batch_diagnose(
+        self,
+        signals: list[SurpriseSignal],
+        causal_graph: dict[str, list[str]] | None = None,
+    ) -> list[dict]:
+        """批量根因分析。
+
+        Args:
+            signals: 惊奇信号列表
+            causal_graph: 因果图（可选）
+
+        Returns:
+            诊断结果列表
+        """
+        return [self.diagnose(s, causal_graph) for s in signals]
+
+    # -----------------------------------------------------------------
     # 字符串表示
     # -----------------------------------------------------------------
 
     def __repr__(self) -> str:
-        return (
-            f"SurpriseDetector(threshold={self._threshold:.3f}, "
-            f"n_observations={self.n_observations})"
-        )
+        return f"SurpriseDetector(threshold={self._threshold:.3f}, n_observations={self.n_observations})"

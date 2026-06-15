@@ -22,16 +22,16 @@ bench_sigreg_02_back_projection.py
   python bench_sigreg_02_back_projection.py
   python bench_sigreg_02_back_projection.py --cache-dir ./cache --top-k 5 --lambda 0.02
 """
+
 from __future__ import annotations
 
 import argparse
-import gc
 import json
 import os
 import platform
 import sys
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 # ============================================================
@@ -41,8 +41,8 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
+import faiss
 import numpy as np
-import faiss  # noqa: E402
 
 faiss.omp_set_num_threads(1)  # FAISS HNSW 建索引锁单线程
 
@@ -50,7 +50,7 @@ faiss.omp_set_num_threads(1)  # FAISS HNSW 建索引锁单线程
 MCI_WORLD_MODEL_SRC = Path(__file__).resolve().parent.parent.parent / "src"
 sys.path.insert(0, str(MCI_WORLD_MODEL_SRC))
 
-from mci_world_model.sdk._sigreg import SIGReg  # noqa: E402
+from mci_world_model.sdk._sigreg import SIGReg
 
 # ============================================================
 # 全局常量
@@ -61,6 +61,7 @@ REPRODUCIBILITY_SEED = 42  # P0-R2/R3: passage/query 共用同一 sketch 矩阵
 # ============================================================
 # 工具
 # ============================================================
+
 
 @dataclass
 class VariantResult:
@@ -107,13 +108,13 @@ def recall_at_k(index, query_embs: np.ndarray, gold_lists: list[list[int]], k: i
 
 
 def make_gold_lists(queries: list[dict], pid_to_idx: dict[str, int]) -> list[list[int]]:
-    return [[pid_to_idx[pid] for pid in q["gold_passage_ids"] if pid in pid_to_idx]
-            for q in queries]
+    return [[pid_to_idx[pid] for pid in q["gold_passage_ids"] if pid in pid_to_idx] for q in queries]
 
 
 # ============================================================
 # 变体实现
 # ============================================================
+
 
 def variant_raw(passage_embs: np.ndarray, sigreg: SIGReg):
     """A. 不做任何处理。"""
@@ -159,13 +160,18 @@ def variant_back_projected(passage_embs: np.ndarray, sigreg: SIGReg):
 # 主流程
 # ============================================================
 
+
 def main():
     parser = argparse.ArgumentParser(description="SIGReg back-projection ablation")
-    parser.add_argument("--cache-dir", type=Path,
-                        default=Path(__file__).resolve().parent / "cache")
+    parser.add_argument("--cache-dir", type=Path, default=Path(__file__).resolve().parent / "cache")
     parser.add_argument("--top-k", type=int, default=5)
-    parser.add_argument("--lambda", dest="lambda_reg", type=float, default=0.02,
-                        help="SIGReg 正则强度 (默认 0.02 与 apply_sigreg_to_index 一致)")
+    parser.add_argument(
+        "--lambda",
+        dest="lambda_reg",
+        type=float,
+        default=0.02,
+        help="SIGReg 正则强度 (默认 0.02 与 apply_sigreg_to_index 一致)",
+    )
     parser.add_argument("--sketch-dim", type=int, default=64)
     parser.add_argument("--hnsw-m", type=int, default=32)
     parser.add_argument("--hnsw-efc", type=int, default=64)
@@ -195,9 +201,13 @@ def main():
 
     # 跑三个变体
     variants = [
-        ("A_raw_baseline",       variant_raw,             {"description": "no transformation"}),
-        ("B_sketched_only",      variant_sketched_only,   {"description": "whitening in 64-dim sketch, no back-projection"}),
-        ("C_back_projected",     variant_back_projected,  {"description": "sketched whitening + back-project to d=512 (current SIGReg)"}),
+        ("A_raw_baseline", variant_raw, {"description": "no transformation"}),
+        ("B_sketched_only", variant_sketched_only, {"description": "whitening in 64-dim sketch, no back-projection"}),
+        (
+            "C_back_projected",
+            variant_back_projected,
+            {"description": "sketched whitening + back-project to d=512 (current SIGReg)"},
+        ),
     ]
 
     results: list[VariantResult] = []
@@ -229,9 +239,7 @@ def main():
             q_embs = sigreg.regularize(query_embs)
 
         # 维度必须一致才能共享索引
-        assert q_embs.shape[1] == embs.shape[1], (
-            f"query/passage dim mismatch: q={q_embs.shape[1]}, p={embs.shape[1]}"
-        )
+        assert q_embs.shape[1] == embs.shape[1], f"query/passage dim mismatch: q={q_embs.shape[1]}, p={embs.shape[1]}"
 
         # 对 raw 也 L2 归一化(FAISS IP 检索需要), 公平起见
         if name == "A_raw_baseline":
@@ -244,39 +252,43 @@ def main():
         recall, query_t = recall_at_k(index, q_embs, gold_lists, args.top_k)
         print(f"  build={build_t:.2f}s  query_total={query_t:.2f}s  Recall@{args.top_k}={recall:.4f}")
 
-        results.append(VariantResult(
-            name=name,
-            dim=d,
-            isotropy_before=sigreg_iso_baseline,
-            isotropy_after=info["isotropy_score"],
-            recall_at_k=recall,
-            build_time_s=build_t,
-            query_time_s=query_t,
-            extra=extra,
-        ))
+        results.append(
+            VariantResult(
+                name=name,
+                dim=d,
+                isotropy_before=sigreg_iso_baseline,
+                isotropy_after=info["isotropy_score"],
+                recall_at_k=recall,
+                build_time_s=build_t,
+                query_time_s=query_t,
+                extra=extra,
+            )
+        )
 
     # 输出
     out_path = cache / "results_back_projection.json"
-    out_path.write_text(json.dumps(
-        {
-            "config": {
-                "top_k": args.top_k,
-                "lambda_reg": args.lambda_reg,
-                "sketch_dim": args.sketch_dim,
-                "hnsw_m": args.hnsw_m,
-                "hnsw_efc": args.hnsw_efc,
-                "hnsw_efs": args.hnsw_efs,
-                "n_passages": int(passage_embs.shape[0]),
-                "n_queries": int(query_embs.shape[0]),
-                "reproducibility_seed": REPRODUCIBILITY_SEED,
-                "single_threaded": True,
-                "granularity": "paragraph-level",
+    out_path.write_text(
+        json.dumps(
+            {
+                "config": {
+                    "top_k": args.top_k,
+                    "lambda_reg": args.lambda_reg,
+                    "sketch_dim": args.sketch_dim,
+                    "hnsw_m": args.hnsw_m,
+                    "hnsw_efc": args.hnsw_efc,
+                    "hnsw_efs": args.hnsw_efs,
+                    "n_passages": int(passage_embs.shape[0]),
+                    "n_queries": int(query_embs.shape[0]),
+                    "reproducibility_seed": REPRODUCIBILITY_SEED,
+                    "single_threaded": True,
+                    "granularity": "paragraph-level",
+                },
+                "results": [asdict(r) for r in results],
             },
-            "results": [asdict(r) for r in results],
-        },
-        indent=2,
-        ensure_ascii=False,
-    ))
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
 
     # 报告
     print("\n" + "=" * 70)
@@ -312,6 +324,7 @@ def main():
 def _write_env_info(cache: Path, end_ts: float):
     """写入环境元数据, 方便复现。"""
     import mci_world_model
+
     info = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "platform": platform.platform(),

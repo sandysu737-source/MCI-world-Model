@@ -950,32 +950,32 @@ def test_trigram_core():
     print(f"  HexagramInfo(63): name={info_63.name}")
     print("  ✓ PASSED")
 
-    # Test 11: Trigram energy type
+    # Test 11: Trigram energy type (CEWM cognitive energy mapping)
     print("\n[Test 11] Trigram Energy Type")
-    assert tc.get_trigram_energy_type(TrigramType.QIAN) == "metal"
-    assert tc.get_trigram_energy_type(TrigramType.DUI) == "metal"
-    assert tc.get_trigram_energy_type(TrigramType.LI) == "fire"
-    assert tc.get_trigram_energy_type(TrigramType.ZHEN) == "wood"
-    assert tc.get_trigram_energy_type(TrigramType.XUN) == "wood"
-    assert tc.get_trigram_energy_type(TrigramType.KAN) == "water"
-    assert tc.get_trigram_energy_type(TrigramType.GEN) == "earth"
-    assert tc.get_trigram_energy_type(TrigramType.KUN) == "earth"
-    print("  Energy types verified for all 8 trigrams")
+    assert tc.get_trigram_energy_type(TrigramType.QIAN) == "generative"
+    assert tc.get_trigram_energy_type(TrigramType.DUI) == "generative"
+    assert tc.get_trigram_energy_type(TrigramType.LI) == "causal"
+    assert tc.get_trigram_energy_type(TrigramType.ZHEN) == "semantic"
+    assert tc.get_trigram_energy_type(TrigramType.XUN) == "semantic"
+    assert tc.get_trigram_energy_type(TrigramType.KAN) == "trust"
+    assert tc.get_trigram_energy_type(TrigramType.GEN) == "spacetime"
+    assert tc.get_trigram_energy_type(TrigramType.KUN) == "spacetime"
+    print("  CEWM energy types verified for all 8 trigrams")
     print("  ✓ PASSED")
 
     # Test 12: Get trigrams by energy
     print("\n[Test 12] Get Trigrams By Energy")
-    metal_trigrams = tc.get_trigrams_by_energy("metal")
-    assert len(metal_trigrams) == 2
-    assert TrigramType.QIAN in metal_trigrams
-    assert TrigramType.DUI in metal_trigrams
-    print(f"  Metal trigrams: {[t.name for t in metal_trigrams]}")
+    generative_trigrams = tc.get_trigrams_by_energy("generative")
+    assert len(generative_trigrams) == 2
+    assert TrigramType.QIAN in generative_trigrams
+    assert TrigramType.DUI in generative_trigrams
+    print(f"  Generative trigrams: {[t.name for t in generative_trigrams]}")
 
-    wood_trigrams = tc.get_trigrams_by_energy("wood")
-    assert len(wood_trigrams) == 2
-    assert TrigramType.ZHEN in wood_trigrams
-    assert TrigramType.XUN in wood_trigrams
-    print(f"  Wood trigrams: {[t.name for t in wood_trigrams]}")
+    semantic_trigrams = tc.get_trigrams_by_energy("semantic")
+    assert len(semantic_trigrams) == 2
+    assert TrigramType.ZHEN in semantic_trigrams
+    assert TrigramType.XUN in semantic_trigrams
+    print(f"  Semantic trigrams: {[t.name for t in semantic_trigrams]}")
     print("  ✓ PASSED")
 
     # Test 13: Trigram relation analysis

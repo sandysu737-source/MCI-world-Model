@@ -15,6 +15,7 @@ MCI World Model v3.2.0 — ActionConditionedPredictor
 基线实现:
     PendulumPhysicsPredictor   — 利用已知物理公式 (ground truth 金标准)
     PendulumJEPAPredictor      — 纯 numpy MLP 学习器 (验证 JEPA 学习能力)
+    CartPhysicsPredictor       — 小车物理公式预测器 (v4.4.0 Phase 0 泛化验证)
 
 设计原则:
     - 与 JEPAPredictor 并行不冲突，独立文件独立接口
@@ -26,7 +27,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -329,3 +330,297 @@ class PendulumJEPAPredictor(ActionConditionedPredictor):
             "converged": mse < 0.1,
             "method": "least_squares",
         }
+
+
+# =============================================================================
+# PendulumNeuralPredictor — ≥10K 参数 MLP 预测器 (F10 修复)
+# =============================================================================
+
+
+class PendulumNeuralPredictor(ActionConditionedPredictor):
+    """单摆神经网络预测器 — ≥10K 参数 3 层 MLP。
+
+    替代 PendulumJEPAPredictor 的 6 参数线性模型,
+    使用 3 层 MLP (3→64→128→64→2) 捕获非线性动力学。
+
+    参数量: 3*64 + 64 + 64*128 + 128 + 128*64 + 64 + 64*2 + 2 = 16,962
+
+    与 PendulumJEPAPredictor 的关键区别:
+        - 非线性激活 (ReLU) — 可捕获 sin/cos 非线性
+        - 3 层隐层 — 万能逼近定理保证
+        - 梯度下降训练 — 支持任意损失函数
+
+    保留 PendulumJEPAPredictor 作为线性基线 fallback。
+    """
+
+    def __init__(self, seed: int = 42):
+        super().__init__(name="pendulum_neural")
+        rng = np.random.RandomState(seed)
+
+        # 3-layer MLP: 3 → 64 → 128 → 64 → 2
+        self._W1 = self._xavier_init(rng, 3, 64)
+        self._b1 = np.zeros(64, dtype=np.float64)
+        self._W2 = self._xavier_init(rng, 64, 128)
+        self._b2 = np.zeros(128, dtype=np.float64)
+        self._W3 = self._xavier_init(rng, 128, 64)
+        self._b3 = np.zeros(64, dtype=np.float64)
+        self._W4 = self._xavier_init(rng, 64, 2)
+        self._b4 = np.zeros(2, dtype=np.float64)
+
+        self._trained: bool = False
+        self._train_loss: float = float("inf")
+        self._cache: dict[str, Any] = {}
+
+    @staticmethod
+    def _xavier_init(rng: np.random.RandomState, fan_in: int, fan_out: int) -> np.ndarray:
+        """Xavier/Glorot 初始化。"""
+        return rng.randn(fan_in, fan_out).astype(np.float64) * np.sqrt(2.0 / (fan_in + fan_out))
+
+    @property
+    def n_params(self) -> int:
+        """可学习参数总数。"""
+        return sum(
+            p.size
+            for p in [
+                self._W1,
+                self._b1,
+                self._W2,
+                self._b2,
+                self._W3,
+                self._b3,
+                self._W4,
+                self._b4,
+            ]
+        )
+
+    # ── 前向传播 ──
+
+    def _forward_batch(self, x: np.ndarray) -> np.ndarray:
+        """批量前向传播: (batch, 3) → (batch, 2)。"""
+        x = np.asarray(x, dtype=np.float64)
+        if x.ndim == 1:
+            x = x.reshape(1, -1)
+
+        h1 = x @ self._W1 + self._b1
+        h1_act = np.maximum(h1, 0)  # ReLU
+        h2 = h1_act @ self._W2 + self._b2
+        h2_act = np.maximum(h2, 0)
+        h3 = h2_act @ self._W3 + self._b3
+        h3_act = np.maximum(h3, 0)
+        out = h3_act @ self._W4 + self._b4
+
+        self._cache = {"x": x, "h1": h1, "h1_act": h1_act, "h2": h2, "h2_act": h2_act, "h3": h3, "h3_act": h3_act}
+        return out
+
+    def _forward_single(self, theta: float, omega: float, torque: float) -> tuple[float, float]:
+        """单样本前向: (θ, ω, τ) → (θ̂, ω̂)。"""
+        x = np.array([[theta, omega, torque]], dtype=np.float64)
+        out = self._forward_batch(x)
+        return float(out[0, 0]), float(out[0, 1])
+
+    # ── 预测接口 ──
+
+    def predict(
+        self,
+        state: WorldState,
+        action: Action | None,
+        n_steps: int = 1,
+    ) -> list[WorldState]:
+        """神经网络多步预测。"""
+        from mci_world_model.sdk._world_state import PendulumAction, PendulumState
+
+        if not isinstance(state, PendulumState):
+            raise TypeError(f"PendulumNeuralPredictor 只能预测 PendulumState，收到 {type(state).__name__}")
+
+        torque = action.torque if isinstance(action, PendulumAction) else 0.0
+        trajectory = []
+        current_theta, current_omega = state.theta, state.omega
+
+        for _ in range(n_steps):
+            theta_hat, omega_hat = self._forward_single(current_theta, current_omega, torque)
+            trajectory.append(
+                PendulumState(
+                    theta=theta_hat,
+                    omega=omega_hat,
+                    g=state.g,
+                    L=state.L,
+                    dt=state.dt,
+                )
+            )
+            current_theta, current_omega = theta_hat, omega_hat
+
+        return trajectory
+
+    # ── 训练: Mini-batch SGD ──
+
+    @property
+    def is_trained(self) -> bool:
+        return self._trained
+
+    def train(
+        self,
+        n_samples: int = 2000,
+        noise_std: float = 0.0,
+        lr: float = 0.001,
+        n_epochs: int = 100,
+        batch_size: int = 32,
+    ) -> dict:
+        """用 Mini-batch SGD 训练 MLP 预测器。
+
+        使用 PendulumPhysicsPredictor 生成训练数据。
+
+        Args:
+            n_samples: 训练样本数
+            noise_std: 输出噪声标准差
+            lr: 学习率
+            n_epochs: 训练轮数
+            batch_size: 批大小
+
+        Returns:
+            训练报告
+        """
+        from mci_world_model.sdk._world_state import PendulumAction, PendulumState
+
+        physics = PendulumPhysicsPredictor()
+        rng = np.random.RandomState(42)
+
+        # 生成训练数据
+        X = np.zeros((n_samples, 3), dtype=np.float64)  # (theta, omega, torque)
+        Y = np.zeros((n_samples, 2), dtype=np.float64)  # (theta', omega')
+
+        for i in range(n_samples):
+            theta0 = rng.uniform(-np.pi * 0.8, np.pi * 0.8)
+            omega0 = rng.uniform(-3.0, 3.0)
+            torque = rng.uniform(-10.0, 10.0)
+
+            s = PendulumState(theta=theta0, omega=omega0)
+            a = PendulumAction(torque=torque)
+            gt_list = physics.predict(s, a, n_steps=1)
+            gt = gt_list[0]
+
+            X[i] = [theta0, omega0, torque]
+            Y[i] = [gt.theta + rng.randn() * noise_std, gt.omega + rng.randn() * noise_std]
+
+        # Mini-batch SGD
+        for epoch in range(n_epochs):
+            indices = np.arange(n_samples)
+            rng.shuffle(indices)
+
+            for start in range(0, n_samples, batch_size):
+                batch_idx = indices[start : start + batch_size]
+                x_batch = X[batch_idx]
+                y_batch = Y[batch_idx]
+
+                # 前向
+                h1 = x_batch @ self._W1 + self._b1
+                h1_act = np.maximum(h1, 0)
+                h2 = h1_act @ self._W2 + self._b2
+                h2_act = np.maximum(h2, 0)
+                h3 = h2_act @ self._W3 + self._b3
+                h3_act = np.maximum(h3, 0)
+                pred = h3_act @ self._W4 + self._b4
+
+                # 反向传播
+                bs = x_batch.shape[0]
+                d_out = 2.0 * (pred - y_batch) / bs
+
+                d_W4 = h3_act.T @ d_out
+                d_b4 = d_out.sum(axis=0)
+
+                d_h3_act = d_out @ self._W4.T
+                d_h3 = d_h3_act * (h3 > 0).astype(np.float64)
+
+                d_W3 = h2_act.T @ d_h3
+                d_b3 = d_h3.sum(axis=0)
+
+                d_h2_act = d_h3 @ self._W3.T
+                d_h2 = d_h2_act * (h2 > 0).astype(np.float64)
+
+                d_W2 = h1_act.T @ d_h2
+                d_b2 = d_h2.sum(axis=0)
+
+                d_h1_act = d_h2 @ self._W2.T
+                d_h1 = d_h1_act * (h1 > 0).astype(np.float64)
+
+                d_W1 = x_batch.T @ d_h1
+                d_b1 = d_h1.sum(axis=0)
+
+                # 梯度裁剪
+                for g in [d_W1, d_b1, d_W2, d_b2, d_W3, d_b3, d_W4, d_b4]:
+                    np.clip(g, -5, 5, out=g)
+
+                # SGD 更新
+                self._W1 -= lr * d_W1
+                self._b1 -= lr * d_b1
+                self._W2 -= lr * d_W2
+                self._b2 -= lr * d_b2
+                self._W3 -= lr * d_W3
+                self._b3 -= lr * d_b3
+                self._W4 -= lr * d_W4
+                self._b4 -= lr * d_b4
+
+        # 计算最终损失
+        final_pred = self._forward_batch(X)
+        self._train_loss = float(np.mean((final_pred - Y) ** 2))
+        self._trained = True
+
+        return {
+            "final_loss": round(self._train_loss, 6),
+            "n_samples": n_samples,
+            "n_params": self.n_params,
+            "converged": self._train_loss < 0.1,
+            "method": "sgd_mlp",
+        }
+
+
+# =============================================================================
+# CartPhysicsPredictor — 小车物理公式预测器 (v4.4.0 Phase 0)
+# =============================================================================
+
+
+class CartPhysicsPredictor(ActionConditionedPredictor):
+    """小车物理公式预测器——利用已知物理定律做 ground truth 预测。
+
+    v4.4.0 Phase 0: CEWM 架构泛化的第二种预测器验证器。
+    证明 PlanAgent / MultiBranchPredictor / cewm_step() 不依赖 Pendulum 特有属性。
+
+    物理定律（Euler 积分，F=ma, m=1kg）:
+        x_{t+1} = x_t + v_t · dt
+        v_{t+1} = v_t + force · dt
+
+    使用:
+        >>> pred = CartPhysicsPredictor()
+        >>> state = CartState(x=0.0, v=1.0)
+        >>> push = CartAction(force=2.0)
+        >>> trajectory = pred.predict(state, action=push, n_steps=10)
+        >>> # trajectory[0] 是 1 步后的物理正确状态
+    """
+
+    def __init__(self):
+        super().__init__(name="cart_physics")
+
+    def predict(
+        self,
+        state: WorldState,
+        action: Action | None,
+        n_steps: int = 1,
+    ) -> list[WorldState]:
+        """用物理公式做 Euler 积分多步预测。"""
+        from mci_world_model.sdk._world_state import CartAction, CartState
+
+        if not isinstance(state, CartState):
+            raise TypeError(f"CartPhysicsPredictor 只能预测 CartState，收到 {type(state).__name__}")
+
+        # 零阶保持: 同一个 action 施加 n_steps 次
+        cart_action = action if isinstance(action, CartAction) else None
+
+        trajectory = []
+        current = state.copy()
+        for _ in range(n_steps):
+            if cart_action is not None:
+                current = cart_action.apply(current)
+            else:
+                current = current.step_physics()
+            trajectory.append(current)
+
+        return trajectory

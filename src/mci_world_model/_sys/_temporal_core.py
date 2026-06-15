@@ -253,10 +253,8 @@ class TemporalCore:
             >>> tc.get_cycle_name(59)  # 癸亥
             '癸亥'
         """
-        if index < 0 or index >= 60:
-            raise ValueError(
-                f"Cycle index {index} out of range [0, 59]. This may indicate an invalid stem-branch combination."
-            )
+        # v4.0.0: Support modulo wrapping for cycle overflow (e.g., index 60 → 0)
+        index = index % 60
         stem, branch = self._cycle[index]
         return f"{TIME_STEMS[stem.value]}{TIME_BRANCHES[branch.value]}"
 

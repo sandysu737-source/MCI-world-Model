@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 from scipy.stats import norm
@@ -97,7 +98,7 @@ class CounterfactualResult:
     status: str = "ok"
     note: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "evidence": self.evidence,
             "do_intervention": self.do_intervention,
@@ -120,8 +121,8 @@ class CounterfactualResult:
 
     @staticmethod
     def empty(
-        evidence: dict | None = None,
-        do_intervention: dict | None = None,
+        evidence: dict[str, float] | None = None,
+        do_intervention: dict[str, float] | None = None,
         target: str = "",
         note: str = "insufficient_data",
     ) -> CounterfactualResult:
@@ -158,7 +159,7 @@ class StructuralEquationModel:
     """
 
     # 支持的激活函数
-    _ACTIVATIONS: dict[str, tuple] = {
+    _ACTIVATIONS: dict[str, tuple[Any, Any]] = {
         "linear": (lambda x: x, lambda y: y),
         "relu": (lambda x: np.maximum(0.0, x), lambda y: np.where(y > 0, y, -1.0)),
         "tanh": (
@@ -259,11 +260,13 @@ class StructuralEquationModel:
 
     def _apply_activation(self, x: np.ndarray) -> np.ndarray:
         """应用激活函数: x → σ(x)。"""
-        return self._forward_fn(x)
+        result = self._forward_fn(x)
+        return np.asarray(result, dtype=np.float64)
 
     def _apply_inverse(self, y: np.ndarray) -> np.ndarray:
         """应用逆激活: y → σ⁻¹(y)，用于溯因噪声回算。"""
-        return self._inverse_fn(y)
+        result = self._inverse_fn(y)
+        return np.asarray(result, dtype=np.float64)
 
     # -----------------------------------------------------------------
     # 前向模拟
@@ -446,7 +449,7 @@ class StructuralEquationModel:
     # 序列化
     # -----------------------------------------------------------------
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典，便于 JSON 持久化。"""
         return {
             "coefficients": self.coefficients.tolist(),
@@ -457,7 +460,7 @@ class StructuralEquationModel:
         }
 
     @classmethod
-    def from_dict(cls, data: dict, seed: int | None = None) -> StructuralEquationModel:
+    def from_dict(cls, data: dict[str, Any], seed: int | None = None) -> StructuralEquationModel:
         """从字典恢复 SEM 实例。"""
         return cls(
             coefficients=np.array(data["coefficients"], dtype=np.float64),
@@ -516,7 +519,7 @@ class CounterfactualEngine:
 
     @staticmethod
     def from_causal_graph(
-        graph,
+        graph: Any,
         noise_std: float = 0.5,
         activation: str = "linear",
         seed: int | None = None,
@@ -646,6 +649,8 @@ class CounterfactualEngine:
 
         # 计算事实值 (使用溯因噪声重建事实值)
         topo = self._sem._topological_sort()
+        if topo is None:
+            topo = []
         data_factual = np.zeros((1, self._sem.n_nodes))
         for node_i in topo:
             node_name = self._node_names[node_i]
@@ -656,7 +661,8 @@ class CounterfactualEngine:
                 for p_idx in range(self._sem.n_nodes):
                     if self._sem.coefficients[p_idx, node_i] != 0:
                         parent_sum += self._sem.coefficients[p_idx, node_i] * data_factual[0, p_idx]
-                data_factual[0, node_i] = self._sem._apply_activation(parent_sum) + noise_factual[node_i]
+                activated = self._sem._apply_activation(np.array([parent_sum], dtype=np.float64))
+                data_factual[0, node_i] = float(activated[0]) + noise_factual[node_i]
 
         factual_y = data_factual[0, target_idx]
 
@@ -824,7 +830,7 @@ class CounterfactualEngine:
 
     def batch_query(
         self,
-        scenarios: list[dict],
+        scenarios: list[dict[str, Any]],
     ) -> list[CounterfactualResult]:
         """
         批量反事实查询。

@@ -174,7 +174,7 @@ class TestSignalTypeMapping:
             source="lab_report",
             metadata={"name": "glucose"},
         )
-        features = pipeline.process_multimodal([num_sig])
+        features = pipeline.process_multimodal([num_sig], enable_fusion=False)
         assert len(features) >= 1
         assert features[0]["feature_name"] == "glucose"
         assert features[0]["value"] == 5.6
@@ -196,7 +196,7 @@ class TestSignalTypeMapping:
             source="lab_report",
             metadata={"name": "albumin"},
         )
-        features = pipeline.process_multimodal([ts_sig])
+        features = pipeline.process_multimodal([ts_sig], enable_fusion=False)
         # 至少输出 mean/std/min/max
         feature_names = {f["feature_name"] for f in features}
         assert "albumin_mean" in feature_names
@@ -221,7 +221,7 @@ class TestSignalTypeMapping:
             timestamp="2025-06-01",
             source="lab_report",
         )
-        features = pipeline.process_multimodal([lab_sig])
+        features = pipeline.process_multimodal([lab_sig], enable_fusion=False)
         assert len(features) == 3
         names = {f["feature_name"] for f in features}
         assert "albumin" in names
@@ -244,7 +244,7 @@ class TestSignalTypeMapping:
             source="assessment",
             metadata={"name": "nrs2002_risk"},
         )
-        features = pipeline.process_multimodal([cat_sig])
+        features = pipeline.process_multimodal([cat_sig], enable_fusion=False)
         assert len(features) == 1
         assert features[0]["feature_name"] == "nrs2002_risk"
         assert "raw_label" in features[0]
@@ -705,7 +705,7 @@ class TestEndToEndClinical:
                 )
             )
 
-        features = pipeline.process_multimodal(signals)
+        features = pipeline.process_multimodal(signals, enable_fusion=False)
         assert len(features) >= 30, f"特征数不足: {len(features)}"
 
         # Step 3: PhysicalGraphBuilder → causal_edges
