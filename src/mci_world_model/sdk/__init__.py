@@ -405,12 +405,6 @@ from mci_world_model.sdk._debridement_data import (
     SyntheticDebridementGenerator,
     WoundDatasetAdapter,
 )
-from mci_world_model.sdk._debridement_trainer import (  # noqa: F401
-    DebridementTrainer,
-    TrainHistory,
-    TrainingConfig,
-    TrainingMetrics,
-)
 from mci_world_model.sdk._debridement_world_model import (
     DebridementConfig,
     DebridementWorldModel,
@@ -905,13 +899,6 @@ from mci_world_model.sdk._spectral_causal import (
     GaussianDAG,
     GaussianDistribution,
 )
-from mci_world_model.sdk._surgical_workflow import (  # noqa: F401
-    PhaseTransition,
-    SurgicalPhase,
-    SurgicalState,
-    SurgicalWorkflow,
-    WorkflowReport,
-)
 from mci_world_model.sdk._surprise_detector import (
     SurpriseDetector,
     SurpriseSignal,
@@ -925,17 +912,8 @@ from mci_world_model.sdk._the_absolute import (
     GeneratedStructure,
     TheAbsolute,
 )
-from mci_world_model.sdk._tiny_trainer import (  # noqa: F401
-    TinyTrainConfig,
-    TinyTrainer,
-    TinyTrainMetrics,
-)
 
 # v4.4.0: 小模型 Transformer (清创文本推理)
-from mci_world_model.sdk._tiny_transformer import (  # noqa: F401
-    TinyTransformer,
-    TinyTransformerConfig,
-)
 from mci_world_model.sdk._tissue_classifier import (
     TISSUE_EPITHELIAL,
     TISSUE_GRANULATION,
