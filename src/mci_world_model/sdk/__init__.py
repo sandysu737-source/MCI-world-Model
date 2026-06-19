@@ -907,6 +907,31 @@ from mci_world_model.sdk._symbol_grounding import (
     GroundingEntry,
     SymbolGroundingLearning,
 )
+# v4.4.0: 具身清创 Phase B — 训练管线
+from mci_world_model.sdk._debridement_trainer import (
+    DebridementTrainer,
+    TrainHistory,
+    TrainingConfig,
+    TrainingMetrics,
+)
+# v4.4.0: 具身清创 Phase C — 小模型 Transformer
+from mci_world_model.sdk._tiny_transformer import (
+    TinyTransformer,
+    TinyTransformerConfig,
+)
+from mci_world_model.sdk._tiny_trainer import (
+    TinyTrainConfig,
+    TinyTrainer,
+    TinyTrainMetrics,
+)
+# v4.4.0: 具身清创 Phase D — 手术工作流
+from mci_world_model.sdk._surgical_workflow import (
+    PhaseTransition,
+    SurgicalPhase,
+    SurgicalState,
+    SurgicalWorkflow,
+    WorkflowReport,
+)
 from mci_world_model.sdk._the_absolute import (
     AbsoluteProperty,
     GeneratedStructure,
