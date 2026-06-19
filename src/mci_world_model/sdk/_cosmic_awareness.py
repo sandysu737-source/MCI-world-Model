@@ -338,7 +338,7 @@ class CosmicAwareness:
         cosmic: dict,
     ) -> None:
         """更新宇宙地貌图。"""
-        all_data = {**local, **regional, **global_, **cosmic}
+        _ = locals().get('all_data', None)
         domains = list(self._domains.values())
         self._cosmic_map = CosmicMap(
             scope=scope.value,

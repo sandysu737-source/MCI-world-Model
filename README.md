@@ -25,10 +25,9 @@ MCI World Model 是一款**独立运行的因果世界模型引擎**，定位为
 | 项目 | 角色 | 版本 |
 |------|------|------|
 | **su-memory-sdk** | 记忆引擎（短期 / 长期 / 检索） | V3.5.1 |
-| **MCI World Model** | 世界模型（因果推理 / 干预 / 反事实） | V3.0.0 |
+| **MCI World Model** | 世界模型（因果推理 / 干预 / 反事实） | v4.3.3 |
 
-> 📌 本项目是 **su-memory-sdk V3.6.0+** 起分离出来的独立仓库
-> 📌 项目内的工程内部版本仍标记为 V4.0.0，对外品牌为 **MCI World Model V3.0.0**
+> 📌 本项目从 **su-memory-sdk** 分离为独立仓库，当前版本 **v4.3.3**
 
 ---
 
@@ -216,12 +215,12 @@ pytest tests/ -v -m "not slow"
 
 | 版本 | 主题 | 状态 |
 |------|------|------|
-| **V3.0.0**（更名前 V4.0.0） | Pearl Do-Calculus + JEPA 全套 + 能量中心 | 🚧 当前版本 |
-| V3.1.0 | Pearl P3 反事实推理强化 + Causal Counterfactual | 📋 规划中 |
-| V3.2.0 | JEPA GAT 大规模图训练 + LongMemEval | 📋 规划中 |
-| V4.0.0 | 多模态因果世界模型 + 真实环境部署 | 📋 规划中 |
+| **v4.3.3** | CEWM 认知增强世界模型 + 代码审查修复 | ✅ 当前版本 |
+| v4.4.0 | P3 自主学习补齐 (OnlineEWC + CachedDoCalculus) + ruff 清零 | 🚧 进行中 |
+| v5.0.0 | P6-P8 高级认知 + 多模态统一 + 神经符号融合 | 📋 规划中 |
+| v6.0.0 | P9-P11 真实验证 + 跨域融通 + 因果意识 | 📋 规划中 |
 
-详见 [docs/ROADMAP_V3.0.0.md](docs/ROADMAP_V3.0.0.md)
+详见 [docs/ROADMAP_V3.0.0.md](docs/ROADMAP_V3.0.0.md) 和 [docs/improvement-plans/00_master_index.md](docs/improvement-plans/00_master_index.md)
 
 ---
 

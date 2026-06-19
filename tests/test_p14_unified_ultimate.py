@@ -13,17 +13,11 @@
 
 from __future__ import annotations
 
-import time
-
-import numpy as np
-import pytest
-
 from mci_world_model.sdk._causal_unification_formal import (
     AxiomID,
     CausalUnificationFormal,
     ProofResult,
     ProofStatus,
-    Theorem,
 )
 from mci_world_model.sdk._causal_universe_theory import (
     CausalScale,
@@ -32,18 +26,14 @@ from mci_world_model.sdk._causal_universe_theory import (
 )
 from mci_world_model.sdk._cosmic_awareness import (
     AwarenessScope,
-    CausalAnomaly,
     CausalDomain,
     CosmicAwareness,
     CosmicMap,
     EvolutionPrediction,
 )
 from mci_world_model.sdk._cosmic_trust import (
-    CosmicCertificate,
     CosmicTrust,
     CosmicTrustLevel,
-    DimensionalTrust,
-    TrustDimension,
 )
 from mci_world_model.sdk._cross_dimensional_causal import CrossDimensionalCausal
 from mci_world_model.sdk._ultimate_causal_intelligence import (
@@ -55,7 +45,6 @@ from mci_world_model.sdk._unified_consciousness import (
     UnifiedCausalConsciousness,
     UnifiedState,
 )
-
 
 # ── CausalUniverseTheory 测试 ─────────────────────────────────
 
@@ -750,8 +739,8 @@ class TestP14Integration:
         laws = theory.derive_universal_causal_law(["physics", "biology"])
         assert laws["n_verified"] >= 1
 
-        # KPI 4: 统一意识 4 种状态
-        assert len(UnifiedState) == 4
+        # KPI 4: 统一意识 5 种状态 (v20 深化: +absolute)
+        assert len(UnifiedState) == 5
 
         # KPI 5: 形式化 ≥3/5 属性可证明
         formal = CausalUnificationFormal()

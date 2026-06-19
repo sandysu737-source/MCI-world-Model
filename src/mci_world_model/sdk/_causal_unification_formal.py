@@ -491,7 +491,7 @@ class CausalUnificationFormal:
     def _check_theorem_conflict(self, t1: Theorem, t2: Theorem) -> dict | None:
         """检查两定理是否冲突。"""
         # 简化: 基于依赖公理的冲突检测
-        common = set(t1.depends_on) & set(t2.depends_on)
+        _ = set(t1.depends_on) & set(t2.depends_on)
         if t1.confidence > 0.5 and t2.confidence > 0.5:
             return None  # 高置信度定理一致
         return None

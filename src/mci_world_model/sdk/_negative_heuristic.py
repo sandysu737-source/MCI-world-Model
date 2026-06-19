@@ -610,9 +610,15 @@ class NegativeHeuristic:
         change: ProposedChange,
         overlap: set[str],
     ) -> HardCoreViolation | None:
-        """检查单条规则是否被违反。"""
+        """检查单条规则是否被违反。
+
+        LOOP-02 (W-7): 除了检查 change_type 外，还进行内容级检查：
+        1. 关键词检测 — description 中包含 "remove"/"disable"/"delete" 等动词
+        2. 参数归零检测 — parameters 中将受保护组件设为 0/False
+        """
         forbidden = rule.get("forbidden_types", set())
 
+        # ── 类型级检查（原有逻辑）──
         if change.change_type in forbidden:
             return HardCoreViolation(
                 rule_id=rule["rule_id"],
@@ -623,6 +629,51 @@ class NegativeHeuristic:
                 affected_component=sorted(overlap)[0],
                 recommendation=rule.get("recommendation", ""),
             )
+
+        # ── LOOP-02: 内容级检查 ──
+        # 检测 1: description 中隐含的移除/禁用意图
+        dangerous_verbs = ("remove", "disable", "delete", "drop", "eliminate", "strip")
+        desc_lower = change.description.lower()
+        for verb in dangerous_verbs:
+            if verb in desc_lower:
+                has_protected_mention = any(
+                    comp.lower() in desc_lower for comp in overlap
+                )
+                if has_protected_mention:
+                    return HardCoreViolation(
+                        rule_id=rule["rule_id"],
+                        rule_name=rule["rule_name"],
+                        severity=rule["severity"],
+                        description=(
+                            f"{rule['description']}: 变更描述 '{change.description}' "
+                            f"隐含 {verb} 操作，涉及受保护组件 {sorted(overlap)}"
+                        ),
+                        affected_component=sorted(overlap)[0],
+                        recommendation=rule.get("recommendation", ""),
+                    )
+
+        # 检测 2: 参数归零 — 将受保护组件的阈值设为 0 或 False
+        for comp in overlap:
+            comp_params = change.parameters.get(comp)
+            if comp_params is None:
+                continue
+            if isinstance(comp_params, dict):
+                for key, val in comp_params.items():
+                    if val in (0, 0.0, False) and any(
+                        kw in key.lower()
+                        for kw in ("enable", "threshold", "active", "weight")
+                    ):
+                        return HardCoreViolation(
+                            rule_id=rule["rule_id"],
+                            rule_name=rule["rule_name"],
+                            severity=rule["severity"],
+                            description=(
+                                f"{rule['description']}: 参数 {comp}.{key}={val} "
+                                f"可能实质性地禁用受保护组件"
+                            ),
+                            affected_component=comp,
+                            recommendation=rule.get("recommendation", ""),
+                        )
 
         return None
 

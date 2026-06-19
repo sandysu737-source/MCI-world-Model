@@ -443,3 +443,205 @@ class ThermalEncoder(LearnableMixin):
             idx += 2
 
         return features
+
+
+# =============================================================================
+# DepthEncoder — 3D 创面深度编码器 (v4.4.0 新增)
+# =============================================================================
+
+
+class DepthEncoder(LearnableMixin):
+    """深度图编码器 — 3D 创面重建特征提取。
+
+    输入: (H, W) 深度图 (单位: mm)
+    统计特征: 均值、方差、梯度幅值、曲率、边缘锐度 (8维)
+    可学习投影: 8D → 32D
+
+    用途: 清创机器人感知创面三维形态，
+    判断坏死组织深度和清创边界。
+    """
+
+    def __init__(self, feature_dim: int = 8, learnable_dim: int = 32, seed: int = 42):
+        self._stat_dim = feature_dim
+        super()._init_learnable(feature_dim, learnable_dim, seed)
+
+    @property
+    def feature_dim(self) -> int:
+        return self._stat_dim
+
+    @property
+    def output_dim(self) -> int:
+        return self._output_dim
+
+    def encode(self, depth_map: np.ndarray) -> np.ndarray:
+        """编码深度图为特征向量。
+
+        Args:
+            depth_map: (H, W) float32 深度值 (mm)
+
+        Returns:
+            (output_dim,) 归一化深度特征
+        """
+        stat = self._extract_stat_features(depth_map)
+        return self._project(stat)
+
+    def _extract_stat_features(self, depth_map: np.ndarray) -> np.ndarray:
+        """提取深度统计特征 (8维)。
+
+        特征:
+        [0] 平均深度 (mm)
+        [1] 深度标准差
+        [2] 最大深度
+        [3] 深度梯度幅值均值
+        [4] 曲率 (二阶导数)
+        [5] 创面面积 (深度 > 背景阈值的像素比例)
+        [6] 边缘锐度 (梯度 > 阈值的比例)
+        [7] 深度分布的偏度
+        """
+        dm = depth_map.astype(np.float64)
+        features = np.zeros(self._stat_dim, dtype=np.float64)
+
+        # 基础统计
+        features[0] = float(np.mean(dm))
+        features[1] = float(np.std(dm))
+        features[2] = float(np.max(dm))
+
+        # 梯度
+        gy, gx = np.gradient(dm)
+        grad_mag = np.sqrt(gx**2 + gy**2)
+        features[3] = float(np.mean(grad_mag))
+
+        # 曲率 (拉普拉斯)
+        if dm.size > 4:
+            laplacian = np.gradient(gx, axis=1) + np.gradient(gy, axis=0)
+            features[4] = float(np.mean(np.abs(laplacian)))
+        else:
+            features[4] = 0.0
+
+        # 创面面积: 深度显著偏离背景 (> mean + 1 std)
+        bg = np.mean(dm) + np.std(dm)
+        features[5] = float(np.mean(dm > bg))
+
+        # 边缘锐度
+        features[6] = float(np.mean(grad_mag > np.mean(grad_mag) * 2))
+
+        # 偏度
+        if features[1] > 1e-10:
+            features[7] = float(np.mean((dm - features[0]) ** 3) / (features[1] ** 3))
+        else:
+            features[7] = 0.0
+
+        return features
+
+
+# =============================================================================
+# ForceEncoder — 力触觉编码器 (v4.4.0 新增)
+# =============================================================================
+
+
+class ForceEncoder:
+    """力触觉编码器 — 工具-组织交互力特征提取。
+
+    输入: (6,) 或 (T, 6) 力/力矩信号
+    特征: 均值、方差、峰值、变化率、频谱能量 (16维)
+    输出: (32,) 归一化力特征
+
+    用途: 清创机器人感知工具与组织的力交互，
+    区分不同组织类型的力响应特征。
+    """
+
+    def __init__(self, feature_dim: int = 16, output_dim: int = 32, seed: int = 42):
+        self._stat_dim = feature_dim
+        self._output_dim = output_dim
+
+        # 轻量投影: 统计特征 → 输出 (无训练参数, 确定性)
+        rng = np.random.RandomState(seed)
+        self._proj_W = rng.randn(feature_dim, output_dim).astype(np.float64) * np.sqrt(
+            2.0 / (feature_dim + output_dim)
+        )
+        self._proj_b = np.zeros(output_dim, dtype=np.float64)
+
+    @property
+    def feature_dim(self) -> int:
+        return self._stat_dim
+
+    @property
+    def output_dim(self) -> int:
+        return self._output_dim
+
+    def encode(self, ft_signal: np.ndarray) -> np.ndarray:
+        """编码力/力矩信号为特征向量。
+
+        Args:
+            ft_signal: (6,) 单帧或 (T, 6) 时序力/力矩
+
+        Returns:
+            (output_dim,) 归一化力特征向量
+        """
+        ft = ft_signal.astype(np.float64)
+        if ft.ndim == 1:
+            ft = ft.reshape(1, -1)
+
+        stat = self._extract_stat_features(ft)
+        out = stat @ self._proj_W + self._proj_b
+
+        # L2 归一化
+        norm = np.linalg.norm(out)
+        if norm > 1e-10:
+            out /= norm
+        return out.astype(np.float64)
+
+    def encode_history(self, ft_window: np.ndarray) -> np.ndarray:
+        """编码力时序窗口。
+
+        Args:
+            ft_window: (T, 6) 力/力矩历史窗口
+
+        Returns:
+            (output_dim,) 时序力特征
+        """
+        return self.encode(ft_window)
+
+    def _extract_stat_features(self, ft: np.ndarray) -> np.ndarray:
+        """提取力统计特征 (16维)。
+
+        特征:
+        [0-5]   各轴均值
+        [6-11]  各轴标准差
+        [12]    合力幅值均值
+        [13]    合力变化率
+        [14]    力峰值 (max)
+        [15]    高频能量占比
+        """
+        features = np.zeros(self._stat_dim, dtype=np.float64)
+
+        for axis in range(min(6, ft.shape[1])):
+            values = ft[:, axis]
+            features[axis] = float(np.mean(values))
+            features[6 + axis] = float(np.std(values))
+
+        # 合力
+        resultant = np.sqrt(np.sum(ft[:, :3] ** 2, axis=1))
+        features[12] = float(np.mean(resultant))
+
+        # 变化率
+        if ft.shape[0] > 1:
+            features[13] = float(np.mean(np.abs(np.diff(resultant))))
+        else:
+            features[13] = 0.0
+
+        # 峰值
+        features[14] = float(np.max(resultant))
+
+        # 高频能量 (用相邻差作为高频代理)
+        if ft.shape[0] > 2:
+            highfreq = np.diff(ft[:, 0])
+            total_var = np.var(ft[:, 0])
+            if total_var > 1e-10:
+                features[15] = float(np.var(highfreq) / total_var)
+            else:
+                features[15] = 0.0
+        else:
+            features[15] = 0.0
+
+        return features

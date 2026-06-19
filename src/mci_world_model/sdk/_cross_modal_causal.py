@@ -201,11 +201,11 @@ class CrossModalCausalReasoner:
                     self._discovered_links.append(link)
 
         # 聚合
-        total_strength = float(np.mean([l.strength for l in links])) if links else 0.0
+        total_strength = float(np.mean([link.strength for link in links])) if links else 0.0
         is_reliable = (
             len(links) > 0
             and total_strength >= self._min_strength
-            and all(l.confidence >= self._min_confidence for l in links)
+            and all(link.confidence >= self._min_confidence for link in links)
         )
 
         return CrossModalCausalResult(
@@ -229,7 +229,7 @@ class CrossModalCausalReasoner:
         """获取已发现的跨模态因果链。"""
         if modality is None:
             return list(self._discovered_links)
-        return [l for l in self._discovered_links if l.source_modality == modality or l.target_modality == modality]
+        return [link for link in self._discovered_links if modality in (link.source_modality, link.target_modality)]
 
     def statistics(self) -> dict[str, Any]:
         return {

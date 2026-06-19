@@ -12,37 +12,27 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
-
 from mci_world_model.sdk._causal_creation_engine import (
     CausalCreationEngine,
-    CreationStrategy,
     CreatedTheory,
+    CreationStrategy,
     DomainKnowledge,
-    TheoryStatus,
+)
+from mci_world_model.sdk._causal_economy import (
+    CausalEconomy,
 )
 from mci_world_model.sdk._creative_consciousness import (
     CreativeCausalConsciousness,
     CreativeState,
-    CreativeDrive,
 )
+from mci_world_model.sdk._creative_trust import CreativeTrust
 from mci_world_model.sdk._knowledge_civilization import (
     AutonomousKnowledgeCivilization,
-    CivilizationMetrics,
     KnowledgeRepository,
-)
-from mci_world_model.sdk._causal_economy import (
-    CausalEconomy,
-    Transaction,
-    CausalKnowledgeValueModel,
 )
 from mci_world_model.sdk._novelty_verifier import (
     NoveltyVerifier,
-    NoveltyResult,
 )
-from mci_world_model.sdk._creative_trust import CreativeTrust
-
 
 # =============================================================================
 # CausalCreationEngine Tests

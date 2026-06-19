@@ -20,10 +20,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 

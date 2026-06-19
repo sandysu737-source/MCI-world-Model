@@ -607,3 +607,15 @@ class CausalUpdater:
         """重置统计计数器。"""
         self._stats.clear()
         self._history.clear()
+
+    def reset(self) -> None:
+        """完全重置因果图，清空所有状态。
+
+        LOOP-05 (S-6): 与 reset_stats() 不同，此方法清空
+        因果边、节点、历史记录和统计数据，使 CausalUpdater
+        回到全新状态。
+        """
+        self._edges.clear()
+        self._nodes.clear()
+        self._history.clear()
+        self._stats.clear()

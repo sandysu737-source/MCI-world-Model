@@ -93,8 +93,9 @@ def cart_dynamics(state_vec: np.ndarray, action_vec: np.ndarray) -> np.ndarray:
 def double_pendulum_dynamics(state_vec: np.ndarray, action_vec: np.ndarray) -> np.ndarray:
     """双摆动力学: [theta1, omega1, theta2, omega2] → [d_theta1/dt, d_omega1/dt, d_theta2/dt, d_omega2/dt]。
 
-    简化模型: 两级摆，第二级挂载在第一级摆球上。
-    使用小角度近似线性化，便于验证。
+    GEN-03 (W-3): 完整拉格朗日方程，包含双摆间的耦合项。
+    标准双摆方程中，两个摆通过约束力相互作用，
+    d_omega2 应包含来自第一摆的耦合项。
 
     参数默认: g=9.81, L1=L2=1.0, m1=m2=1.0
     """
@@ -110,11 +111,26 @@ def double_pendulum_dynamics(state_vec: np.ndarray, action_vec: np.ndarray) -> n
     g, L1, L2 = 9.81, 1.0, 1.0
     m1, m2 = 1.0, 1.0
 
-    # 简化动力学（小角度近似）
+    # GEN-03: 完整拉格朗日方程（含耦合项）
+    delta = theta1 - theta2
+    den1 = (m1 + m2) * L1 - m2 * L1 * np.cos(delta) ** 2
+
     d_theta1 = omega1
-    d_omega1 = -(g / L1) * np.sin(theta1) + torque1 / (m1 * L1**2)
+    d_omega1 = (
+        m2 * L1 * omega2**2 * np.sin(delta) * np.cos(delta)
+        + m2 * g * np.sin(theta2) * np.cos(delta)
+        + m2 * L2 * omega2**2 * np.sin(delta)
+        - (m1 + m2) * g * np.sin(theta1)
+    ) / den1 + torque1 / (m1 * L1**2)
+
+    den2 = (L2 / L1) * den1
     d_theta2 = omega2
-    d_omega2 = -(g / L2) * np.sin(theta2) + torque2 / (m2 * L2**2)
+    d_omega2 = (
+        -m2 * L2 * omega2**2 * np.sin(delta) * np.cos(delta)
+        + (m1 + m2) * g * np.sin(theta1) * np.cos(delta)
+        - (m1 + m2) * L1 * omega1**2 * np.sin(delta)
+        - (m1 + m2) * g * np.sin(theta2)
+    ) / den2 + torque2 / (m2 * L2**2)
 
     return np.array([d_theta1, d_omega1, d_theta2, d_omega2], dtype=np.float64)
 
@@ -260,13 +276,14 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
         self._dynamics_registry: dict[str, DynamicsFn] = {}
         self._state_dims: dict[str, int] = {}
         self._action_dims: dict[str, int] = {}
+        self._state_cls_map: dict[str, str] = {}  # FIX-C3: {state_type_name: backend_name}
         self._backend: str = default_backend
         self._dt: float = dt
 
-        # 注册内置动力学函数
-        self.register_dynamics("pendulum", pendulum_dynamics, state_dim=2, action_dim=1)
-        self.register_dynamics("cart", cart_dynamics, state_dim=2, action_dim=1)
-        self.register_dynamics("double_pendulum", double_pendulum_dynamics, state_dim=4, action_dim=2)
+        # 注册内置动力学函数（FIX-C3: 绑定状态类名）
+        self.register_dynamics("pendulum", pendulum_dynamics, state_dim=2, action_dim=1, state_cls="PendulumState")
+        self.register_dynamics("cart", cart_dynamics, state_dim=2, action_dim=1, state_cls="CartState")
+        self.register_dynamics("double_pendulum", double_pendulum_dynamics, state_dim=4, action_dim=2, state_cls="DoublePendulumState")
         # v5.1.0: 新增物理系统
         self.register_dynamics("spring_mass", spring_mass_dynamics, state_dim=2, action_dim=1)
         self.register_dynamics("projectile", projectile_dynamics, state_dim=4, action_dim=2)
@@ -294,6 +311,7 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
         dynamics_fn: DynamicsFn,
         state_dim: int = 2,
         action_dim: int = 1,
+        state_cls: str | type | None = None,
     ) -> None:
         """注册自定义动力学函数。
 
@@ -302,11 +320,16 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
             dynamics_fn: 动力学函数 (state_vec, action_vec) → d_state/dt
             state_dim: 状态维度
             action_dim: 动作维度
+            state_cls: FIX-C3: 关联的状态类型（类对象或类名字符串），
+                       用于精确后端推断，避免维度碰撞
         """
         self._dynamics_registry[name] = dynamics_fn
         self._state_dims[name] = state_dim
         self._action_dims[name] = action_dim
-        logger.info("注册动力学后端: %s (state_dim=%d, action_dim=%d)", name, state_dim, action_dim)
+        if state_cls is not None:
+            cls_name = state_cls if isinstance(state_cls, str) else state_cls.__name__
+            self._state_cls_map[cls_name] = name
+        logger.info("注册动力学后端: %s (state_dim=%d, action_dim=%d, cls=%s)", name, state_dim, action_dim, state_cls)
 
     def predict(
         self,
@@ -349,19 +372,30 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
         return trajectory
 
     def _infer_backend(self, state: WorldState) -> str:
-        """根据状态类型推断后端。"""
-        # 显式设置的后端优先
+        """根据状态类型推断后端。
+
+        FIX-C3: 优先按状态类型精确匹配，维度仅作最后回退。
+        """
+        # FIX-C3: 按状态类型精确匹配（最高优先级，避免维度碰撞）
+        state_cls_name = type(state).__name__
+        if state_cls_name in self._state_cls_map:
+            return self._state_cls_map[state_cls_name]
+
+        # 显式设置的后端次之
         if self._backend in self._dynamics_registry:
             return self._backend
 
-        # 根据状态维度推断
+        # 维度推断仅作最后回退
         state_dim = len(state.to_vector())
-        for name, dim in self._state_dims.items():
-            if dim == state_dim:
-                return name
-
-        # 默认返回 pendulum
-        return "pendulum"
+        candidates = [name for name, dim in self._state_dims.items() if dim == state_dim]
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            logger.warning(
+                "后端推断维度碰撞: %dD 有 %s，使用默认 '%s'",
+                state_dim, candidates, self._backend,
+            )
+        return self._backend
 
     def evaluate(
         self,

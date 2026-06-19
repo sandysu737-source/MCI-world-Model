@@ -16,7 +16,6 @@ import pytest
 from mci_world_model.sdk._causal_federation_protocol import (
     CausalFederationProtocol,
     FederationConsensus,
-    FederationMessage,
     FederationMessageType,
     FederationState,
     NodeRole,
@@ -25,22 +24,15 @@ from mci_world_model.sdk._causal_federation_protocol import (
 from mci_world_model.sdk._federated_consciousness import (
     FederatedCausalConsciousness,
     FederationAwarenessState,
-    FederationSelfModel,
-    ReflectionResult,
-    SelfModel,
-)
-from mci_world_model.sdk._federation_arch import (
-    CausalFederationArchitecture,
-    CausalShard,
-    FederationConsensus as ArchConsensus,
 )
 from mci_world_model.sdk._federated_trust import (
     FederatedTrust,
     LocalTrust,
     TrustCertificate,
-    TrustLevel,
 )
-
+from mci_world_model.sdk._federation_arch import (
+    CausalFederationArchitecture,
+)
 
 # =============================================================================
 # CausalFederationProtocol Tests

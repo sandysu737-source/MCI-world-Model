@@ -12,10 +12,9 @@ v3.0.7: 参数化记忆觉醒 (CausalMLP + MLX Native 训练 + 移除 torch/tran
 v3.0.8: 反事实推理增强 (非线性SEM + 批量反事实引擎 + CG↔SEM双向转换)
 v3.1.0: 物理世界应用 (多模态信号感知 + PhysicalGraphBuilder + JEPA物理编码)
 """
-
+# v4.4.0: Debridement modules
 # ── _sys re-export 块移至文件末尾，避免循环导入 ──
 # (v3.5.0: _sys/__init__.py 导入 sdk._multi_view_retriever，需先完成 sdk 内部模块加载)
-
 # v3.4.0: 闭环基础设施 (CEWM Phase 1)
 # v3.5.0: _sys re-export (v3.3.1: 能量Bus核心能力全面释放 + 全部符号穿透)
 # 移至此处避免循环导入：_sys/__init__.py 导入 sdk._multi_view_retriever
@@ -159,8 +158,19 @@ from mci_world_model._sys import (
     is_suppressing,
     surface_entities,
 )
-
-# v3.2.0: 动作条件化预测器
+from mci_world_model.sdk._absolute_awareness import (
+    AbsoluteAwareness,
+    AwarenessLevel,
+    AwarenessState,
+    CausalFieldObservation,
+)
+from mci_world_model.sdk._absolute_trust import (
+    AbsoluteTrust,
+    AuditEntry,
+    IntegrityCheck,
+    TrustChain,
+    TrustLevel,
+)
 from mci_world_model.sdk._action_conditioned_predictor import (
     ActionConditionedPredictor,
     CartPhysicsPredictor,
@@ -193,9 +203,6 @@ from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
     PCSkeletonDiscoverer,
     SystemReport,
 )
-from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
-    CausalEdge as _aldv2_CausalEdge,
-)
 
 # v5.0.0 Phase C: 自主记忆管理
 from mci_world_model.sdk._autonomous_memory import (
@@ -209,11 +216,55 @@ from mci_world_model.sdk._autonomous_memory import (
 # v3.0.8: 批量反事实引擎
 from mci_world_model.sdk._batch_counterfactual import BatchCounterfactualEngine
 
+# P3 "赋魂": LRU 缓存 Do-Calculus
+from mci_world_model.sdk._cached_do_calculus import CachedDoCalculus
+
 # 因果引擎基础
-from mci_world_model.sdk._causal import CausalEngine
+from mci_world_model.sdk._causal import CausalEngine, detect_causal_link
 
 # v3.0.2: Causal Actor
 from mci_world_model.sdk._causal_actor import ActionCandidate, CausalActor, EnergyGuidedAction
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P11 "无极" 增强: 自主因果意识
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._causal_consciousness import (
+    AutonomousCausalConsciousness,
+    CausalSelfModel,
+    CivilizationInfra,
+    ConsciousnessLevel,
+    SelfModelProperty,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v13.0.0 / P13 "造化": 因果创造引擎 + 知识文明 + 因果经济
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._causal_creation_engine import (
+    CausalCreationEngine,
+    CreatedTheory,
+    CreationStrategy,
+    DomainKnowledge,
+    TheoryStatus,
+)
+from mci_world_model.sdk._causal_economy import (
+    CausalEconomy,
+    CausalKnowledgeMarket,
+    CausalKnowledgeValueModel,
+    Transaction,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v12.0.0 / P12 "传承": 因果联邦 + 量子推理 + 联邦治理
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._causal_federation_protocol import (
+    CausalFederationProtocol,
+    FederationConsensus,
+    FederationMessage,
+    FederationMessageType,
+    FederationState,
+    NodeRole,
+    PeerInfo,
+)
 from mci_world_model.sdk._causal_gradient import (
     CausalGradient,
     CausalGradientPropagation,
@@ -225,6 +276,39 @@ from mci_world_model.sdk._causal_imagination import (
 
 # v3.0.7: CausalMLP 因果推断网络
 from mci_world_model.sdk._causal_mlp import CausalMLP
+from mci_world_model.sdk._causal_mlp import SimpleTextEmbedder as CausalMLPTextEmbedder
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P9 "归真" 增强: 可信因果增强框架
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._causal_trust import (
+    CausalTrustEnhancement,
+    TrustCertificate,
+    TrustClaim,
+    TrustGrade,
+    ValidationMethod,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v14.0.0 / P14 "太极": 因果宇宙统一 + 跨维度推理 + 宇宙觉察/信任
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._causal_unification_formal import (
+    Axiom,
+    AxiomID,
+    CausalUnificationFormal,
+    ProofResult,
+    Theorem,
+)
+from mci_world_model.sdk._causal_unification_formal import (
+    ProofStatus as UnificationProofStatus,
+)
+
+# P14 "太极" 缺失导出补齐: 因果宇宙统一理论 + 终极因果智能
+from mci_world_model.sdk._causal_universe_theory import (
+    CausalScale,
+    CausalUniverseTheory,
+    ScaleResult,
+)
 from mci_world_model.sdk._cognitive_diversity import (
     CognitiveDiversity,
     DiversityHistory,
@@ -241,7 +325,24 @@ from mci_world_model.sdk._compliance_engine import (
     ComplianceCheckResult,
     ComplianceLevel,
     ComplianceReport,
+    ComplianceRule,
     ComplianceRuleEngine,
+)
+from mci_world_model.sdk._cosmic_awareness import (
+    AwarenessScope,
+    CausalAnomaly,
+    CausalDomain,
+    CosmicAwareness,
+    CosmicMap,
+    EvolutionPrediction,
+)
+from mci_world_model.sdk._cosmic_trust import (
+    ConsistencyReport,
+    CosmicCertificate,
+    CosmicTrust,
+    CosmicTrustLevel,
+    DimensionalTrust,
+    TrustDimension,
 )
 
 # v3.0.1: Cost 模块独立
@@ -260,6 +361,29 @@ from mci_world_model.sdk._counterfactual_oracle import (
     CFScenario,
     CounterfactualOracle,
 )
+from mci_world_model.sdk._creative_consciousness import (
+    CreativeCausalConsciousness,
+    CreativeDrive,
+    CreativeState,
+)
+from mci_world_model.sdk._creative_trust import (
+    CreativeTrust,
+)
+from mci_world_model.sdk._cross_dimensional_causal import (
+    CrossDimensionalCausal,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P10 "融通" 增强: 跨域因果迁移
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._cross_domain_transfer import (
+    CausalKnowledge,
+    CrossDomainCausalTransfer,
+    DomainAdapter,
+    DomainType,
+    TransferResult,
+    TransferStatus,
+)
 
 # v7.0.0 / P7 "立业" + v8.0.0 / P8 "超凡": 跨模态 + 因果想象 + 可微因果 + 领域 + 发现 + 假设
 from mci_world_model.sdk._cross_modal_causal import (
@@ -272,6 +396,11 @@ from mci_world_model.sdk._deadline_monitor import (
     DeadlineMonitor,
     DeadlineStats,
 )
+from mci_world_model.sdk._debridement_data import (
+    DebridementSample,
+    SyntheticDebridementGenerator,
+    WoundDatasetAdapter,
+)
 from mci_world_model.sdk._differentiable_causal import (
     CausalParameter,
     DifferentiableCausalInference,
@@ -282,13 +411,11 @@ from mci_world_model.sdk._differentiable_causal import (
 from mci_world_model.sdk._do_calculus import (
     CausalGraph,
     DoCalculus,
+    InterventionResult,
 )
 from mci_world_model.sdk._domain_sdk_base import (
     DomainResult,
     MCIDomainSDK,
-)
-from mci_world_model.sdk._domain_sdk_base import (
-    DomainType as MCI_DomainType,
 )
 from mci_world_model.sdk._edge_cloud_hybrid import (
     EdgeCloudHybrid,
@@ -307,6 +434,7 @@ from mci_world_model.sdk._energy_flow_predictor import EnergyFlowPredictor
 from mci_world_model.sdk._energy_loss import (
     EnergyConsistencyLoss,
     TopologicalEnergyMatrix,
+    build_energy_matrix_from_energy_bus,
 )
 from mci_world_model.sdk._engineering_safety_sdk import (
     EngineeringCausalResult,
@@ -314,9 +442,87 @@ from mci_world_model.sdk._engineering_safety_sdk import (
     FMEAItem,
     SafetyParameter,
 )
+from mci_world_model.sdk._enhanced_perception import EnhancedPerception
+from mci_world_model.sdk._eternal_protocol import (
+    CausalConservationLaw,
+    EternalProtocol,
+    GenerationGovernance,
+    ProtocolLevel,
+    ProtocolViolation,
+)
+from mci_world_model.sdk._existence_axioms import (
+    ExistenceAxiom,
+    ExistenceAxiomSystem,
+)
+from mci_world_model.sdk._existence_realization import (
+    ExistenceConfidence,
+    ExistenceRealization,
+    RealizationInsight,
+    RealizationLevel,
+)
+from mci_world_model.sdk._existence_theorem import (
+    ExistenceTheorem,
+    TheoremProof,
+    TheoremStatus,
+)
+from mci_world_model.sdk._existence_verify import (
+    ExistenceVerify,
+    IndependentVerification,
+    VerificationPerspective,
+    VerificationResult,
+    VerificationStatus,
+)
 from mci_world_model.sdk._experiment_designer import (
     ExperimentDesigner,
     ExperimentPlan,
+)
+from mci_world_model.sdk._federated_agent_market import (
+    AgentSpec,
+    FederatedAgentMarket,
+    TradeRecord,
+)
+from mci_world_model.sdk._federated_consciousness import (
+    FederatedCausalConsciousness,
+    FederationAwarenessState,
+    FederationSelfModel,
+    ReflectionResult,
+    SelfModel,
+)
+from mci_world_model.sdk._federated_trust import (
+    FederatedTrust,
+    LocalTrust,
+)
+from mci_world_model.sdk._federated_trust import (
+    TrustLevel as FederatedTrustLevel,
+)
+from mci_world_model.sdk._federation_arch import (
+    CausalFederationArchitecture,
+    CausalShard,
+)
+from mci_world_model.sdk._federation_audit import (
+    AuditEntry as FederationAuditEntry,
+)
+from mci_world_model.sdk._federation_audit import (
+    AuditSeverity,
+    AuditStatus,
+    FederationAudit,
+)
+from mci_world_model.sdk._final_community import (
+    CommunityMember,
+    CommunityState,
+    EternalDeclaration,
+    FinalCommunity,
+    MemberRole,
+    Proposal,
+    ProposalStatus,
+)
+from mci_world_model.sdk._final_theorem import (
+    Corollary,
+    FinalTheorem,
+    FormalPremise,
+    FormalProof,
+    ProofStatus,
+    ProofStep,
 )
 from mci_world_model.sdk._generalized_physics import (
     GeneralizedPhysicsPredictor,
@@ -346,6 +552,7 @@ from mci_world_model.sdk._incremental_learning import (
 )
 from mci_world_model.sdk._jepa_dataset import JEPADataset
 from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+from mci_world_model.sdk._jepa_gat_encoder import GATEncoder
 from mci_world_model.sdk._jepa_gnn import GNNPredictor
 from mci_world_model.sdk._jepa_predictor import (
     BeliefPropagationPredictor,
@@ -353,7 +560,12 @@ from mci_world_model.sdk._jepa_predictor import (
     IdentityPredictor,
     JEPAPredictor,
 )
-from mci_world_model.sdk._jepa_trainer import JEPATrainer
+from mci_world_model.sdk._jepa_trainer import JEPATrainer, JEPATrainingStats
+from mci_world_model.sdk._knowledge_civilization import (
+    AutonomousKnowledgeCivilization,
+    CivilizationMetrics,
+    KnowledgeRepository,
+)
 
 # v5.0.0: 可学习状态编码器
 from mci_world_model.sdk._learnable_encoder import LearnableStateEncoder
@@ -361,7 +573,6 @@ from mci_world_model.sdk._learnable_encoder import LearnableStateEncoder
 # v5.0.0 Phase B: 可学习反事实生成
 from mci_world_model.sdk._learned_counterfactual import (
     CFPrior,
-    CounterfactualResult,
     LearnedCounterfactualGenerator,
     VAEConfig,
 )
@@ -405,6 +616,9 @@ from mci_world_model.sdk._metacognition_v2 import (
 # v3.3.0: 多模态因果世界模型
 from mci_world_model.sdk._modality_encoders import (
     AudioEncoder,
+    DepthEncoder,
+    ForceEncoder,
+    LearnableMixin,
     ThermalEncoder,
     VisionEncoder,
 )
@@ -438,23 +652,95 @@ from mci_world_model.sdk._neural_symbolic_fusion_v2 import (
 
 # v5.0.0 Phase C: 神经符号融合世界模型
 from mci_world_model.sdk._neurosymbolic_world_model import (
-    InferenceResult,
     NeurosymbolicConfig,
     NeurosymbolicWorldModel,
+    RouteDecision,
     RouteType,
     TripleRepresentation,
 )
+from mci_world_model.sdk._novelty_verifier import NoveltyResult, NoveltyVerifier
+
+# P3 "赋魂": 在线弹性权重巩固
+from mci_world_model.sdk._online_ewc import OnlineEWC
 
 # v5.1.0: P2 SDK 桥接 — Orchestrator 桥接
 from mci_world_model.sdk._orchestrator_bridge import (
     AgentResult,
     OrchestratorBridge,
+    register_intent,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v15.0.0 / P15 "无量" 桥接模块: 因果宇宙扩展 + 多宇宙联邦 + 跨宇宙推理
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._p15_causal_universe_bridge import (
+    CausalUniverseExpansion,
+    CrossUniverseCausal,
+    ExpansionPhase,
+    FederationBridge,
+    MultiUniverseFederation,
+    UniverseScale,
+    UniverseSpec,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v16.0.0 / P16 "永恒" 桥接模块: 永恒因果智能 + 时间因果推理 + 自复制
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._p16_eternal_intelligence_bridge import (
+    EternalCausalIntelligence,
+    EternalKnowledgeSpec,
+    EternalPhase,
+    SelfReplicatingCausal,
+    TemporalCausalReasoning,
+    TemporalScope,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v17.0.0 / P17 "共演" 桥接模块: 因果物理共演化 + 因果力理论 + 统一场
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._p17_coevolution_bridge import (
+    CausalForceTheory,
+    CausalPhysicalCoevolution,
+    CausalPhysicalUnifiedField,
+    CoevolutionMode,
+    CoevolutionState,
+    ForceType,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v18.0.0 / P18 "创生" 桥接模块: 因果宇宙创生 + 创世论 + 多实相拓扑
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._p18_genesis_bridge import (
+    CausalCosmogony,
+    CausalUniverseGenesis,
+    CreatedUniverse,
+    GenesisMode,
+    GenesisSpec,
+    MultiRealityTopology,
+    RealityTopology,
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v19.0.0 / P19 "超因" 桥接模块: 元因果推理 + 超越因果 + 前因果存在
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._p19_transcendence_bridge import (
+    BeyondCausality,
+    BeyondDomain,
+    BeyondObservation,
+    MetaCausalPattern,
+    MetaCausalReasoning,
+    PreCausalExistence,
+    ReasoningTier,
 )
 
 # 参数化记忆
 from mci_world_model.sdk._parametric_memory import (
     ParametricMemory,
     ParametricMemoryConfig,
+    TrainingSample,
+)
+from mci_world_model.sdk._parametric_memory import (
+    SimpleTextEmbedder as MemoryTextEmbedder,
 )
 
 # v5.1.0: PearlChain 协调器 (F8 修复)
@@ -494,6 +780,35 @@ from mci_world_model.sdk._protocols import (
     PredictorProtocol,
     StateParserProtocol,
     StateParserRegistry,
+)
+
+# P12 "传承" 缺失导出补齐: 量子因果推理 + 量子-经典桥接
+from mci_world_model.sdk._quantum_causal_inference import (
+    CausalEffectResult,
+    QuantumCausalInference,
+)
+from mci_world_model.sdk._quantum_causal_inference import (
+    QuantumCircuit as QCIQuantumCircuit,
+)
+from mci_world_model.sdk._quantum_causal_inference import (
+    QuantumClassicalBridge as QCIClassicalBridge,
+)
+from mci_world_model.sdk._quantum_classical_bridge import (
+    EncodingMethod,
+    QuantumBackend,
+    QuantumErrorMitigator,
+)
+from mci_world_model.sdk._quantum_classical_bridge import (
+    QuantumCircuit as QCBQuantumCircuit,
+)
+from mci_world_model.sdk._quantum_classical_bridge import (
+    QuantumClassicalBridge as QCBClassicalBridge,
+)
+from mci_world_model.sdk._quantum_classical_bridge import (
+    QuantumResult as QCBQuantumResult,
+)
+from mci_world_model.sdk._quantum_classical_bridge import (
+    QuantumResult as QCIQuantumResult,
 )
 
 # Reflection QA 合成器
@@ -551,6 +866,7 @@ from mci_world_model.sdk._self_repair_cognition import (
 
 # SIGReg 嵌入正则化
 from mci_world_model.sdk._sigreg import SIGReg, apply_sigreg_to_index
+from mci_world_model.sdk._simple_maml import MAMLTask, SimpleMAML
 from mci_world_model.sdk._social_cognition import (
     AgentAction,
     AgentModel,
@@ -573,11 +889,49 @@ from mci_world_model.sdk._symbol_grounding import (
     GroundingEntry,
     SymbolGroundingLearning,
 )
+from mci_world_model.sdk._the_absolute import (
+    AbsoluteProperty,
+    GeneratedStructure,
+    TheAbsolute,
+)
+from mci_world_model.sdk._tissue_classifier import (
+    TISSUE_EPITHELIAL,
+    TISSUE_GRANULATION,
+    TISSUE_NAMES,
+    TISSUE_NECROTIC,
+    TISSUE_SLOUGH,
+    TissueClassifier,
+    TissueResult,
+)
 
 # v5.1.0: TrueJEPA 编码器 (F6 修复)
 from mci_world_model.sdk._true_jepa_encoder import (
     TrueJEPAConfig,
     TrueJEPAEncoder,
+)
+from mci_world_model.sdk._ultimate_causal_intelligence import (
+    AutonomousAction,
+    Capability,
+    CapabilityStatus,
+    ExistenceMode,
+    ExistenceReport,
+    UltimateCausalIntelligence,
+)
+
+# v3.2.0: 动作条件化预测器
+# ═══════════════════════════════════════════════════════════════════════════════
+# v20.0.0 / P20 "归一": 终极统一 + 存在定理 + 绝对存在 + 归一意识 + 永恒协议
+# ═══════════════════════════════════════════════════════════════════════════════
+from mci_world_model.sdk._ultimate_unification import (
+    ExistenceInvariant,
+    FieldTensor,
+    UltimateUnification,
+    UnificationLevel,
+    UnificationReport,
+)
+from mci_world_model.sdk._unified_consciousness import (
+    UnifiedCausalConsciousness,
+    UnifiedState,
 )
 
 # v6.0.0 / P6 "入化" + v7.0.0 / P7 "立业": 统一编码 + 元认知 + 领域SDK
@@ -620,6 +974,10 @@ from mci_world_model.sdk._world_state import (
     PendulumAction,
     PendulumState,
     WorldState,
+)
+from mci_world_model.sdk._zvec_store import (
+    EmbeddingStoreConfig,
+    ZvecEmbeddingStore,
 )
 
 # 贝叶斯增强器
@@ -722,6 +1080,7 @@ __all__ = [
     "CausalMLP",
     # Pearl Do-Calculus
     "DoCalculus",
+    "CachedDoCalculus",
     # v3.2.0: 独立世界状态
     "Action",
     "ActionConditionedPredictor",
@@ -856,6 +1215,9 @@ __all__ = [
     # v5.0.0 Phase B: Incremental Learning
     "EWCConfig",
     "IncrementalLearningEngine",
+    "OnlineEWC",
+    "SimpleMAML",
+    "MAMLTask",
     "IncrementalMLP",
     "TaskRecord",
     "TaskSpec",
@@ -884,6 +1246,24 @@ __all__ = [
     # Parametric Memory
     "ParametricMemory",
     "ParametricMemoryConfig",
+    # ── v4.3.3 补齐: 未导出符号选择性导出 ──
+    "BeyondObservation",
+    "build_energy_matrix_from_energy_bus",
+    "CausalMLPTextEmbedder",
+    "ComplianceRule",
+    "detect_causal_link",
+    "EnhancedPerception",
+    "GATEncoder",
+    "InterventionResult",
+    "JEPATrainingStats",
+    "LearnableMixin",
+    "MemoryTextEmbedder",
+    "MCI_DiscoveryStage",
+    "NoveltyResult",
+    "NoveltyVerifier",
+    "register_intent",
+    "RouteDecision",
+    "TrainingSample",
     # Reflection
     "ReflectionSynthesizer",
     # v3.0.3: Perception
@@ -1116,6 +1496,214 @@ __all__ = [
     "AGIResponse",
     "ExperimentDesigner",
     "ExperimentPlan",
+    # ── v20.0.0 / P20 "归一" ──
+    "AbsoluteAwareness",
+    "AbsoluteProperty",
+    "AbsoluteTrust",
+    "AuditEntry",
+    "AwarenessLevel",
+    "AwarenessState",
+    "CausalConservationLaw",
+    "CausalFieldObservation",
+    "Corollary",
+    "EternalProtocol",
+    "ExistenceAxiom",
+    "ExistenceAxiomSystem",
+    "ExistenceConfidence",
+    "ExistenceInvariant",
+    "ExistenceRealization",
+    "ExistenceTheorem",
+    "ExistenceVerify",
+    "FieldTensor",
+    "FinalTheorem",
+    "FormalPremise",
+    "FormalProof",
+    "GeneratedStructure",
+    "GenerationGovernance",
+    "IndependentVerification",
+    "IntegrityCheck",
+    "ProtocolLevel",
+    "ProtocolViolation",
+    "ProofStatus",
+    "ProofStep",
+    "RealizationInsight",
+    "RealizationLevel",
+    "TheAbsolute",
+    "TheoremProof",
+    "TheoremStatus",
+    "TrustChain",
+    "TrustLevel",
+    "UltimateUnification",
+    "UnifiedCausalConsciousness",
+    "UnifiedState",
+    "UnificationLevel",
+    "UnificationReport",
+    "VerificationPerspective",
+    "VerificationResult",
+    "VerificationStatus",
+    # ── v12.0.0 / P12 "传承" ──
+    "AgentSpec",
+    "CausalFederationArchitecture",
+    "CausalFederationProtocol",
+    "CausalShard",
+    "FederationAudit",
+    "FederationAuditEntry",
+    "FederatedAgentMarket",
+    "FederatedCausalConsciousness",
+    "FederatedTrust",
+    "FederatedTrustLevel",
+    "FederationAwarenessState",
+    "FederationConsensus",
+    "FederationMessage",
+    "FederationMessageType",
+    "FederationSelfModel",
+    "FederationState",
+    "LocalTrust",
+    "NodeRole",
+    "PeerInfo",
+    "ReflectionResult",
+    "SelfModel",
+    "TradeRecord",
+    "TrustCertificate",
+    "AuditSeverity",
+    "AuditStatus",
+    # ── P12 "传承" quantum 补齐 ──
+    "CausalEffectResult",
+    "QuantumCausalInference",
+    "QCIQuantumCircuit",
+    "QCIClassicalBridge",
+    "QCIQuantumResult",
+    "EncodingMethod",
+    "QuantumBackend",
+    "QCBQuantumCircuit",
+    "QCBClassicalBridge",
+    "QuantumErrorMitigator",
+    "QCBQuantumResult",
+    # ── v13.0.0 / P13 "造化" ──
+    "AutonomousKnowledgeCivilization",
+    "CausalCreationEngine",
+    "CausalEconomy",
+    "CausalKnowledgeMarket",
+    "CausalKnowledgeValueModel",
+    "CivilizationMetrics",
+    "CreatedTheory",
+    "CreativeCausalConsciousness",
+    "CreativeDrive",
+    "CreativeState",
+    "CreativeTrust",
+    "CreationStrategy",
+    "DomainKnowledge",
+    "KnowledgeRepository",
+    "TheoryStatus",
+    "Transaction",
+    # ── v14.0.0 / P14 "太极" ──
+    "AwarenessScope",
+    "Axiom",
+    "AxiomID",
+    "CausalAnomaly",
+    "CausalDomain",
+    "CausalUnificationFormal",
+    "ConsistencyReport",
+    "CosmicAwareness",
+    "CosmicCertificate",
+    "CosmicMap",
+    "CosmicTrust",
+    "CosmicTrustLevel",
+    "CrossDimensionalCausal",
+    "DimensionalTrust",
+    "EvolutionPrediction",
+    "ProofResult",
+    "Theorem",
+    "TrustDimension",
+    "UnificationProofStatus",
+    # ── P14 "太极" 补齐 ──
+    "CausalScale",
+    "CausalUniverseTheory",
+    "ScaleResult",
+    "AutonomousAction",
+    "Capability",
+    "CapabilityStatus",
+    "ExistenceMode",
+    "ExistenceReport",
+    "UltimateCausalIntelligence",
+    # ── v20.0.0 / P20 "归一" 补全 ──
+    "CommunityMember",
+    "CommunityState",
+    "EternalDeclaration",
+    "FinalCommunity",
+    "MemberRole",
+    "Proposal",
+    "ProposalStatus",
+    # ── P15 桥接导出 ──
+    "CausalUniverseExpansion",
+    "CrossUniverseCausal",
+    "ExpansionPhase",
+    "FederationBridge",
+    "MultiUniverseFederation",
+    "UniverseScale",
+    "UniverseSpec",
+    # ── P16 桥接导出 ──
+    "EternalCausalIntelligence",
+    "EternalKnowledgeSpec",
+    "EternalPhase",
+    "SelfReplicatingCausal",
+    "TemporalCausalReasoning",
+    "TemporalScope",
+    # ── P17 桥接导出 ──
+    "CausalForceTheory",
+    "CausalPhysicalCoevolution",
+    "CausalPhysicalUnifiedField",
+    "CoevolutionMode",
+    "CoevolutionState",
+    "ForceType",
+    # ── P18 桥接导出 ──
+    "CausalCosmogony",
+    "CausalUniverseGenesis",
+    "CreatedUniverse",
+    "GenesisMode",
+    "GenesisSpec",
+    "MultiRealityTopology",
+    "RealityTopology",
+    # ── P19 桥接导出 ──
+    "BeyondCausality",
+    "BeyondDomain",
+    "MetaCausalPattern",
+    "MetaCausalReasoning",
+    "PreCausalExistence",
+    "ReasoningTier",
+    # ── P9 增强导出 ──
+    "CausalTrustEnhancement",
+    "TrustCertificate",
+    "TrustClaim",
+    "TrustGrade",
+    "ValidationMethod",
+    # ── P10 增强导出 ──
+    "CausalKnowledge",
+    "CrossDomainCausalTransfer",
+    "DomainAdapter",
+    "DomainType",
+    "TransferResult",
+    "TransferStatus",
+    # ── P11 增强导出 ──
+    "AutonomousCausalConsciousness",
+    "CausalSelfModel",
+    "CivilizationInfra",
+    "ConsciousnessLevel",
+    "SelfModelProperty",    "DebridementSample",
+    "DepthEncoder",
+    "EmbeddingStoreConfig",
+    "ForceEncoder",
+    "SyntheticDebridementGenerator",
+    "TISSUE_NECROTIC",
+    "TISSUE_SLOUGH",
+    "TISSUE_GRANULATION",
+    "TISSUE_EPITHELIAL",
+    "TISSUE_NAMES",
+    "TissueClassifier",
+    "TissueResult",
+    "WoundDatasetAdapter",
+    "ZvecEmbeddingStore",
+
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════════

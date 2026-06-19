@@ -303,12 +303,14 @@ class TestCewmHelpers:
         assert ("omega", "theta") in edges
 
     def test_state_change_zero_theta(self, wm):
-        """theta≈0 时无 theta→omega 边。"""
+        """FIX-C5: 因果结构是状态类型属性，与当前值无关。"""
         from mci_world_model.sdk._world_state import PendulumState
 
         state = PendulumState(theta=0.0, omega=0.0)
         edges = wm._cewm_state_change(state)
-        assert len(edges) == 0
+        # causal_edges() 返回结构因果边，不受当前数值影响
+        assert ("theta", "omega") in edges
+        assert ("omega", "theta") in edges
 
     def test_state_change_no_pendulum(self, wm):
         """非 Pendulum 对象返回空边。"""

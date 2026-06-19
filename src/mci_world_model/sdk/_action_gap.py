@@ -26,11 +26,14 @@ CEWM v3.6.0 新增组件 (N6)：
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # 数据类型
@@ -315,8 +318,8 @@ class ActionGapMetric:
     def _simulate_action(self, state: Any, action: Any) -> Any:
         """模拟执行动作后的状态。
 
-        v4.4.0: 泛化为优先委托 state.step_physics() / action.apply()，
-        Pendulum 硬编码逻辑仅作回退。
+        GEN-02 (W-2): 移除 PendulumState 硬编码回退，
+        改为通用委托模式。物理模拟应通过注入的 PredictorProtocol 实现。
         """
         # 优先：如果 action 有 apply 方法，委托给它
         if hasattr(action, "apply") and callable(action.apply):
@@ -329,30 +332,8 @@ class ActionGapMetric:
         if hasattr(state, "step_physics") and callable(state.step_physics):
             return state.step_physics()
 
-        # 回退 2: PendulumState 硬编码（保持向后兼容）
-        if hasattr(state, "theta") and hasattr(state, "omega"):
-            dt = getattr(state, "dt", 0.01)
-            g = getattr(state, "g", 9.81)
-            mass_l = getattr(state, "L", 1.0)
-
-            # 力矩
-            torque = float(action) if isinstance(action, (int, float)) else 0.0
-
-            # 物理演化 + 外力
-            theta_next = state.theta + state.omega * dt
-            omega_next = state.omega - (g / mass_l) * math.sin(state.theta) * dt + torque * dt
-
-            # 创建新状态（避免循环导入）
-            from mci_world_model.sdk._world_state import PendulumState
-
-            return PendulumState(
-                theta=theta_next,
-                omega=omega_next,
-                g=g,
-                L=mass_l,
-                dt=dt,
-            )
-
+        # GEN-02: 无可用物理模拟器，返回原状态并记录警告
+        logger.warning("_simulate_action: 无可用物理模拟器 (state=%s)，返回原状态", type(state).__name__)
         return state
 
     @staticmethod

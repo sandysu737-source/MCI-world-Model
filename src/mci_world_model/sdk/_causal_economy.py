@@ -144,3 +144,55 @@ class CausalEconomy:
         if total >= 0.4:
             return "basic"
         return "low_value"
+
+    def get_economy_report(self) -> dict:
+        """获取经济体系报告。"""
+        total_value = sum(tx.value for tx in self._transaction_log)
+        total_price = sum(tx.price for tx in self._transaction_log)
+        return {
+            "n_transactions": self.n_transactions,
+            "total_value": total_value,
+            "total_price": total_price,
+            "avg_value": total_value / max(1, self.n_transactions),
+            "avg_price": total_price / max(1, self.n_transactions),
+        }
+
+    def assess_market_health(self) -> dict:
+        """评估市场健康度。"""
+        if not self._transaction_log:
+            return {"health": "no_data", "liquidity": 0.0, "diversity": 0.0}
+
+        # 流动性: 交易频率
+        liquidity = min(1.0, self.n_transactions / 10.0)
+        # 多样性: 不同提供者数量
+        providers = {tx.provider for tx in self._transaction_log}
+        diversity = min(1.0, len(providers) / 5.0)
+        # 综合健康度
+        health_score = 0.5 * liquidity + 0.5 * diversity
+
+        if health_score >= 0.7:
+            health = "healthy"
+        elif health_score >= 0.4:
+            health = "moderate"
+        else:
+            health = "illiquid"
+
+        return {
+            "health": health,
+            "health_score": health_score,
+            "liquidity": liquidity,
+            "diversity": diversity,
+            "n_providers": len(providers),
+        }
+
+    def batch_trade(self, trades: list[tuple[str, str, Any]]) -> dict:
+        """批量知识交易。"""
+        results = []
+        for provider, consumer, theory in trades:
+            result = self.trade_knowledge(provider, consumer, theory)
+            results.append(result)
+        return {
+            "n_trades": len(results),
+            "status": "batch_completed",
+            "results": results,
+        }

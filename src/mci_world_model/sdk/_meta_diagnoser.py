@@ -326,7 +326,7 @@ _RECOMMENDATION_TEMPLATES: dict[FailurePattern, str] = {
 # =============================================================================
 
 
-@dataclass
+@dataclass(eq=False)
 class MetaDiagnoser:
     """学习型认知诊断系统。
 

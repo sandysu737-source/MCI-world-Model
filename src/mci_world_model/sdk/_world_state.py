@@ -92,6 +92,30 @@ class WorldState(ABC):
         """序列化为字典。子类应覆盖此方法提供更有意义的输出。"""
         return {"type": self.__class__.__name__}
 
+    def causal_edges(self) -> list[tuple[str, str]]:
+        """声明此状态类型的因果边。
+
+        FIX-C5: WorldState 自描述因果结构，避免在 _cewm_state_change 中硬编码。
+        子类可覆盖以提供领域特定的因果边。
+
+        Returns:
+            因果边列表 [(cause, effect), ...]
+        """
+        # 默认: 基于 to_vector() 维度生成相邻项因果边
+        vec = self.to_vector()
+        return [(f"dim_{i}", f"dim_{i + 1}") for i in range(len(vec) - 1)]
+
+    def causal_query(self) -> str:
+        """返回用于 JEPA 预测的因果查询字符串。
+
+        FIX-C2: 替代 str(state) 作为 jepa_predict 的查询。
+        返回有意义的因果描述而非 Python 对象 repr。
+
+        Returns:
+            因果查询字符串（如 "pendulum", "cart"）
+        """
+        return self.__class__.__name__.lower().replace("state", "")
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
@@ -243,6 +267,16 @@ class PendulumState(WorldState):
             "L": self.L,
             "dt": self.dt,
         }
+
+    # ── FIX-C2/C5: 因果结构自描述 ──
+
+    def causal_edges(self) -> list[tuple[str, str]]:
+        """单摆因果边: theta ↔ omega 双向因果。"""
+        return [("theta", "omega"), ("omega", "theta")]
+
+    def causal_query(self) -> str:
+        """JEPA 因果查询: 'pendulum'。"""
+        return "pendulum"
 
 
 # =============================================================================
@@ -432,6 +466,16 @@ class CartState(WorldState):
             "v": round(self.v, 6),
             "dt": self.dt,
         }
+
+    # ── FIX-C2/C5: 因果结构自描述 ──
+
+    def causal_edges(self) -> list[tuple[str, str]]:
+        """小车因果边: x ↔ v 双向因果。"""
+        return [("x", "v"), ("v", "x")]
+
+    def causal_query(self) -> str:
+        """JEPA 因果查询: 'cart'。"""
+        return "cart"
 
     def __repr__(self) -> str:
         return f"CartState(x={self.x:.4f}, v={self.v:.4f})"

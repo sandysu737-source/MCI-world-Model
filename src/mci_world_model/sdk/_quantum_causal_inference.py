@@ -17,15 +17,14 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
 from mci_world_model.sdk._quantum_classical_bridge import (
-    QuantumClassicalBridge,
     QuantumCircuit,
-    QuantumResult,
+    QuantumClassicalBridge,
 )
 
 logger = logging.getLogger(__name__)

@@ -85,7 +85,9 @@ class NeuralSymbolicFusionV2:
     def fusion_count(self) -> int:
         return len(self._fusion_history)
 
-    def neural_to_symbolic(self, neural_repr: np.ndarray, var_names: list[str] | None = None) -> list[dict]:
+    def neural_to_symbolic(
+        self, neural_repr: np.ndarray, var_names: list[str] | None = None
+    ) -> list[dict]:
         """从神经表征提取符号规则。
 
         简化实现: 从向量中检测显著线性关系。
@@ -107,17 +109,17 @@ class NeuralSymbolicFusionV2:
             for j in range(i + 1, n):
                 ratio = abs(vec[i]) / max(abs(vec[j]), 1e-8)
                 if ratio > self._rule_threshold:
-                    rules.append(
-                        {
-                            "type": "linear",
-                            "rule": f"{var_names[j]} ≈ {ratio:.4f} * {var_names[i]}",
-                            "strength": min(ratio, 1.0),
-                        }
-                    )
+                    rules.append({
+                        "type": "linear",
+                        "rule": f"{var_names[j]} ≈ {ratio:.4f} * {var_names[i]}",
+                        "strength": min(ratio, 1.0),
+                    })
 
         return rules
 
-    def symbolic_to_neural(self, rules: list[dict], target_dim: int) -> np.ndarray:
+    def symbolic_to_neural(
+        self, rules: list[dict], target_dim: int
+    ) -> np.ndarray:
         """从符号规则约束神经表征。
 
         简化实现: 根据规则强度生成约束向量。
@@ -204,7 +206,9 @@ class NeuralSymbolicFusionV2:
         """评估神经-符号一致性。"""
         if not rules:
             return 0.0
-        n_violations = sum(1 for r in rules if r.get("strength", 0.0) < 0.3)
+        n_violations = sum(
+            1 for r in rules if r.get("strength", 0.0) < 0.3
+        )
         return float(1.0 - n_violations / max(len(rules), 1))
 
     def statistics(self) -> dict[str, Any]:
@@ -213,6 +217,7 @@ class NeuralSymbolicFusionV2:
             "rule_threshold": self._rule_threshold,
             "max_iterations": self._max_iterations,
             "avg_fusion_score": (
-                float(np.mean([s.fusion_score for s in self._fusion_history])) if self._fusion_history else 0.0
+                float(np.mean([s.fusion_score for s in self._fusion_history]))
+                if self._fusion_history else 0.0
             ),
         }

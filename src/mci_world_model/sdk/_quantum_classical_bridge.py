@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 import numpy as np
 
@@ -134,19 +133,19 @@ class QuantumErrorMitigator:
             total = result.n_shots
             if total > 0:
                 # 将接近 50/50 的分布推向极化
-                for key in mitigated_counts:
-                    prob = mitigated_counts[key] / total
+                for key, val in mitigated_counts.items():
+                    prob = val / total
                     if prob > 0.5:
-                        mitigated_counts[key] = int(min(mitigated_counts[key] * 1.05, total))
+                        mitigated_counts[key] = int(min(val * 1.05, total))
                     elif prob < 0.5 and prob > 0:
-                        mitigated_counts[key] = max(int(mitigated_counts[key] * 0.95), 1)
+                        mitigated_counts[key] = max(int(val * 0.95), 1)
 
         elif self._method == "readout_mitigation":
             # 读出误差缓解: 简化版 — 均匀化小计数
             total = sum(mitigated_counts.values())
             avg_count = max(1, total // max(len(mitigated_counts), 1))
-            for key in mitigated_counts:
-                if mitigated_counts[key] < avg_count * 0.1:
+            for key, val in mitigated_counts.items():
+                if val < avg_count * 0.1:
                     mitigated_counts[key] = avg_count
 
         return QuantumResult(

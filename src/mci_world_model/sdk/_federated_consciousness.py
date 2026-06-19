@@ -339,12 +339,12 @@ class FederatedCausalConsciousness:
         self, local: SelfModel, peers: list[SelfModel]
     ) -> FederationSelfModel:
         """构建联邦自我模型。"""
-        all_models = [local] + peers
-        all_domains = list(set(d for m in all_models for d in m.domains))
+        all_models = [local, *peers]
+        all_domains = list({d for m in all_models for d in m.domains})
         avg_conf = (
             np.mean([m.confidence for m in all_models]) if all_models else 0
         )
-        all_limits = list(set(l for m in all_models for l in m.limitations))
+        all_limits = list({lim for m in all_models for lim in m.limitations})
 
         return FederationSelfModel(
             n_nodes=len(all_models),

@@ -256,7 +256,7 @@ class PearlChain:
 
             # 简单因果结构: cause→effect, 其他变量作为混淆因子
             for node in nodes:
-                if node != cause and node != effect:
+                if node not in {cause, effect}:
                     edges.append((node, cause))
                     edges.append((node, effect))
             edges.append((cause, effect))
@@ -310,7 +310,7 @@ class PearlChain:
                 nodes = list(data.keys()) if data else [cause, effect]
                 edges = [(cause, effect)]
                 for node in nodes:
-                    if node != cause and node != effect:
+                    if node not in {cause, effect}:
                         edges.append((node, effect))
                 cg = CausalGraph(nodes=nodes, edges=edges)
                 engine = CounterfactualEngine.from_causal_graph(cg)

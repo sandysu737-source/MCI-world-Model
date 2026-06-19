@@ -379,7 +379,7 @@ class CausalFederationProtocol:
         try:
             mt = FederationMessageType(msg_type)
         except ValueError:
-            raise ValueError(f"未知消息类型: {msg_type}")
+            raise ValueError(f"未知消息类型: {msg_type}") from None
 
         msg = FederationMessage(
             msg_type=mt,
@@ -541,7 +541,7 @@ class CausalFederationProtocol:
         self, local: dict, federated: list[dict]
     ) -> dict:
         """联邦结果合并: 加权投票 + 冲突检测。"""
-        all_results = [local] + federated
+        all_results = [local, *federated]
         weights = [r.get("trust_score", 0.5) for r in all_results]
         total_weight = sum(weights)
         if total_weight == 0:

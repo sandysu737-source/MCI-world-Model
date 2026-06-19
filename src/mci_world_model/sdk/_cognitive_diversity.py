@@ -499,6 +499,45 @@ class CognitiveDiversity:
         return 0.6 * detection_rate + 0.4 * check_frequency
 
     # -----------------------------------------------------------------
+    # is_sufficient_diversity — QUAL-02 (S-4): Ashby 阈值量化
+    # -----------------------------------------------------------------
+
+    # Ashby 必要多样性定律阈值：H(C)/H(S) > 1.0 即满足。
+    # 为避免浮点噪声，使用 1.0 作为严格门限。
+    ASHBY_SUFFICIENCY_THRESHOLD: float = 1.0
+
+    def is_sufficient_diversity(self, dv: DiversityVector | None = None) -> bool:
+        """判断当前认知多样性是否满足 Ashby 必要多样性定律。
+
+        QUAL-02 (S-4): 提供可编程的布尔门禁，便于在 CI 或运行时断言。
+
+        Ashby 必要多样性定律要求 H(C) ≥ H(S)，即 ashby_ratio ≥ 1.0。
+        当 H_physics 为零时（无物理状态数据），返回 False 以标记数据不足。
+
+        Args:
+            dv: 可选的多样性向量。为 None 时使用 ``current()`` 实时计算。
+
+        Returns:
+            True 如果 ashby_ratio ≥ ASHBY_SUFFICIENCY_THRESHOLD 且 H_physics > 0
+        """
+        if dv is None:
+            dv = self.current()
+
+        # H_physics 为零意味着尚未有足够的物理状态数据
+        if dv.h_physics < 1e-10:
+            return False
+
+        return dv.ashby_ratio >= self.ASHBY_SUFFICIENCY_THRESHOLD
+
+    @property
+    def ashby_ratio(self) -> float:
+        """QUAL-02 (S-4): 暴露当前多样性向量的 Ashby 比值。
+
+        等价于 ``self.current().ashby_ratio``，便于外部直接引用。
+        """
+        return self.current().ashby_ratio
+
+    # -----------------------------------------------------------------
     # ashby_check — Ashby 条件验证
     # -----------------------------------------------------------------
 

@@ -154,11 +154,7 @@ class PendulumStateParser:
         """检查观测是否为 PendulumState 或含 theta 的 dict。"""
         if obs is None:
             return False
-        if hasattr(obs, "theta") and hasattr(obs, "omega"):
-            return True
-        if isinstance(obs, dict) and "theta" in obs:
-            return True
-        return False
+        return bool((hasattr(obs, "theta") and hasattr(obs, "omega")) or (isinstance(obs, dict) and "theta" in obs))
 
     def parse(self, obs: object) -> WorldState:
         """解析为 PendulumState。"""
@@ -187,11 +183,7 @@ class CartStateParser:
         """检查观测是否为 CartState 或含 x+v 的 dict。"""
         if obs is None:
             return False
-        if hasattr(obs, "x") and hasattr(obs, "v") and not hasattr(obs, "theta"):
-            return True
-        if isinstance(obs, dict) and "x" in obs and "v" in obs and "theta" not in obs:
-            return True
-        return False
+        return bool((hasattr(obs, "x") and hasattr(obs, "v") and not hasattr(obs, "theta")) or (isinstance(obs, dict) and "x" in obs and "v" in obs and "theta" not in obs))
 
     def parse(self, obs: object) -> WorldState:
         """解析为 CartState。"""
@@ -219,9 +211,7 @@ class GenericStateParser:
         """检查观测是否已是 WorldState 或有 to_vector 方法。"""
         if obs is None:
             return False
-        if hasattr(obs, "to_vector") and hasattr(obs, "distance"):
-            return True
-        return False
+        return bool(hasattr(obs, "to_vector") and hasattr(obs, "distance"))
 
     def parse(self, obs: object) -> WorldState:
         """直接返回 WorldState 对象。"""
@@ -236,7 +226,10 @@ class GenericStateParser:
 
 
 class StateParserRegistry:
-    """状态解析器注册表——按优先级尝试多个解析器。
+    """状态解析器注册表——按显式优先级尝试多个解析器。
+
+    LOOP-01 (W-5): 使用显式 priority 数字排序，消除逆序优先级歧义。
+    数字越大优先级越高。
 
     用法:
         >>> registry = StateParserRegistry.default()
@@ -244,20 +237,25 @@ class StateParserRegistry:
     """
 
     def __init__(self) -> None:
-        self._parsers: list[StateParserProtocol] = []
+        self._parsers: list[tuple[int, StateParserProtocol]] = []
 
-    def register(self, parser: StateParserProtocol) -> None:
-        """注册一个解析器（后注册的优先级更高）。"""
-        self._parsers.append(parser)
+    def register(self, parser: StateParserProtocol, priority: int = 0) -> None:
+        """注册一个解析器。
+
+        LOOP-01: priority 数字越大优先级越高。
+        相同 priority 按注册顺序（先注册的更高）。
+        """
+        self._parsers.append((priority, parser))
 
     def parse(self, obs: object) -> WorldState | None:
         """尝试用所有注册的解析器解析观测。
 
-        按注册顺序的逆序尝试（后注册的优先），返回第一个成功的解析结果。
+        按 priority 降序尝试（数字大的优先），返回第一个成功的解析结果。
         如果所有解析器都无法处理，返回 None。
         """
-        # 逆序尝试：后注册的优先级更高
-        for parser in reversed(self._parsers):
+        # LOOP-01: 按 priority 降序排序后尝试
+        sorted_parsers = sorted(self._parsers, key=lambda x: x[0], reverse=True)
+        for _, parser in sorted_parsers:
             if parser.can_parse(obs):
                 try:
                     return parser.parse(obs)
@@ -267,9 +265,12 @@ class StateParserRegistry:
 
     @classmethod
     def default(cls) -> StateParserRegistry:
-        """创建默认解析器注册表（Pendulum → Cart → Generic 优先级）。"""
+        """创建默认解析器注册表。
+
+        LOOP-01: 显式优先级 — Pendulum(30) > Cart(20) > Generic(10)。
+        """
         registry = cls()
-        registry.register(GenericStateParser())
-        registry.register(CartStateParser())
-        registry.register(PendulumStateParser())
+        registry.register(GenericStateParser(), priority=10)
+        registry.register(CartStateParser(), priority=20)
+        registry.register(PendulumStateParser(), priority=30)
         return registry

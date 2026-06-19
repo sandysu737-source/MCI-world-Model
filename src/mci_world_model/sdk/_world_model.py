@@ -774,6 +774,9 @@ class MCIWorldModel:
         self._negative_heuristic: object | None = None  # v4.3.2 NegativeHeuristic
         self._parametric_memory: object | None = None  # v4.3.3 ParametricMemory
         self._energy_flow_predictor: object | None = None  # v4.3.3 EnergyFlowPredictor
+        self._causal_updater: object | None = None  # v4.3.3 CausalUpdater (持久化积累)
+        self._action_gap_metric: object | None = None  # LOOP-03: ActionGapMetric (懒加载)
+        self._state_parser_registry: object | None = None  # LOOP-03: StateParserRegistry (懒加载)
 
         # v4.4.2: Phase 2 — 安全约束 + 反事实 Oracle
         self._safety_monitor: object | None = None  # SafetyMonitor
@@ -2646,6 +2649,134 @@ class MCIWorldModel:
     # v3.6.0: CEWM 引擎统一闭环入口
     # ────────────────────────────────────────────────
 
+    # ────────────────────────────────────────────────
+    # FIX-C4: cewm_step 子方法（五层架构各一）
+    # ────────────────────────────────────────────────
+
+    def _init_cewm_result(self) -> dict[str, Any]:
+        """FIX-C4: 初始化 CEWM 步骤结果字典。"""
+        return {
+            "state": None,
+            "action_distance": 0.0,
+            "physical_distance": 0.0,
+            "prediction": None,
+            "prediction_error": 0.0,
+            "causal_updates": 0,
+            "attention_weights": {},
+            "experience_hints": 0,
+            "safety_violation": False,
+            "safety_reason": "",
+        }
+
+    def _cewm_perceive(self, observation: Any, goal: Any) -> tuple[Any, Any]:
+        """FIX-C4: 感知层 — 观测 → 世界状态。"""
+        current_state = self._cewm_parse_state(observation)
+        goal_state = self._cewm_parse_state(goal)
+        return current_state, goal_state
+
+    def _cewm_safety_check(self, state: Any, action: Any, result: dict) -> bool:
+        """FIX-C4: 安全层 — 约束检查。返回 True 表示通过。"""
+        if self._safety_monitor is not None and state is not None:
+            from mci_world_model.sdk._safety import SafetyMonitor as _SafetyMonitor
+
+            if isinstance(self._safety_monitor, _SafetyMonitor):
+                safety_result = self._safety_monitor.check_all(state, action)
+                if not safety_result.passed:
+                    result["safety_violation"] = True
+                    result["safety_reason"] = safety_result.reason
+                    logger.warning("CEWM 安全违规: %s", safety_result.reason)
+                    return False
+        return True
+
+    def _cewm_cognize(self, current_state: Any, goal_state: Any) -> tuple[int, int]:
+        """FIX-C4: 认知层 — 因果图更新 + 经验检索。"""
+        _degraded = False
+        if hasattr(self, "_deadline_monitor") and self._deadline_monitor is not None:
+            if self._deadline_monitor.is_degraded:
+                _degraded = True
+                logger.info("DeadlineMonitor 已降级，跳过认知层")
+
+        causal_updates = 0
+        experience_hints = 0
+
+        if not _degraded:
+            # FIX-C1: 持久化 CausalUpdater — 仅首次创建，后续增量积累
+            if self._causal_updater is None:
+                from mci_world_model.sdk._causal_updater import CausalUpdater
+
+                self._causal_updater = CausalUpdater()
+
+            if current_state is not None and goal_state is not None:
+                state_change = self._cewm_state_change(current_state)
+                if state_change:
+                    records = self._causal_updater.update(
+                        {"edges": state_change, "confidence": 0.6}
+                    )
+                    causal_updates = len(records)
+
+            if hasattr(self, "_experience_db") and self._experience_db is not None:
+                try:
+                    hints = self._experience_db.retrieve(top_k=3)
+                    experience_hints = len(hints)
+                except Exception as e:
+                    logger.warning("经验检索跳过: %s", e)
+
+        return causal_updates, experience_hints
+
+    def _cewm_evaluate_action(
+        self, current_state: Any, goal_state: Any
+    ) -> tuple[float, float]:
+        """FIX-C4: 行动层 — 距离评估。"""
+        if not hasattr(self, "_action_gap_metric") or self._action_gap_metric is None:
+            from mci_world_model.sdk._action_gap import ActionGapMetric
+
+            self._action_gap_metric = ActionGapMetric()
+
+        if current_state is not None and goal_state is not None:
+            gap_result = self._action_gap_metric.distance(current_state, goal_state)
+            return gap_result.action_distance, gap_result.physical_distance
+        return 0.0, 0.0
+
+    def _cewm_predict(
+        self, current_state: Any, goal_state: Any, action: Any, action_distance: float
+    ) -> tuple[Any, float]:
+        """FIX-C4: 预测层 — JEPA/因果预测。"""
+        prediction = None
+        pred_error = 0.0
+
+        try:
+            if self._jepa_predictor is not None and current_state is not None:
+                # FIX-C2: 使用 causal_query() 替代 str(state)，修正参数名 cause
+                cause = (
+                    current_state.causal_query()
+                    if hasattr(current_state, "causal_query")
+                    else "state"
+                )
+                prediction = self.jepa_predict(cause=cause)
+        except Exception as e:
+            logger.warning("JEPA 预测跳过: %s", e)
+
+        if action is not None and current_state is not None and goal_state is not None:
+            remaining_cost = self._action_gap_metric.action_cost(
+                current_state, action, goal_state
+            )
+            pred_error = remaining_cost / max(1.0, action_distance)
+            pred_error = min(1.0, pred_error)
+
+        return prediction, pred_error
+
+    def _cewm_feedback(self, pred_error: float) -> dict[str, Any]:
+        """FIX-C4: 反馈层 — 注意力调整。"""
+        if self._perception is None:  # LOOP-03: 统一延迟初始化模式
+            from mci_world_model._sys._perception_pipeline import PerceptionPipeline
+
+            self._perception = PerceptionPipeline()
+
+        if hasattr(self._perception, "attention_policy"):
+            feedback = {"prediction_error": pred_error}
+            return self._perception.attention_policy(feedback)
+        return {}
+
     def cewm_step(
         self,
         observation: Any = None,
@@ -2660,6 +2791,8 @@ class MCIWorldModel:
         3. 预测层 (Prediction): JEPA/因果预测
         4. 行动层 (Action): 行动距离评估 + 决策
         5. 反馈层 (Feedback): 预测误差 → 注意力调整
+
+        FIX-C4: 拆分为 7 个子方法，本体仅做编排（≤30行）。
 
         Example:
             >>> wm = MCIWorldModel()
@@ -2688,121 +2821,33 @@ class MCIWorldModel:
                 "experience_hints": 经验提示数,
             }
         """
-        result: dict[str, Any] = {
-            "state": None,
-            "action_distance": 0.0,
-            "physical_distance": 0.0,
-            "prediction": None,
-            "prediction_error": 0.0,
-            "causal_updates": 0,
-            "attention_weights": {},
-            "experience_hints": 0,
-            "safety_violation": False,
-            "safety_reason": "",
-        }
+        result = self._init_cewm_result()
 
-        # ── 1. 感知层: 观测 → 世界状态 ──
-        current_state = self._cewm_parse_state(observation)
-        goal_state = self._cewm_parse_state(goal)
+        # 1. 感知层
+        current_state, goal_state = self._cewm_perceive(observation, goal)
         result["state"] = current_state
 
-        # ── 1.5 安全层: v4.4.2 约束检查 ──
-        if self._safety_monitor is not None and current_state is not None:
-            from mci_world_model.sdk._safety import SafetyMonitor as _SM
+        # 1.5 安全层
+        if not self._cewm_safety_check(current_state, action, result):
+            return result
 
-            if isinstance(self._safety_monitor, _SM):
-                safety_result = self._safety_monitor.check_all(current_state, action)
-                if not safety_result.passed:
-                    result["safety_violation"] = True
-                    result["safety_reason"] = safety_result.reason
-                    logger.warning("CEWM 安全违规: %s", safety_result.reason)
-                    return result
-
-        # ── 2. 认知层: 因果图 + 经验 ──
-        # v4.5.0: DeadlineMonitor 降级检查——如果已降级则跳过认知层
-        _degraded = False
-        if hasattr(self, "_deadline_monitor") and self._deadline_monitor is not None:
-            if self._deadline_monitor.is_degraded:
-                _degraded = True
-                logger.info("DeadlineMonitor 已降级，跳过认知层")
-
-        causal_updates = 0
-        experience_hints = 0
-
-        if not _degraded:
-            from mci_world_model.sdk._causal_updater import CausalUpdater
-
-            self._causal_updater = CausalUpdater()
-
-            if current_state is not None and goal_state is not None:
-                # 基于状态变化添加因果证据
-                state_change = self._cewm_state_change(current_state)
-                if state_change:
-                    records = self._causal_updater.update(
-                        {
-                            "edges": state_change,
-                            "confidence": 0.6,
-                        }
-                    )
-                    causal_updates = len(records)
-
-            # 经验检索
-            if hasattr(self, "_experience_db") and self._experience_db is not None:
-                try:
-                    hints = self._experience_db.retrieve(top_k=3)
-                    experience_hints = len(hints)
-                except Exception as e:
-                    logger.warning("经验检索跳过: %s", e)
-
+        # 2. 认知层
+        causal_updates, experience_hints = self._cewm_cognize(current_state, goal_state)
         result["causal_updates"] = causal_updates
         result["experience_hints"] = experience_hints
 
-        # ── 3. 行动层: 距离评估 ──
-        if not hasattr(self, "_action_gap_metric"):
-            from mci_world_model.sdk._action_gap import ActionGapMetric
+        # 3. 行动层
+        action_dist, phys_dist = self._cewm_evaluate_action(current_state, goal_state)
+        result["action_distance"] = action_dist
+        result["physical_distance"] = phys_dist
 
-            self._action_gap_metric = ActionGapMetric()
-
-        if current_state is not None and goal_state is not None:
-            gap_result = self._action_gap_metric.distance(current_state, goal_state)
-            result["action_distance"] = gap_result.action_distance
-            result["physical_distance"] = gap_result.physical_distance
-
-        # ── 4. 预测层: JEPA/因果预测 ──
-        prediction = None
-        pred_error = 0.0
-
-        try:
-            if self._jepa_predictor is not None and current_state is not None:
-                # 使用 JEPA 预测
-                predictions = self.jepa_predict(
-                    query=str(current_state) if hasattr(current_state, "__str__") else "state"
-                )
-                prediction = predictions
-        except Exception as e:
-            logger.warning("JEPA 预测跳过: %s", e)
-
-        # 预测误差（如果有 action，比较预测 vs 实际）
-        if action is not None and current_state is not None and goal_state is not None:
-            remaining_cost = self._action_gap_metric.action_cost(current_state, action, goal_state)
-            pred_error = remaining_cost / max(1.0, result["action_distance"])
-            result["prediction_error"] = min(1.0, pred_error)
-
+        # 4. 预测层
+        prediction, pred_error = self._cewm_predict(current_state, goal_state, action, action_dist)
         result["prediction"] = prediction
+        result["prediction_error"] = pred_error
 
-        # ── 5. 反馈层: 注意力调整 ──
-        if not hasattr(self, "_perception") or self._perception is None:
-            from mci_world_model._sys._perception_pipeline import PerceptionPipeline
-
-            self._perception = PerceptionPipeline()
-
-        if hasattr(self._perception, "attention_policy"):
-            feedback = {
-                "prediction_error": result.get("prediction_error", 0.0),
-            }
-            # 基于预测误差调整各通道权重
-            weights = self._perception.attention_policy(feedback)
-            result["attention_weights"] = weights
+        # 5. 反馈层
+        result["attention_weights"] = self._cewm_feedback(pred_error)
 
         return result
 
@@ -2854,9 +2899,9 @@ class MCIWorldModel:
 
         # ── 1.5 安全层 ──
         if self._safety_monitor is not None and current_state is not None:
-            from mci_world_model.sdk._safety import SafetyMonitor as _SM
+            from mci_world_model.sdk._safety import SafetyMonitor as _SafetyMonitor
 
-            if isinstance(self._safety_monitor, _SM):
+            if isinstance(self._safety_monitor, _SafetyMonitor):
                 safety_result = self._safety_monitor.check_all(current_state, action)
                 if not safety_result.passed:
                     result["safety_violation"] = True
@@ -2865,7 +2910,7 @@ class MCIWorldModel:
                     return result
 
         # ── 2. 行动层: 距离评估 ──
-        if not hasattr(self, "_action_gap_metric"):
+        if self._action_gap_metric is None:  # LOOP-03: 统一延迟初始化模式
             from mci_world_model.sdk._action_gap import ActionGapMetric
 
             self._action_gap_metric = ActionGapMetric()
@@ -2878,12 +2923,17 @@ class MCIWorldModel:
         # ── 3. 预测层: JEPA ──
         try:
             if self._jepa_predictor is not None and current_state is not None:
-                predictions = self.jepa_predict(
-                    query=str(current_state) if hasattr(current_state, "__str__") else "state"
+                # FIX-C2: 使用 causal_query() 替代 str(state)，修正参数名 cause
+                cause = (
+                    current_state.causal_query()
+                    if hasattr(current_state, "causal_query")
+                    else "state"
                 )
+                predictions = self.jepa_predict(cause=cause)
                 result["prediction"] = predictions
-        except Exception:
-            pass  # 快速路径: 预测失败不阻塞
+        except Exception as e:
+            # GEN-01 (W-1): 保留可追溯性，使用 debug 级别避免性能影响
+            logger.debug("cewm_step_fast() JEPA 预测跳过: %s", e)
 
         # ── 4. 紧急停止检查 ──
         if hasattr(self, "_emergency_stop") and self._emergency_stop is not None:
@@ -3441,7 +3491,7 @@ class MCIWorldModel:
             return None
 
         # 优先使用注册表解析
-        if not hasattr(self, "_state_parser_registry"):
+        if self._state_parser_registry is None:  # LOOP-03: 统一延迟初始化模式
             from mci_world_model.sdk._protocols import StateParserRegistry
 
             self._state_parser_registry = StateParserRegistry.default()
@@ -3456,43 +3506,18 @@ class MCIWorldModel:
     def _cewm_state_change(self, state: Any) -> list[tuple[str, str]]:
         """从状态变化提取因果边。
 
-        v4.4.0: 泛化为支持任意 WorldState，
-        不再硬编码 theta/omega。
+        FIX-C5: 使用 WorldState.causal_edges() 自描述因果结构，
+        遵循开闭原则 — 新增状态类型无需修改此方法。
         """
-        edges: list[tuple[str, str]] = []
-
-        # PendulumState 特殊处理: theta ↔ omega 因果关系
-        if hasattr(state, "theta") and hasattr(state, "omega"):
-            if abs(state.theta) > 0.01:
-                edges.append(("theta", "omega"))
-            if abs(state.omega) > 0.01:
-                edges.append(("omega", "theta"))
-            return edges
-
-        # CartState: x ↔ v 因果关系
-        if hasattr(state, "x") and hasattr(state, "v"):
-            if abs(state.x) > 0.01:
-                edges.append(("x", "v"))
-            if abs(state.v) > 0.01:
-                edges.append(("v", "x"))
-            return edges
-
-        # RobotWorldState: joint_positions ↔ joint_velocities 因果关系
-        if hasattr(state, "joint_positions") and hasattr(state, "joint_velocities"):
+        # FIX-C5: WorldState 子类自描述因果结构
+        if hasattr(state, "causal_edges") and callable(state.causal_edges):
             try:
-                pos = state.joint_positions
-                vel = state.joint_velocities
-                if pos is not None and vel is not None:
-                    for i in range(len(pos)):
-                        if abs(float(pos[i])) > 0.01:
-                            edges.append((f"joint_pos_{i}", f"joint_vel_{i}"))
-                        if abs(float(vel[i])) > 0.01:
-                            edges.append((f"joint_vel_{i}", f"joint_pos_{i + 1}"))
+                return state.causal_edges()
             except Exception:
                 pass
-            return edges
 
-        # 通用 WorldState: 基于 to_vector() 维度
+        # 兼容回退：非 WorldState 对象基于 to_vector() 维度推断
+        edges: list[tuple[str, str]] = []
         if hasattr(state, "to_vector"):
             vec = state.to_vector()
             for i in range(len(vec)):

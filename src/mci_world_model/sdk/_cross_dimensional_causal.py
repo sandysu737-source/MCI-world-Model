@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -109,4 +108,45 @@ class CrossDimensionalCausal:
         return {
             "unified_conclusion": "Cross-dimensional causal result",
             "n_dimensions": len(dim_results),
+        }
+
+    def establish_dimension_bridge(
+        self, source_dim: str, target_dim: str, quality: float = 0.7
+    ) -> dict:
+        """建立维度间桥接。"""
+        key = f"{source_dim}->{target_dim}"
+        self._bridges[key] = {"quality": quality, "established": True}
+        return {
+            "status": "bridge_established",
+            "source": source_dim,
+            "target": target_dim,
+            "quality": quality,
+        }
+
+    def get_cross_dimensional_report(self) -> dict:
+        """获取跨维度推理报告。"""
+        return {
+            "n_bridges": len(self._bridges),
+            "bridges": {k: v for k, v in self._bridges.items()},
+            "dimensions": list(self.DIMENSIONS),
+            "has_physical_engine": self._physical is not None,
+            "has_digital_twin": self._digital is not None,
+            "has_mixed_reality": self._mixed is not None,
+        }
+
+    def verify_dimensional_alignment(self, dim_results: dict | None = None) -> dict:
+        """验证维度间的因果对齐。"""
+        if dim_results is None:
+            dim_results = {}
+            for dim in self.DIMENSIONS:
+                dim_results[dim] = self._reason_in_dimension({}, dim)
+
+        confidences = [r.get("confidence", 0.0) for r in dim_results.values()]
+        alignment = min(confidences) / max(confidences) if max(confidences) > 0 else 0.0
+
+        return {
+            "alignment_score": float(alignment),
+            "n_dimensions": len(dim_results),
+            "min_confidence": min(confidences) if confidences else 0.0,
+            "is_well_aligned": alignment >= 0.7,
         }

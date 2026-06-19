@@ -256,7 +256,7 @@ class ScientificDiscoveryPipeline:
         if not self._discovered_laws:
             return {"consistency_score": 0.0, "verified_count": 0}
 
-        verified = sum(1 for l in self._discovered_laws if l.get("conservation_verified", False))
+        verified = sum(1 for law in self._discovered_laws if law.get("conservation_verified", False))
         consistency = verified / max(len(self._discovered_laws), 1)
 
         return {

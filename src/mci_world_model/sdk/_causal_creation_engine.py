@@ -393,10 +393,8 @@ class CausalCreationEngine:
     def _check_internal_consistency(self, theory: dict) -> bool:
         """内部一致性检验。"""
         statement = theory.get("statement", "")
-        if not statement:
-            return False
         # 简化检查: 非空陈述即为一致
-        return True
+        return bool(statement)
 
     def _check_knowledge_compatibility(self, theory: dict, domain: str) -> bool:
         """与已知知识兼容性检验。"""
@@ -418,7 +416,7 @@ class CausalCreationEngine:
                 f"If theory '{theory.get('statement', '')[:30]}' is true, then X should decrease"
             ],
             "critical_experiments": [
-                f"Intervention experiment on key variable"
+                "Intervention experiment on key variable"
             ],
             "boundary_conditions": [
                 "Theory should not hold under extreme conditions"

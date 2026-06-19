@@ -678,13 +678,29 @@ class ExperienceDB:
     # ── 序列化 ──
 
     def to_dict(self) -> dict:
-        """序列化为字典。"""
+        """序列化为字典。
+
+        LOOP-04 (S-3): 包含三维索引状态和内部计数器，
+        确保序列化后的状态可用于重建或诊断。
+        """
         return {
             "size": self.size,
             "max_experiences": self.max_experiences,
             "half_life_hours": self.half_life_hours,
             "consolidation_threshold": self.consolidation_threshold,
             "statistics": self.statistics().__dict__ if self._experiences else {},
+            # LOOP-04: 三维索引状态
+            "semantic_index": self._semantic_index.statistics(),
+            "causal_index": self._causal_index.statistics(),
+            "temporal_index": {
+                "half_life_hours": self._temporal_index.half_life_hours
+                if self._temporal_index
+                else self.half_life_hours,
+            },
+            # LOOP-04: 内部计数器
+            "consolidation_count": self._consolidation_count,
+            "forget_count": self._forget_count,
+            "id_counter": self._id_counter,
             "experiences": [
                 {
                     "id": exp.experience_id,

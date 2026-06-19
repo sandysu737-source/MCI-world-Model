@@ -35,7 +35,6 @@ class GroundingEntry:
         grounding_strength: 接地强度 [0, 1]
         examples: 接地样例数
     """
-
     symbol: str
     modality: str = ""
     perceptual_vector: np.ndarray | None = None
@@ -61,7 +60,9 @@ class SymbolGroundingLearning:
     def grounded_symbol_count(self) -> int:
         return len(self._groundings)
 
-    def ground(self, symbol: str, modality: str, perceptual_vector: np.ndarray) -> GroundingEntry:
+    def ground(
+        self, symbol: str, modality: str, perceptual_vector: np.ndarray
+    ) -> GroundingEntry:
         """将符号接地到感知体验。
 
         Args:
@@ -95,12 +96,13 @@ class SymbolGroundingLearning:
             )
             self._groundings[symbol] = entry
 
-        logger.info(
-            "符号接地: %s → %s (强度=%.2f, 样例=%d)", symbol, modality, entry.grounding_strength, entry.examples
-        )
+        logger.info("符号接地: %s → %s (强度=%.2f, 样例=%d)",
+                     symbol, modality, entry.grounding_strength, entry.examples)
         return entry
 
-    def verify_grounding(self, symbol: str, test_vector: np.ndarray) -> float:
+    def verify_grounding(
+        self, symbol: str, test_vector: np.ndarray
+    ) -> float:
         """验证符号接地——测试向量与接地向量的相似度。
 
         Args:
@@ -154,6 +156,7 @@ class SymbolGroundingLearning:
             "grounded_symbols": self.grounded_symbol_count,
             "symbols": list(self._groundings.keys()),
             "avg_grounding_strength": (
-                float(np.mean([e.grounding_strength for e in self._groundings.values()])) if self._groundings else 0.0
+                float(np.mean([e.grounding_strength for e in self._groundings.values()]))
+                if self._groundings else 0.0
             ),
         }
