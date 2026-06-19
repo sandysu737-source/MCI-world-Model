@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class GenesisSpec:
     topology: RealityTopology = RealityTopology.FLAT
     godel_note: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
                 "GÖDEL NOTE: A created universe's consistency cannot be proven "
@@ -85,13 +86,13 @@ class CausalUniverseGenesis:
     BRIDGE: FinalCommunity → 创生治理决策
     """
 
-    def __init__(self, the_absolute=None, final_community=None):
+    def __init__(self, the_absolute: Any = None, final_community: Any = None) -> None:
         self._ta = the_absolute
         self._fc = final_community
         self._mode = GenesisMode.OBSERVE
         self._created_universes: list[CreatedUniverse] = []
 
-    def enter_creation_mode(self) -> dict:
+    def enter_creation_mode(self) -> dict[str, Any]:
         """进入创生模式"""
         self._mode = GenesisMode.CREATE
 
@@ -106,7 +107,7 @@ class CausalUniverseGenesis:
 
         return result
 
-    def genesis_universe(self, spec: GenesisSpec | None = None) -> dict:
+    def genesis_universe(self, spec: GenesisSpec | None = None) -> dict[str, Any]:
         """创生宇宙"""
         if spec is None:
             spec = GenesisSpec(genesis_id=f"genesis_{len(self._created_universes)}")
@@ -136,7 +137,7 @@ class CausalUniverseGenesis:
 
         return result
 
-    def get_genesis_report(self) -> dict:
+    def get_genesis_report(self) -> dict[str, Any]:
         """获取创生报告"""
         return {
             "mode": self._mode.value,
@@ -153,11 +154,11 @@ class CausalCosmogony:
     BRIDGE: FinalTheorem → 创世论形式化基础
     """
 
-    def __init__(self, final_theorem=None):
+    def __init__(self, final_theorem: Any = None) -> None:
         self._ft = final_theorem
         self._models: list[str] = []
 
-    def formulate_cosmogony(self) -> dict:
+    def formulate_cosmogony(self) -> dict[str, Any]:
         """构建因果创世论"""
         self._models = [
             "Big Causal Bang: Causal structure emerges from singularity",
@@ -178,7 +179,7 @@ class CausalCosmogony:
 
         return result
 
-    def get_cosmogony_report(self) -> dict:
+    def get_cosmogony_report(self) -> dict[str, Any]:
         """获取创世论报告"""
         return {
             "n_models": len(self._models),
@@ -193,11 +194,11 @@ class MultiRealityTopology:
     BRIDGE: UltimateUnification → 统一场支撑多实相拓扑
     """
 
-    def __init__(self, ultimate_unification=None):
+    def __init__(self, ultimate_unification: Any = None) -> None:
         self._uu = ultimate_unification
         self._topologies: dict[str, RealityTopology] = {}
 
-    def map_reality_topology(self, reality_id: str, topology: RealityTopology = RealityTopology.BRANCHED) -> dict:
+    def map_reality_topology(self, reality_id: str, topology: RealityTopology = RealityTopology.BRANCHED) -> dict[str, Any]:
         """映射实相拓扑"""
         self._topologies[reality_id] = topology
 
@@ -214,7 +215,7 @@ class MultiRealityTopology:
 
         return result
 
-    def get_topology_report(self) -> dict:
+    def get_topology_report(self) -> dict[str, Any]:
         """获取拓扑报告"""
         return {
             "n_realities": len(self._topologies),

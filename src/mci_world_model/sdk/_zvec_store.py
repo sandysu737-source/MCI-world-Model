@@ -26,6 +26,7 @@ import hashlib
 import logging
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -77,7 +78,7 @@ class ZvecEmbeddingStore:
     def __init__(self, config: EmbeddingStoreConfig | None = None):
         self.config = config or EmbeddingStoreConfig()
         self._collection = None
-        self._fallback_storage: list[dict] = []
+        self._fallback_storage: list[dict[str, Any]] = []
         self._fallback_vectors: np.ndarray | None = None
 
         if _zvec_available:
@@ -118,7 +119,7 @@ class ZvecEmbeddingStore:
 
             # Build index
             if self.config.index_type == "hnsw":
-                self._collection.create_index(
+                self._collection.create_index(  # type: ignore[attr-defined]
                     "vec",
                     index_param=_zvec.HnswIndexParam(
                         metric_type=_zvec.MetricType.COSINE
@@ -132,7 +133,7 @@ class ZvecEmbeddingStore:
 
     # ── 插入 ──
 
-    def insert_qa_pairs(self, qa_pairs: list[dict]) -> int:
+    def insert_qa_pairs(self, qa_pairs: list[dict[str, Any]]) -> int:
         """插入因果 QA 对到向量存储。
 
         Args:
@@ -146,7 +147,7 @@ class ZvecEmbeddingStore:
             return 0
 
         # 为每条 QA 对生成向量 (使用确定性 hash 嵌入)
-        docs = []
+        docs: list[dict[str, Any]] = []
         for i, pair in enumerate(qa_pairs):
             cause = str(pair.get("cause_text", ""))
             effect = str(pair.get("effect_text", ""))
@@ -194,7 +195,7 @@ class ZvecEmbeddingStore:
 
     # ── 检索 ──
 
-    def search_similar(self, query: str, topk: int = 5) -> list[dict]:
+    def search_similar(self, query: str, topk: int = 5) -> list[dict[str, Any]]:
         """向量相似度检索——找到与查询文本最相似的因果 QA 对。
 
         Args:
@@ -235,7 +236,7 @@ class ZvecEmbeddingStore:
         # Fallback: numpy 余弦相似度
         return self._numpy_search(qvec, topk)
 
-    def search_bm25(self, query: str, topk: int = 5) -> list[dict]:
+    def search_bm25(self, query: str, topk: int = 5) -> list[dict[str, Any]]:
         """BM25 全文检索——关键词匹配因果 QA 对。
 
         当前回退到 numpy 字符串匹配。
@@ -282,7 +283,7 @@ class ZvecEmbeddingStore:
             vec /= norm
         return vec
 
-    def _numpy_search(self, qvec: np.ndarray, topk: int) -> list[dict]:
+    def _numpy_search(self, qvec: np.ndarray, topk: int) -> list[dict[str, Any]]:
         """Numpy fallback: 余弦相似度检索。"""
         if not self._fallback_storage:
             return []

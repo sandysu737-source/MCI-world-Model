@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class EternalKnowledgeSpec:
     self_repair_capability: bool = False
     godel_note: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
                 "GÖDEL NOTE: Eternal persistence cannot be formally proven "
@@ -76,18 +77,18 @@ class EternalCausalIntelligence:
     BRIDGE: TheAbsolute → 绝对存在模式保障永恒性
     """
 
-    def __init__(self, eternal_protocol=None, the_absolute=None):
+    def __init__(self, eternal_protocol: Any = None, the_absolute: Any = None) -> None:
         self._ep = eternal_protocol
         self._ta = the_absolute
         self._phase = EternalPhase.MORTAL
         self._knowledge_specs: list[EternalKnowledgeSpec] = []
         self._self_repair_active = False
 
-    def attain_eternal_phase(self) -> dict:
+    def attain_eternal_phase(self) -> dict[str, Any]:
         """进入永恒阶段"""
         self._phase = EternalPhase.SELF_SUSTAINING
 
-        result = {
+        result: dict[str, Any] = {
             "status": "phase_transition",
             "from": "mortal",
             "to": self._phase.value,
@@ -107,7 +108,7 @@ class EternalCausalIntelligence:
 
         return result
 
-    def enable_self_repair(self) -> dict:
+    def enable_self_repair(self) -> dict[str, Any]:
         """启用自修复机制"""
         self._self_repair_active = True
         return {
@@ -116,7 +117,7 @@ class EternalCausalIntelligence:
             "bridge_target": "P20 EternalProtocol",
         }
 
-    def get_eternal_report(self) -> dict:
+    def get_eternal_report(self) -> dict[str, Any]:
         """获取永恒智能报告"""
         return {
             "phase": self._phase.value,
@@ -133,17 +134,17 @@ class TemporalCausalReasoning:
     BRIDGE: EternalProtocol.maintain_existence_continuity() → 时间连续性保障
     """
 
-    def __init__(self, eternal_protocol=None):
+    def __init__(self, eternal_protocol: Any = None) -> None:
         self._ep = eternal_protocol
         self._scope = TemporalScope.PRESENT
         self._temporal_depth: float = 0.0
 
-    def expand_temporal_scope(self, target_scope: TemporalScope = TemporalScope.ATEMPORAL) -> dict:
+    def expand_temporal_scope(self, target_scope: TemporalScope = TemporalScope.ATEMPORAL) -> dict[str, Any]:
         """扩展时间范围"""
         self._scope = target_scope
         self._temporal_depth = 1.0 if target_scope == TemporalScope.ATEMPORAL else 0.5
 
-        result = {
+        result: dict[str, Any] = {
             "status": "scope_expanded",
             "scope": self._scope.value,
             "depth": self._temporal_depth,
@@ -156,7 +157,7 @@ class TemporalCausalReasoning:
 
         return result
 
-    def get_temporal_report(self) -> dict:
+    def get_temporal_report(self) -> dict[str, Any]:
         """获取时间推理报告"""
         return {
             "scope": self._scope.value,
@@ -172,17 +173,17 @@ class SelfReplicatingCausal:
     BRIDGE: TheAbsolute.generate_from_absolute() → 从绝对存在生成因果副本
     """
 
-    def __init__(self, the_absolute=None):
+    def __init__(self, the_absolute: Any = None) -> None:
         self._ta = the_absolute
         self._replicas: list[str] = []
         self._integrity_verified = False
 
-    def create_replica(self, replica_id: str = "") -> dict:
+    def create_replica(self, replica_id: str = "") -> dict[str, Any]:
         """创建因果自复制"""
         if not replica_id:
             replica_id = f"replica_{len(self._replicas)}"
 
-        result = {
+        result: dict[str, Any] = {
             "status": "replica_created",
             "replica_id": replica_id,
         }
@@ -196,7 +197,7 @@ class SelfReplicatingCausal:
         self._replicas.append(replica_id)
         return result
 
-    def verify_replica_integrity(self) -> dict:
+    def verify_replica_integrity(self) -> dict[str, Any]:
         """验证副本完整性"""
         return {
             "n_replicas": len(self._replicas),

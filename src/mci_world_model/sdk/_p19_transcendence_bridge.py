@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class MetaCausalPattern:
     cross_system: bool = False
     godel_note: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
                 "GÖDEL NOTE: Meta-causal reasoning about causality cannot "
@@ -86,17 +87,17 @@ class MetaCausalReasoning:
     BRIDGE: FinalTheorem.formalize_existence_theorems() → 元因果公理基础
     """
 
-    def __init__(self, final_theorem=None, ultimate_unification=None):
+    def __init__(self, final_theorem: Any = None, ultimate_unification: Any = None) -> None:
         self._ft = final_theorem
         self._uu = ultimate_unification
         self._tier = ReasoningTier.OBJECT_LEVEL
         self._patterns: list[MetaCausalPattern] = []
 
-    def ascend_to_meta_level(self) -> dict:
+    def ascend_to_meta_level(self) -> dict[str, Any]:
         """上升到元因果层次"""
         self._tier = ReasoningTier.META_LEVEL
 
-        result = {
+        result: dict[str, Any] = {
             "status": "ascended",
             "tier": self._tier.value,
         }
@@ -108,7 +109,7 @@ class MetaCausalReasoning:
 
         return result
 
-    def explore_beyond_causality(self) -> dict:
+    def explore_beyond_causality(self) -> dict[str, Any]:
         """探索超越因果"""
         self._tier = ReasoningTier.BEYOND_LEVEL
 
@@ -124,7 +125,7 @@ class MetaCausalReasoning:
 
         return result
 
-    def discover_meta_patterns(self) -> dict:
+    def discover_meta_patterns(self) -> dict[str, Any]:
         """发现元因果模式"""
         self._patterns = [
             MetaCausalPattern("MCP1", "Causal Closure", self._tier, cross_system=True),
@@ -138,7 +139,7 @@ class MetaCausalReasoning:
             "bridge_mode": True,
         }
 
-    def get_meta_reasoning_report(self) -> dict:
+    def get_meta_reasoning_report(self) -> dict[str, Any]:
         """获取元因果推理报告"""
         return {
             "tier": self._tier.value,
@@ -154,11 +155,11 @@ class BeyondCausality:
     BRIDGE: UltimateUnification → 超越统一框架
     """
 
-    def __init__(self, ultimate_unification=None):
+    def __init__(self, ultimate_unification: Any = None) -> None:
         self._uu = ultimate_unification
         self._observations: list[BeyondObservation] = []
 
-    def probe_beyond_domain(self, domain: BeyondDomain = BeyondDomain.LOGICAL) -> dict:
+    def probe_beyond_domain(self, domain: BeyondDomain = BeyondDomain.LOGICAL) -> dict[str, Any]:
         """探测超越域"""
         obs = BeyondObservation(
             domain=domain,
@@ -180,7 +181,7 @@ class BeyondCausality:
 
         return result
 
-    def get_beyond_report(self) -> dict:
+    def get_beyond_report(self) -> dict[str, Any]:
         """获取超越报告"""
         return {
             "n_observations": len(self._observations),
@@ -196,11 +197,11 @@ class PreCausalExistence:
     BRIDGE: FinalTheorem + ExistenceAxiomSystem → 前因果公理基础
     """
 
-    def __init__(self, final_theorem=None):
+    def __init__(self, final_theorem: Any = None) -> None:
         self._ft = final_theorem
         self._pre_causal_axioms: list[str] = []
 
-    def formulate_pre_causal_theory(self) -> dict:
+    def formulate_pre_causal_theory(self) -> dict[str, Any]:
         """构建前因果存在理论"""
         self._pre_causal_axioms = [
             "PA1: Before causality, there exists a pre-causal potential",
@@ -221,7 +222,7 @@ class PreCausalExistence:
 
         return result
 
-    def get_pre_causal_report(self) -> dict:
+    def get_pre_causal_report(self) -> dict[str, Any]:
         """获取前因果报告"""
         return {
             "n_axioms": len(self._pre_causal_axioms),

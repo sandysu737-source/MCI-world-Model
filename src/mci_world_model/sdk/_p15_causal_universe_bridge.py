@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class UniverseSpec:
     expansion_ratio: float = 1.0
     godel_note: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
                 "GÖDEL NOTE: No single universe specification can capture "
@@ -90,13 +91,13 @@ class CausalUniverseExpansion:
     BRIDGE: UltimateUnification.unify_causal_physical_meta() → 多宇宙统一场
     """
 
-    def __init__(self, ultimate_unification=None):
+    def __init__(self, ultimate_unification: Any = None) -> None:
         self._uu = ultimate_unification
         self._universes: dict[str, UniverseSpec] = {}
         self._phase = ExpansionPhase.LOCAL
         self._scale = UniverseScale.SINGLE
 
-    def expand_to_multi_universe(self, n_universes: int = 2) -> dict:
+    def expand_to_multi_universe(self, n_universes: int = 2) -> dict[str, Any]:
         """扩展到多宇宙"""
         for i in range(n_universes):
             uid = f"universe_{i}"
@@ -122,7 +123,7 @@ class CausalUniverseExpansion:
 
         return result
 
-    def get_expansion_report(self) -> dict:
+    def get_expansion_report(self) -> dict[str, Any]:
         """获取扩展报告"""
         return {
             "scale": self._scale.value,
@@ -140,13 +141,13 @@ class MultiUniverseFederation:
     BRIDGE: UltimateUnification + TheAbsolute → 联邦统一存在模式
     """
 
-    def __init__(self, ultimate_unification=None, the_absolute=None):
+    def __init__(self, ultimate_unification: Any = None, the_absolute: Any = None) -> None:
         self._uu = ultimate_unification
         self._ta = the_absolute
         self._members: list[str] = []
         self._bridges: list[FederationBridge] = []
 
-    def establish_federation(self, universe_ids: list[str]) -> dict:
+    def establish_federation(self, universe_ids: list[str]) -> dict[str, Any]:
         """建立多宇宙联邦"""
         self._members = list(universe_ids)
         # 建立桥接通道
@@ -171,7 +172,7 @@ class MultiUniverseFederation:
 
         return result
 
-    def get_federation_report(self) -> dict:
+    def get_federation_report(self) -> dict[str, Any]:
         """获取联邦报告"""
         return {
             "n_members": len(self._members),
@@ -188,11 +189,11 @@ class CrossUniverseCausal:
     BRIDGE: UltimateUnification.extract_existence_invariants() → 跨宇宙不变量
     """
 
-    def __init__(self, ultimate_unification=None):
+    def __init__(self, ultimate_unification: Any = None) -> None:
         self._uu = ultimate_unification
-        self._cross_invariants: list[dict] = []
+        self._cross_invariants: list[dict[str, Any]] = []
 
-    def discover_cross_universe_invariants(self) -> dict:
+    def discover_cross_universe_invariants(self) -> dict[str, Any]:
         """发现跨宇宙因果不变量"""
         invariants = []
 
@@ -220,7 +221,7 @@ class CrossUniverseCausal:
             "bridge_mode": True,
         }
 
-    def get_cross_universe_report(self) -> dict:
+    def get_cross_universe_report(self) -> dict[str, Any]:
         """获取跨宇宙推理报告"""
         return {
             "n_invariants": len(self._cross_invariants),

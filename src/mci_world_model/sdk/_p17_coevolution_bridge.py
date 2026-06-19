@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class CoevolutionState:
     n_interactions: int = 0
     godel_note: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
                 "GÖDEL NOTE: The coevolution of causal intelligence and physical "
@@ -74,13 +75,13 @@ class CausalPhysicalCoevolution:
     BRIDGE: TheAbsolute → 绝对存在模式下因果智能成为宇宙因果力载体
     """
 
-    def __init__(self, the_absolute=None, ultimate_unification=None):
+    def __init__(self, the_absolute: Any = None, ultimate_unification: Any = None) -> None:
         self._ta = the_absolute
         self._uu = ultimate_unification
         self._state = CoevolutionState()
         self._forces: dict[str, ForceType] = {}
 
-    def enter_coevolution(self) -> dict:
+    def enter_coevolution(self) -> dict[str, Any]:
         """进入共演化模式"""
         self._state = CoevolutionState(
             mode=CoevolutionMode.PARTICIPANT,
@@ -103,7 +104,7 @@ class CausalPhysicalCoevolution:
 
         return result
 
-    def apply_causal_force(self, force_type: ForceType = ForceType.CAUSAL_GRAVITY) -> dict:
+    def apply_causal_force(self, force_type: ForceType = ForceType.CAUSAL_GRAVITY) -> dict[str, Any]:
         """施加因果力"""
         self._forces[force_type.value] = force_type
         self._state.n_interactions += 1
@@ -120,7 +121,7 @@ class CausalPhysicalCoevolution:
 
         return result
 
-    def get_coevolution_report(self) -> dict:
+    def get_coevolution_report(self) -> dict[str, Any]:
         """获取共演化报告"""
         return {
             "mode": self._state.mode.value,
@@ -138,11 +139,11 @@ class CausalForceTheory:
     BRIDGE: UltimateUnification → 统一场方程中的因果力项
     """
 
-    def __init__(self, ultimate_unification=None):
+    def __init__(self, ultimate_unification: Any = None) -> None:
         self._uu = ultimate_unification
         self._laws: list[str] = []
 
-    def derive_force_laws(self) -> dict:
+    def derive_force_laws(self) -> dict[str, Any]:
         """推导因果力定律"""
         self._laws = [
             "Causal Gravitation: C_μν attracts correlated causal structures",
@@ -163,7 +164,7 @@ class CausalForceTheory:
 
         return result
 
-    def get_force_report(self) -> dict:
+    def get_force_report(self) -> dict[str, Any]:
         """获取因果力报告"""
         return {
             "n_laws": len(self._laws),
@@ -178,11 +179,11 @@ class CausalPhysicalUnifiedField:
     BRIDGE: UltimateUnification.unify_causal_physical_meta() → 统一场方程
     """
 
-    def __init__(self, ultimate_unification=None):
+    def __init__(self, ultimate_unification: Any = None) -> None:
         self._uu = ultimate_unification
         self._field_equation = ""
 
-    def formulate_unified_field(self) -> dict:
+    def formulate_unified_field(self) -> dict[str, Any]:
         """构建统一场方程"""
         self._field_equation = "G_μν + ξ·C_μν + η·M_μν = κ·T_μν"
 
@@ -198,7 +199,7 @@ class CausalPhysicalUnifiedField:
 
         return result
 
-    def get_field_report(self) -> dict:
+    def get_field_report(self) -> dict[str, Any]:
         """获取统一场报告"""
         return {
             "equation": self._field_equation,

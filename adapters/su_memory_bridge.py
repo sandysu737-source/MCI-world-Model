@@ -103,7 +103,7 @@ class SuMemoryBridge:
         """
         # 生成检索关键词
         if query_key is None:
-            keys = []
+            keys: list[str] = []
             if isinstance(state, dict):
                 keys.extend(str(k) for k in state if "causal" in str(k).lower())
             if hasattr(causal_result, "ate"):
@@ -127,10 +127,10 @@ class SuMemoryBridge:
         if client is not None:
             try:
                 # 使用 BM25 添加文档
-                from su_memory.sdk._bm25 import BM25Retriever
+                from su_memory.sdk._bm25 import BM25Searcher
 
                 if self._bm25 is None:
-                    self._bm25 = BM25Retriever()
+                    self._bm25 = BM25Searcher()
                 doc_text = json.dumps(
                     {"state": state, "result": result_summary},
                     ensure_ascii=False,

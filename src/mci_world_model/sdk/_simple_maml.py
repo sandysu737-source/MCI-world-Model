@@ -37,11 +37,11 @@ class MAMLTask:
 
     x_support: np.ndarray
     y_support: np.ndarray
-    x_query: np.ndarray | None = None
-    y_query: np.ndarray | None = None
+    x_query: np.ndarray = field(default_factory=lambda: np.array([]))
+    y_query: np.ndarray = field(default_factory=lambda: np.array([]))
 
     def __post_init__(self) -> None:
-        if self.x_query is None:
+        if len(self.x_query) == 0:
             # 默认 50/50 划分
             n = len(self.x_support)
             split = n // 2

@@ -119,7 +119,7 @@ class CachedDoCalculus:
 
         # 记录延迟 (供测试)
         if not hasattr(self, "_last_compute_ms"):
-            self._last_compute_ms: float = 0.0  # type: ignore[assignment]
+            self._last_compute_ms = 0.0
         self._last_compute_ms = elapsed_ms
 
         self._put(cache_key, result)

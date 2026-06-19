@@ -80,10 +80,12 @@ class ZVecBridge:
 
     def _ensure_open(self, dim: int | None = None) -> bool:
         """延迟打开或创建 zvec Collection。"""
+        assert _zvec is not None  # guarded by is_available
         if not self.is_available:
             return False
         if self._col is not None:
             return True
+        assert _zvec is not None
 
         d = dim or self.dim
         metric_map = {"cosine": _zvec.MetricType.COSINE, "l2": _zvec.MetricType.L2, "ip": _zvec.MetricType.IP}
@@ -154,6 +156,7 @@ class ZVecBridge:
             return ids
 
         # zvec 写入
+        assert _zvec is not None
         docs = [
             _zvec.Doc(id=ids[i], vectors={"vec": vecs[i].tolist()})
             for i in range(n)
@@ -176,6 +179,7 @@ class ZVecBridge:
         if not self.is_available or not self._ensure_open(dim=vecs.shape[1]):
             return self.insert(vecs, ids=ids)
 
+        assert _zvec is not None
         docs = [
             _zvec.Doc(id=ids[i], vectors={"vec": vecs[i].tolist()})
             for i in range(n)
@@ -209,6 +213,7 @@ class ZVecBridge:
             return self._fallback_search(q, top_k)
 
         try:
+            assert _zvec is not None
             results = self._col.query([
                 _zvec.Query(
                     field_name="vec",
