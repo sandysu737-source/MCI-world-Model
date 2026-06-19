@@ -446,6 +446,201 @@ class DebridementWorldModel:
             logger.error("Load failed: %s", e)
             return None
 
-    def __repr__(self) -> str:
+    
+    # ── 时序 Transformer (多步序列) ──
+
+    def _temporal_transformer_forward(
+        self, x_seq: np.ndarray, mask: np.ndarray | None = None
+    ) -> np.ndarray:
+        """时序 Transformer 前向: 处理多步序列 (T, d_model)。
+
+        Args:
+            x_seq: (T, d_model) 时序嵌入序列
+            mask:  (T,) 或 (T, T) 可选 mask
+
+        Returns:
+            (T, d_model) 上下文化时序表示
+        """
+        T = x_seq.shape[0]
+        h = x_seq
+        for i in range(self.config.n_layers):
+            # Multi-head self-attention over time dimension
+            _q = h @ self._attn_Wq[i]  # (T, d_model)
+            _k = h @ self._attn_Wk[i]
+            _v = h @ self._attn_Wv[i]
+
+            # Scaled dot-product attention
+            scores = _q @ _k.T / np.sqrt(self.config.d_model)  # (T, T)
+            if mask is not None:
+                if mask.ndim == 1:
+                    mask_2d = mask[:, None] * mask[None, :]
+                else:
+                    mask_2d = mask
+                scores = scores - (1.0 - mask_2d) * 1e9
+
+            attn_weights = self._softmax(scores)  # (T, T)
+            attn_out = attn_weights @ _v @ self._attn_Wo[i]
+
+            h = self._layer_norm(h + attn_out, self._ln1[i])
+
+            # FFN
+            ffn = np.maximum(h @ self._ffn_W1[i], 0) @ self._ffn_W2[i]
+            h = self._layer_norm(h + ffn, self._ln2[i])
+        return h
+
+    def forward_sequence(
+        self, samples: list[Any], mask: np.ndarray | None = None
+    ) -> dict[str, np.ndarray]:
+        """序列前向: 处理 T 帧 DebridementSample → 时序预测。
+
+        Args:
+            samples: T 个 DebridementSample
+            mask: 可选时序 mask
+
+        Returns:
+            {"dynamics": (T, state_dim), "tissue_probs": (T, 4), "phase_probs": (T, 4)}
+        """
+        T = len(samples)
+        fused_seq = np.stack([
+            self.encode_modalities(s) for s in samples
+        ])  # (T, d_model)
+
+        hidden_seq = self._temporal_transformer_forward(fused_seq, mask)  # (T, d_model)
+
+        dynamics = hidden_seq @ self._dynamics_head_W + self._dynamics_head_b  # (T, state_dim)
+
+        tissue_logits = hidden_seq @ self._tissue_head_W + self._tissue_head_b  # (T, 4)
+        tissue_logits = tissue_logits - np.max(tissue_logits, axis=-1, keepdims=True)
+        tissue_probs = np.exp(tissue_logits) / np.sum(np.exp(tissue_logits), axis=-1, keepdims=True)
+
+        return {"dynamics": dynamics, "tissue_probs": tissue_probs}
+
+    # ── 手术相预测 ──
+
+    def predict_surgical_phase(self, sample: Any) -> tuple[int, np.ndarray]:
+        """预测手术相 (0=探查 1=清创 2=止血 3=验证)。
+
+        Returns:
+            (phase_index, probabilities_4d)
+        """
+        output = self.forward(sample)
+        dynamics = output["dynamics"]
+        # 从 dynamics 信号推断手术相
+        phase_signal = np.array([
+            float(np.mean(dynamics[:7])),     # 关节位置趋势
+            float(np.mean(dynamics[7:14])),   # 关节速度趋势
+            float(np.mean(dynamics[14:21])),  # 关节力矩趋势
+            float(np.mean(dynamics[21:27])),  # 力反馈趋势
+        ])
+        phase_signal = phase_signal - np.mean(phase_signal)
+        phase_signal = np.tanh(phase_signal * 2.0)
+        phase_signal = phase_signal - np.min(phase_signal)
+        probs = phase_signal / (np.sum(phase_signal) + 1e-10)
+        phase = int(np.argmax(probs))
+        return phase, probs
+
+    # ── MLX 梯度前向 (Apple Silicon 加速) ──
+
+    def mlx_forward(self, sample_arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        """MLX 前向传播: 用 MLX 数组计算，支持 autograd。
+
+        仅在 MLX 可用时调用。
+
+        Args:
+            sample_arrays: {
+                "rgb": (224,224,3), "depth": (224,224),
+                "thermal": (224,224), "force": (6,),
+                "proprio": (21,), "clinical": (64,)
+            }
+
+        Returns:
+            {"dynamics": (state_dim,), "tissue_probs": (4,)}
+        """
+        try:
+            import mlx.core as mx
+        except ImportError:
+            return self.forward(sample_arrays)  # type: ignore[return-value]
+
+        cfg = self.config
+
+        # 编码各模态到 MLX 张量
+        rgb_vec = mx.array(sample_arrays.get("rgb", np.zeros(224 * 224 * 3)).ravel()[:cfg.rgb_dim])
+        depth_vec = mx.array(sample_arrays.get("depth", np.zeros(224 * 224)).ravel()[:cfg.depth_dim])
+        thermal_vec = mx.array(sample_arrays.get("thermal", np.zeros(224 * 224)).ravel()[:cfg.thermal_dim])
+        force_vec = mx.array(sample_arrays.get("force", np.zeros(6))[:cfg.force_dim])
+        proprio_vec = mx.array(sample_arrays.get("proprio", np.zeros(21))[:cfg.proprio_dim])
+        clinical_vec = mx.array(sample_arrays.get("clinical", np.zeros(cfg.clinical_dim))[:cfg.clinical_dim])
+
+        # 投影
+        p_rgb = mx.array(self._proj_rgb)
+        p_depth = mx.array(self._proj_depth)
+        p_thermal = mx.array(self._proj_thermal)
+        p_force = mx.array(self._proj_force)
+        p_proprio = mx.array(self._proj_proprio)
+        p_clinical = mx.array(self._proj_clinical)
+
+        h_rgb = rgb_vec @ p_rgb
+        h_depth = depth_vec @ p_depth
+        h_thermal = thermal_vec @ p_thermal
+        h_force = force_vec @ p_force
+        h_proprio = proprio_vec @ p_proprio
+        h_clinical = clinical_vec @ p_clinical
+
+        # 拼接
+        concat = mx.concatenate([h_rgb, h_depth, h_thermal, h_force, h_proprio, h_clinical])
+
+        # Fusion
+        f_Wq = mx.array(self._fusion_Wq)
+        f_Wk = mx.array(self._fusion_Wk)
+        f_Wv = mx.array(self._fusion_Wv)
+        f_Wo = mx.array(self._fusion_Wo)
+
+        q = concat @ f_Wq
+        k = concat @ f_Wk
+        v = concat @ f_Wv
+        scores = q @ k.T / mx.sqrt(mx.array(float(cfg.d_model)))
+        attn_w = mx.softmax(scores)
+        fused = attn_w @ v @ f_Wo
+
+        # Transformer layers
+        h = fused
+        for i in range(cfg.n_layers):
+            aq = mx.array(self._attn_Wq[i])
+            ak = mx.array(self._attn_Wk[i])
+            av = mx.array(self._attn_Wv[i])
+            ao = mx.array(self._attn_Wo[i])
+            fw1 = mx.array(self._ffn_W1[i])
+            fw2 = mx.array(self._ffn_W2[i])
+            ln1 = mx.array(self._ln1[i])
+            ln2 = mx.array(self._ln2[i])
+
+            _q = h @ aq
+            _k = h @ ak
+            _v = h @ av
+            sn = _q @ _k.T / mx.sqrt(mx.array(float(cfg.d_model)))
+            aw = mx.softmax(sn)
+            attn_out = aw @ _v @ ao
+            h = ln1 * (h + attn_out) / mx.sqrt(mx.var(h + attn_out) + 1e-5)
+
+            ffn = mx.maximum(h @ fw1, mx.array(0.0)) @ fw2
+            h = ln2 * (h + ffn) / mx.sqrt(mx.var(h + ffn) + 1e-5)
+
+        # 双头
+        dyn_W = mx.array(self._dynamics_head_W)
+        dyn_b = mx.array(self._dynamics_head_b)
+        tis_W = mx.array(self._tissue_head_W)
+        tis_b = mx.array(self._tissue_head_b)
+
+        dynamics = h @ dyn_W + dyn_b
+        tissue_logits = h @ tis_W + tis_b
+        tissue_probs = mx.softmax(tissue_logits)
+
+        return {
+            "dynamics": np.array(dynamics),
+            "tissue_probs": np.array(tissue_probs),
+        }
+
+
+def __repr__(self) -> str:
         cfg = self.config
         return f"DebridementWorldModel(d={cfg.d_model}, L={cfg.n_layers}, h={cfg.n_heads}, params={self.n_params})"
