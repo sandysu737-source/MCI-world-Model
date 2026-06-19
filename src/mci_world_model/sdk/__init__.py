@@ -389,27 +389,6 @@ from mci_world_model.sdk._cross_domain_transfer import (
     TransferStatus,
 )
 
-# v7.0.0 / P7 "立业" + v8.0.0 / P8 "超凡": 跨模态 + 因果想象 + 可微因果 + 领域 + 发现 + 假设
-from mci_world_model.sdk._cross_modal_causal import (
-    CrossModalCausalLink,
-    CrossModalCausalReasoner,
-    CrossModalCausalResult,
-)
-from mci_world_model.sdk._deadline_monitor import (
-    DeadlineConfig,
-    DeadlineMonitor,
-    DeadlineStats,
-)
-from mci_world_model.sdk._debridement_data import (
-    DebridementSample,
-    SyntheticDebridementGenerator,
-    WoundDatasetAdapter,
-)
-from mci_world_model.sdk._debridement_world_model import (
-    DebridementConfig,
-    DebridementWorldModel,
-)
-
 # v4.4.0: 具身清创 — 时序 Transformer + 手术相预测
 from mci_world_model.sdk._debridement_world_model import (  # noqa: F401
     DebridementWorldModel as DebridementWorldModelV2,
@@ -890,47 +869,6 @@ from mci_world_model.sdk._social_cognition import (
     AgentModel,
     NashEquilibriumResult,
     SocialCognition,
-)
-
-# 频谱因果引擎（P1 关联层）
-from mci_world_model.sdk._spectral_causal import (
-    BayesianCausal,
-    FourierCausal,
-    GaussianDAG,
-    GaussianDistribution,
-)
-from mci_world_model.sdk._surprise_detector import (
-    SurpriseDetector,
-    SurpriseSignal,
-)
-from mci_world_model.sdk._symbol_grounding import (
-    GroundingEntry,
-    SymbolGroundingLearning,
-)
-# v4.4.0: 具身清创 Phase B — 训练管线
-from mci_world_model.sdk._debridement_trainer import (
-    DebridementTrainer,
-    TrainHistory,
-    TrainingConfig,
-    TrainingMetrics,
-)
-# v4.4.0: 具身清创 Phase C — 小模型 Transformer
-from mci_world_model.sdk._tiny_transformer import (
-    TinyTransformer,
-    TinyTransformerConfig,
-)
-from mci_world_model.sdk._tiny_trainer import (
-    TinyTrainConfig,
-    TinyTrainer,
-    TinyTrainMetrics,
-)
-# v4.4.0: 具身清创 Phase D — 手术工作流
-from mci_world_model.sdk._surgical_workflow import (
-    PhaseTransition,
-    SurgicalPhase,
-    SurgicalState,
-    SurgicalWorkflow,
-    WorkflowReport,
 )
 from mci_world_model.sdk._the_absolute import (
     AbsoluteProperty,
