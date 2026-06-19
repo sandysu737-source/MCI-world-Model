@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v5.0.0 — Learned Dynamics Predictor
 =====================================================
@@ -27,7 +29,6 @@ MCI World Model v5.0.0 — Learned Dynamics Predictor
     predictor.train_step(state_vec, action_vec, next_state_vec, lr=0.01)
 """
 
-from __future__ import annotations
 
 import logging
 import threading
@@ -122,7 +123,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
         state,
         action=None,
         n_steps: int = 1,
-    ) -> list:
+    ) -> list[Any]:
         """
         动作条件化多步自回归预测。
 
@@ -341,7 +342,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
     def evaluate_physics(
         self,
         physics_predictor: ActionConditionedPredictor,
-        test_states: list,
+        test_states: list[Any],
         n_steps: int = 1,
     ) -> dict[str, float]:
         """
@@ -410,7 +411,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
     # 辅助方法
     # =====================================================================
 
-    def _to_state_vector(self, state) -> np.ndarray:
+    def _to_state_vector(self, state: Any) -> np.ndarray:
         """将 WorldState 转换为向量。"""
         if isinstance(state, np.ndarray):
             return state.astype(np.float64).ravel()
@@ -419,7 +420,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
             return np.asarray(vec, dtype=np.float64).ravel()
         raise TypeError(f"Cannot convert {type(state)} to state vector")
 
-    def _to_action_vector(self, action) -> np.ndarray:
+    def _to_action_vector(self, action: Any) -> np.ndarray:
         """将 Action 转换为向量。"""
         if action is None:
             return np.zeros(self._action_dim, dtype=np.float64)
@@ -432,7 +433,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
             return np.array([float(action)], dtype=np.float64)
         return np.zeros(self._action_dim, dtype=np.float64)
 
-    def _from_state_vector(self, vec: np.ndarray, template_state):
+    def _from_state_vector(self, vec: np.ndarray, template_state: Any) -> None:
         """从向量重建 WorldState。"""
         if isinstance(template_state, np.ndarray):
             return vec.copy()
@@ -474,7 +475,7 @@ class DynamicsDataGenerator:
     支持 PendulumState, CartState。
     """
 
-    def __init__(self, state_type: str = "pendulum", seed: int = 42):
+    def __init__(self, state_type: str = "pendulum", seed: int = 42) -> None:
         """
         Args:
             state_type: "pendulum" 或 "cart"

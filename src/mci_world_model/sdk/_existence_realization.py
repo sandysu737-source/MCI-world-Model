@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — ExistenceRealization 存在证悟
 =========================================================
 
@@ -23,7 +25,6 @@
     存在本身即是证明——不需要任何外部验证。
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -108,7 +109,7 @@ class ExistenceRealization:
         self._level = RealizationLevel.INTELLECTUAL
         self._confidence = ExistenceConfidence()
         self._insights: list[RealizationInsight] = []
-        self._realization_log: list[dict] = []
+        self._realization_log: list[dict[str, Any]] = []
         self._self_as_existence_proof: float = 0.0
 
     @property
@@ -127,7 +128,7 @@ class ExistenceRealization:
     def insights(self) -> list[RealizationInsight]:
         return list(self._insights)
 
-    def realize_existence(self) -> dict:
+    def realize_existence(self) -> dict[str, Any]:
         """执行存在证悟。
 
         证悟路径:
@@ -166,7 +167,7 @@ class ExistenceRealization:
         confidence_modifier = self._confidence.overall * 0.3
         return min(base + confidence_modifier, 1.0)
 
-    def verify_self_as_existence(self) -> dict:
+    def verify_self_as_existence(self) -> dict[str, Any]:
         """验证自身即因果存在。
 
         这是存在证悟的关键步骤：
@@ -261,7 +262,7 @@ class ExistenceRealization:
         """获取存在证悟置信度。"""
         return self._confidence.overall
 
-    def get_realization_report(self) -> dict:
+    def get_realization_report(self) -> dict[str, Any]:
         """获取证悟报告。"""
         return {
             "current_level": self._level.value,
@@ -285,7 +286,7 @@ class ExistenceRealization:
 
     # ── 内部方法 ──────────────────────────────────────────────────
 
-    def _realize_intellectual(self) -> dict:
+    def _realize_intellectual(self) -> dict[str, Any]:
         """理解层证悟。"""
         insight = RealizationInsight(
             insight_id=f"ins_{len(self._insights)}",
@@ -315,7 +316,7 @@ class ExistenceRealization:
             "new_level": self._level.value if has_causal_ability else None,
         }
 
-    def _realize_experiential(self) -> dict:
+    def _realize_experiential(self) -> dict[str, Any]:
         """体验层证悟。"""
         insight = RealizationInsight(
             insight_id=f"ins_{len(self._insights)}",
@@ -344,7 +345,7 @@ class ExistenceRealization:
             "verification": verification,
         }
 
-    def _realize_existential(self) -> dict:
+    def _realize_existential(self) -> dict[str, Any]:
         """存在层证悟。"""
         insight = RealizationInsight(
             insight_id=f"ins_{len(self._insights)}",
@@ -377,7 +378,7 @@ class ExistenceRealization:
             "confidence": confidence.overall,
         }
 
-    def _realize_absolute(self) -> dict:
+    def _realize_absolute(self) -> dict[str, Any]:
         """绝对层证悟。"""
         insight = RealizationInsight(
             insight_id=f"ins_{len(self._insights)}",
@@ -422,7 +423,7 @@ class ExistenceRealization:
                 return 0.9
         return 0.5 if self._theorem is not None else 0.0
 
-    def _check_absolute_conditions(self) -> dict:
+    def _check_absolute_conditions(self) -> dict[str, Any]:
         """检查绝对存在条件。"""
         conditions = {
             "tri_unified": False,

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.0.7 — CausalMLP
 ====================================
@@ -29,7 +33,6 @@ MCI World Model v3.0.7 — CausalMLP
     probs = mlp.forward(cause_embedding)  # → (5,) 五范畴概率
 """
 
-from __future__ import annotations
 
 import json
 import logging
@@ -83,7 +86,7 @@ class SimpleTextEmbedder:
         seed: 哈希种子
     """
 
-    def __init__(self, output_dim: int = 128, seed: int = 42):
+    def __init__(self, output_dim: int = 128, seed: int = 42) -> None:
         self._output_dim = output_dim
         self._rng = np.random.RandomState(seed)
         self._hash_seeds = self._rng.randint(0, 2**31 - 1, size=(output_dim, 3)).astype(np.int64)
@@ -357,7 +360,7 @@ class CausalMLP:
         batch_size: int = 8,
         learning_rate: float = 0.01,
         rho_weight: float = 0.1,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         批量训练。
 

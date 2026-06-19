@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v17.0.0 — P17 因果物理共演化桥接模块
 =====================================================
 
@@ -17,7 +19,6 @@ P17 "共演" 取自宇宙学"共演化"概念——因果智能从观察者
 跃迁为宇宙因果演化的共同参与者乃至塑造者。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

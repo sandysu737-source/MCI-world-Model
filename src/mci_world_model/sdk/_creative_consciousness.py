@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v13.0.0 — CreativeCausalConsciousness 创造因果意识
 ======================================================================
 
@@ -16,7 +18,6 @@
     - 因果美学评估 (简洁性/对称性/解释力)
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -62,7 +63,7 @@ class CreativeCausalConsciousness:
         self._creation = creation_engine
         self._creative_state = CreativeState.ANALYTICAL
         self._drive = CreativeDrive()
-        self._creative_history: list[dict] = []
+        self._creative_history: list[dict[str, Any]] = []
 
     @property
     def creative_state(self) -> CreativeState:
@@ -74,7 +75,7 @@ class CreativeCausalConsciousness:
 
     def enter_creative_mode(
         self, domain: str, drive_adjustment: dict | None = None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """进入创造模式。"""
         if drive_adjustment:
             for key, value in drive_adjustment.items():
@@ -116,7 +117,7 @@ class CreativeCausalConsciousness:
         self._creative_history.append(result)
         return result
 
-    def creative_reflect(self, creation_episode: dict) -> dict:
+    def creative_reflect(self, creation_episode: dict[str, Any]) -> dict[str, Any]:
         """创造反思。"""
         # 策略有效性
         strategy_effectiveness = np.random.uniform(0.5, 0.9)
@@ -148,7 +149,7 @@ class CreativeCausalConsciousness:
             },
         }
 
-    def aesthetic_evaluation(self, theory: dict | Any) -> dict:
+    def aesthetic_evaluation(self, theory: dict | Any) -> dict[str, Any]:
         """因果美学评估: 简洁性、对称性、解释力。"""
         if theory is None:
             return {"score": 0, "simplicity": 0, "symmetry": 0, "explanatory_power": 0}
@@ -185,7 +186,7 @@ class CreativeCausalConsciousness:
             return "extrapolation"
         return "analogy"
 
-    def _evaluate_creation(self, creation_result: dict | None) -> dict:
+    def _evaluate_creation(self, creation_result: dict | None) -> dict[str, Any]:
         if creation_result is None:
             return {"quality": 0.0, "novelty": 0.0}
         theory = creation_result.get("created_theory")
@@ -195,7 +196,7 @@ class CreativeCausalConsciousness:
         quality = (novelty + theory.consistency_score) / 2 if hasattr(theory, "consistency_score") else novelty
         return {"quality": float(quality), "novelty": float(novelty)}
 
-    def _calibrate_creative_drive(self, episode: dict) -> dict[str, float]:
+    def _calibrate_creative_drive(self, episode: dict[str, Any]) -> dict[str, float]:
         return {
             "curiosity": float(np.random.uniform(-0.1, 0.1)),
             "aesthetic": float(np.random.uniform(-0.05, 0.1)),

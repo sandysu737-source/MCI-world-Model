@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — EngineeringSafetySDK 工程安全因果 SDK
 =======================================================
 
@@ -15,7 +17,6 @@
     - 冗余检查: 安全关键路径须有备份
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -47,7 +48,7 @@ class SafetyParameter:
     unit: str = ""
     safety_margin: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.limit_value != 0.0:
             self.safety_margin = abs(self.limit_value - self.design_value) / abs(self.limit_value)
         else:
@@ -81,7 +82,7 @@ class FMEAItem:
     rpn: int = 0
     mitigated: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.rpn = self.severity * self.occurrence * self.detection
 
 
@@ -112,7 +113,7 @@ class EngineeringCausalResult:
     margin_sufficient: bool = False
     fmea_rpn_max: int = 0
     redundancy_ok: bool = False
-    audit_trail: list[dict] = field(default_factory=list)
+    audit_trail: list[dict[str, Any]] = field(default_factory=list)
 
 
 # =============================================================================
@@ -133,7 +134,7 @@ class EngineeringSafetySDK:
     MIN_SAFETY_MARGIN = 0.20  # 最低20%安全裕度
     CRITICAL_RPN_THRESHOLD = 200
 
-    def __init__(self, system_name: str = "", redundancy_required: bool = True):
+    def __init__(self, system_name: str = "", redundancy_required: bool = True) -> None:
         self._system_name = system_name
         self._redundancy_required = redundancy_required
         self._parameters: dict[str, SafetyParameter] = {}

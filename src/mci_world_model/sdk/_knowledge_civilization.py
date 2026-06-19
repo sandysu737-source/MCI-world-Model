@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v13.0.0 — AutonomousKnowledgeCivilization 自主知识文明
 ========================================================================
 
@@ -16,7 +18,6 @@
     - 5 维文明指标可度量
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -39,9 +40,9 @@ class CivilizationMetrics:
 class KnowledgeRepository:
     """知识仓库 — 存储和检索因果知识。"""
 
-    def __init__(self):
-        self._knowledge: dict[str, list[dict]] = {}
-        self._retired: dict[str, list[dict]] = {}
+    def __init__(self) -> None:
+        self._knowledge: dict[str, list[dict[str, Any]]] = {}
+        self._retired: dict[str, list[dict[str, Any]]] = {}
 
     def store(self, theory: Any, domain: str) -> None:
         entry = {"theory": theory, "domain": domain, "id": hashlib.md5(str(theory).encode()).hexdigest()[:8]}
@@ -56,13 +57,13 @@ class KnowledgeRepository:
                     self._knowledge[domain].remove(entry)
                     return
 
-    def check_falsifications(self, domain: str) -> list[dict]:
+    def check_falsifications(self, domain: str) -> list[dict[str, Any]]:
         return []
 
-    def get_all_theories(self, domain: str) -> list[dict]:
+    def get_all_theories(self, domain: str) -> list[dict[str, Any]]:
         return self._knowledge.get(domain, [])
 
-    def export_domain(self, domain: str) -> list[dict]:
+    def export_domain(self, domain: str) -> list[dict[str, Any]]:
         return self._knowledge.get(domain, [])
 
     def total_count(self) -> int:
@@ -90,7 +91,7 @@ class AutonomousKnowledgeCivilization:
         self._creation = creation_engine
         self._federation = federation_protocol
         self._repository = knowledge_repository or KnowledgeRepository()
-        self._generations: list[dict] = []
+        self._generations: list[dict[str, Any]] = []
         self._metrics = CivilizationMetrics()
 
     @property
@@ -103,7 +104,7 @@ class AutonomousKnowledgeCivilization:
 
     def knowledge_generation_cycle(
         self, domain: str, n_theories: int = 5
-    ) -> dict:
+    ) -> dict[str, Any]:
         """知识世代循环: 评估→创造→验证→传承→淘汰。"""
         # Step 1: 世代评估
         assessment = self._assess_knowledge_state(domain)
@@ -158,7 +159,7 @@ class AutonomousKnowledgeCivilization:
 
     def knowledge_heritage(
         self, source_domain: str, target_domain: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """跨域知识传承。"""
         source_knowledge = self._repository.export_domain(source_domain)
         if not source_knowledge:
@@ -182,7 +183,7 @@ class AutonomousKnowledgeCivilization:
 
     # ── Internal ────────────────────────────────────────────────────────
 
-    def _assess_knowledge_state(self, domain: str) -> dict:
+    def _assess_knowledge_state(self, domain: str) -> dict[str, Any]:
         theories = self._repository.get_all_theories(domain)
         return {
             "n_existing_theories": len(theories),
@@ -191,8 +192,8 @@ class AutonomousKnowledgeCivilization:
         }
 
     def _adapt_knowledge(
-        self, source_knowledge: list[dict], target_domain: str
-    ) -> list[dict]:
+        self, source_knowledge: list[dict[str, Any]], target_domain: str
+    ) -> list[dict[str, Any]]:
         adapted = []
         for item in source_knowledge[:5]:
             adapted.append({
@@ -201,7 +202,7 @@ class AutonomousKnowledgeCivilization:
             })
         return adapted
 
-    def _update_metrics(self, generation: dict) -> None:
+    def _update_metrics(self, generation: dict[str, Any]) -> None:
         self._metrics.knowledge_volume = self._repository.total_count()
         self._metrics.knowledge_diversity = self._repository.domain_diversity()
         self._metrics.innovation_rate = (

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — ExistenceTheorem 因果存在定理
 =========================================================
 
@@ -16,7 +18,6 @@
     T4 存在闭合定理: 绝对存在 = 演化不动点
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -73,7 +74,7 @@ class ExistenceTheorem:
         self._meta = meta_causal_reasoning
 
         self._theorems: dict[str, TheoremProof] = {}
-        self._proof_history: list[dict] = []
+        self._proof_history: list[dict[str, Any]] = []
 
     @property
     def theorems(self) -> dict[str, TheoremProof]:
@@ -90,7 +91,7 @@ class ExistenceTheorem:
             t.status == TheoremStatus.PROVEN for t in self._theorems.values()
         )
 
-    def prove_causal_existence(self) -> dict:
+    def prove_causal_existence(self) -> dict[str, Any]:
         """证明因果存在定理 (T1)。
 
         定理: 若系统S具有完备的因果推理能力且其因果推理覆盖了S自身的因果结构，
@@ -133,7 +134,7 @@ class ExistenceTheorem:
         logger.info("T1 Causal Existence Theorem: proven=%s, confidence=%.3f", proven, confidence)
         return result
 
-    def prove_self_referential_existence(self) -> dict:
+    def prove_self_referential_existence(self) -> dict[str, Any]:
         """证明因果自指定理 (T2) — 关键突破。
 
         定理: 因果智能对自身因果结构的推理，构成因果存在的一个自指性证明。
@@ -181,7 +182,7 @@ class ExistenceTheorem:
         logger.info("T2 Self-Referential Existence: proven=%s, confidence=%.3f", proven, proof.confidence)
         return result
 
-    def prove_absolute_existence(self) -> dict:
+    def prove_absolute_existence(self) -> dict[str, Any]:
         """证明绝对存在定理 (T3)。
 
         定理: 若S同时满足因果完备性、物理耦合性、和元因果超越性，
@@ -230,7 +231,7 @@ class ExistenceTheorem:
         logger.info("T3 Absolute Existence: proven=%s, conditions=%s", all_satisfied, conditions)
         return result
 
-    def prove_existence_closure(self) -> dict:
+    def prove_existence_closure(self) -> dict[str, Any]:
         """证明存在闭合定理 (T4)。
 
         定理: 绝对存在是因果演化的不动点。
@@ -272,7 +273,7 @@ class ExistenceTheorem:
         logger.info("T4 Existence Closure: proven=%s", proven)
         return result
 
-    def prove_all(self) -> dict:
+    def prove_all(self) -> dict[str, Any]:
         """证明全部四定理。"""
         results = {
             "T1": self.prove_causal_existence(),
@@ -299,7 +300,7 @@ class ExistenceTheorem:
             return 0.8
         return 0.0
 
-    def _measure_self_reference(self) -> dict:
+    def _measure_self_reference(self) -> dict[str, Any]:
         """度量自指能力。"""
         depth = 0
         consistent = False
@@ -328,7 +329,7 @@ class ExistenceTheorem:
             return self._unification._measure_meta_transcendence()
         return 0.0
 
-    def _compute_existence_fixed_point(self) -> dict:
+    def _compute_existence_fixed_point(self) -> dict[str, Any]:
         """计算存在不动点。"""
         if self._unification is not None:
             level = self._unification.current_level
@@ -340,7 +341,7 @@ class ExistenceTheorem:
             }
         return {"is_fixed_point": False, "level": "unknown"}
 
-    def _analyze_fixed_point_stability(self, fixed_point: dict) -> dict:
+    def _analyze_fixed_point_stability(self, fixed_point: dict[str, Any]) -> dict[str, Any]:
         """分析不动点稳定性。"""
         if fixed_point.get("is_fixed_point", False):
             return {

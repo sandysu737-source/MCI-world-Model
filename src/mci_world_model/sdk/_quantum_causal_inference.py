@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — QuantumCausalInference 量子因果推理
 ================================================================
 
@@ -14,7 +16,6 @@
     - 经典降级: 量子不可用时自动降级为经典方法
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -151,10 +152,10 @@ class QuantumCausalInference:
 
     def quantum_counterfactual(
         self,
-        factual_data: dict,
-        intervention: dict,
+        factual_data: dict[str, Any],
+        intervention: dict[str, Any],
         n_shots: int = 8192,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """量子反事实推理。
 
         量子态回溯 → 干预 → 前向传播 → 反事实结果。
@@ -199,7 +200,7 @@ class QuantumCausalInference:
 
     def quantum_causal_discovery(
         self, data: np.ndarray, var_names: list[str] | None = None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """量子因果发现 — 利用量子独立性检验发现因果结构。
 
         Args:
@@ -264,7 +265,7 @@ class QuantumCausalInference:
         return circuit
 
     def _apply_quantum_intervention(
-        self, circuit: QuantumCircuit, intervention: dict
+        self, circuit: QuantumCircuit, intervention: dict[str, Any]
     ) -> QuantumCircuit:
         """在量子电路中施加干预。"""
         intervened = QuantumCircuit(

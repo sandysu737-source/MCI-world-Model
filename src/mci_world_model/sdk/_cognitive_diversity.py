@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.4.0 — CognitiveDiversity 认知多样性度量
 ==========================================================
@@ -33,7 +35,6 @@ Ashby 条件验证:
     - 增量计算（新数据不需要重算全部历史）
 """
 
-from __future__ import annotations
 
 import logging
 import math

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """LLM ↔ CEWM 互校准闭环 — TASK-B1。
 
 实现双向互校准:
@@ -18,7 +20,6 @@
         └── _parse_llm_edges()         — LLM 输出解析
 """
 
-from __future__ import annotations
 
 import json
 import logging

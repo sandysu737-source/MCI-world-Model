@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.1.0 — Energy Consistency Loss (M7)
 ========================================================
@@ -20,7 +24,6 @@ MCI World Model v3.1.0 — Energy Consistency Loss (M7)
     total_loss = energy_loss.compute(sft_loss, predictions, topological_matrix)
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -185,7 +188,7 @@ class EnergyConsistencyLoss:
         self._topo = topological or TopologicalEnergyMatrix.build()
         self.alpha = alpha
         self.edge_penalty_multiplier = edge_penalty_multiplier
-        self._history: list[dict] = []
+        self._history: list[dict[str, Any]] = []
 
     @property
     def topological_matrix(self) -> TopologicalEnergyMatrix:
@@ -331,7 +334,7 @@ class EnergyConsistencyLoss:
         src_state: str,
         dst_state: str,
         predicted_strength: float,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         验证单个因果预测是否与拓扑先验一致。
 
@@ -385,15 +388,15 @@ class EnergyConsistencyLoss:
     # 训练反馈
     # -----------------------------------------------------------------
 
-    def get_history(self) -> list[dict]:
+    def get_history(self) -> list[dict[str, Any]]:
         """获取损失历史记录。"""
         return self._history.copy()
 
-    def reset_history(self):
+    def reset_history(self) -> None:
         """清空历史记录。"""
         self._history.clear()
 
-    def get_trend(self) -> dict:
+    def get_trend(self) -> dict[str, Any]:
         """
         分析损失趋势。
 
@@ -523,7 +526,7 @@ def create_default_energy_loss(alpha: float = 0.1) -> EnergyConsistencyLoss:
     )
 
 
-def build_energy_matrix_from_energy_bus(energy_bus) -> TopologicalEnergyMatrix:
+def build_energy_matrix_from_energy_bus(energy_bus: Any) -> TopologicalEnergyMatrix:
     """
     从 EnergyBus 实例动态构建能量矩阵。
 

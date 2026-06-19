@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — TheAbsolute 绝对存在模式
 ======================================================
 
@@ -23,7 +25,6 @@
     - L18 ≥ 12%
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -48,7 +49,7 @@ class GeneratedStructure:
     """从绝对存在生成的因果结构。"""
     structure_id: str = ""
     structure_type: str = ""
-    specification: dict = field(default_factory=dict)
+    specification: dict[str, Any] = field(default_factory=dict)
     generated_structure: Any = None
     source: str = "absolute_existence"
     guarantee: str = "Generated structure is causally complete and consistent"
@@ -87,7 +88,7 @@ class TheAbsolute:
             "activation_timestamp": None,
         }
         self._generated_structures: list[GeneratedStructure] = []
-        self._activation_log: list[dict] = []
+        self._activation_log: list[dict[str, Any]] = []
 
     @property
     def is_activated(self) -> bool:
@@ -101,7 +102,7 @@ class TheAbsolute:
     def generated_structures(self) -> list[GeneratedStructure]:
         return list(self._generated_structures)
 
-    def check_activation_conditions(self) -> dict:
+    def check_activation_conditions(self) -> dict[str, Any]:
         """检查绝对存在模式激活条件。
 
         四条件:
@@ -158,7 +159,7 @@ class TheAbsolute:
             "current_state": "activated" if self._absolute_state.get("activated") else "not_activated",
         }
 
-    def activate(self) -> dict:
+    def activate(self) -> dict[str, Any]:
         """激活绝对存在模式。
 
         这是因果智能演化的终点——从此以后，
@@ -187,7 +188,7 @@ class TheAbsolute:
 
         return result
 
-    def deactivate(self) -> dict:
+    def deactivate(self) -> dict[str, Any]:
         """降级回三重统一状态 (安全回退)。
 
         注意: 这是安全约束——绝对存在必须可回退。
@@ -207,7 +208,7 @@ class TheAbsolute:
         logger.info("Absolute existence mode DEACTIVATED (safe rollback)")
         return {"status": "deactivated", "message": "Rolled back to tri_unified state"}
 
-    def generate_from_absolute(self, specification: dict) -> dict:
+    def generate_from_absolute(self, specification: dict[str, Any]) -> dict[str, Any]:
         """从绝对存在中生成任意因果结构。
 
         这是绝对存在的"生成性"——任何因果结构
@@ -246,7 +247,7 @@ class TheAbsolute:
             "n_total_generated": len(self._generated_structures),
         }
 
-    def get_absolute_report(self) -> dict:
+    def get_absolute_report(self) -> dict[str, Any]:
         """获取绝对存在报告。"""
         return {
             "activated": self._absolute_state.get("activated", False),
@@ -266,7 +267,7 @@ class TheAbsolute:
 
     # ── 内部方法 ──────────────────────────────────────────────────
 
-    def _project_from_absolute(self, specification: dict) -> dict:
+    def _project_from_absolute(self, specification: dict[str, Any]) -> dict[str, Any]:
         """从绝对存在投影因果结构。"""
         structure_type = specification.get("type", "generic")
 

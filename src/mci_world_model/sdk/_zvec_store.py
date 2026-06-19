@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v4.4.0 — Zvec Embedding Store
 ===============================================
@@ -20,7 +22,6 @@ MCI World Model v4.4.0 — Zvec Embedding Store
     results = store.search_bm25("蛋白质", topk=3)
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging

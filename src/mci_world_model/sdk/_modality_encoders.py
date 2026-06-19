@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.3.0 — 模态特征编码器
 ==========================================
@@ -21,7 +23,6 @@ MCI World Model v3.3.0 — 模态特征编码器
     - 用于因果图构建和惊奇检测，不需要像素级重建能力
 """
 
-from __future__ import annotations
 
 import logging
 
@@ -46,7 +47,7 @@ class LearnableMixin:
     后续 P2 阶段将用 CLIP 蒸馏进一步优化。
     """
 
-    def _init_learnable(self, stat_dim: int, output_dim: int, seed: int = 42):
+    def _init_learnable(self, stat_dim: int, output_dim: int, seed: int = 42) -> None:
         """初始化可学习投影头。
 
         Args:
@@ -83,10 +84,6 @@ class LearnableMixin:
         h = x @ self._proj_W1 + self._proj_b1
         h = np.maximum(h, 0)  # ReLU
         out = h @ self._proj_W2 + self._proj_b2
-        # L2 归一化
-        norm = np.linalg.norm(out)
-        if norm > 1e-10:
-            out /= norm
         return out.astype(np.float64)
 
 
@@ -584,11 +581,6 @@ class ForceEncoder:
 
         stat = self._extract_stat_features(ft)
         out = stat @ self._proj_W + self._proj_b
-
-        # L2 归一化
-        norm = np.linalg.norm(out)
-        if norm > 1e-10:
-            out /= norm
         return out.astype(np.float64)
 
     def encode_history(self, ft_window: np.ndarray) -> np.ndarray:

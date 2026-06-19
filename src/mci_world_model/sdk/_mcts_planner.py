@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v5.1.0 — MCTS 规划器
 ==========================================
 
@@ -41,7 +43,6 @@ MCTS 优势:
     >>> print(plan.horizon, plan.expected_cost)
 """
 
-from __future__ import annotations
 
 import logging
 import math

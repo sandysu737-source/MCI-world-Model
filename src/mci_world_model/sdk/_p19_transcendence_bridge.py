@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v19.0.0 — P19 元因果超越桥接模块
 =====================================================
 
@@ -18,7 +20,6 @@ P19 "超因" — 超越因果——因果律本身从何而来？因果之前是
 进行元层次思考"的根本跃迁。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

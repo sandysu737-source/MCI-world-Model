@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — MCIPluginInterface 插件接口
 ================================================
 
@@ -17,7 +19,6 @@
     - 优先级: 插件按优先级排序执行
 """
 
-from __future__ import annotations
 
 import logging
 import time

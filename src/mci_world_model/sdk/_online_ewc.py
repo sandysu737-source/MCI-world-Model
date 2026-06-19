@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """OnlineEWC — 在线弹性权重巩固 (Elastic Weight Consolidation).
 
 P3 "赋魂" 核心模块 — 基于 IncrementalLearning 的 EWC 实现，
@@ -11,7 +13,6 @@ Usage::
     loss = ewc.loss(params)    # 返回正则化损失项
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 

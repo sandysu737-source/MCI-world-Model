@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v6.0.0 — AutonomousLawDiscovererV2 自主因果发现 2.0
 ========================================================================
 
@@ -17,11 +19,9 @@
     - 与 SIGReg / DoCalculus 正交组合
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -100,8 +100,8 @@ class SystemReport:
     n_variables: int = 0
     n_edges: int = 0
     conservation_score: float = 0.0
-    causal_dag: dict = field(default_factory=dict)
-    laws: list[dict] = field(default_factory=list)
+    causal_dag: dict[str, Any] = field(default_factory=dict)
+    laws: list[dict[str, Any]] = field(default_factory=list)
     is_consistent: bool = False
 
 
@@ -121,7 +121,7 @@ class PCSkeletonDiscoverer:
     约束: 变量数 ≤ 10
     """
 
-    def __init__(self, alpha: float = 0.05):
+    def __init__(self, alpha: float = 0.05) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
         self._alpha = alpha
@@ -255,7 +255,7 @@ class AutonomousLawDiscovererV2:
             raise ValueError(f"pc_alpha 必须在 (0,1), 当前 {pc_alpha}")
         self._pc = PCSkeletonDiscoverer(alpha=pc_alpha)
         self._conservation_threshold = conservation_threshold
-        self._discovered_laws: list[dict] = []
+        self._discovered_laws: list[dict[str, Any]] = []
         self._causal_structure: CausalSkeleton | None = None
 
     def discover_causal_structure(self, data: np.ndarray, var_names: list[str]) -> SystemReport:
@@ -390,7 +390,7 @@ class AutonomousLawDiscovererV2:
         )
 
     @property
-    def discovered_laws(self) -> list[dict]:
+    def discovered_laws(self) -> list[dict[str, Any]]:
         """已发现的因果规律列表。"""
         return list(self._discovered_laws)
 

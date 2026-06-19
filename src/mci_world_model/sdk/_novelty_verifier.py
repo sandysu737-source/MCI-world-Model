@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v13.0.0 — NoveltyVerifier 新颖性验证体系
 ===========================================================
 
@@ -9,7 +11,6 @@
     compute_prediction_difference(theory_a, b)   — 预测差异度
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -53,7 +54,7 @@ class NoveltyVerifier:
         self._threshold = similarity_threshold
         self._cache: dict[str, NoveltyResult] = {}
 
-    def verify(self, theory: Any) -> dict:
+    def verify(self, theory: Any) -> dict[str, Any]:
         """新颖性验证。"""
         if self._repository is None:
             return {

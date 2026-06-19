@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — FederatedTrust 联邦信任框架
 ============================================================
 
@@ -15,7 +17,6 @@
     - 本地权重 > 跨节点佐证
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -71,7 +72,7 @@ class TrustCertificate:
     issued_at: float = field(default_factory=time.time)
     expires_at: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.cert_id:
             raw = f"{self.issuer}:{self.subject}:{self.issued_at}"
             self.cert_id = hashlib.md5(raw.encode()).hexdigest()[:12]
@@ -92,8 +93,8 @@ class LocalTrust:
     """本地信任评估 — 基于证据的信任计算。"""
 
     def reason_with_trust(
-        self, evidence: dict, context: dict | None = None
-    ) -> dict:
+        self, evidence: dict[str, Any], context: dict | None = None
+    ) -> dict[str, Any]:
         """基于证据的信任评估。
 
         Args:
@@ -165,7 +166,7 @@ class FederatedTrust:
         self._decay_factor = decay_factor
         self._peer_trust_scores: dict[str, float] = {}
         self._certificates: dict[str, TrustCertificate] = {}
-        self._trust_history: list[dict] = []
+        self._trust_history: list[dict[str, Any]] = []
 
     # ── Properties ──────────────────────────────────────────────────────
 
@@ -180,8 +181,7 @@ class FederatedTrust:
     # ── Trust Assessment ────────────────────────────────────────────────
 
     def assess_federation_trust(
-        self, node_id: str, evidence: dict
-    ) -> dict:
+        self, node_id: str, evidence: dict[str, Any]) -> dict[str, Any]:
         """联邦信任评估。
 
         流程:
@@ -230,7 +230,7 @@ class FederatedTrust:
 
     def propagate_trust(
         self, source_cert: TrustCertificate, target_node: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """联邦信任传播: 跨节点信任证书传递。
 
         每跳衰减 decay_factor。
@@ -256,8 +256,7 @@ class FederatedTrust:
     # ── Certificate Management ──────────────────────────────────────────
 
     def issue_trust_certificate(
-        self, node_id: str, evidence: dict
-    ) -> TrustCertificate:
+        self, node_id: str, evidence: dict[str, Any]) -> TrustCertificate:
         """颁发信任证书。
 
         Args:
@@ -277,7 +276,7 @@ class FederatedTrust:
         self._certificates[cert.cert_id] = cert
         return cert
 
-    def verify_certificate(self, cert: TrustCertificate) -> dict:
+    def verify_certificate(self, cert: TrustCertificate) -> dict[str, Any]:
         """验证信任证书。
 
         Args:
@@ -301,7 +300,7 @@ class FederatedTrust:
 
     # ── Audit ───────────────────────────────────────────────────────────
 
-    def audit_trust_state(self) -> dict:
+    def audit_trust_state(self) -> dict[str, Any]:
         """审计当前信任状态。"""
         scores = list(self._peer_trust_scores.values())
         return {
@@ -315,7 +314,7 @@ class FederatedTrust:
 
     # ── Internal Methods ────────────────────────────────────────────────
 
-    def _collect_cross_attestations(self, node_id: str) -> list[dict]:
+    def _collect_cross_attestations(self, node_id: str) -> list[dict[str, Any]]:
         """收集跨节点信任证明 (仿真模式)。"""
         attestations = []
         for peer_id, score in self._peer_trust_scores.items():

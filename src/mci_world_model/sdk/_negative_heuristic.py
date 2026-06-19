@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — Lakatos 负面启发法 (NegativeHeuristic)
 
 CEWM v3.7.0 新增组件 (N8)：
@@ -44,7 +46,6 @@ Example:
     'HC-1'
 """
 
-from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
@@ -150,9 +151,9 @@ class NegativeHeuristicStats:
     total_violations: int = 0
     rejected_changes: int = 0
     accepted_changes: int = 0
-    violation_history: list[dict] = field(default_factory=list)
+    violation_history: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_checks": self.total_checks,
             "total_violations": self.total_violations,
@@ -261,7 +262,7 @@ class NegativeHeuristic:
         True
     """
 
-    def __init__(self, custom_rules: list[dict] | None = None):
+    def __init__(self, custom_rules: list[dict[str, Any]] | None = None) -> None:
         """初始化。
 
         Args:
@@ -269,7 +270,7 @@ class NegativeHeuristic:
                 rule_id, rule_name, components, severity, check_fn_name
         """
         self._stats = NegativeHeuristicStats()
-        self._rules: list[dict] = self._build_default_rules()
+        self._rules: list[dict[str, Any]] = self._build_default_rules()
         if custom_rules:
             self._rules.extend(custom_rules)
 
@@ -278,7 +279,7 @@ class NegativeHeuristic:
         return self._stats
 
     @property
-    def rules(self) -> list[dict]:
+    def rules(self) -> list[dict[str, Any]]:
         """返回当前硬核规则列表。"""
         return [dict(r) for r in self._rules]
 
@@ -536,7 +537,7 @@ class NegativeHeuristic:
     # 内部方法
     # -----------------------------------------------------------------
 
-    def _build_default_rules(self) -> list[dict]:
+    def _build_default_rules(self) -> list[dict[str, Any]]:
         """构建默认硬核规则集 (7 条)。"""
         return [
             {
@@ -606,7 +607,7 @@ class NegativeHeuristic:
 
     def _check_rule(
         self,
-        rule: dict,
+        rule: dict[str, Any],
         change: ProposedChange,
         overlap: set[str],
     ) -> HardCoreViolation | None:

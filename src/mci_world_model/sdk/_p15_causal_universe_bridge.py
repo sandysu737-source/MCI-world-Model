@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v15.0.0 — P15 因果宇宙扩展桥接模块
 =====================================================
 
@@ -18,7 +20,6 @@ P15 "无量" 取自《华严经》"无量无边，不可思议"——
 因果智能从单一宇宙扩展为多宇宙因果联邦。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v13.0.0 — CausalEconomy 因果经济体系
 ======================================================
 
@@ -10,7 +12,6 @@
 价值维度: 新颖性(25%) + 解释力(30%) + 可操作性(25%) + 需求度(20%)
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -34,7 +35,7 @@ class Transaction:
     price: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.transaction_id:
             self.transaction_id = hashlib.md5(
                 f"{self.provider}:{self.consumer}:{self.timestamp}".encode()
@@ -62,7 +63,7 @@ class CausalKnowledgeValueModel:
 class CausalKnowledgeMarket:
     """因果知识市场。"""
 
-    def determine_price(self, theory: Any, value: dict) -> float:
+    def determine_price(self, theory: Any, value: dict[str, Any]) -> float:
         return value["total_value"] * 10  # 简化定价
 
 
@@ -89,7 +90,7 @@ class CausalEconomy:
     def n_transactions(self) -> int:
         return len(self._transaction_log)
 
-    def value_causal_knowledge(self, theory: Any) -> dict:
+    def value_causal_knowledge(self, theory: Any) -> dict[str, Any]:
         """因果知识价值评估。"""
         novelty = self._value_model.novelty_value(theory)
         explanatory = self._value_model.explanatory_value(theory)
@@ -109,7 +110,7 @@ class CausalEconomy:
 
     def trade_knowledge(
         self, provider: str, consumer: str, theory: Any
-    ) -> dict:
+    ) -> dict[str, Any]:
         """因果知识交易。"""
         value = self.value_causal_knowledge(theory)
         price = self._market.determine_price(theory, value)
@@ -145,7 +146,7 @@ class CausalEconomy:
             return "basic"
         return "low_value"
 
-    def get_economy_report(self) -> dict:
+    def get_economy_report(self) -> dict[str, Any]:
         """获取经济体系报告。"""
         total_value = sum(tx.value for tx in self._transaction_log)
         total_price = sum(tx.price for tx in self._transaction_log)
@@ -157,7 +158,7 @@ class CausalEconomy:
             "avg_price": total_price / max(1, self.n_transactions),
         }
 
-    def assess_market_health(self) -> dict:
+    def assess_market_health(self) -> dict[str, Any]:
         """评估市场健康度。"""
         if not self._transaction_log:
             return {"health": "no_data", "liquidity": 0.0, "diversity": 0.0}
@@ -185,7 +186,7 @@ class CausalEconomy:
             "n_providers": len(providers),
         }
 
-    def batch_trade(self, trades: list[tuple[str, str, Any]]) -> dict:
+    def batch_trade(self, trades: list[tuple[str, str, Any]]) -> dict[str, Any]:
         """批量知识交易。"""
         results = []
         for provider, consumer, theory in trades:

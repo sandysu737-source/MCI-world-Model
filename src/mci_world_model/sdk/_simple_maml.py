@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """SimpleMAML — 轻量级模型无关元学习。
 
 P3 "赋魂" 核心模块 — 纯 numpy 实现的 MAML (Model-Agnostic Meta-Learning)，
@@ -17,7 +19,6 @@ Usage::
     loss = maml.adapt(task_new.x_support, task_new.y_support)
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 

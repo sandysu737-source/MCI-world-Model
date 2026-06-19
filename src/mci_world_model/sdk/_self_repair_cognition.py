@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v6.0.0 — SelfRepairCognition 自修复认知
 ============================================================
 
@@ -19,7 +21,6 @@
     - 与 MetaDiagnoser 正交组合
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -49,7 +50,7 @@ class AnomalyReport:
     is_anomaly: bool = False
     error: float = 0.0
     error_threshold: float = 0.0
-    diagnosis: dict = field(default_factory=dict)
+    diagnosis: dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -73,7 +74,7 @@ class RepairAction:
     layer: str = ""
     success: bool = False
     timestamp: float = 0.0
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -114,7 +115,7 @@ class SelfRepairCognition:
             raise ValueError(f"anomaly_threshold 必须 > 0, 当前 {anomaly_threshold}")
         self._anomaly_threshold = anomaly_threshold
         self._max_repair_attempts = max_repair_attempts
-        self._repair_history: list[dict] = []
+        self._repair_history: list[dict[str, Any]] = []
         self._success_count: int = 0
         self._total_repairs: int = 0
 
@@ -209,7 +210,7 @@ class SelfRepairCognition:
 
         return action
 
-    def repair_and_verify(self, prediction: np.ndarray, actual: np.ndarray) -> dict:
+    def repair_and_verify(self, prediction: np.ndarray, actual: np.ndarray) -> dict[str, Any]:
         """完整修复流程: 检测 → 诊断 → 修复 → 验证。
 
         Args:
@@ -241,7 +242,7 @@ class SelfRepairCognition:
             "verified": verified,
         }
 
-    def _diagnose(self, prediction: np.ndarray, actual: np.ndarray, error: float) -> dict:
+    def _diagnose(self, prediction: np.ndarray, actual: np.ndarray, error: float) -> dict[str, Any]:
         """诊断异常所属层。
 
         简化启发式:
@@ -284,7 +285,7 @@ class SelfRepairCognition:
         }
 
     @staticmethod
-    def _execute_repair(strategy: str, diagnosis: dict) -> dict:
+    def _execute_repair(strategy: str, diagnosis: dict[str, Any]) -> dict[str, Any]:
         """执行修复策略 (模拟)。"""
         details: dict[str, Any] = {"strategy": strategy}
 
@@ -328,7 +329,7 @@ class SelfRepairCognition:
         return self._success_count / self._total_repairs
 
     @property
-    def repair_history(self) -> list[dict]:
+    def repair_history(self) -> list[dict[str, Any]]:
         """修复历史。"""
         return list(self._repair_history)
 

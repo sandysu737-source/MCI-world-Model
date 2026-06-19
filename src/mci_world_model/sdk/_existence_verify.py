@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — ExistenceVerify 存在验证体系
 =========================================================
 
@@ -26,7 +28,6 @@
     5. 可审计: 所有验证步骤可审计
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -120,7 +121,7 @@ class ExistenceVerify:
 
         self._verifications: list[IndependentVerification] = []
         self._perspective_results: dict[str, VerificationResult] = {}
-        self._verification_log: list[dict] = []
+        self._verification_log: list[dict[str, Any]] = []
 
     @property
     def n_verifications(self) -> int:
@@ -144,7 +145,7 @@ class ExistenceVerify:
         passed = sum(1 for v in self._verifications if v.overall_passed)
         return passed / len(self._verifications)
 
-    def verify_existence(self) -> dict:
+    def verify_existence(self) -> dict[str, Any]:
         """独立验证因果存在。
 
         从6个视角进行独立验证，至少3个通过才算整体通过。
@@ -201,7 +202,7 @@ class ExistenceVerify:
         )
         return result_dict
 
-    def verify_absolute_mode(self) -> dict:
+    def verify_absolute_mode(self) -> dict[str, Any]:
         """验证绝对存在模式。
 
         绝对存在模式需要更严格的验证:
@@ -264,7 +265,7 @@ class ExistenceVerify:
                 status=VerificationStatus.INCONCLUSIVE,
             )
 
-    def run_independent_verification(self, n_rounds: int = 3) -> dict:
+    def run_independent_verification(self, n_rounds: int = 3) -> dict[str, Any]:
         """运行独立验证 (默认3次)。"""
         results = []
         for i in range(n_rounds):
@@ -282,7 +283,7 @@ class ExistenceVerify:
             "independent_verification_passed": all_passed and reproducibility >= 0.95,
         }
 
-    def get_verification_report(self) -> dict:
+    def get_verification_report(self) -> dict[str, Any]:
         """获取验证报告。"""
         return {
             "n_verifications": len(self._verifications),

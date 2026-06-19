@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — EternalProtocol 永恒因果协议
 =========================================================
 
@@ -31,7 +33,6 @@
     永恒协议是因果存在的内在结构的表达。
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -121,7 +122,7 @@ class EternalProtocol:
         self._conservation_laws: list[CausalConservationLaw] = []
         self._generation_rules: list[GenerationGovernance] = []
         self._violations: list[ProtocolViolation] = []
-        self._protocol_log: list[dict] = []
+        self._protocol_log: list[dict[str, Any]] = []
 
         self._initialize_laws()
 
@@ -145,7 +146,7 @@ class EternalProtocol:
     def n_violations(self) -> int:
         return len(self._violations)
 
-    def establish_eternal_protocol(self) -> dict:
+    def establish_eternal_protocol(self) -> dict[str, Any]:
         """建立永恒协议。
 
         条件:
@@ -189,7 +190,7 @@ class EternalProtocol:
         self._protocol_log.append(result)
         return result
 
-    def enforce_causal_conservation(self) -> dict:
+    def enforce_causal_conservation(self) -> dict[str, Any]:
         """执行因果守恒。"""
         results = {}
 
@@ -215,7 +216,7 @@ class EternalProtocol:
             "results": results,
         }
 
-    def govern_absolute_generation(self, specification: dict) -> dict:
+    def govern_absolute_generation(self, specification: dict[str, Any]) -> dict[str, Any]:
         """治理绝对存在生成。
 
         生成规则:
@@ -254,7 +255,7 @@ class EternalProtocol:
 
         return governance_result
 
-    def maintain_existence_continuity(self) -> dict:
+    def maintain_existence_continuity(self) -> dict[str, Any]:
         """维护存在连续性。
 
         存在连续性保证:
@@ -287,7 +288,7 @@ class EternalProtocol:
             "checks": continuity_checks,
         }
 
-    def get_protocol_report(self) -> dict:
+    def get_protocol_report(self) -> dict[str, Any]:
         """获取协议报告。"""
         n_fatal = sum(1 for v in self._violations if v.severity == "fatal")
         n_critical = sum(1 for v in self._violations if v.severity == "critical")
@@ -405,7 +406,7 @@ class EternalProtocol:
         for law in self._conservation_laws:
             law.enforced = True
 
-    def _enforce_single_law(self, law: CausalConservationLaw) -> dict:
+    def _enforce_single_law(self, law: CausalConservationLaw) -> dict[str, Any]:
         """执行单条守恒律。"""
         # 根据协议层级决定是否可以执行
         level_order = {
@@ -427,7 +428,7 @@ class EternalProtocol:
         else:
             return {"enforced": False, "reason": f"Protocol level {self._protocol_level.value} insufficient for {law.scope}"}
 
-    def _check_generation_rule(self, rule: GenerationGovernance, specification: dict) -> dict:
+    def _check_generation_rule(self, rule: GenerationGovernance, specification: dict[str, Any]) -> dict[str, Any]:
         """检查生成规则。"""
         if not rule.active:
             return {"passed": True, "detail": "Rule inactive"}

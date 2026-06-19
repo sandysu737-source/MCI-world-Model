@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v13.0.0 — CausalCreationEngine 因果创造引擎
 ===============================================================
 
@@ -20,7 +22,6 @@
     - 创造 = 空白分析 + 策略执行 + 一致性检验 + 新颖性评估 + 可证伪性设计
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -85,10 +86,10 @@ class CreatedTheory:
     statement: str = ""
     novelty_score: float = 0.0
     consistency_score: float = 0.0
-    falsifiability: dict = field(default_factory=dict)
+    falsifiability: dict[str, Any] = field(default_factory=dict)
     status: TheoryStatus = TheoryStatus.CANDIDATE
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.theory_id:
             self.theory_id = hashlib.md5(
                 f"{self.domain}:{self.strategy}:{time.time()}".encode()
@@ -103,42 +104,42 @@ class CreatedTheory:
 class DomainKnowledge:
     """领域知识库 — 提供创造引擎所需的知识检索。"""
 
-    def __init__(self):
-        self._theories: dict[str, list[dict]] = {}
-        self._mechanisms: dict[str, list[dict]] = {}
+    def __init__(self) -> None:
+        self._theories: dict[str, list[dict[str, Any]]] = {}
+        self._mechanisms: dict[str, list[dict[str, Any]]] = {}
         self._assumptions: dict[str, list[str]] = {}
-        self._trends: dict[str, list[dict]] = {}
+        self._trends: dict[str, list[dict[str, Any]]] = {}
 
-    def add_theory(self, domain: str, theory: dict) -> None:
+    def add_theory(self, domain: str, theory: dict[str, Any]) -> None:
         self._theories.setdefault(domain, []).append(theory)
 
-    def add_mechanism(self, domain: str, mechanism: dict) -> None:
+    def add_mechanism(self, domain: str, mechanism: dict[str, Any]) -> None:
         self._mechanisms.setdefault(domain, []).append(mechanism)
 
     def add_assumption(self, domain: str, assumption: str) -> None:
         self._assumptions.setdefault(domain, []).append(assumption)
 
-    def add_trend(self, domain: str, trend: dict) -> None:
+    def add_trend(self, domain: str, trend: dict[str, Any]) -> None:
         self._trends.setdefault(domain, []).append(trend)
 
-    def get_domain_theories(self, domain: str) -> list[dict]:
+    def get_domain_theories(self, domain: str) -> list[dict[str, Any]]:
         return self._theories.get(domain, [])
 
-    def get_domain_mechanisms(self, domain: str) -> list[dict]:
+    def get_domain_mechanisms(self, domain: str) -> list[dict[str, Any]]:
         return self._mechanisms.get(domain, [])
 
     def get_domain_assumptions(self, domain: str) -> list[str]:
         return self._assumptions.get(domain, [])
 
-    def get_domain_trends(self, domain: str) -> list[dict]:
+    def get_domain_trends(self, domain: str) -> list[dict[str, Any]]:
         return self._trends.get(domain, [])
 
-    def get_all_domain_theories(self, domain: str) -> list[dict]:
+    def get_all_domain_theories(self, domain: str) -> list[dict[str, Any]]:
         return self._theories.get(domain, [])
 
     def search_similar_structures(
-        self, gap: dict, exclude_domain: str | None = None
-    ) -> list[dict]:
+        self, gap: dict[str, Any], exclude_domain: str | None = None
+    ) -> list[dict[str, Any]]:
         """搜索相似因果结构。"""
         results = []
         for dom, theories in self._theories.items():
@@ -191,7 +192,7 @@ class CausalCreationEngine:
             CreationStrategy.EXTRAPOLATION: self._create_by_extrapolation,
         }
         self._created_theories: list[CreatedTheory] = []
-        self._creation_log: list[dict] = []
+        self._creation_log: list[dict[str, Any]] = []
 
     # ── Properties ──────────────────────────────────────────────────────
 
@@ -207,7 +208,7 @@ class CausalCreationEngine:
 
     def create_causal_theory(
         self, domain: str, strategy: str = "analogy"
-    ) -> dict:
+    ) -> dict[str, Any]:
         """创造新因果理论。
 
         Args:
@@ -293,7 +294,7 @@ class CausalCreationEngine:
 
     # ── Creation Strategies ─────────────────────────────────────────────
 
-    def _create_by_analogy(self, domain: str, gaps: list[dict]) -> list[dict]:
+    def _create_by_analogy(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """类比创造: 从已知领域迁移因果结构到新领域。"""
         theories = []
         for gap in gaps:
@@ -310,7 +311,7 @@ class CausalCreationEngine:
                 })
         return theories
 
-    def _create_by_composition(self, domain: str, gaps: list[dict]) -> list[dict]:
+    def _create_by_composition(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """组合创造: 组合多个已知因果机制。"""
         theories = []
         mechanisms = self._knowledge.get_domain_mechanisms(domain)
@@ -327,7 +328,7 @@ class CausalCreationEngine:
             })
         return theories
 
-    def _create_by_abstraction(self, domain: str, gaps: list[dict]) -> list[dict]:
+    def _create_by_abstraction(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """抽象创造: 从具体因果规律抽象出高阶原理。"""
         theories = []
         known_laws = self._knowledge.get_domain_theories(domain)
@@ -344,7 +345,7 @@ class CausalCreationEngine:
             })
         return theories
 
-    def _create_by_negation(self, domain: str, gaps: list[dict]) -> list[dict]:
+    def _create_by_negation(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """否定创造: 系统性否定已知假设。"""
         theories = []
         assumptions = self._knowledge.get_domain_assumptions(domain)
@@ -361,7 +362,7 @@ class CausalCreationEngine:
             })
         return theories
 
-    def _create_by_extrapolation(self, domain: str, gaps: list[dict]) -> list[dict]:
+    def _create_by_extrapolation(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """外推创造: 将因果趋势外推到未知区域。"""
         theories = []
         trends = self._knowledge.get_domain_trends(domain)
@@ -380,7 +381,7 @@ class CausalCreationEngine:
 
     # ── Assessment Methods ──────────────────────────────────────────────
 
-    def _analyze_causal_gaps(self, domain: str) -> list[dict]:
+    def _analyze_causal_gaps(self, domain: str) -> list[dict[str, Any]]:
         """分析领域中的因果空白。"""
         theories = self._knowledge.get_domain_theories(domain)
         if not theories:
@@ -390,18 +391,18 @@ class CausalCreationEngine:
             {"description": f"Gap in {domain}: missing mechanisms", "severity": "low"},
         ]
 
-    def _check_internal_consistency(self, theory: dict) -> bool:
+    def _check_internal_consistency(self, theory: dict[str, Any]) -> bool:
         """内部一致性检验。"""
         statement = theory.get("statement", "")
         # 简化检查: 非空陈述即为一致
         return bool(statement)
 
-    def _check_knowledge_compatibility(self, theory: dict, domain: str) -> bool:
+    def _check_knowledge_compatibility(self, theory: dict[str, Any], domain: str) -> bool:
         """与已知知识兼容性检验。"""
         # 简化: 所有理论默认兼容
         return True
 
-    def _assess_novelty(self, theory: dict, domain: str) -> float:
+    def _assess_novelty(self, theory: dict[str, Any], domain: str) -> float:
         """新颖性评估。"""
         known = self._knowledge.get_all_domain_theories(domain)
         if not known:
@@ -409,7 +410,7 @@ class CausalCreationEngine:
         # 简化: 随机评估
         return float(np.random.uniform(0.4, 0.95))
 
-    def _design_falsification(self, theory: dict) -> dict:
+    def _design_falsification(self, theory: dict[str, Any]) -> dict[str, Any]:
         """可证伪性设计。"""
         return {
             "testable_predictions": [

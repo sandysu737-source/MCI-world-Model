@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v4.4.0 — Tissue Classifier
 ============================================
@@ -26,7 +30,6 @@ AI 智能清创机器人 — 组织分类器 (4分类 + 置信度)。
         proceed()
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -98,7 +101,7 @@ class TissueResult:
             and self.probs[TISSUE_EPITHELIAL] > 0.2
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "predicted": self.tissue_name,
             "label": int(self.predicted_label),
@@ -223,7 +226,7 @@ class TissueClassifier:
         n_epochs: int = 50,
         lr: float = 0.005,
         batch_size: int = 32,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Mini-batch SGD 训练。
 
         Args:
@@ -329,7 +332,7 @@ class TissueClassifier:
             "loss_history": [round(v, 6) for v in self._train_loss_history],
         }
 
-    def evaluate(self, X: np.ndarray, y: np.ndarray) -> dict:
+    def evaluate(self, X: np.ndarray, y: np.ndarray) -> dict[str, Any]:
         """评估分类器。
 
         Returns:

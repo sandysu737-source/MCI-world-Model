@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — ExperimentDesigner 实验设计器
 =================================================
 
@@ -13,7 +15,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -41,8 +42,8 @@ class ExperimentPlan:
 
     plan_id: str
     hypothesis_id: str = ""
-    intervention: dict = field(default_factory=dict)
-    control_group: dict = field(default_factory=dict)
+    intervention: dict[str, Any] = field(default_factory=dict)
+    control_group: dict[str, Any] = field(default_factory=dict)
     sample_size: int = 100
     expected_effect_size: float = 0.5
     statistical_power: float = 0.8
@@ -136,7 +137,7 @@ class ExperimentDesigner:
         logger.info("实验设计: %s, 样本量=%d, 功效=%.2f, 可行=%s", plan_id, sample_size, power, is_feasible)
         return plan
 
-    def design_batch(self, hypotheses: list[dict]) -> list[ExperimentPlan]:
+    def design_batch(self, hypotheses: list[dict[str, Any]]) -> list[ExperimentPlan]:
         """批量设计实验。
 
         Args:

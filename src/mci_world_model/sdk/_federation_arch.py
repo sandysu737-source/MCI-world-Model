@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — CausalFederationArchitecture 因果联邦架构
 ======================================================================
 
@@ -14,7 +16,6 @@
     - 最终一致性模型
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -46,7 +47,7 @@ class CausalShard:
     shard_id: str
     domain: str
     variables: list[str] = field(default_factory=list)
-    edges: list[dict] = field(default_factory=list)
+    edges: list[dict[str, Any]] = field(default_factory=list)
     assigned_nodes: list[str] = field(default_factory=list)
 
 
@@ -58,12 +59,12 @@ class CausalShard:
 class FederationConsensus:
     """联邦共识引擎 — 简化的多数投票共识。"""
 
-    def __init__(self, quorum_ratio: float = 2 / 3):
+    def __init__(self, quorum_ratio: float = 2 / 3) -> None:
         if not 0.5 < quorum_ratio <= 1.0:
             raise ValueError(f"quorum_ratio 必须在 (0.5, 1.0], 当前 {quorum_ratio}")
         self._quorum_ratio = quorum_ratio
 
-    def resolve_conflicts(self, conflicts: list[dict]) -> list[dict]:
+    def resolve_conflicts(self, conflicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """解决联邦因果发现中的冲突边。"""
         resolutions = []
         for conflict in conflicts:
@@ -133,8 +134,8 @@ class CausalFederationArchitecture:
     # ── Knowledge Distribution ──────────────────────────────────────────
 
     def distribute_causal_knowledge(
-        self, causal_graph: dict, domain: str
-    ) -> dict:
+        self, causal_graph: dict[str, Any], domain: str
+    ) -> dict[str, Any]:
         """分布式因果知识存储。
 
         流程:
@@ -179,7 +180,7 @@ class CausalFederationArchitecture:
         self,
         domain: str,
         data_sources: dict[str, np.ndarray] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """联邦因果发现: 多节点协同发现因果结构。
 
         流程:
@@ -199,7 +200,7 @@ class CausalFederationArchitecture:
             data_sources = {}
 
         # 各节点本地发现 (仿真)
-        local_discoveries: dict[str, dict] = {}
+        local_discoveries: dict[str, dict[str, Any]] = {}
         for node_id, data in data_sources.items():
             local_discoveries[node_id] = self._local_discovery(data, domain)
 
@@ -242,7 +243,7 @@ class CausalFederationArchitecture:
 
     # ── Knowledge Retrieval ─────────────────────────────────────────────
 
-    def retrieve_federated_knowledge(self, query: dict) -> dict:
+    def retrieve_federated_knowledge(self, query: dict[str, Any]) -> dict[str, Any]:
         """联邦知识检索。
 
         Args:
@@ -284,7 +285,7 @@ class CausalFederationArchitecture:
     # ── Internal Methods ────────────────────────────────────────────────
 
     def _shard_causal_graph(
-        self, graph: dict, domain: str
+        self, graph: dict[str, Any], domain: str
     ) -> list[CausalShard]:
         """因果图分片: 按变量组切分。"""
         variables = list(graph.get("nodes", []))
@@ -331,7 +332,7 @@ class CausalFederationArchitecture:
             selected.append(self._federation_nodes[(start_idx + i) % n_nodes])
         return selected
 
-    def _local_discovery(self, data: np.ndarray, domain: str) -> dict:
+    def _local_discovery(self, data: np.ndarray, domain: str) -> dict[str, Any]:
         """本地因果发现 (简化版: 基于相关性)。"""
         if data.ndim == 1:
             data = data.reshape(-1, 1)
@@ -350,8 +351,8 @@ class CausalFederationArchitecture:
         }
 
     def _merge_causal_structures(
-        self, discoveries: dict[str, dict]
-    ) -> dict:
+        self, discoveries: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """合并因果结构。"""
         all_nodes = set()
         all_edges = []
@@ -381,7 +382,7 @@ class CausalFederationArchitecture:
 
         return {"nodes": list(all_nodes), "edges": merged_edges}
 
-    def _detect_dag_conflicts(self, discoveries: dict[str, dict]) -> list[dict]:
+    def _detect_dag_conflicts(self, discoveries: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
         """检测 DAG 冲突 (方向相反的边)。"""
         forward: dict[str, int] = {}
         backward: dict[str, int] = {}
@@ -409,8 +410,8 @@ class CausalFederationArchitecture:
         return conflicts
 
     def _apply_resolutions(
-        self, merged_dag: dict, resolutions: list[dict]
-    ) -> dict:
+        self, merged_dag: dict[str, Any], resolutions: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """应用冲突解决方案到合并 DAG。"""
         resolved_edges = []
         removed_edges = set()

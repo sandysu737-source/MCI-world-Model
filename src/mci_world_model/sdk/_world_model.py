@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v4.3.3 — CEWM 认知增强世界模型
 =====================================================
@@ -58,7 +60,6 @@ Pearl counterfactual 反事实推理 (L3)。
     explanation = wm.explain("为什么库存下降?")
 """
 
-from __future__ import annotations
 
 import logging
 import threading
@@ -76,7 +77,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def _aggregate_energy_ratios(causal_edges: list[dict]) -> dict[str, float] | None:
+def _aggregate_energy_ratios(causal_edges: list[dict[str, Any]]) -> dict[str, float] | None:
     """v3.0.6: 从因果边列表聚合五维能量比率（公共逻辑）。"""
     if not causal_edges:
         return None
@@ -113,7 +114,7 @@ class CausalWorldModelState:
     """
 
     # ── 因果图 ──
-    causal_edges: list[dict] = field(default_factory=list)
+    causal_edges: list[dict[str, Any]] = field(default_factory=list)
     # [{"cause": str, "effect": str, "rho": float, "confidence": float,
     #   "verdict": str, "energy_relation": str, "bayes_factor": float}, ...]
 
@@ -134,14 +135,14 @@ class CausalWorldModelState:
 
     # ── 反事实世界（v3.0.8 L3）─
     counterfactual_graph: dict | None = None
-    do_interventions: list[dict] = field(default_factory=list)
+    do_interventions: list[dict[str, Any]] = field(default_factory=list)
 
     # ── v3.1.0 JEPA: 时空 + 信念 + 元认知元数据 ──
     temporal_info: object | None = None
     # TemporalInfo from _sys/chrono.py（干支持信息）
     belief_tracker: object | None = None
     # BayesianBeliefTracker from _sys/states.py（信念演化）
-    cognitive_gaps: list = field(default_factory=list)
+    cognitive_gaps: list[Any] = field(default_factory=list)
     # list[CognitiveGap] from _sys/awareness.py（认知空洞）
 
     # ── v3.0.1 STM: 工作记忆轨迹缓冲区 ──
@@ -165,7 +166,7 @@ class CausalWorldModelState:
     def empty(cls) -> CausalWorldModelState:
         return cls()
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         result = {
             "n_causal_edges": len(self.causal_edges),
             "n_confirmed": self.n_confirmed,
@@ -219,7 +220,7 @@ class CausalWorldModelState:
                             nodes[name] = len(nodes)
         return nodes
 
-    def _get_node_name(self, e: dict, key: str) -> str:
+    def _get_node_name(self, e: dict[str, Any], key: str) -> str:
         """从边中提取节点名称，兼容 cause/effect 和 cause_idx/effect_idx 两种格式。"""
         name = str(e.get(key, ""))
         if name:
@@ -669,7 +670,7 @@ class WorkingMemory:
         """
         return experience_db.retrieve(query_tags=query_tags, top_k=top_k)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "max_length": self.max_length,
             "n_steps": len(self.trajectory),
@@ -751,7 +752,7 @@ class MCIWorldModel:
         # Pearl L2: do-calculus 干预引擎 (懒加载)
         self._do_calculus: object | None = None
         self._do_calculus_lock: threading.Lock = threading.Lock()
-        self._intervention_history: list[dict] = []
+        self._intervention_history: list[dict[str, Any]] = []
         # v3.3.1: 干预历史并发保护
         self._intervention_history_lock: threading.Lock = threading.Lock()
 
@@ -816,7 +817,7 @@ class MCIWorldModel:
     # 初始化
     # ────────────────────────────────────────────────
 
-    def initialize(self) -> dict:
+    def initialize(self) -> dict[str, Any]:
         """
         初始化世界模型组件（幂等安全）。
 
@@ -850,7 +851,7 @@ class MCIWorldModel:
                     "_cached": True,
                 }
 
-            report: dict = {
+            report: dict[str, Any] = {
                 "modules": {},
                 "warnings": [],
                 "ready": False,
@@ -960,7 +961,7 @@ class MCIWorldModel:
     # v3.0.4: 能量中心 + 时空编码器 惰性获取器
     # ────────────────────────────────────────────────
 
-    def _get_energy_core(self):
+    def _get_energy_core(self) -> None:
         """惰性初始化并返回 EnergyCore 实例。"""
         if self._energy_core is None:
             from su_memory._sys._energy_core import EnergyCore
@@ -968,7 +969,7 @@ class MCIWorldModel:
             self._energy_core = EnergyCore()
         return self._energy_core
 
-    def _get_temporal_core(self):
+    def _get_temporal_core(self) -> None:
         """惰性初始化并返回 TemporalCore 实例。"""
         if self._temporal_core is None:
             from su_memory._sys._temporal_core import TemporalCore
@@ -976,7 +977,7 @@ class MCIWorldModel:
             self._temporal_core = TemporalCore()
         return self._temporal_core
 
-    def _get_configurator(self):
+    def _get_configurator(self) -> None:
         """v3.0.6: 惰性初始化并返回 HierarchicalConfigurator 实例。"""
         if self._configurator is None:
             from mci_world_model._sys._configurator import HierarchicalConfigurator
@@ -984,7 +985,7 @@ class MCIWorldModel:
             self._configurator = HierarchicalConfigurator(energy_core=self._energy_core)
         return self._configurator
 
-    def _get_causal_actor(self):
+    def _get_causal_actor(self) -> None:
         """v3.0.6: 惰性初始化并返回 CausalActor 实例。"""
         if self._causal_actor is None:
             from mci_world_model.sdk._causal_actor import CausalActor
@@ -996,7 +997,7 @@ class MCIWorldModel:
     # v3.0.5: 能量分布提取 + EnergyBus 三层传播
     # ────────────────────────────────────────────────
 
-    def _extract_energy_ratios(self, state) -> dict[str, float] | None:
+    def _extract_energy_ratios(self, state: Any) -> dict[str, float] | None:
         """
         v3.0.5: 从因果图状态提取五维能量分布比率。
 
@@ -1053,7 +1054,7 @@ class MCIWorldModel:
                 )
         return bus
 
-    def _propagate_energy(self, steps: int = 3) -> dict:
+    def _propagate_energy(self, steps: int = 3) -> dict[str, Any]:
         """
         v3.0.5: 执行能量传播并返回总线状态。
 
@@ -1071,7 +1072,7 @@ class MCIWorldModel:
     # v3.0.6: 因果边标准化
     # ────────────────────────────────────────────────
 
-    def normalize_edge(self, edge: dict, energy_core=None, month_branch: int = 0) -> dict:
+    def normalize_edge(self, edge: dict[str, Any], energy_core: Any=None, month_branch: int = 0) -> dict[str, Any]:
         """
         v3.0.6: 标准化因果边，自动补全能量属性。
 
@@ -1111,7 +1112,7 @@ class MCIWorldModel:
 
     def discover(
         self,
-        memories: list[dict] | None = None,
+        memories: list[dict[str, Any]] | None = None,
         use_parametric: bool = False,
         verbose: bool = True,
     ) -> CausalWorldModelState:
@@ -1252,9 +1253,9 @@ class MCIWorldModel:
     def predict_effect(
         self,
         cause: str,
-        memories: list[dict] | None = None,
+        memories: list[dict[str, Any]] | None = None,
         top_k: int = 5,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         检索路径因果预测（v3.5.0 能力）。
 
@@ -1290,8 +1291,8 @@ class MCIWorldModel:
         cause: str,
         target_category: str | None = None,
         top_k: int = 3,
-        memories: list[dict] | None = None,
-    ) -> list[dict]:
+        memories: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         JEPA 潜空间因果预测（v3.1.0）。
 
@@ -1390,7 +1391,7 @@ class MCIWorldModel:
         cause: str,
         target_category: str | None = None,
         top_k: int = 3,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         参数化路径因果预测（v3.6.0 — v3.1.0 降级为 jepa_predict 别名）。
 
@@ -1409,9 +1410,9 @@ class MCIWorldModel:
 
     def predict_from_memories_m3(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         top_k: int = 5,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         M3 专用推理：从记忆列表直接预测因果边（GAT + GNN）。
 
@@ -1470,11 +1471,11 @@ class MCIWorldModel:
     def fused_predict(
         self,
         cause: str,
-        memories: list[dict] | None = None,
+        memories: list[dict[str, Any]] | None = None,
         top_k: int = 5,
         retrieval_weight: float = 0.4,
         parametric_weight: float = 0.6,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         融合预测（v3.1.0: 检索 + JEPA 加权）。
 
@@ -1558,7 +1559,7 @@ class MCIWorldModel:
         do_x: dict | None = None,
         target: str | None = None,
         method: str = "auto",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Pearl do-operator 干预预测（Pearl L2 完整实现）。
 
@@ -1688,7 +1689,7 @@ class MCIWorldModel:
         cause: str,
         effect: str,
         mediator: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         因果效应三分解:
         - NDE: 自然直接效应 (Natural Direct Effect)
@@ -1796,7 +1797,7 @@ class MCIWorldModel:
         do_x: dict[str, float],
         target: str,
         compute_pns: bool = True,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Pearl 三步反事实推理（v3.0.8 L3 新增）。
 
@@ -1880,7 +1881,7 @@ class MCIWorldModel:
         self,
         query: str,
         max_depth: int = 3,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         因果链回溯解释。
 
@@ -1914,7 +1915,7 @@ class MCIWorldModel:
             "summary": summary,
         }
 
-    def _trace_causal_chains(self, query: str, max_depth: int) -> list[dict]:
+    def _trace_causal_chains(self, query: str, max_depth: int) -> list[dict[str, Any]]:
         """追踪因果链 — v4.3.1 多跳 BFS 回溯。
 
         从匹配 query 的因果边出发，沿 effect→cause 方向链式回溯，
@@ -1926,7 +1927,7 @@ class MCIWorldModel:
             return []
 
         # 1. 统一节点名：优先 "cause"/"effect" 字符串，否则用 idx 生成标签
-        def _node_name(e: dict, role: str) -> str:
+        def _node_name(e: dict[str, Any], role: str) -> str:
             s = e.get(role)  # "cause" or "effect"
             if isinstance(s, str):
                 return s
@@ -1955,7 +1956,7 @@ class MCIWorldModel:
             return []
 
         # 4. BFS 多跳遍历
-        chains: list[dict] = []
+        chains: list[dict[str, Any]] = []
         for start_cause, start_edge in starts:
             path = [start_cause]
             confs = [start_edge.get("confidence", 0.5)]
@@ -1988,7 +1989,7 @@ class MCIWorldModel:
         chains.sort(key=lambda c: (c["depth"], c["confidence"]), reverse=True)
         return chains
 
-    def _generate_explanation_summary(self, chains: list[dict], query: str) -> str:
+    def _generate_explanation_summary(self, chains: list[dict[str, Any]], query: str) -> str:
         """生成可读解释摘要。"""
         if not chains:
             return f"未找到与「{query}」相关的因果链。"
@@ -2018,7 +2019,7 @@ class MCIWorldModel:
         output_dir: str = "./checkpoints/mci-world-model",
         n_epochs: int = 10,
         learning_rate: float = 0.01,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         JEPA 端到端训练（v3.1.0，替代 train_parametric）。
 
@@ -2091,7 +2092,7 @@ class MCIWorldModel:
     # 健康检查
     # ────────────────────────────────────────────────
 
-    def health_check(self) -> dict:
+    def health_check(self) -> dict[str, Any]:
         """全系统健康诊断。"""
         check = {
             "version": "4.3.3",
@@ -2217,7 +2218,7 @@ class MCIWorldModel:
         self,
         max_iterations: int = 3,
         delta: float | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Cost→Actor 梯度闭环：迭代搜索最优因果干预。
 
@@ -2259,7 +2260,7 @@ class MCIWorldModel:
     # v3.0.6: Configurator + Actor 自动能量调节闭环
     # ────────────────────────────────────────────────
 
-    def auto_regulate(self, max_iterations: int = 3) -> dict:
+    def auto_regulate(self, max_iterations: int = 3) -> dict[str, Any]:
         """
         v3.0.6: Configurator + Actor 自动能量调节闭环。
 
@@ -2281,7 +2282,7 @@ class MCIWorldModel:
         actor = self._get_causal_actor()
         configurator = self._get_configurator()
         current_state = self._state
-        history: list[dict] = []
+        history: list[dict[str, Any]] = []
         early_stop = False
         ratios = None
 
@@ -2334,9 +2335,9 @@ class MCIWorldModel:
 
     def six_module_pipeline(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         max_optimize_iterations: int = 2,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         六模块端到端闭环：Perception → WorldModel → Configurator →
                         Cost → Actor → STM → (loop)
@@ -2356,7 +2357,7 @@ class MCIWorldModel:
         Returns:
             执行报告
         """
-        report: dict = {
+        report: dict[str, Any] = {
             "perception": {},
             "world_model": {},
             "configurator": {},
@@ -2489,7 +2490,7 @@ class MCIWorldModel:
     # v3.0.6: 五维覆盖度
     # ────────────────────────────────────────────────
 
-    def _compute_energy_coverage(self) -> dict:
+    def _compute_energy_coverage(self) -> dict[str, Any]:
         """
         v3.0.6: 计算五维能量覆盖度。
 
@@ -2531,7 +2532,7 @@ class MCIWorldModel:
         self,
         encoder_key_dim: int = 16,
         predictor_hidden_dim: int = 16,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         启用 M3 端到端可微训练模式。
 
@@ -2577,7 +2578,7 @@ class MCIWorldModel:
     # 内部工具
     # ────────────────────────────────────────────────
 
-    def _get_memories_from_lite_pro(self) -> list[dict]:
+    def _get_memories_from_lite_pro(self) -> list[dict[str, Any]]:
         """从 lite_pro 获取记忆列表。"""
         if self._lite_pro is None:
             return []
@@ -2595,7 +2596,7 @@ class MCIWorldModel:
             logger.warning("从 lite_pro 获取记忆失败: %s", e)
         return []
 
-    def _apply_parametric_prior(self, dag, memories: list[dict]):
+    def _apply_parametric_prior(self, dag: Any, memories: list[dict[str, Any]]) -> None:
         """
         v3.1.0: JEPADataset 先验注入（替代 TopologicalEnergyMatrix 回退）。
 
@@ -2674,7 +2675,7 @@ class MCIWorldModel:
         goal_state = self._cewm_parse_state(goal)
         return current_state, goal_state
 
-    def _cewm_safety_check(self, state: Any, action: Any, result: dict) -> bool:
+    def _cewm_safety_check(self, state: Any, action: Any, result: dict[str, Any]) -> bool:
         """FIX-C4: 安全层 — 约束检查。返回 True 表示通过。"""
         if self._safety_monitor is not None and state is not None:
             from mci_world_model.sdk._safety import SafetyMonitor as _SafetyMonitor
@@ -3136,7 +3137,7 @@ class MCIWorldModel:
             threshold: 惊奇度阈值 [0, 1]
 
         Returns:
-            {"score": float, "is_anomaly": bool, "breakdown": dict, "stats": dict}
+            {"score": float, "is_anomaly": bool, "breakdown": dict[str, Any], "stats": dict}
         """
         from mci_world_model.sdk._surprise_detector import SurpriseDetector
 
@@ -3241,14 +3242,14 @@ class MCIWorldModel:
 
     def synthesize_training_data(
         self,
-        memories: list[dict] | None = None,
+        memories: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """因果 QA 训练数据合成（v4.3.2 ReflectionSynthesizer 集成）。
 
         基于 MEMO 框架从因果记忆生成训练 QA 对。
 
         Returns:
-            {"qa_pairs": [...], "n_pairs": int, "report": dict, "ready": bool}
+            {"qa_pairs": [...], "n_pairs": int, "report": dict[str, Any], "ready": bool}
         """
         from mci_world_model.sdk._reflection_synthesizer import ReflectionSynthesizer
 
@@ -3285,7 +3286,7 @@ class MCIWorldModel:
         """五维认知多样性评估（v4.3.2 CognitiveDiversity 集成）。
 
         Returns:
-            {"diversity_vector": dict, "ashby_satisfied": bool}
+            {"diversity_vector": dict[str, Any], "ashby_satisfied": bool}
         """
         from mci_world_model.sdk._cognitive_diversity import CognitiveDiversity
 
@@ -3311,7 +3312,7 @@ class MCIWorldModel:
         Lakatos 研究纲领框架：check if a proposed change violates hard-core rules.
 
         Returns:
-            {"admissible": bool, "violations": list, "suggestions": list}
+            {"admissible": bool, "violations": list[Any], "suggestions": list}
         """
         from mci_world_model.sdk._negative_heuristic import (
             NegativeHeuristic,
@@ -3359,7 +3360,7 @@ class MCIWorldModel:
         qa_pairs: list | None = None,
         num_epochs: int = 10,
         learning_rate: float = 0.01,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """v4.3.3: CausalMLP 参数化记忆训练。
 
         将 ReflectionSynthesizer 输出的 QA 对训练为小型因果推断网络（~15K 参数），
@@ -3403,7 +3404,7 @@ class MCIWorldModel:
         self,
         cause: str,
         top_k: int = 3,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """v4.3.3: CausalMLP 五范畴因果分类预测。
 
         给定原因文本，预测其所属因果范畴（causal/semantic/spacetime/generative/trust）。
@@ -3442,7 +3443,7 @@ class MCIWorldModel:
     def predict_energy_flow(
         self,
         steps: int = 5,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """v4.3.3: 基于五行生克的能量流多步预测。
 
         闭合 JEPA 在能量维度上的预测盲区，模拟能量在五维空间的流转趋势。
@@ -3531,7 +3532,7 @@ class MCIWorldModel:
     # v6.0~v8.0 / P6-P8: 新增模块方法
     # ────────────────────────────────────────────────
 
-    def discover_causal_structure(self, data: np.ndarray, var_names: list[str]) -> dict:
+    def discover_causal_structure(self, data: np.ndarray, var_names: list[str]) -> dict[str, Any]:
         """P6: 自主因果结构发现 (AutonomousLawDiscovererV2)。"""
         if self._law_discoverer_v2 is None:
             from mci_world_model.sdk._autonomous_law_discoverer_v2 import AutonomousLawDiscovererV2
@@ -3540,7 +3541,7 @@ class MCIWorldModel:
         report = self._law_discoverer_v2.discover_causal_structure(data, var_names=var_names)
         return {"n_variables": report.n_variables, "n_edges": report.n_edges, "is_consistent": report.is_consistent}
 
-    def unified_encode(self, modality: str, features: np.ndarray) -> dict:
+    def unified_encode(self, modality: str, features: np.ndarray) -> dict[str, Any]:
         """P6: 统一模态编码 (UnifiedModalEncoder)。"""
         if self._unified_modal_encoder is None:
             from mci_world_model.sdk._unified_modal_encoder import UnifiedModalEncoder
@@ -3549,7 +3550,7 @@ class MCIWorldModel:
         result = self._unified_modal_encoder.encode(modality, features)
         return {"modality": result.modality, "dim": len(result.shared_vector)}
 
-    def reason_cross_modal(self, observations: list[dict]) -> dict:
+    def reason_cross_modal(self, observations: list[dict[str, Any]]) -> dict[str, Any]:
         """P7: 跨模态因果推理 (CrossModalCausalReasoner)。"""
         if self._cross_modal_causal is None:
             from mci_world_model.sdk._cross_modal_causal import CrossModalCausalReasoner
@@ -3560,7 +3561,7 @@ class MCIWorldModel:
         result = self._cross_modal_causal.reason()
         return {"n_links": len(result.links), "total_strength": result.total_strength}
 
-    def imagine(self, causal_matrix: np.ndarray, intervention: dict) -> dict:
+    def imagine(self, causal_matrix: np.ndarray, intervention: dict[str, Any]) -> dict[str, Any]:
         """P6: 因果想象/反事实模拟 (CausalImaginationEngine)。"""
         if self._causal_imagination is None:
             from mci_world_model.sdk._causal_imagination import CausalImaginationEngine
@@ -3569,7 +3570,7 @@ class MCIWorldModel:
         world = self._causal_imagination.imagine(causal_matrix, intervention)
         return {"plausibility": world.plausibility, "difference": world.difference}
 
-    def self_repair(self, prediction: np.ndarray, actual: np.ndarray) -> dict:
+    def self_repair(self, prediction: np.ndarray, actual: np.ndarray) -> dict[str, Any]:
         """P6: 自修复认知 (SelfRepairCognition)。"""
         if self._self_repair is None:
             from mci_world_model.sdk._self_repair_cognition import SelfRepairCognition
@@ -3578,7 +3579,7 @@ class MCIWorldModel:
         anomaly = self._self_repair.detect_anomaly(prediction, actual)
         return {"is_anomaly": anomaly.is_anomaly, "diagnosis": anomaly.diagnosis}
 
-    def reason_with_audit(self, hypothesis: str, evidence: list[dict]) -> dict:
+    def reason_with_audit(self, hypothesis: str, evidence: list[dict[str, Any]]) -> dict[str, Any]:
         """P7: 带审计轨迹的因果推理 (AuditableCausalReasoning)。"""
         if self._auditable_causal is None:
             from mci_world_model.sdk._auditable_causal import AuditableCausalReasoning

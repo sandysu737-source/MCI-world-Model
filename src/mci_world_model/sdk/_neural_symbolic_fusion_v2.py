@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — NeuralSymbolicFusionV2 神经符号融合 2.0
 =============================================================
 
@@ -17,7 +19,6 @@ V1 → V2 升级:
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -46,7 +47,7 @@ class FusionState:
     """
 
     neural_representation: np.ndarray | None = None
-    symbolic_rules: list[dict] = field(default_factory=list)
+    symbolic_rules: list[dict[str, Any]] = field(default_factory=list)
     fusion_score: float = 0.0
     consistency: float = 0.0
     n_iterations: int = 0
@@ -87,7 +88,7 @@ class NeuralSymbolicFusionV2:
 
     def neural_to_symbolic(
         self, neural_repr: np.ndarray, var_names: list[str] | None = None
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """从神经表征提取符号规则。
 
         简化实现: 从向量中检测显著线性关系。
@@ -118,7 +119,7 @@ class NeuralSymbolicFusionV2:
         return rules
 
     def symbolic_to_neural(
-        self, rules: list[dict], target_dim: int
+        self, rules: list[dict[str, Any]], target_dim: int
     ) -> np.ndarray:
         """从符号规则约束神经表征。
 
@@ -193,7 +194,7 @@ class NeuralSymbolicFusionV2:
         return state
 
     @staticmethod
-    def _evaluate_fusion(repr: np.ndarray, rules: list[dict]) -> float:
+    def _evaluate_fusion(repr: np.ndarray, rules: list[dict[str, Any]]) -> float:
         """评估融合质量。"""
         if not rules:
             return 0.0
@@ -202,7 +203,7 @@ class NeuralSymbolicFusionV2:
         return float(min(avg_strength * 0.6 + coverage * 0.4, 1.0))
 
     @staticmethod
-    def _evaluate_consistency(repr: np.ndarray, rules: list[dict]) -> float:
+    def _evaluate_consistency(repr: np.ndarray, rules: list[dict[str, Any]]) -> float:
         """评估神经-符号一致性。"""
         if not rules:
             return 0.0

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — EdgeCloudHybrid 边云协同推理
 ===============================================
 
@@ -16,7 +18,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -46,7 +47,7 @@ class InferenceRequest:
     """
 
     request_id: str
-    query: dict = field(default_factory=dict)
+    query: dict[str, Any] = field(default_factory=dict)
     priority: str = "medium"
     max_latency_ms: float = 100.0
     complexity: int = 5
@@ -73,7 +74,7 @@ class InferenceResult:
     """
 
     request_id: str
-    result: dict = field(default_factory=dict)
+    result: dict[str, Any] = field(default_factory=dict)
     executed_on: str = "edge"
     latency_ms: float = 0.0
     confidence: float = 0.0
@@ -191,7 +192,7 @@ class EdgeCloudHybrid:
 
         return result
 
-    def _simulate_inference(self, request: InferenceRequest, executed_on: str) -> dict:
+    def _simulate_inference(self, request: InferenceRequest, executed_on: str) -> dict[str, Any]:
         """模拟推理执行 (简化实现)。"""
         confidence = 0.5 + 0.1 * (1 if executed_on == "cloud" else 0)
         return {

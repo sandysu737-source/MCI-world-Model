@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — Heidegger 参与式距离度量 (ActionGapMetric)
 
 CEWM v3.6.0 新增组件 (N6)：
@@ -24,7 +26,6 @@ CEWM v3.6.0 新增组件 (N6)：
     - reachable(state, goal, budget) — 预算内是否可达
 """
 
-from __future__ import annotations
 
 import logging
 import math
@@ -60,7 +61,7 @@ class ActionCostResult:
     is_reachable: bool = True
     ratio: float = 1.0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action_distance": round(self.action_distance, 4),
             "physical_distance": round(self.physical_distance, 4),
@@ -268,7 +269,7 @@ class ActionGapMetric:
 
     # ── 统计 ──
 
-    def statistics(self) -> dict:
+    def statistics(self) -> dict[str, Any]:
         """度量统计信息。"""
         return {
             "call_count": self._call_count,

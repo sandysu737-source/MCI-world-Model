@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.2.0 — WorldState 抽象基类
 ==============================================
@@ -20,11 +22,10 @@ WorldState 是 MCI 世界模型"认知环"的核心数据结构——被建模�
     3. 用单摆验证四环闭环后，再接入具体领域
 """
 
-from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 
@@ -88,7 +89,7 @@ class WorldState(ABC):
         """
         ...
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典。子类应覆盖此方法提供更有意义的输出。"""
         return {"type": self.__class__.__name__}
 
@@ -212,7 +213,7 @@ class PendulumState(WorldState):
     # ── 从物理信号构建 ──
 
     @classmethod
-    def from_signals(cls, signals: list) -> PendulumState:
+    def from_signals(cls, signals: list[Any]) -> PendulumState:
         """从物理信号列表构建单摆状态（感知→认知的桥接）。
 
         期望信号组合:
@@ -258,7 +259,7 @@ class PendulumState(WorldState):
 
     # ── 序列化 ──
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "PendulumState",
             "theta": round(self.theta, 6),
@@ -326,7 +327,7 @@ class Action(ABC):
         """
         raise NotImplementedError(f"{cls.__name__} 未实现 from_vector")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {"type": self.__class__.__name__}
 
     def __repr__(self) -> str:
@@ -380,7 +381,7 @@ class PendulumAction(Action):
             dt=state.dt,  # 保持原物理时间步长
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "PendulumAction",
             "torque": self.torque,
@@ -459,7 +460,7 @@ class CartState(WorldState):
 
     # ── 序列化 ──
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "CartState",
             "x": round(self.x, 6),
@@ -527,7 +528,7 @@ class CartAction(Action):
         x_next = state.x + state.v * self.dt
         return CartState(x=x_next, v=v_next, dt=state.dt)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "CartAction",
             "force": self.force,
@@ -622,7 +623,7 @@ class DoublePendulumState(WorldState):
             dt=self.dt,
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "DoublePendulumState",
             "theta1": round(self.theta1, 6),
@@ -682,7 +683,7 @@ class DoublePendulumAction(Action):
     def from_vector(cls, vec: np.ndarray) -> DoublePendulumAction:
         return cls(torque1=float(vec[0]), torque2=float(vec[1]))
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {"type": "DoublePendulumAction", "torque1": self.torque1, "torque2": self.torque2}
 
     def __repr__(self) -> str:
@@ -714,10 +715,10 @@ class MultimodalWorldState(WorldState):
     audio: np.ndarray | None = None
     thermal: np.ndarray | None = None
     fused: np.ndarray | None = None
-    modality_confidences: dict = field(default_factory=dict)
+    modality_confidences: dict[str, Any] = field(default_factory=dict)
     timestamp: float = 0.0
     # v4.4.1: 保留模态结构元数据，供 from_vector() 往返保真
-    _modality_layout: dict = field(default_factory=dict, repr=False)
+    _modality_layout: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def _get_vector_parts(self) -> list[np.ndarray]:
         """收集所有非空模态向量。"""
@@ -795,7 +796,7 @@ class MultimodalWorldState(WorldState):
             >>> assert restored.active_modalities() == state.active_modalities()
         """
         vec = np.asarray(vec, dtype=np.float64)
-        kwargs: dict = {}
+        kwargs: dict[str, Any] = {}
         for name, (start, end) in layout.items():
             if end <= len(vec):
                 kwargs[name] = vec[start:end]
@@ -832,7 +833,7 @@ class MultimodalWorldState(WorldState):
             timestamp=self.timestamp,
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "MultimodalWorldState",
             "proprioception": self.proprioception.tolist() if self.proprioception is not None else None,
@@ -860,7 +861,7 @@ class MultimodalWorldState(WorldState):
         return modalities
 
     @classmethod
-    def from_signals(cls, signals: list) -> MultimodalWorldState:
+    def from_signals(cls, signals: list[Any]) -> MultimodalWorldState:
         """从 PhysicalSignal 列表构建多模态世界状态。"""
         state = cls()
         for sig in signals:

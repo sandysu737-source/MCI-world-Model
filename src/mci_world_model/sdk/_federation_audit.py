@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — FederationAudit 联邦审计体系
 ==========================================================
 
@@ -15,7 +17,6 @@
     - 审计结果不可篡改
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -72,10 +73,10 @@ class AuditEntry:
     operation: str = ""
     severity: AuditSeverity = AuditSeverity.INFO
     status: AuditStatus = AuditStatus.PASS
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.entry_id:
             raw = f"{self.operation}:{self.timestamp}"
             self.entry_id = hashlib.md5(raw.encode()).hexdigest()[:12]
@@ -99,7 +100,7 @@ class FederationAudit:
         max_entries: 最大审计条目数
     """
 
-    def __init__(self, max_entries: int = 10000):
+    def __init__(self, max_entries: int = 10000) -> None:
         self._entries: list[AuditEntry] = []
         self._max_entries = max_entries
         self._report_hashes: list[str] = []
@@ -120,7 +121,7 @@ class FederationAudit:
 
     # ── Operation Audit ─────────────────────────────────────────────────
 
-    def audit_federation_operation(self, operation: dict) -> AuditEntry:
+    def audit_federation_operation(self, operation: dict[str, Any]) -> AuditEntry:
         """审计联邦操作。
 
         Args:
@@ -165,7 +166,7 @@ class FederationAudit:
 
     # ── Trust Audit ─────────────────────────────────────────────────────
 
-    def audit_trust_state(self, trust_data: dict) -> AuditEntry:
+    def audit_trust_state(self, trust_data: dict[str, Any]) -> AuditEntry:
         """审计信任状态。
 
         Args:
@@ -206,7 +207,7 @@ class FederationAudit:
 
     # ── Consciousness Audit ─────────────────────────────────────────────
 
-    def audit_consciousness_state(self, consciousness_data: dict) -> AuditEntry:
+    def audit_consciousness_state(self, consciousness_data: dict[str, Any]) -> AuditEntry:
         """审计联邦意识状态。
 
         Args:
@@ -239,7 +240,7 @@ class FederationAudit:
 
     # ── Report Generation ───────────────────────────────────────────────
 
-    def generate_audit_report(self) -> dict:
+    def generate_audit_report(self) -> dict[str, Any]:
         """生成不可篡改的审计报告。"""
         report = {
             "report_id": hashlib.md5(

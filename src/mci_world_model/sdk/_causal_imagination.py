@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — CausalImaginationEngine 因果想象力引擎
 =========================================================
 
@@ -14,7 +16,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -172,7 +173,7 @@ class CausalImaginationEngine:
         self,
         current: np.ndarray,
         original: np.ndarray,
-        intervention: dict,
+        intervention: dict[str, Any],
     ) -> np.ndarray:
         """因果传播——用因果矩阵迭代传播干预影响。"""
         if self._causal_matrix is None:
@@ -193,7 +194,7 @@ class CausalImaginationEngine:
         return float(np.clip(plausibility, 0.0, 1.0))
 
     @staticmethod
-    def _generate_narrative(intervention: dict, original: np.ndarray, imagined: np.ndarray) -> str:
+    def _generate_narrative(intervention: dict[str, Any], original: np.ndarray, imagined: np.ndarray) -> str:
         """生成想象世界的叙述。"""
         if not intervention:
             return "无干预的想象世界"

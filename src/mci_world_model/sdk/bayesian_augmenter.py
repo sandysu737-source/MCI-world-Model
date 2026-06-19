@@ -65,7 +65,7 @@ class ComparisonDelta:
     difference_description: str = ""
     improvement_indicator: str = ""  # "positive" | "negative" | "neutral"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "field": self.field,
             "original_value": self.original_value,
@@ -82,9 +82,9 @@ class EnhancedOutput:
     original: dict  # 原始系统输出
     bayesian: dict  # 贝叶斯增强输出
     comparisons: list[ComparisonDelta]  # 差异列表
-    meta: dict = field(default_factory=dict)  # 元信息
+    meta: dict[str, Any] = field(default_factory=dict)  # 元信息
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "original_result": self.original,
             "bayesian_result": self.bayesian,
@@ -194,11 +194,11 @@ class BayesianAugmenter:
                 "启用" if enable_auto_sync else "禁用",
             )
 
-    def _hook_client_add(self):
+    def _hook_client_add(self) -> None:
         """Hook client.add() 以自动同步记忆到贝叶斯系统"""
         original_add = self._client.add
 
-        def augmented_add(*args, **kwargs):
+        def augmented_add(*args: Any, **kwargs: Any) -> None:
             memory_id = original_add(*args, **kwargs)
 
             # 同步到贝叶斯系统
@@ -218,7 +218,7 @@ class BayesianAugmenter:
         self._client.add = augmented_add
         self._original_add = original_add
 
-    def _sync_memory_to_bayesian(self, memory_id: str, content: str, metadata: dict | None = None):
+    def _sync_memory_to_bayesian(self, memory_id: str, content: str, metadata: dict | None = None) -> None:
         """将记忆同步到贝叶斯系统"""
         metadata = metadata or {}
 
@@ -241,7 +241,7 @@ class BayesianAugmenter:
                 except ValueError:
                     pass  # 环路，跳过
 
-    def _vlog(self, msg: str):
+    def _vlog(self, msg: str) -> None:
         """Verbose 日志"""
         if self._verbose:
             logger.info("BayesianAugmenter %s", msg)
@@ -250,7 +250,7 @@ class BayesianAugmenter:
     # 双路径查询 — query()
     # ================================================================
 
-    def query(self, query: str, top_k: int = 5, **kwargs) -> EnhancedOutput:
+    def query(self, query: str, top_k: int = 5, **kwargs: Any) -> EnhancedOutput:
         """
         双路径查询
 
@@ -287,7 +287,7 @@ class BayesianAugmenter:
             },
         )
 
-    def _bayesian_query(self, query: str, top_k: int, original_results: list[dict]) -> list[dict]:
+    def _bayesian_query(self, query: str, top_k: int, original_results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """贝叶斯增强查询"""
         results = []
 
@@ -334,7 +334,7 @@ class BayesianAugmenter:
         results.sort(key=lambda x: x.get("score", x.get("original_score", 0)), reverse=True)
         return results[:top_k]
 
-    def _compare_query_results(self, query: str, original: list[dict], bayesian: list[dict]) -> list[ComparisonDelta]:
+    def _compare_query_results(self, query: str, original: list[dict[str, Any]], bayesian: list[dict[str, Any]]) -> list[ComparisonDelta]:
         """对比原始和贝叶斯查询结果"""
         comparisons = []
 
@@ -385,7 +385,7 @@ class BayesianAugmenter:
     # 双路径预测 — predict()
     # ================================================================
 
-    def predict(self, query: str | None = None, top_k: int = 3, **kwargs) -> EnhancedOutput:
+    def predict(self, query: str | None = None, top_k: int = 3, **kwargs: Any) -> EnhancedOutput:
         """
         双路径预测
 
@@ -421,7 +421,7 @@ class BayesianAugmenter:
             },
         )
 
-    def _bayesian_predict(self, query: str, top_k: int, original: dict) -> dict:
+    def _bayesian_predict(self, query: str, top_k: int, original: dict[str, Any]) -> dict[str, Any]:
         """贝叶斯增强预测"""
         results = {}
 
@@ -470,7 +470,7 @@ class BayesianAugmenter:
         results["engine_stats"] = self.engine.get_statistics()
         return results
 
-    def _compare_predictions(self, query: str, original: dict, bayesian: dict) -> list[ComparisonDelta]:
+    def _compare_predictions(self, query: str, original: dict[str, Any], bayesian: dict[str, Any]) -> list[ComparisonDelta]:
         """对比预测结果"""
         comparisons = []
 
@@ -509,7 +509,7 @@ class BayesianAugmenter:
     # 双路径推理 — reason()
     # ================================================================
 
-    def reason(self, query: str, max_hops: int = 3, **kwargs) -> EnhancedOutput:
+    def reason(self, query: str, max_hops: int = 3, **kwargs: Any) -> EnhancedOutput:
         """
         双路径推理
 
@@ -545,7 +545,7 @@ class BayesianAugmenter:
             },
         )
 
-    def _bayesian_reason(self, query: str, max_hops: int, original: dict) -> dict:
+    def _bayesian_reason(self, query: str, max_hops: int, original: dict[str, Any]) -> dict[str, Any]:
         """贝叶斯增强推理"""
         results = {}
 
@@ -635,7 +635,7 @@ class BayesianAugmenter:
 
         return results
 
-    def _compare_reasoning(self, query: str, original: dict, bayesian: dict) -> list[ComparisonDelta]:
+    def _compare_reasoning(self, query: str, original: dict[str, Any], bayesian: dict[str, Any]) -> list[ComparisonDelta]:
         """对比推理结果"""
         comparisons = []
 
@@ -692,7 +692,7 @@ class BayesianAugmenter:
         expected_outcome: bool | None = None,
         is_correct: bool | None = None,
         ground_truth_value: float | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         用户反馈 — 闭合贝叶斯更新回路
 
@@ -824,7 +824,7 @@ class BayesianAugmenter:
     # 准确度报告
     # ================================================================
 
-    def get_accuracy_report(self) -> dict:
+    def get_accuracy_report(self) -> dict[str, Any]:
         """
         获取双路径准确度对比报告
 
@@ -855,7 +855,7 @@ class BayesianAugmenter:
         original_records = [r for r in self._accuracy_records if r.method == "original"]
         bayesian_records = [r for r in self._accuracy_records if r.method == "bayesian"]
 
-        def compute_stats(records: list[AccuracyRecord]) -> dict:
+        def compute_stats(records: list[AccuracyRecord]) -> dict[str, Any]:
             if not records:
                 return {}
             mae = sum(r.absolute_error for r in records) / len(records)
@@ -908,7 +908,7 @@ class BayesianAugmenter:
             "calibration": (self.predictor.get_calibration_report() if self.predictor else None),
         }
 
-    def print_accuracy_report(self):
+    def print_accuracy_report(self) -> None:
         """打印格式化的准确度报告"""
         report = self.get_accuracy_report()
         logger.info("=" * 60)
@@ -956,7 +956,7 @@ class BayesianAugmenter:
     # 批量对比验证
     # ================================================================
 
-    def run_validation_suite(self, test_queries: list[dict], verbose: bool = True) -> dict:
+    def run_validation_suite(self, test_queries: list[dict[str, Any]], verbose: bool = True) -> dict[str, Any]:
         """
         运行批量对比验证
 
@@ -1052,7 +1052,7 @@ class BayesianAugmenter:
     # 访问原始客户端（透传未包装的方法）
     # ================================================================
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: Any) -> None:
         """
         未包装的方法直接透传到原始客户端
 
@@ -1090,7 +1090,7 @@ class BayesianAugmenter:
             json.dump(state, f, ensure_ascii=False, indent=2)
         return path
 
-    def load_state(self, path: str):
+    def load_state(self, path: str) -> None:
         """恢复贝叶斯增强器状态"""
         with open(path) as f:
             state = json.load(f)
@@ -1109,17 +1109,17 @@ class BayesianAugmenter:
     # 工具方法
     # ================================================================
 
-    def reset_bayesian(self):
+    def reset_bayesian(self) -> None:
         """重置贝叶斯系统（保留原始系统不变）"""
         self._brs.reset()
         self._accuracy_records.clear()
         self._feedback_count = 0
         self._vlog("贝叶斯系统已重置，原始系统未受影响")
 
-    def get_bayesian_engine(self):
+    def get_bayesian_engine(self) -> None:
         """获取底层 BayesianEngine（高级用途）"""
         return self.engine
 
-    def get_bayesian_network(self):
+    def get_bayesian_network(self) -> None:
         """获取底层 BayesianNetwork（高级用途）"""
         return self.network

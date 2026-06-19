@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — MetacognitionV2 元认知 2.0
 ===============================================
 
@@ -14,7 +16,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

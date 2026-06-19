@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.1 — MultiLLM 适配器
 
@@ -17,7 +19,6 @@ Provider 链: Ollama(qwen3.5) → OpenAI(gpt-4o-mini) → graceful 降级。
     label = adapter.classify("患者体重下降 5kg", ["低风险", "中风险", "高风险"])
 """
 
-from __future__ import annotations
 
 import json
 import logging
@@ -79,7 +80,7 @@ def _charset_embed(text: str, dim: int = 3) -> np.ndarray:
 class OllamaProvider:
     """Ollama 本地推理 provider。"""
 
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen3.5", timeout: float = 30.0):
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen3.5", timeout: float = 30.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
@@ -94,7 +95,7 @@ class OllamaProvider:
         except Exception:
             return False
 
-    def generate(self, prompt: str, system: str = "", **kwargs) -> str:
+    def generate(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         url = f"{self.base_url}/api/generate"
         payload = {
             "model": self.model,
@@ -120,7 +121,7 @@ class OllamaProvider:
 class OpenAIProvider:
     """OpenAI API provider。"""
 
-    def __init__(self, api_key: str = "", model: str = "gpt-4o-mini", base_url: str = "", timeout: float = 30.0):
+    def __init__(self, api_key: str = "", model: str = "gpt-4o-mini", base_url: str = "", timeout: float = 30.0) -> None:
         import os
 
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
@@ -131,7 +132,7 @@ class OpenAIProvider:
     def _is_available(self) -> bool:
         return bool(self.api_key)
 
-    def generate(self, prompt: str, system: str = "", **kwargs) -> str:
+    def generate(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         url = f"{self.base_url.rstrip('/')}/chat/completions"
         messages = [{"role": "user", "content": prompt}]
         if system:
@@ -190,7 +191,7 @@ class MultiLLMAdapter:
         >>> label = adapter.classify("体重下降", ["轻微", "中等", "严重"])
     """
 
-    def __init__(self, providers: list[str] | None = None, **kwargs):
+    def __init__(self, providers: list[str] | None = None, **kwargs: Any) -> None:
         """
         Args:
             providers: LLM provider 列表，如 ["ollama", "openai"]
@@ -214,7 +215,7 @@ class MultiLLMAdapter:
         # 检测可用性
         self._detect_availability()
 
-    def _init_provider(self, name: str, **kwargs) -> Any:
+    def _init_provider(self, name: str, **kwargs: Any) -> Any:
         """初始化单个 provider。"""
         if name == "ollama":
             return OllamaProvider(
@@ -247,7 +248,7 @@ class MultiLLMAdapter:
         self._available = False
         logger.info("MultiLLM: no LLM available — using fallback mode")
 
-    def generate(self, prompt: str, context: dict[str, Any] | None = None, **kwargs) -> str:
+    def generate(self, prompt: str, context: dict[str, Any] | None = None, **kwargs: Any) -> str:
         """
         使用活跃 provider 生成文本。
 
@@ -283,7 +284,7 @@ class MultiLLMAdapter:
             "制定个体化营养方案。如需详细建议，请配置 LLM 服务（Ollama 或 OpenAI）。"
         )
 
-    def classify(self, text: str, labels: list[str], **kwargs) -> dict:
+    def classify(self, text: str, labels: list[str], **kwargs: Any) -> dict[str, Any]:
         """
         文本分类。
 
@@ -379,7 +380,7 @@ class MultiLLMAdapter:
         # 降级: 字符集嵌入
         return _charset_embed(text, dim)
 
-    def health_check(self) -> dict:
+    def health_check(self) -> dict[str, Any]:
         """健康检查。返回可用性状态。"""
         providers_status = {}
         for name, inst in self._provider_instances.items():
@@ -444,7 +445,7 @@ class MultiLLMAdapter:
         # 降级: 基于 CF 结果的规则推理
         return self._fallback_reason_with_cf(prompt, cf_result)
 
-    def _build_cf_prompt(self, prompt: str, cf_result: dict) -> str:
+    def _build_cf_prompt(self, prompt: str, cf_result: dict[str, Any]) -> str:
         """构建 CF 增强提示词。"""
         best = cf_result.get("best_scenario", "未知")
         best_effect = cf_result.get("best_effect")
@@ -469,7 +470,7 @@ class MultiLLMAdapter:
             f"请基于以上反事实推演结果，给出你的推理过程和最终建议。"
         )
 
-    def _fallback_reason_with_cf(self, prompt: str, cf_result: dict) -> str:
+    def _fallback_reason_with_cf(self, prompt: str, cf_result: dict[str, Any]) -> str:
         """无 LLM 时的降级 CF 推理。"""
         best = cf_result.get("best_scenario", "未知")
         recommendation = cf_result.get("recommendation", "")

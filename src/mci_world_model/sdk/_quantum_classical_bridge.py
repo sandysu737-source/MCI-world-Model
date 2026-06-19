@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — QuantumClassicalBridge 量子经典桥接层
 ==================================================================
 
@@ -15,11 +17,10 @@
     - 支持 IBM Quantum / IonQ 等后端接口
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 import numpy as np
 
@@ -64,7 +65,7 @@ class QuantumCircuit:
     """
 
     n_qubits: int = 1
-    gates: list[dict] = field(default_factory=list)
+    gates: list[dict[str, Any]] = field(default_factory=list)
     n_shots: int = 1024
 
     def add_gate(self, gate_type: str, targets: list[int], params: list[float] | None = None) -> None:
@@ -116,7 +117,7 @@ class QuantumResult:
 class QuantumErrorMitigator:
     """量子误差缓解 — 减少量子硬件噪声影响。"""
 
-    def __init__(self, method: str = "zero_noise_extrapolation"):
+    def __init__(self, method: str = "zero_noise_extrapolation") -> None:
         if method not in ("zero_noise_extrapolation", "readout_mitigation", "none"):
             raise ValueError(f"未知误差缓解方法: {method}")
         self._method = method
@@ -257,7 +258,7 @@ class QuantumClassicalBridge:
 
         return circuit
 
-    def decode_quantum_to_classical(self, result: QuantumResult) -> dict:
+    def decode_quantum_to_classical(self, result: QuantumResult) -> dict[str, Any]:
         """量子 → 经典解码。
 
         Args:
@@ -312,7 +313,7 @@ class QuantumClassicalBridge:
 
     # ── Quantum Advantage ───────────────────────────────────────────────
 
-    def quantum_advantage_estimate(self, query: dict) -> dict:
+    def quantum_advantage_estimate(self, query: dict[str, Any]) -> dict[str, Any]:
         """量子优势估计。
 
         评估量子计算是否比经典计算更有优势。

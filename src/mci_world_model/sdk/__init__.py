@@ -309,6 +309,10 @@ from mci_world_model.sdk._causal_universe_theory import (
     CausalUniverseTheory,
     ScaleResult,
 )
+from mci_world_model.sdk._char_tokenizer import (
+    CharTokenizer,
+    SimpleTextEmbedderV2,
+)
 from mci_world_model.sdk._cognitive_diversity import (
     CognitiveDiversity,
     DiversityHistory,
@@ -400,6 +404,10 @@ from mci_world_model.sdk._debridement_data import (
     DebridementSample,
     SyntheticDebridementGenerator,
     WoundDatasetAdapter,
+)
+from mci_world_model.sdk._debridement_world_model import (
+    DebridementConfig,
+    DebridementWorldModel,
 )
 from mci_world_model.sdk._differentiable_causal import (
     CausalParameter,
@@ -523,6 +531,11 @@ from mci_world_model.sdk._final_theorem import (
     FormalProof,
     ProofStatus,
     ProofStep,
+)
+from mci_world_model.sdk._force_tissue_dynamics import (
+    ForceTissueDynamics,
+    RemovalPrediction,
+    SafetyVerdict,
 )
 from mci_world_model.sdk._generalized_physics import (
     GeneralizedPhysicsPredictor,
@@ -1703,6 +1716,13 @@ __all__ = [
     "TissueResult",
     "WoundDatasetAdapter",
     "ZvecEmbeddingStore",
+    "CharTokenizer",
+    "DebridementConfig",
+    "DebridementWorldModel",
+    "ForceTissueDynamics",
+    "RemovalPrediction",
+    "SafetyVerdict",
+    "SimpleTextEmbedderV2",
 
 ]
 

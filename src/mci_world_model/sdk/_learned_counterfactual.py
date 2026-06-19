@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """可学习反事实生成器 — TASK-B2。
 
 VAE 架构在潜空间中生成反事实样本，替代规则字典匹配。
@@ -37,7 +39,6 @@ VAE 架构在潜空间中生成反事实样本，替代规则字典匹配。
     - 多样性: 100个反事实中唯一样本 ≥ 80%
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -145,7 +146,7 @@ class LearnedCounterfactualGenerator:
         >>> results = gen.generate_counterfactual(state, intervention={"x": 1.0})
     """
 
-    def __init__(self, config: VAEConfig | None = None):
+    def __init__(self, config: VAEConfig | None = None) -> None:
         """
         Args:
             config: VAE 配置, 默认使用 VAEConfig()
@@ -451,7 +452,7 @@ class LearnedCounterfactualGenerator:
         self,
         x: np.ndarray,
         target: np.ndarray,
-        intervention: dict,
+        intervention: dict[str, Any],
         eps: np.ndarray,
     ) -> float:
         """给定当前参数计算 loss (用于有限差分梯度)。"""

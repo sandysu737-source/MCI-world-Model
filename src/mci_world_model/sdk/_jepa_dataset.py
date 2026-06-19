@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.1.0 — JEPA Dataset
 ======================================
@@ -16,7 +20,6 @@ MCI World Model v3.1.0 — JEPA Dataset
         distance = s_t.state_distance(s_t1)
 """
 
-from __future__ import annotations
 
 import copy
 import logging
@@ -66,7 +69,7 @@ class JEPADataset:
     @classmethod
     def from_states(
         cls,
-        states: list,
+        states: list[Any],
         window_size: int = 10,
         min_memories_per_window: int = 3,
         max_memories_per_window: int = 20,
@@ -134,7 +137,7 @@ class JEPADataset:
     def from_memories(
         cls,
         world_model,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         window_size: int = 10,
         min_memories_per_window: int = 3,
         max_memories_per_window: int = 20,
@@ -219,7 +222,7 @@ class JEPADataset:
 
         return result
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """返回数据集统计摘要。"""
         return {
             "n_states": self.n_states,
@@ -234,7 +237,7 @@ class JEPADataset:
     def __len__(self) -> int:
         return self.n_pairs
 
-    def __iter__(self):
+    def __iter__(self) -> None:
         return iter(self.pairs)
 
     def __repr__(self) -> str:

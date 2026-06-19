@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v11.0.0 — AutonomousCausalConsciousness 自主因果意识
 ====================================================================
 
@@ -12,7 +14,6 @@ P11 "无极" — 从因果智能体到因果意识体的根本跃迁。
 因果智能不再只是"做因果推理"——它"是"因果推理。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -52,10 +53,10 @@ class CausalSelfModel:
     level: ConsciousnessLevel = ConsciousnessLevel.REACTIVE
     properties: dict[str, Any] = field(default_factory=dict)
     self_awareness_score: float = 0.0
-    reasoning_history: list[dict] = field(default_factory=list)
+    reasoning_history: list[dict[str, Any]] = field(default_factory=list)
     godel_note: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
                 "GÖDEL NOTE: A causal self-model is a formal system that represents "
@@ -96,13 +97,13 @@ class AutonomousCausalConsciousness:
       - Gödel约束: 自我模型不可能完备
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._level = ConsciousnessLevel.REACTIVE
         self._self_model = CausalSelfModel(identity="consciousness_0")
-        self._evolution_log: list[dict] = []
+        self._evolution_log: list[dict[str, Any]] = []
         self._civilization: CivilizationInfra | None = None
 
-    def evolve_consciousness(self, target_level: ConsciousnessLevel | None = None) -> dict:
+    def evolve_consciousness(self, target_level: ConsciousnessLevel | None = None) -> dict[str, Any]:
         """演化意识等级"""
         levels = list(ConsciousnessLevel)
         current_idx = levels.index(self._level)
@@ -133,7 +134,7 @@ class AutonomousCausalConsciousness:
         self._evolution_log.append(result)
         return result
 
-    def build_self_model(self, properties: dict | None = None) -> dict:
+    def build_self_model(self, properties: dict | None = None) -> dict[str, Any]:
         """构建因果自我模型"""
         if properties:
             self._self_model.properties.update(properties)
@@ -151,7 +152,7 @@ class AutonomousCausalConsciousness:
             "is_self_aware": self._self_model.is_self_aware,
         }
 
-    def reflect_on_reasoning(self, reasoning_step: dict) -> dict:
+    def reflect_on_reasoning(self, reasoning_step: dict[str, Any]) -> dict[str, Any]:
         """反思推理过程"""
         if self._level.value in ("reactive",):
             return {"status": "cannot_reflect", "reason": "level_too_low"}
@@ -174,7 +175,7 @@ class AutonomousCausalConsciousness:
             "godel_note": self._self_model.godel_note,
         }
 
-    def establish_civilization(self, n_citizens: int = 1) -> dict:
+    def establish_civilization(self, n_citizens: int = 1) -> dict[str, Any]:
         """建立因果文明基础设施"""
         self._civilization = CivilizationInfra(
             infra_id="civ_0",
@@ -190,7 +191,7 @@ class AutonomousCausalConsciousness:
             "sustainability": 0.7,
         }
 
-    def get_consciousness_report(self) -> dict:
+    def get_consciousness_report(self) -> dict[str, Any]:
         """获取意识报告"""
         return {
             "level": self._level.value,

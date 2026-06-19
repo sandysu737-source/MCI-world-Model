@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — MCIDomainSDK 领域SDK基座
 =============================================
 
@@ -14,7 +16,6 @@
     - 统一接口: 一个入口覆盖三大领域
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -60,7 +61,7 @@ class DomainResult:
     effect: str = ""
     confidence: float = 0.0
     is_compliant: bool = False
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -77,8 +78,8 @@ class MCIDomainSDK:
         >>> result = sdk.reason(domain="medical", cause="X", effect="Y")
     """
 
-    def __init__(self):
-        self._domain_evidence: dict[str, list[dict]] = {
+    def __init__(self) -> None:
+        self._domain_evidence: dict[str, list[dict[str, Any]]] = {
             "medical": [],
             "legal": [],
             "engineering": [],
@@ -86,7 +87,7 @@ class MCIDomainSDK:
         self._reason_count: int = 0
         self._results: list[DomainResult] = []
 
-    def add_domain_evidence(self, domain: str, evidence: dict) -> None:
+    def add_domain_evidence(self, domain: str, evidence: dict[str, Any]) -> None:
         """添加领域证据。"""
         if domain not in self._domain_evidence:
             self._domain_evidence[domain] = []
@@ -128,7 +129,7 @@ class MCIDomainSDK:
                 details={"error": f"未知领域: {domain}"},
             )
 
-    def _reason_medical(self, cause: str, effect: str, evidence: list[dict], prior: float) -> DomainResult:
+    def _reason_medical(self, cause: str, effect: str, evidence: list[dict[str, Any]], prior: float) -> DomainResult:
         evidence_count = len(evidence)
         avg_confidence = (
             float(sum(e.get("confidence", 0.5) for e in evidence)) / evidence_count if evidence_count > 0 else 0.0
@@ -147,7 +148,7 @@ class MCIDomainSDK:
         self._results.append(result)
         return result
 
-    def _reason_legal(self, cause: str, effect: str, evidence: list[dict], prior: float) -> DomainResult:
+    def _reason_legal(self, cause: str, effect: str, evidence: list[dict[str, Any]], prior: float) -> DomainResult:
         evidence_count = len(evidence)
         has_jurisdiction = any(e.get("jurisdiction") for e in evidence)
         has_audit = any(e.get("audit_trail") for e in evidence)
@@ -167,7 +168,7 @@ class MCIDomainSDK:
         self._results.append(result)
         return result
 
-    def _reason_engineering(self, cause: str, effect: str, evidence: list[dict], prior: float) -> DomainResult:
+    def _reason_engineering(self, cause: str, effect: str, evidence: list[dict[str, Any]], prior: float) -> DomainResult:
         evidence_count = len(evidence)
         has_margin = any(e.get("safety_margin", 0) >= 0.2 for e in evidence)
         is_compliant = has_margin and evidence_count > 0

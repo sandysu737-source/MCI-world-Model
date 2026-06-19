@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.0.8 — Pearl Counterfactual 反事实推理引擎 (L3)
 ============================================================
@@ -41,7 +43,6 @@ v3.0.8 新增:
     print(f"PN={result.pn:.3f}, PS={result.ps:.3f}")
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

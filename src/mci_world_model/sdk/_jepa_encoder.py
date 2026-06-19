@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.0 — JEPA Encoder
 =========================================
@@ -18,7 +20,6 @@ MCI World Model v3.1.0 — JEPA Encoder
     adj, node_feat = encoder.to_graph_tensors(s_t)
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Any
@@ -188,7 +189,7 @@ class JEPAEncoder:
         return state
 
     @property
-    def learnable_encoder(self):
+    def learnable_encoder(self) -> None:
         """返回 v5.0.0 可学习编码器实例。"""
         return self._learnable_encoder
 
@@ -337,7 +338,7 @@ class JEPAEncoder:
     # M3: 可微编码器接口
     # -----------------------------------------------------------------
 
-    def _init_gat_encoder(self, key_dim: int = 16):
+    def _init_gat_encoder(self, key_dim: int = 16) -> None:
         """初始化 GAT 可微编码器。"""
         try:
             from mci_world_model.sdk._jepa_gat_encoder import GATEncoder
@@ -349,13 +350,13 @@ class JEPAEncoder:
             self._differentiable = False
 
     @property
-    def gat_encoder(self):
+    def gat_encoder(self) -> None:
         """返回 GAT 编码器实例（M3 使用）。"""
         return self._gat_encoder
 
     def training_encode(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         state=None,
     ) -> tuple[np.ndarray, dict[str, int]]:
         """
@@ -449,7 +450,7 @@ class JEPAEncoder:
             重建的 CausalWorldModelState
         """
         n = adj.shape[0]
-        causal_edges: list[dict] = []
+        causal_edges: list[dict[str, Any]] = []
 
         for i in range(n):
             for j in range(n):

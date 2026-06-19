@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — ScientificDiscoveryPipeline 科学发现管线
 ============================================================
 
@@ -14,7 +16,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -65,7 +66,7 @@ class DiscoveryReport:
     n_laws: int = 0
     consistency: float = 0.0
     is_discovery_complete: bool = False
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -98,7 +99,7 @@ class ScientificDiscoveryPipeline:
         self._data: np.ndarray | None = None
         self._var_names: list[str] = []
         self._stage = DiscoveryStage.DATA_COLLECTION
-        self._discovered_laws: list[dict] = []
+        self._discovered_laws: list[dict[str, Any]] = []
         self._skeleton_edges: list[tuple[str, str]] = []
         self._reports: list[DiscoveryReport] = []
 
@@ -107,7 +108,7 @@ class ScientificDiscoveryPipeline:
         return self._stage
 
     @property
-    def discovered_laws(self) -> list[dict]:
+    def discovered_laws(self) -> list[dict[str, Any]]:
         return list(self._discovered_laws)
 
     def load_data(self, data: np.ndarray, var_names: list[str]) -> None:
@@ -194,7 +195,7 @@ class ScientificDiscoveryPipeline:
         self._reports.append(final_report)
         return final_report
 
-    def _explore(self) -> dict:
+    def _explore(self) -> dict[str, Any]:
         """探索性分析。"""
         if self._data is None:
             return {}
@@ -205,7 +206,7 @@ class ScientificDiscoveryPipeline:
             "max_abs_correlation": float(np.max(np.abs(corr - np.eye(corr.shape[0])))),
         }
 
-    def _discover_skeleton(self) -> dict:
+    def _discover_skeleton(self) -> dict[str, Any]:
         """骨架发现 (简化 PC 算法)。"""
         if self._data is None:
             return {"edges": []}
@@ -221,7 +222,7 @@ class ScientificDiscoveryPipeline:
 
         return {"edges": edges, "n_edges": len(edges)}
 
-    def _discover_laws(self) -> list[dict]:
+    def _discover_laws(self) -> list[dict[str, Any]]:
         """对每条边做符号回归。"""
         if self._data is None:
             return []
@@ -251,7 +252,7 @@ class ScientificDiscoveryPipeline:
 
         return laws
 
-    def _validate(self) -> dict:
+    def _validate(self) -> dict[str, Any]:
         """验证发现的规律。"""
         if not self._discovered_laws:
             return {"consistency_score": 0.0, "verified_count": 0}

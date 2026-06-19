@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — FederatedCausalConsciousness 联邦因果意识
 ======================================================================
 
@@ -18,7 +20,6 @@
     - 联邦共识投票 (2/3 多数)
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -151,8 +152,8 @@ class FederatedCausalConsciousness:
         self._awareness_state = FederationAwarenessState.ISOLATED
         self._federation_self_model = FederationSelfModel()
         self._peer_models: dict[str, SelfModel] = {}
-        self._reflection_history: list[dict] = []
-        self._evolution_proposals: list[dict] = []
+        self._reflection_history: list[dict[str, Any]] = []
+        self._evolution_proposals: list[dict[str, Any]] = []
         self._local_self_model = SelfModel(node_id="local")
 
     # ── Properties ──────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ class FederatedCausalConsciousness:
 
     # ── Synchronization ─────────────────────────────────────────────────
 
-    def synchronize_awareness(self) -> dict:
+    def synchronize_awareness(self) -> dict[str, Any]:
         """联邦意识同步。
 
         流程:
@@ -218,7 +219,7 @@ class FederatedCausalConsciousness:
 
     # ── Reflection ──────────────────────────────────────────────────────
 
-    def federated_reflect(self, reasoning_episode: dict) -> dict:
+    def federated_reflect(self, reasoning_episode: dict[str, Any]) -> dict[str, Any]:
         """联邦反思: 多节点协同审视推理过程。
 
         流程:
@@ -259,7 +260,7 @@ class FederatedCausalConsciousness:
 
     # ── Evolution ───────────────────────────────────────────────────────
 
-    def propose_federation_evolution(self, proposal: dict) -> dict:
+    def propose_federation_evolution(self, proposal: dict[str, Any]) -> dict[str, Any]:
         """联邦进化提案。
 
         Args:
@@ -305,7 +306,7 @@ class FederatedCausalConsciousness:
 
     def _detect_federation_anomaly(
         self, fed_model: FederationSelfModel
-    ) -> dict:
+    ) -> dict[str, Any]:
         """联邦异常检测。"""
         anomalies = []
 
@@ -353,7 +354,7 @@ class FederatedCausalConsciousness:
             combined_limitations=all_limits,
         )
 
-    def _check_emergence(self, fed_model: FederationSelfModel) -> dict:
+    def _check_emergence(self, fed_model: FederationSelfModel) -> dict[str, Any]:
         """检查联邦涌现。"""
         # 涌现条件: 足够多的节点 + 足够高的置信度 + 多领域覆盖
         detected = (
@@ -370,7 +371,7 @@ class FederatedCausalConsciousness:
             },
         }
 
-    def _local_reflect(self, episode: dict) -> ReflectionResult:
+    def _local_reflect(self, episode: dict[str, Any]) -> ReflectionResult:
         """本地反思。"""
         issues = []
         if episode.get("confidence", 1.0) < 0.5:
@@ -386,8 +387,7 @@ class FederatedCausalConsciousness:
         )
 
     def _collect_cross_reflections(
-        self, episode: dict
-    ) -> list[ReflectionResult]:
+        self, episode: dict[str, Any]) -> list[ReflectionResult]:
         """收集跨节点反思 (仿真)。"""
         results = []
         for peer_id, peer_model in self._peer_models.items():

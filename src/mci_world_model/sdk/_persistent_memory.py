@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v5.0.0 — Persistent Experience Memory
 ======================================================
@@ -30,7 +32,6 @@ MCI World Model v5.0.0 — Persistent Experience Memory
     results = memory.retrieve(query="心率升高", top_k=5)
 """
 
-from __future__ import annotations
 
 import json
 import logging
@@ -71,7 +72,7 @@ class VectorStore:
 
     SEGMENT_SIZE = 10000  # 每 segment 最多存储的向量数
 
-    def __init__(self, dim: int = 128, store_dir: str = ""):
+    def __init__(self, dim: int = 128, store_dir: str = "") -> None:
         """
         Args:
             dim: 向量维度
@@ -311,7 +312,7 @@ class PersistentExperienceMemory:
         >>> results = mem.retrieve(query="心率升高", top_k=5)
     """
 
-    def __init__(self, config: PersistentMemoryConfig | None = None):
+    def __init__(self, config: PersistentMemoryConfig | None = None) -> None:
         self._config = config or PersistentMemoryConfig()
         self._write_lock = threading.Lock()
         self._store_count: int = 0
@@ -343,7 +344,7 @@ class PersistentExperienceMemory:
             self._vector_store.load(self._config.store_dir)
 
         # 内存缓存（最近的经验）
-        self._cache: list[dict] = []
+        self._cache: list[dict[str, Any]] = []
         self._cache_lock = threading.Lock()
 
     # =====================================================================
@@ -420,7 +421,7 @@ class PersistentExperienceMemory:
         query: str = "",
         tags: list[str] | None = None,
         top_k: int = 10,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         检索相关经验。
 
@@ -432,7 +433,7 @@ class PersistentExperienceMemory:
         Returns:
             经验列表
         """
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
 
         # 1. 向量相似度检索
         if query:
@@ -553,7 +554,7 @@ class PersistentExperienceMemory:
             return self._row_to_dict(row)
         return None
 
-    def _row_to_dict(self, row: tuple) -> dict:
+    def _row_to_dict(self, row: tuple) -> dict[str, Any]:
         return {
             "id": row[0],
             "tags": json.loads(row[1]) if row[1] else [],
@@ -615,7 +616,7 @@ class PersistentExperienceMemory:
 
         return vec
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
     def __repr__(self) -> str:

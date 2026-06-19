@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.3.0 — SurpriseDetector 惊奇误差检测器
 ==========================================================
@@ -24,11 +26,9 @@ MCI World Model v3.3.0 — SurpriseDetector 惊奇误差检测器
     - 阈值自适应：基于历史惊奇度的均值 + n_std * 标准差
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -84,7 +84,7 @@ class SurpriseDetector:
         >>> print(signal.score, signal.is_anomaly)
     """
 
-    def __init__(self, threshold: float = 0.5):
+    def __init__(self, threshold: float = 0.5) -> None:
         """
         Args:
             threshold: 惊奇度阈值，超过此值判定为异常
@@ -204,7 +204,7 @@ class SurpriseDetector:
     # running_statistics — 滚动统计
     # -----------------------------------------------------------------
 
-    def running_statistics(self) -> dict:
+    def running_statistics(self) -> dict[str, Any]:
         """返回惊奇度历史滚动统计。
 
         Returns:
@@ -288,7 +288,7 @@ class SurpriseDetector:
         signal: SurpriseSignal,
         causal_graph: dict[str, list[str]] | None = None,
         context: dict | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """对单个惊奇信号执行根因分析链。
 
         VSM System 3* (异常审计):
@@ -302,11 +302,11 @@ class SurpriseDetector:
         Returns:
             {
                 "root_cause_layer": str,       # 主要异常层
-                "dimension_analysis": dict,     # 三维度分析
+                "dimension_analysis": dict[str, Any],     # 三维度分析
                 "causal_chain": list[str],      # 因果链
                 "severity": float,              # 综合严重度
                 "recommendation": str,          # 建议
-                "details": dict,
+                "details": dict[str, Any],
             }
         """
         breakdown = signal.breakdown
@@ -344,7 +344,7 @@ class SurpriseDetector:
             },
         }
 
-    def _analyze_dimensions(self, breakdown: dict[str, float]) -> dict[str, dict]:
+    def _analyze_dimensions(self, breakdown: dict[str, float]) -> dict[str, dict[str, Any]]:
         """三维度独立分析。"""
         result = {}
         for dim, value in breakdown.items():
@@ -465,7 +465,7 @@ class SurpriseDetector:
         level = "high" if score > 0.5 else "low"
         return layer_recs[level]
 
-    def _assess_severity(self, signal: SurpriseSignal, dimension_analysis: dict) -> float:
+    def _assess_severity(self, signal: SurpriseSignal, dimension_analysis: dict[str, Any]) -> float:
         """综合评估严重度。"""
         # 基础严重度 = 惊奇度
         base_severity = signal.score
@@ -497,7 +497,7 @@ class SurpriseDetector:
         self,
         signals: list[SurpriseSignal],
         causal_graph: dict[str, list[str]] | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """批量根因分析。
 
         Args:

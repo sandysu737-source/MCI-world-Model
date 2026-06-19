@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v4.4.0 — Debridement Data Pipeline
 ====================================================
@@ -20,10 +22,9 @@ AI 智能清创机器人数据采集与增强管线。
     M6 - 临床元数据 (伤口类型, 阶段, 患者信息)
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -96,7 +97,7 @@ class DebridementSample:
     TISSUE_GRANULATION: int = 2
     TISSUE_EPITHELIAL: int = 3
 
-    TISSUE_NAMES: dict = field(
+    TISSUE_NAMES: dict[str, Any] = field(
         default_factory=lambda: {0: "坏死", 1: "腐肉", 2: "肉芽", 3: "上皮"},
         init=False,
         repr=False,
@@ -108,7 +109,7 @@ class DebridementSample:
     PHASE_HEMOSTASIS: int = 2
     PHASE_VERIFY: int = 3
 
-    PHASE_NAMES: dict = field(
+    PHASE_NAMES: dict[str, Any] = field(
         default_factory=lambda: {0: "探查", 1: "清创", 2: "止血", 3: "验证"},
         init=False,
         repr=False,
@@ -183,7 +184,7 @@ class SyntheticDebridementGenerator:
     - 上皮:     RGB 粉色, 温度正常 (36-37°C), 极高阻力 (>5N)
     """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42) -> None:
         self._rng = np.random.RandomState(seed)
         self._counter = 0
 
@@ -249,7 +250,7 @@ class SyntheticDebridementGenerator:
             return samples
         return [self.generate_sample() for _ in range(n)]
 
-    def _tissue_params(self, label: int) -> dict:
+    def _tissue_params(self, label: int) -> dict[str, Any]:
         """组织特异性物理参数。"""
         params = {
             0: {"color": (40, 20, 10), "temp_range": (30, 34), "depth_range": (2, 8), "force_range": (0.5, 2.0), "depth": 5.0},
@@ -354,7 +355,7 @@ class WoundDatasetAdapter:
         return sample
 
     @staticmethod
-    def from_dict(data: dict) -> DebridementSample:
+    def from_dict(data: dict[str, Any]) -> DebridementSample:
         """从字典恢复 DebridementSample。"""
         return DebridementSample(
             rgb_image=np.array(data.get("rgb", np.zeros((224, 224, 3)))),

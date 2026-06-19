@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.1 — 增强感知管道
 
@@ -14,7 +16,6 @@ MCI World Model v3.1.1 — 增强感知管道
     state = ep.perceive_to_state(signals)
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Any
@@ -32,7 +33,7 @@ class EnhancedPerception:
     3. 状态编码: JEPAEncoder 编码为因果世界状态
     """
 
-    def __init__(self, multillm: Any = None, pipeline: Any = None):
+    def __init__(self, multillm: Any = None, pipeline: Any = None) -> None:
         """
         Args:
             multillm: MultiLLMAdapter 实例
@@ -68,7 +69,7 @@ class EnhancedPerception:
 
         return signals
 
-    def _llm_extract(self, text: str, context: dict | None) -> list[dict]:
+    def _llm_extract(self, text: str, context: dict | None) -> list[dict[str, Any]]:
         """使用 LLM 提取结构化信号。"""
         try:
             prompt = f"""从以下临床文本中提取定量信号。仅输出 JSON 数组格式，每个信号包含:
@@ -88,7 +89,7 @@ class EnhancedPerception:
             logger.warning(f"LLM signal extraction failed: {e}")
             return self._rule_extract(text)
 
-    def _rule_extract(self, text: str) -> list[dict]:
+    def _rule_extract(self, text: str) -> list[dict[str, Any]]:
         """基于规则的信号提取 (降级方案)。"""
         import re
 
@@ -140,7 +141,7 @@ class EnhancedPerception:
 
         return signals
 
-    def _parse_signal_json(self, raw: str) -> list[dict]:
+    def _parse_signal_json(self, raw: str) -> list[dict[str, Any]]:
         """解析 LLM 返回的 JSON 信号数组。"""
         import json
 
@@ -206,7 +207,7 @@ class EnhancedPerception:
             logger.warning(f"Signal processing failed: {e}")
             return signals  # 降级: 返回原始信号
 
-    def _dict_to_multimodal(self, signals: list[dict[str, Any]]) -> list:
+    def _dict_to_multimodal(self, signals: list[dict[str, Any]]) -> list[Any]:
         """将 dict 信号列表转换为 MultimodalSignal 对象列表。"""
         from mci_world_model._sys._perception_pipeline import MultimodalSignal, SignalType
 

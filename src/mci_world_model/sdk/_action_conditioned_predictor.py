@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.2.0 — ActionConditionedPredictor
 =====================================================
@@ -23,7 +25,6 @@ MCI World Model v3.2.0 — ActionConditionedPredictor
     - 单摆验证: PhysicsPredictor == ground truth, JEPAPredictor → 逼近 PhysicsPredictor
 """
 
-from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
@@ -54,7 +55,7 @@ class ActionConditionedPredictor(ABC):
         rollout(state, actions)        → 动作序列完整推演
     """
 
-    def __init__(self, name: str = "base"):
+    def __init__(self, name: str = "base") -> None:
         self._name = name
         self._prediction_count: int = 0
 
@@ -106,8 +107,8 @@ class ActionConditionedPredictor(ABC):
 
     def evaluate(
         self,
-        dataset: list,
-    ) -> dict:
+        dataset: list[Any],
+    ) -> dict[str, Any]:
         """在 (s_t, a_t, s_{t+1}_true) 数据集上评估预测精度。
 
         Args:
@@ -160,7 +161,7 @@ class PendulumPhysicsPredictor(ActionConditionedPredictor):
         >>> # trajectory[0] 是 1 步后的物理正确状态
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="pendulum_physics")
 
     def predict(
@@ -216,7 +217,7 @@ class PendulumJEPAPredictor(ActionConditionedPredictor):
     这确保 100% 收敛到全局最优。
     """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42) -> None:
         super().__init__(name="pendulum_jepa")
         rng = np.random.RandomState(seed)
         # 6 个参数: W(2,3) + b(2), 但用 8 个参数便于实现
@@ -276,7 +277,7 @@ class PendulumJEPAPredictor(ActionConditionedPredictor):
         self,
         n_samples: int = 2000,
         noise_std: float = 0.0,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """用最小二乘法（正规方程）训练线性模型。
 
         使用 PendulumPhysicsPredictor 生成训练数据，
@@ -353,7 +354,7 @@ class PendulumNeuralPredictor(ActionConditionedPredictor):
     保留 PendulumJEPAPredictor 作为线性基线 fallback。
     """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42) -> None:
         super().__init__(name="pendulum_neural")
         rng = np.random.RandomState(seed)
 
@@ -464,7 +465,7 @@ class PendulumNeuralPredictor(ActionConditionedPredictor):
         lr: float = 0.001,
         n_epochs: int = 100,
         batch_size: int = 32,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """用 Mini-batch SGD 训练 MLP 预测器。
 
         使用 PendulumPhysicsPredictor 生成训练数据。
@@ -596,7 +597,7 @@ class CartPhysicsPredictor(ActionConditionedPredictor):
         >>> # trajectory[0] 是 1 步后的物理正确状态
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="cart_physics")
 
     def predict(

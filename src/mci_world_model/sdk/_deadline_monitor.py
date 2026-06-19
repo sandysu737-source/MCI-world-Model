@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v4.5.0 — DeadlineMonitor 超时检测 + 降级策略
 ================================================================
 
@@ -23,7 +25,6 @@
     RTOS 内核、专用硬件定时器、C++/Rust 热路径。
 """
 
-from __future__ import annotations
 
 import logging
 import threading

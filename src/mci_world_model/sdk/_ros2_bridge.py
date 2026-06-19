@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v4.5.0 — ROS2Bridge 原型
 ============================================
 
@@ -22,7 +24,6 @@
     ROS2 为可选依赖: pip install mci-world-model[ros2]
 """
 
-from __future__ import annotations
 
 import logging
 import threading

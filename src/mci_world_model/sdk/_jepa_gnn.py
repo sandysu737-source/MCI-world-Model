@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.0 M2 — GNN Predictor
 ===========================================
@@ -30,7 +32,6 @@ MCI World Model v3.1.0 M2 — GNN Predictor
     predictor.apply_gradients(result["grads"], lr=0.01)       # 参数更新
 """
 
-from __future__ import annotations
 
 import logging
 import threading
@@ -349,7 +350,7 @@ class GNNPredictor(JEPAPredictor):
         """从预测邻接矩阵 + 节点索引重建 CausalWorldModelState。"""
         inv_index = {v: k for k, v in node_index.items()}
         N = A_pred.shape[0]
-        causal_edges: list[dict] = []
+        causal_edges: list[dict[str, Any]] = []
 
         for i in range(N):
             for j in range(N):

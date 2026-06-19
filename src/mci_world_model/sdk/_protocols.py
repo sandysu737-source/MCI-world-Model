@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v4.4.0 — 协议定义层
 =========================================
 
@@ -15,9 +17,7 @@ CEWM 架构泛化的基石——用 Protocol 定义预测器和状态解析器�
     - 渐进式解耦: 每次替换一条硬编码路径，验证后再推进
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from mci_world_model.sdk._world_state import Action, WorldState
@@ -76,8 +76,8 @@ class PredictorProtocol(Protocol):
 
     def evaluate(
         self,
-        dataset: list,
-    ) -> dict:
+        dataset: list[Any],
+    ) -> dict[str, Any]:
         """在测试数据集上评估预测精度。
 
         Args:

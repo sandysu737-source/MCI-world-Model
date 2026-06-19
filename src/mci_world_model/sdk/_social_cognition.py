@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v6.0.0 — SocialCognition 多智能体社会认知
 =================================================================
 
@@ -15,10 +17,9 @@
     - 心智理论深度 ≤ 2 层
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -41,7 +42,7 @@ class AgentAction:
     """
 
     action: str
-    outcome: dict = field(default_factory=dict)
+    outcome: dict[str, Any] = field(default_factory=dict)
     timestamp: int = 0
 
 
@@ -56,7 +57,7 @@ class AgentModel:
         preference_model: 偏好模型 {action: count}
     """
 
-    def __init__(self, agent_id: int):
+    def __init__(self, agent_id: int) -> None:
         if agent_id < 0:
             raise ValueError(f"agent_id 必须 ≥ 0, 当前 {agent_id}")
         self._agent_id = agent_id
@@ -67,7 +68,7 @@ class AgentModel:
     def agent_id(self) -> int:
         return self._agent_id
 
-    def update(self, action: str, outcome: dict, timestamp: int = 0) -> None:
+    def update(self, action: str, outcome: dict[str, Any], timestamp: int = 0) -> None:
         """更新智能体行为观测。
 
         Args:
@@ -78,7 +79,7 @@ class AgentModel:
         self._action_history.append(AgentAction(action=action, outcome=outcome, timestamp=timestamp))
         self._preference_model[action] = self._preference_model.get(action, 0) + 1
 
-    def predict_action(self, context: dict) -> str:
+    def predict_action(self, context: dict[str, Any]) -> str:
         """基于历史行为预测下一步。
 
         简化策略: 选历史频率最高的动作。
@@ -151,7 +152,7 @@ class SocialCognition:
         _agent_models: 其他智能体的内部模型
     """
 
-    def __init__(self, n_agents: int = 3, theory_of_mind_depth: int = 2):
+    def __init__(self, n_agents: int = 3, theory_of_mind_depth: int = 2) -> None:
         if n_agents < 2:
             raise ValueError(f"n_agents 必须 ≥ 2, 当前 {n_agents}")
         if theory_of_mind_depth < 1 or theory_of_mind_depth > 3:
@@ -159,9 +160,9 @@ class SocialCognition:
         self._n_agents = n_agents
         self._tom_depth = theory_of_mind_depth
         self._agent_models: dict[int, AgentModel] = {}
-        self._interaction_log: list[dict] = []
+        self._interaction_log: list[dict[str, Any]] = []
 
-    def observe_interaction(self, agent_id: int, action: str, outcome: dict, timestamp: int = 0) -> None:
+    def observe_interaction(self, agent_id: int, action: str, outcome: dict[str, Any], timestamp: int = 0) -> None:
         """观察其他智能体的行为。
 
         Args:
@@ -182,7 +183,7 @@ class SocialCognition:
             }
         )
 
-    def predict_others(self, context: dict) -> dict[int, str]:
+    def predict_others(self, context: dict[str, Any]) -> dict[int, str]:
         """心智理论: 预测其他智能体的行为。
 
         Args:
@@ -222,7 +223,7 @@ class SocialCognition:
         # 混合策略纳什均衡
         return self._find_mixed_nash(payoff_matrix)
 
-    def negotiate(self, my_preferences: dict, others_predicted: dict) -> dict:
+    def negotiate(self, my_preferences: dict[str, Any], others_predicted: dict[str, Any]) -> dict[str, Any]:
         """社会协商: 基于 Pareto 最优。
 
         简化实现: 寻找最大化联合偏好的动作。

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """神经符号融合世界模型 — TASK-C1。
 
 三元融合架构:
@@ -26,12 +28,11 @@
     NeurosymbolicWorldModel.fuse(outputs, scores) → FusedOutput
 
 数据结构:
-    TripleRepresentation: (latent: ndarray, causal: dict, semantic: ndarray)
+    TripleRepresentation: (latent: ndarray, causal: dict[str, Any], semantic: ndarray)
     RouteDecision: route_type, confidence, scores
     InferenceResult: output, route_used, fusion_weights, uncertainty
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -364,7 +365,7 @@ class NeurosymbolicWorldModel:
     # 路径推理
     # -----------------------------------------------------------------
 
-    def _infer_physical(self, query: str, context: dict) -> tuple[Any, float]:
+    def _infer_physical(self, query: str, context: dict[str, Any]) -> tuple[Any, float]:
         """物理路径: JEPA 潜空间预测。
 
         Returns:
@@ -379,7 +380,7 @@ class NeurosymbolicWorldModel:
             pass
         return {"method": "jepa", "status": "unavailable"}, 0.3
 
-    def _infer_causal(self, query: str, context: dict) -> tuple[Any, float]:
+    def _infer_causal(self, query: str, context: dict[str, Any]) -> tuple[Any, float]:
         """因果路径: do-calculus 因果推断。
 
         Returns:
@@ -405,7 +406,7 @@ class NeurosymbolicWorldModel:
             pass
         return {"method": "causal", "status": "unavailable"}, 0.2
 
-    def _infer_semantic(self, query: str, context: dict) -> tuple[Any, float]:
+    def _infer_semantic(self, query: str, context: dict[str, Any]) -> tuple[Any, float]:
         """语义路径: LLM 推理。
 
         Returns:

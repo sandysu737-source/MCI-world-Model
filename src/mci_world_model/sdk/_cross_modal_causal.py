@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — CrossModalCausalReasoner 跨模态因果推理器
 ============================================================
 
@@ -15,7 +17,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -70,7 +71,7 @@ class CrossModalCausalResult:
         is_reliable: 是否可靠
     """
 
-    query: dict = field(default_factory=dict)
+    query: dict[str, Any] = field(default_factory=dict)
     links: list[CrossModalCausalLink] = field(default_factory=list)
     total_strength: float = 0.0
     is_reliable: bool = False
@@ -91,14 +92,14 @@ class CrossModalCausalReasoner:
         >>> result = reasoner.reason(source="vision:red_light", target="audio")
     """
 
-    def __init__(self, min_strength: float = 0.3, min_confidence: float = 0.5):
+    def __init__(self, min_strength: float = 0.3, min_confidence: float = 0.5) -> None:
         if not 0.0 < min_strength < 1.0:
             raise ValueError("min_strength 必须在 (0,1)")
         if not 0.0 < min_confidence < 1.0:
             raise ValueError("min_confidence 必须在 (0,1)")
         self._min_strength = min_strength
         self._min_confidence = min_confidence
-        self._observations: list[dict] = []
+        self._observations: list[dict[str, Any]] = []
         self._discovered_links: list[CrossModalCausalLink] = []
 
     @property

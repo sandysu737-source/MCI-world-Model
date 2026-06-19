@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v4.5.0 — SafetyConstraint 安全约束层
 =========================================================
 
@@ -18,12 +20,10 @@
       CircuitBreaker 聚焦服务降级
 """
 
-from __future__ import annotations
-
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from mci_world_model.sdk._world_state import Action, WorldState
@@ -52,7 +52,7 @@ class SafetyCheckResult:
     constraint_name: str = ""
     reason: str = ""
     severity: str = "violation"
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================
@@ -101,7 +101,7 @@ class ForceLimitConstraint(SafetyConstraint):
         - 任意 Action: 通过 to_vector() 的第一维检查
     """
 
-    def __init__(self, max_torque: float = 10.0, max_force: float = 10.0):
+    def __init__(self, max_torque: float = 10.0, max_force: float = 10.0) -> None:
         self._max_torque = max_torque
         self._max_force = max_force
 
@@ -218,7 +218,7 @@ class VelocityLimitConstraint(SafetyConstraint):
         - 任意 WorldState: 通过 to_vector() 的第二维检查
     """
 
-    def __init__(self, max_omega: float = 8.0, max_velocity: float = 50.0):
+    def __init__(self, max_omega: float = 8.0, max_velocity: float = 50.0) -> None:
         self._max_omega = max_omega
         self._max_velocity = max_velocity
 
@@ -335,7 +335,7 @@ class SafetyMonitor:
                 self._violation_count += 1
         return results
 
-    def statistics(self) -> dict:
+    def statistics(self) -> dict[str, Any]:
         """安全监控统计。"""
         return {
             "constraint_count": self.constraint_count,
@@ -407,7 +407,7 @@ class SelfCollisionConstraint(SafetyConstraint):
     这是一个保守估计，生产系统需要完整的 URDF 碰撞检测。
     """
 
-    def __init__(self, min_clearance: float = 0.05, link_length: float = 0.3):
+    def __init__(self, min_clearance: float = 0.05, link_length: float = 0.3) -> None:
         self._min_clearance = min_clearance
         self._link_length = link_length
 
@@ -443,7 +443,7 @@ class WorkspaceBoundConstraint(SafetyConstraint):
     基于简化正运动学模型计算末端位置，检查是否在球形工作空间内。
     """
 
-    def __init__(self, max_reach: float = 1.8, base_offset: float = 0.0):
+    def __init__(self, max_reach: float = 1.8, base_offset: float = 0.0) -> None:
         self._max_reach = max_reach
         self._base_offset = base_offset
 
@@ -480,7 +480,7 @@ class ToolForceConstraint(SafetyConstraint):
     检查 RobotWorldState 的 joint_efforts 是否超过安全力限。
     """
 
-    def __init__(self, max_force: float = 10.0, tool_joint_index: int = -1):
+    def __init__(self, max_force: float = 10.0, tool_joint_index: int = -1) -> None:
         self._max_force = max_force
         self._tool_joint_index = tool_joint_index
 
@@ -531,7 +531,7 @@ class AccelerationLimitConstraint(SafetyConstraint):
     对于 PendulumState/CartState，通过动作幅值估算加速度风险。
     """
 
-    def __init__(self, max_acceleration: float = 5.0, dt: float = 0.01):
+    def __init__(self, max_acceleration: float = 5.0, dt: float = 0.01) -> None:
         """初始化加速度限制。
 
         Args:
@@ -590,4 +590,80 @@ class AccelerationLimitConstraint(SafetyConstraint):
                     details={"acceleration": accel, "max": self._max_acceleration},
                 )
 
+        return SafetyCheckResult(passed=True, constraint_name=self.name)
+
+
+# =============================================================================
+# v4.4.0: 清创专用安全约束
+# =============================================================================
+
+
+class TissueForceConstraint(SafetyConstraint):
+    """清创组织特异性力约束。
+
+    不同组织类型的最大允许力不同:
+        坏死 ≤3.0N, 腐肉 ≤2.0N, 肉芽 ≤1.0N, 上皮 ≤0.5N
+
+    依赖: ForceTissueDynamics 的静态参数表。
+    """
+
+    def __init__(self, tissue_label: int = 0) -> None:
+        self._tissue_label = tissue_label
+        from mci_world_model.sdk._force_tissue_dynamics import TISSUE_PARAMS
+        self._params = TISSUE_PARAMS
+
+    @property
+    def name(self) -> str:
+        return "tissue_force"
+
+    def check(self, state: Any, action: Any=None) -> SafetyCheckResult:
+        p = self._params.get(self._tissue_label, {"max_force": 0.5, "name": "未知"})
+        current_force = getattr(state, "tool_force_n", 0.0) if hasattr(state, "tool_force_n") else 0.0
+
+        if current_force > p["max_force"]:
+            return SafetyCheckResult(
+                passed=False,
+                reason=f"组织力超限: {current_force:.1f}N > {p['max_force']}N ({p['name']})",
+                constraint_name=self.name,
+            )
+        return SafetyCheckResult(passed=True, constraint_name=self.name)
+
+    def set_tissue(self, label: int) -> None:
+        self._tissue_label = label
+
+
+class ThermalSafetyConstraint(SafetyConstraint):
+    """清创热安全约束: 组织温度 ≤ 42°C。"""
+
+    def __init__(self, max_temp_c: float = 42.0) -> None:
+        self._max_temp = max_temp_c
+
+    @property
+    def name(self) -> str:
+        return "thermal_safety"
+
+    def check(self, state: Any, action: Any=None) -> SafetyCheckResult:
+        import numpy as _np
+        temp = getattr(state, "thermal_image", None)
+        if temp is not None:
+            max_t = float(_np.max(temp))
+            if max_t > self._max_temp:
+                return SafetyCheckResult(passed=False, reason=f"温度超限: {max_t:.1f}°C > {self._max_temp}°C", constraint_name=self.name)
+        return SafetyCheckResult(passed=True, constraint_name=self.name)
+
+
+class DepthLimitConstraint(SafetyConstraint):
+    """清创深度约束: 不超过坏死层厚度。"""
+
+    def __init__(self, max_depth_mm: float = 5.0) -> None:
+        self._max_depth = max_depth_mm
+
+    @property
+    def name(self) -> str:
+        return "depth_limit"
+
+    def check(self, state: Any, action: Any=None) -> SafetyCheckResult:
+        depth = getattr(state, "wound_depth_mm", 0.0)
+        if depth > self._max_depth:
+            return SafetyCheckResult(passed=False, reason=f"深度超限: {depth:.1f}mm > {self._max_depth}mm", constraint_name=self.name)
         return SafetyCheckResult(passed=True, constraint_name=self.name)

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — AbsoluteTrust 绝对可信框架
 ========================================================
 
@@ -28,7 +30,6 @@
     - 绝对可信包含伦理审查：必须通过终局伦理审查
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -115,7 +116,7 @@ class AbsoluteTrust:
         self._trust_chain = TrustChain(chain_id="root")
         self._audit_log: list[AuditEntry] = []
         self._integrity_checks: list[IntegrityCheck] = []
-        self._trust_history: list[dict] = []
+        self._trust_history: list[dict[str, Any]] = []
 
     @property
     def current_level(self) -> TrustLevel:
@@ -129,7 +130,7 @@ class AbsoluteTrust:
     def audit_log(self) -> list[AuditEntry]:
         return list(self._audit_log)
 
-    def establish_absolute_trust(self) -> dict:
+    def establish_absolute_trust(self) -> dict[str, Any]:
         """建立绝对可信。
 
         条件:
@@ -179,7 +180,7 @@ class AbsoluteTrust:
         self._trust_history.append(result)
         return result
 
-    def verify_trust_chain(self) -> dict:
+    def verify_trust_chain(self) -> dict[str, Any]:
         """验证信任链。"""
         chain_levels = [
             TrustLevel.EXTERNAL,
@@ -306,7 +307,7 @@ class AbsoluteTrust:
         logger.info("Absolute mode audit: %s (%d findings)", entry.result, len(findings))
         return entry
 
-    def get_trust_report(self) -> dict:
+    def get_trust_report(self) -> dict[str, Any]:
         """获取可信报告。"""
         n_integrity_passed = sum(1 for c in self._integrity_checks if c.passed)
         return {
@@ -412,7 +413,7 @@ class AbsoluteTrust:
 
     # ── 审计方法 ──────────────────────────────────────────────────
 
-    def _audit_activation_conditions(self) -> dict:
+    def _audit_activation_conditions(self) -> dict[str, Any]:
         """审计激活条件。"""
         if self._absolute is not None and hasattr(self._absolute, "check_activation_conditions"):
             try:
@@ -422,17 +423,17 @@ class AbsoluteTrust:
                 pass
         return {"valid": False, "note": "Cannot verify activation conditions"}
 
-    def _audit_rollback_safety(self) -> dict:
+    def _audit_rollback_safety(self) -> dict[str, Any]:
         """审计回退安全。"""
         if self._absolute is not None and hasattr(self._absolute, "deactivate"):
             return {"safe": True}
         return {"safe": False}
 
-    def _audit_generation_operations(self) -> dict:
+    def _audit_generation_operations(self) -> dict[str, Any]:
         """审计生成操作。"""
         return {"safe": True, "note": "All generation occurs within absolute existence bounds"}
 
-    def _audit_godel_awareness(self) -> dict:
+    def _audit_godel_awareness(self) -> dict[str, Any]:
         """审计Gödel意识。"""
         if self._final_theorem is not None and hasattr(self._final_theorem, "formal_proofs"):
             proofs = self._final_theorem.formal_proofs
@@ -442,6 +443,6 @@ class AbsoluteTrust:
                 return {"annotated": True}
         return {"annotated": False, "note": "FT2 Gödel annotation not found"}
 
-    def _audit_ethical_compliance(self) -> dict:
+    def _audit_ethical_compliance(self) -> dict[str, Any]:
         """审计伦理合规。"""
         return {"compliant": True, "note": "Pre-review passed, final review pending"}

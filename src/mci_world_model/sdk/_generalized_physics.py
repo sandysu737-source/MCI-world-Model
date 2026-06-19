@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v5.1.0 — GeneralizedPhysicsPredictor 通用物理预测器
 ========================================================================
 
@@ -31,12 +33,10 @@ v5.1.0 新增 4 个物理系统:
     >>> # 然后使用 pred.predict(state, action, n_steps)
 """
 
-from __future__ import annotations
-
 import logging
 import math
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -271,7 +271,7 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
         >>> trajectory = pred.predict(state, action, n_steps=10)
     """
 
-    def __init__(self, default_backend: str = "pendulum", dt: float = 0.01):
+    def __init__(self, default_backend: str = "pendulum", dt: float = 0.01) -> None:
         super().__init__(name="generalized_physics")
         self._dynamics_registry: dict[str, DynamicsFn] = {}
         self._state_dims: dict[str, int] = {}
@@ -399,8 +399,8 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
 
     def evaluate(
         self,
-        dataset: list,
-    ) -> dict:
+        dataset: list[Any],
+    ) -> dict[str, Any]:
         """在测试数据集上评估预测精度。"""
         distances = []
         for state, action, gt in dataset:

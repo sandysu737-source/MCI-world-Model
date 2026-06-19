@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.3.0 — MultimodalFusion 跨模态融合层
 ========================================================
@@ -15,7 +17,6 @@ MCI World Model v3.3.0 — MultimodalFusion 跨模态融合层
     - 支持缺失模态（某些模态为 None 时跳过）
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

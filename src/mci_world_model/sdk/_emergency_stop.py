@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v4.5.0 — EmergencyStop 紧急停止
 ====================================================
 
@@ -22,7 +24,6 @@
     生产部署需要: RTOS 内核驱动、硬件看门狗、双通道冗余。
 """
 
-from __future__ import annotations
 
 import logging
 import os

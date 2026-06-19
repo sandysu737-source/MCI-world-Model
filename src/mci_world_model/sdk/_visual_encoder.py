@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """多模态物理感知→潜向量编码器 — TASK-C2。
 
 使用轻量级 CNN 架构从图像/信号编码物理状态潜向量。
@@ -27,7 +29,6 @@
 注意: 不依赖 MLX/ViT (避免平台限制), 使用纯 numpy 实现。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -105,7 +106,7 @@ class VisualEncoder:
         >>> z_fused = encoder.encode_multimodal(image, signals)
     """
 
-    def __init__(self, config: VisualEncoderConfig | None = None):
+    def __init__(self, config: VisualEncoderConfig | None = None) -> None:
         self._config = config or VisualEncoderConfig()
         self._rng = np.random.RandomState(self._config.seed)
         self._trained = False
@@ -285,7 +286,7 @@ class VisualEncoder:
         return self._config
 
     @staticmethod
-    def from_signals_adapter(signals: list, z_dim: int = 16) -> np.ndarray:
+    def from_signals_adapter(signals: list[Any], z_dim: int = 16) -> np.ndarray:
         """兼容旧 from_signals() 接口的适配方法。
 
         将 PhysicalSignal 列表转为潜向量，替代手写信号映射。

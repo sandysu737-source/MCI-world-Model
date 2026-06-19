@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.1.0 — JEPA Predictor
 =========================================
@@ -19,7 +23,6 @@ JEPA 潜空间预测器接口 + 三个不可参基线实现。
     s_pred = predictor.predict(s_t)
 """
 
-from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
@@ -50,7 +53,7 @@ class JEPAPredictor(ABC):
     - 学习到结构演化（可训练 GNN，M2 阶段实现）
     """
 
-    def __init__(self, name: str = "base"):
+    def __init__(self, name: str = "base") -> None:
         self._name = name
         self._prediction_count: int = 0
 
@@ -74,7 +77,7 @@ class JEPAPredictor(ABC):
     def evaluate(
         self,
         dataset: list[tuple[CausalWorldModelState, CausalWorldModelState]],
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         在数据集上评估预测精度。
 
@@ -120,7 +123,7 @@ class IdentityPredictor(JEPAPredictor):
     任何有意义的预测器必须比 Identity 更准。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="identity")
 
     def predict(self, state: CausalWorldModelState) -> CausalWorldModelState:
@@ -155,13 +158,13 @@ class EnergyPropagationPredictor(JEPAPredictor):
     - 根据 energy_relation 调整边权重（增强→ +Δ, 抑制→ -Δ）
     """
 
-    def __init__(self, propagation_alpha: float = 0.1):
+    def __init__(self, propagation_alpha: float = 0.1) -> None:
         super().__init__(name="energy_propagation")
         self._alpha = propagation_alpha
         self._energy_bus = None
         self._init_energy_system()
 
-    def _init_energy_system(self):
+    def _init_energy_system(self) -> None:
         """延迟加载能量系统组件。"""
         try:
             from mci_world_model._sys._energy_bus import create_complete_energy_network
@@ -231,12 +234,12 @@ class BeliefPropagationPredictor(JEPAPredictor):
     - 提供不确定性量化（95% 可信区间）
     """
 
-    def __init__(self, new_edge_threshold: float = 0.6):
+    def __init__(self, new_edge_threshold: float = 0.6) -> None:
         super().__init__(name="belief_propagation")
         self._threshold = new_edge_threshold
         self._engine = None
 
-    def _init_engine(self):
+    def _init_engine(self) -> None:
         """延迟加载贝叶斯引擎。"""
         if self._engine is not None:
             return

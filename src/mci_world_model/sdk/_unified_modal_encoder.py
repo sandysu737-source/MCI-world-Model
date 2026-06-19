@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — UnifiedModalEncoder 统一模态编码器
 =====================================================
 
@@ -15,7 +17,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -143,7 +144,7 @@ class EncodingResult:
     modality: str
     shared_vector: np.ndarray
     projection_norm: float = 0.0
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # =============================================================================

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.1.0 — Reflection QA Synthesizer
 ======================================================
@@ -22,7 +26,6 @@ MCI World Model 增强:
 - training_data_report() → ready_for_training 布尔值
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -155,7 +158,7 @@ class ReflectionSynthesizer:
     # Step 1: Fact Extraction
     # ────────────────────────────────────────────────
 
-    def extract_facts(self, memories: list[dict]) -> list[dict]:
+    def extract_facts(self, memories: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         从记忆列表中提取实体、数值、属性和因果指示词。
         """
@@ -209,13 +212,13 @@ class ReflectionSynthesizer:
         # 去重
         return entities
 
-    def _extract_numerics(self, content: str) -> list[dict]:
+    def _extract_numerics(self, content: str) -> list[dict[str, Any]]:
         """
         提取数值变化模式。
         Returns:
             [{"value": float, "unit": str, "direction": "+"/"-"/"~"}, ...]
         """
-        numerics: list[dict] = []
+        numerics: list[dict[str, Any]] = []
 
         # 阿拉伯数字 + 可选单位
         for m in self.NUMERIC_PATTERN.finditer(content):
@@ -262,7 +265,7 @@ class ReflectionSynthesizer:
     # Step 4: Entity Surfacing
     # ────────────────────────────────────────────────
 
-    def surface_entities(self, facts: list[dict]) -> dict[str, list[str]]:
+    def surface_entities(self, facts: list[dict[str, Any]]) -> dict[str, list[str]]:
         """
         为每个实体发现相关的跨文档事实 (果→因 反向查找)。
 
@@ -307,7 +310,7 @@ class ReflectionSynthesizer:
     # Step 5: Cross-document Causal Synthesis
     # ────────────────────────────────────────────────
 
-    def synthesize_causal_pairs(self, facts: list[dict]) -> list[SynthesizedQAPair]:
+    def synthesize_causal_pairs(self, facts: list[dict[str, Any]]) -> list[SynthesizedQAPair]:
         """
         跨文档因果合成。
 
@@ -351,7 +354,7 @@ class ReflectionSynthesizer:
 
         return self._sort_by_confidence(pairs)
 
-    def _try_synthesize(self, fact_a: dict, fact_b: dict) -> SynthesizedQAPair | None:
+    def _try_synthesize(self, fact_a: dict[str, Any], fact_b: dict[str, Any]) -> SynthesizedQAPair | None:
         """
         尝试从两个事实合成因果 QA 对。
 
@@ -423,7 +426,7 @@ class ReflectionSynthesizer:
             qa_pair_id=_hash_pair_id(content_a, content_b),
         )
 
-    def _try_synthesize_chain(self, fact_a: dict, fact_b: dict, relation: str) -> SynthesizedQAPair | None:
+    def _try_synthesize_chain(self, fact_a: dict[str, Any], fact_b: dict[str, Any], relation: str) -> SynthesizedQAPair | None:
         """
         能量关系驱动的因果链合成。
 
@@ -505,7 +508,7 @@ class ReflectionSynthesizer:
 
         return prior
 
-    def run_pipeline(self, memories: list[dict]) -> tuple[list[SynthesizedQAPair], np.ndarray]:
+    def run_pipeline(self, memories: list[dict[str, Any]]) -> tuple[list[SynthesizedQAPair], np.ndarray]:
         """
         完整合成流水线。
 
@@ -521,7 +524,7 @@ class ReflectionSynthesizer:
     # v3.6.0 本地训练: 训练数据质量报告
     # ────────────────────────────────────────────────
 
-    def training_data_report(self, pairs: list[SynthesizedQAPair]) -> dict:
+    def training_data_report(self, pairs: list[SynthesizedQAPair]) -> dict[str, Any]:
         """
         生成训练数据质量报告。
 
@@ -583,9 +586,9 @@ class ReflectionSynthesizer:
     # 内部工具方法
     # ────────────────────────────────────────────────
 
-    def _group_by_energy(self, facts: list[dict]) -> dict[str, list[dict]]:
+    def _group_by_energy(self, facts: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         """按能量类型分组。"""
-        groups: dict[str, list[dict]] = defaultdict(list)
+        groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for fact in facts:
             etype = fact.get("energy_type", "unknown")
             groups[etype].append(fact)

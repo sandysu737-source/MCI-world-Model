@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """自主记忆管理 — TASK-C3。
 
 使用强化学习策略决策哪些经验应该巩固、哪些应该遗忘，
@@ -34,7 +36,6 @@
     AMMConfig: 配置
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

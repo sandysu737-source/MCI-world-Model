@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """MCI World Model v4.5.0 — RobotWorldState + RobotAction
 ========================================================
 
@@ -11,7 +15,6 @@
     RobotAction      — N-DOF 关节目标动作
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -100,7 +103,7 @@ class RobotWorldState(WorldState):
             dt=self.dt,
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         self._ensure_arrays()
         return {
             "type": "RobotWorldState",

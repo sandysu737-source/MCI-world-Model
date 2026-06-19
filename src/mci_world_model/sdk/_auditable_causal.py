@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — AuditableCausalReasoning 可审计因果推理
 =========================================================
 
@@ -15,7 +17,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -48,8 +49,8 @@ class AuditStep:
     step_id: str
     step_type: str
     description: str
-    inputs: dict = field(default_factory=dict)
-    outputs: dict = field(default_factory=dict)
+    inputs: dict[str, Any] = field(default_factory=dict)
+    outputs: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
@@ -115,7 +116,7 @@ class AuditableCausalReasoning:
         >>> acr.conclude(trail, "X causes Y with strength 0.8")
     """
 
-    def __init__(self, reasoner_id: str = "mci_acr"):
+    def __init__(self, reasoner_id: str = "mci_acr") -> None:
         self._reasoner_id = reasoner_id
         self._trails: list[AuditTrail] = []
         self._step_counter: int = 0

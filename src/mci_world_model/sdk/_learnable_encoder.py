@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v5.0.0 — Learnable State Encoder
 ====================================================
@@ -24,7 +26,6 @@ MCI World Model v5.0.0 — Learnable State Encoder
     encoder.apply_gradients(result["grads"], lr=0.01)
 """
 
-from __future__ import annotations
 
 import logging
 import threading

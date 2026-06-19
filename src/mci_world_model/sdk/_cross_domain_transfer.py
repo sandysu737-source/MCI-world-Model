@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """MCI World Model v10.0.0 — CrossDomainCausalTransfer 跨域因果迁移
 =================================================================
 
@@ -12,7 +16,6 @@ P10 "融通" — 天地交而万物通。当因果推理不再局限于单一领
 而是能在领域间自由流动，"增强层"就从工具进化为智能体基础设施。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -49,7 +52,7 @@ class CausalKnowledge:
     """因果知识单元"""
     knowledge_id: str
     source_domain: DomainType
-    causal_graph: dict = field(default_factory=dict)
+    causal_graph: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
     n_observations: int = 0
 
@@ -59,7 +62,7 @@ class DomainAdapter:
     """领域适配器"""
     source_domain: DomainType
     target_domain: DomainType
-    adaptation_matrix: dict = field(default_factory=dict)
+    adaptation_matrix: dict[str, Any] = field(default_factory=dict)
     compatibility_score: float = 0.0
 
     def compute_compatibility(self) -> float:
@@ -104,13 +107,13 @@ class CrossDomainCausalTransfer:
       - 涌现检测: 迁移后检测新的涌现模式
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._knowledge_base: dict[str, CausalKnowledge] = {}
         self._adapters: list[DomainAdapter] = []
         self._transfers: list[TransferResult] = []
         self._transfer_counter = 0
 
-    def register_knowledge(self, knowledge: CausalKnowledge) -> dict:
+    def register_knowledge(self, knowledge: CausalKnowledge) -> dict[str, Any]:
         """注册因果知识"""
         self._knowledge_base[knowledge.knowledge_id] = knowledge
         return {
@@ -119,7 +122,7 @@ class CrossDomainCausalTransfer:
             "domain": knowledge.source_domain.value,
         }
 
-    def create_adapter(self, source: DomainType, target: DomainType) -> dict:
+    def create_adapter(self, source: DomainType, target: DomainType) -> dict[str, Any]:
         """创建领域适配器"""
         adapter = DomainAdapter(source_domain=source, target_domain=target)
         compatibility = adapter.compute_compatibility()
@@ -132,7 +135,7 @@ class CrossDomainCausalTransfer:
             "compatibility": compatibility,
         }
 
-    def transfer(self, knowledge_id: str, target_domain: DomainType) -> dict:
+    def transfer(self, knowledge_id: str, target_domain: DomainType) -> dict[str, Any]:
         """执行跨域迁移"""
         knowledge = self._knowledge_base.get(knowledge_id)
         if knowledge is None:
@@ -188,7 +191,7 @@ class CrossDomainCausalTransfer:
             "compatibility": adapter.compatibility_score,
         }
 
-    def verify_transfer(self, transfer_id: str) -> dict:
+    def verify_transfer(self, transfer_id: str) -> dict[str, Any]:
         """验证迁移结果"""
         transfer = None
         for t in self._transfers:
@@ -209,7 +212,7 @@ class CrossDomainCausalTransfer:
             "verified": transfer.status == TransferStatus.VERIFIED,
         }
 
-    def detect_emergence(self, domain: DomainType) -> dict:
+    def detect_emergence(self, domain: DomainType) -> dict[str, Any]:
         """检测涌现模式"""
         domain_knowledge = [
             k for k in self._knowledge_base.values()
@@ -229,7 +232,7 @@ class CrossDomainCausalTransfer:
             "emergence_ratio": transferred_count / max(1, original_count),
         }
 
-    def get_transfer_report(self) -> dict:
+    def get_transfer_report(self) -> dict[str, Any]:
         """获取迁移报告"""
         status_counts = {}
         for t in self._transfers:

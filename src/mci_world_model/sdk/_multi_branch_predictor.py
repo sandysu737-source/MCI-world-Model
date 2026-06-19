@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.3.0 — MultiBranchPredictor 多分支未来推演引擎
 ==================================================================
@@ -21,11 +23,9 @@ MCI World Model v3.3.0 — MultiBranchPredictor 多分支未来推演引擎
     - 向后兼容：不修改任何现有接口
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -86,7 +86,7 @@ class MultiBranchPredictor:
         >>> print(evals[0].rank, evals[0].final_distance)
     """
 
-    def __init__(self, predictor: ActionConditionedPredictor):
+    def __init__(self, predictor: ActionConditionedPredictor) -> None:
         """
         Args:
             predictor: 动作条件化预测器（用于单分支推演）
@@ -225,8 +225,8 @@ class MultiBranchPredictor:
         self,
         state: WorldState,
         counterfactual_engine: object | None = None,
-        interventions: list[dict] | None = None,
-    ) -> list[dict]:
+        interventions: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         """反事实 what-if 分析。
 
         如果有 counterfactual_engine（BatchCounterfactualEngine 或
@@ -244,7 +244,7 @@ class MultiBranchPredictor:
         if not interventions:
             return []
 
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
 
         if counterfactual_engine is not None:
             # 使用反事实引擎
@@ -273,10 +273,10 @@ class MultiBranchPredictor:
     def _what_if_rollout(
         self,
         state: WorldState,
-        interventions: list[dict],
-    ) -> list[dict]:
+        interventions: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """降级 what-if：对每个干预做简单推演。"""
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         for intervention in interventions:
             do_x = intervention.get("do_x", {})
             target = intervention.get("target", "")

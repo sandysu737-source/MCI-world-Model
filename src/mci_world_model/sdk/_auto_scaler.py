@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v7.0.0 — AutoScaler 推理服务自动伸缩
 ========================================================
 
@@ -12,10 +14,9 @@ QPS 驱动的推理服务自动伸缩 — 根据负载动态调整服务副本�
     - 基于延迟反馈的伸缩策略
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -87,7 +88,7 @@ class AutoScaler:
         self._target = target_latency_ms
         self._qps_per_replica = qps_per_replica
         self._cooldown = cooldown_seconds
-        self._metrics_history: list[dict] = []
+        self._metrics_history: list[dict[str, Any]] = []
         self._current_replicas = min_replicas
 
     def compute_desired_replicas(self, current_qps: float, avg_latency_ms: float) -> ScaleDecision:
@@ -170,7 +171,7 @@ class AutoScaler:
         return self._current_replicas
 
     @property
-    def metrics_history(self) -> list[dict]:
+    def metrics_history(self) -> list[dict[str, Any]]:
         return list(self._metrics_history)
 
     @property

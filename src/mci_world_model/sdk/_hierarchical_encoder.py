@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.0.2 — Hierarchical JEPA Encoder
 ====================================================
@@ -26,11 +28,10 @@ LeCun H-JEPA (Hierarchical Joint Embedding Predictive Architecture)
     h_pred = encoder.predict(h_state)
 """
 
-from __future__ import annotations
-
 import logging
 import threading
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -69,7 +70,7 @@ class HierarchicalState:
             level_3=CausalWorldModelState.empty(),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "l1_edges": len(self.level_1.causal_edges),
             "l2_edges": len(self.level_2.causal_edges),
@@ -125,7 +126,7 @@ class HierarchicalJEPAEncoder:
         self._gnn_l3 = GNNPredictor(hidden_dim=hidden_dim, seed=seed + 200)
 
         # ── 训练缓存 ──
-        self._cache: dict = {}
+        self._cache: dict[str, Any] = {}
         self._cache_lock = threading.Lock()
 
         # ── 统计 ──
@@ -155,7 +156,7 @@ class HierarchicalJEPAEncoder:
 
     def encode(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
     ) -> HierarchicalState:
         """
         三层编码：memories → L1 → L2 → L3。
@@ -195,7 +196,7 @@ class HierarchicalJEPAEncoder:
             timestamp=ts,
         )
 
-    def _encode_level_1(self, memories: list[dict]) -> CausalWorldModelState:
+    def _encode_level_1(self, memories: list[dict[str, Any]]) -> CausalWorldModelState:
         """L1: Entity-level GAT 编码。"""
         try:
             from mci_world_model.sdk._jepa_gat_encoder import (
@@ -321,7 +322,7 @@ class HierarchicalJEPAEncoder:
 
     def training_encode(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
     ) -> tuple[np.ndarray, dict[str, int]]:
         """
         训练模式编码：返回 L3 的 (A_enc, node_index) 用于端到端训练。
@@ -393,8 +394,8 @@ class HierarchicalJEPAEncoder:
 
     def evaluate(
         self,
-        dataset: list[tuple[list[dict], list[dict]]],
-    ) -> dict:
+        dataset: list[tuple[list[dict[str, Any]], list[dict[str, Any]]]],
+    ) -> dict[str, Any]:
         """
         在时序数据集上评估分层预测精度。
 

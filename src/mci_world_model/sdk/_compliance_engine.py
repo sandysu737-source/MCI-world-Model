@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — ComplianceRuleEngine 合规规则引擎
 ====================================================
 
@@ -20,7 +22,6 @@
       Compliance 聚焦行业法规
 """
 
-from __future__ import annotations
 
 import logging
 import time

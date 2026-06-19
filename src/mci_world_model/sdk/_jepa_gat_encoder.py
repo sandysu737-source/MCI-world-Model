@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.1.0 M3 — GAT Encoder
 =========================================
@@ -26,7 +30,6 @@ MCI World Model v3.1.0 M3 — GAT Encoder
     encoder.apply_gradients(grads, lr=0.01) # 参数更新
 """
 
-from __future__ import annotations
 
 import logging
 import threading
@@ -79,7 +82,7 @@ class GATEncoder:
         self.W_k: np.ndarray = self._rng.randn(D, K).astype(np.float64) * np.sqrt(2.0 / (D + K))
 
         # ── 前向缓存 ──
-        self._cache: dict = {}
+        self._cache: dict[str, Any] = {}
         self._cache_lock = threading.Lock()
 
         # ── 统计 ──
@@ -97,7 +100,7 @@ class GATEncoder:
             W_k=self.W_k.copy(),
         )
 
-    def set_params(self, params: dict[str, np.ndarray]):
+    def set_params(self, params: dict[str, np.ndarray]) -> None:
         """从字典加载参数。"""
         if "W_q" in params:
             self.W_q = np.asarray(params["W_q"], dtype=np.float64)
@@ -233,7 +236,7 @@ class GATEncoder:
     def compute_gradients_from_mse(
         self,
         A_target: np.ndarray,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         直接从 MSE 损失计算梯度（不从上游接收 dA）。
 
@@ -339,7 +342,7 @@ class GATEncoder:
 
 def preprocess_memories_to_features(
     world_model,
-    memories: list[dict],
+    memories: list[dict[str, Any]],
     state=None,
 ) -> tuple[np.ndarray, dict[str, int], list[str]]:
     """
@@ -397,7 +400,7 @@ def features_to_state(
 
     inv_index = {v: k for k, v in node_index.items()}
     N = A_enc.shape[0]
-    causal_edges: list[dict] = []
+    causal_edges: list[dict[str, Any]] = []
 
     for i in range(N):
         for j in range(N):

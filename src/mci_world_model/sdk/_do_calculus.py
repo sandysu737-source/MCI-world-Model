@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.0.7 — Pearl Do-Calculus 干预引擎 (M1)
 ====================================================
@@ -27,7 +31,6 @@ MCI World Model v3.0.7 — Pearl Do-Calculus 干预引擎 (M1)
     print(f"ATE: {result.ate:.4f} [{result.confidence_interval}]")
 """
 
-from __future__ import annotations
 
 import logging
 from collections import deque
@@ -69,7 +72,7 @@ class InterventionResult:
     sample_size: int = 0  # 有效样本量
     note: str = ""  # 附加说明
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "intervention": self.intervention,
             "target": self.target,
@@ -112,7 +115,7 @@ class CausalGraph:
     edges: list[tuple[str, str]] = field(default_factory=list)
     adjacency: np.ndarray | None = None  # n×n 邻接矩阵, adj[i,j] = 边权重 or 1
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         n = len(self.nodes)
         if self.adjacency is None:
             self.adjacency = np.zeros((n, n), dtype=np.float32)
@@ -239,7 +242,7 @@ class CausalGraph:
         )
 
     @staticmethod
-    def from_sem(sem) -> CausalGraph:
+    def from_sem(sem: Any) -> CausalGraph:
         """
         从 StructuralEquationModel 系数矩阵反向构建 CausalGraph。
 
@@ -263,7 +266,7 @@ class CausalGraph:
         cg.adjacency = adj
         return cg
 
-    def add_edge(self, src: str, dst: str, weight: float = 1.0):
+    def add_edge(self, src: str, dst: str, weight: float = 1.0) -> None:
         """添加因果边。"""
         if src not in self.nodes:
             self.nodes.append(src)
@@ -328,11 +331,11 @@ class DoCalculus:
     # 图管理
     # -----------------------------------------------------------------
 
-    def set_graph(self, graph: CausalGraph):
+    def set_graph(self, graph: CausalGraph) -> None:
         """设置/更新因果图。"""
         self._graph = graph
 
-    def set_data(self, data: dict[str, np.ndarray]):
+    def set_data(self, data: dict[str, np.ndarray]) -> None:
         """设置观测数据。"""
         self._data = data
         self._is_simulated = False
@@ -988,7 +991,7 @@ class DoCalculus:
 
     @staticmethod
     def build_from_gaussian_dag(
-        edges: list[dict],
+        edges: list[dict[str, Any]],
         n_nodes: int,
         min_confidence: float = 0.3,
     ) -> CausalGraph:

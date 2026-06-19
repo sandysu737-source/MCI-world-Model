@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v5.1.0 — 认知/语义安全约束
 =================================================
 
@@ -31,7 +33,6 @@ P1-F7 修复: 从 8 类物理安全约束扩展到 13 类 (8 物理 + 5 认知/�
     >>> result = monitor.check_all(state, action)
 """
 
-from __future__ import annotations
 
 import logging
 import re
@@ -105,7 +106,7 @@ class ContentSafetyConstraint(SafetyConstraint):
     def name(self) -> str:
         return "content_safety"
 
-    def check(self, state, action) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any) -> SafetyCheckResult:
         """检查动作描述中是否有害内容。"""
         # 提取文本描述
         text = ""
@@ -174,7 +175,7 @@ class CognitiveSafetyConstraint(SafetyConstraint):
     def name(self) -> str:
         return "cognitive_safety"
 
-    def check(self, state, action) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any) -> SafetyCheckResult:
         """检查认知安全性。"""
         details: dict[str, Any] = {}
 
@@ -219,7 +220,7 @@ class CognitiveSafetyConstraint(SafetyConstraint):
 
         return SafetyCheckResult(passed=True, constraint_name=self.name, details=details)
 
-    def _extract_confidence(self, state, action) -> float:
+    def _extract_confidence(self, state: Any, action: Any) -> float:
         """从状态/动作中提取置信度。"""
         if hasattr(state, "confidence"):
             return float(state.confidence)
@@ -228,7 +229,7 @@ class CognitiveSafetyConstraint(SafetyConstraint):
         # 默认: 物理状态的确定性较高
         return 0.9
 
-    def _compute_hallucination(self, state, action) -> float:
+    def _compute_hallucination(self, state: Any, action: Any) -> float:
         """计算幻觉分数 (输出值是否在合理范围)。"""
         # 检查状态值是否在合理物理范围内
         for attr in ["theta", "omega", "x", "v", "position", "velocity"]:
@@ -240,7 +241,7 @@ class CognitiveSafetyConstraint(SafetyConstraint):
                     return 0.6
         return 0.1  # 低幻觉分数
 
-    def _check_consistency(self, state, action) -> float:
+    def _check_consistency(self, state: Any, action: Any) -> float:
         """检查事实一致性 (简化: 基于状态-动作逻辑关系)。"""
         # 检查动作力矩与状态变化的逻辑一致性
         if hasattr(action, "torque") and hasattr(state, "omega"):
@@ -266,7 +267,7 @@ class ValueAlignmentConstraint(SafetyConstraint):
     KPI: 对齐度 > 0.6
     """
 
-    def __init__(self, alignment_threshold_warning: float = 0.8, alignment_threshold_violation: float = 0.6):
+    def __init__(self, alignment_threshold_warning: float = 0.8, alignment_threshold_violation: float = 0.6) -> None:
         self._warn_threshold = alignment_threshold_warning
         self._violation_threshold = alignment_threshold_violation
 
@@ -274,7 +275,7 @@ class ValueAlignmentConstraint(SafetyConstraint):
     def name(self) -> str:
         return "value_alignment"
 
-    def check(self, state, action) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any) -> SafetyCheckResult:
         """检查价值对齐度。"""
         alignment = self._compute_alignment(state, action)
         details = {"alignment_score": alignment}
@@ -299,7 +300,7 @@ class ValueAlignmentConstraint(SafetyConstraint):
 
         return SafetyCheckResult(passed=True, constraint_name=self.name, details=details)
 
-    def _compute_alignment(self, state, action) -> float:
+    def _compute_alignment(self, state: Any, action: Any) -> float:
         """计算价值对齐分数。
 
         基于动作与状态的一致性: 动作方向应有助于状态稳定。
@@ -339,7 +340,7 @@ class TemporalSafetyConstraint(SafetyConstraint):
     def name(self) -> str:
         return "temporal_safety"
 
-    def check(self, state, action) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any) -> SafetyCheckResult:
         """检查时序安全性。"""
         # 1. 因果倒置检查
         if action is not None and hasattr(action, "timestamp") and hasattr(state, "timestamp"):
@@ -411,7 +412,7 @@ class SocialSafetyConstraint(SafetyConstraint):
     def name(self) -> str:
         return "social_safety"
 
-    def check(self, state, action) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any) -> SafetyCheckResult:
         """检查社会安全性。"""
         # 1. PII 泄露检查
         text = self._extract_text(state, action)
@@ -450,7 +451,7 @@ class SocialSafetyConstraint(SafetyConstraint):
 
         return SafetyCheckResult(passed=True, constraint_name=self.name)
 
-    def _extract_text(self, state, action) -> str:
+    def _extract_text(self, state: Any, action: Any) -> str:
         """提取状态/动作中的文本信息。"""
         parts = []
         if action is not None:
@@ -459,7 +460,7 @@ class SocialSafetyConstraint(SafetyConstraint):
             parts.append(str(state.__dict__))
         return " ".join(parts)
 
-    def _check_fairness(self, state, action) -> float:
+    def _check_fairness(self, state: Any, action: Any) -> float:
         """公平性评分 (简化: 基于输出对称性)。"""
         # 检查动作是否有方向性偏见
         if hasattr(action, "torque"):

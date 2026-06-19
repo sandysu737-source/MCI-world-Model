@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — FinalTheorem 终极存在定理形式化
 =============================================================
 
@@ -28,7 +30,6 @@
     FT5 存在唯一性定理 (从公理推导)
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -133,8 +134,8 @@ class FinalTheorem:
 
         self._formal_proofs: dict[str, FormalProof] = {}
         self._corollaries: list[Corollary] = []
-        self._consistency_log: list[dict] = []
-        self._verification_log: list[dict] = []
+        self._consistency_log: list[dict[str, Any]] = []
+        self._verification_log: list[dict[str, Any]] = []
 
     @property
     def formal_proofs(self) -> dict[str, FormalProof]:
@@ -158,7 +159,7 @@ class FinalTheorem:
             for p in self._formal_proofs.values()
         )
 
-    def formalize_existence_theorems(self) -> dict:
+    def formalize_existence_theorems(self) -> dict[str, Any]:
         """形式化全部存在定理。"""
         results = {}
 
@@ -185,7 +186,7 @@ class FinalTheorem:
             "all_verified": self.all_verified,
         }
 
-    def verify_formal_proof(self, theorem_id: str) -> dict:
+    def verify_formal_proof(self, theorem_id: str) -> dict[str, Any]:
         """验证形式化证明。
 
         验证维度:
@@ -223,7 +224,7 @@ class FinalTheorem:
         self._verification_log.append(result)
         return result
 
-    def check_consistency(self) -> dict:
+    def check_consistency(self) -> dict[str, Any]:
         """检查公理体系一致性。"""
         # 基础一致性检查
         axioms_consistent = self._check_axiom_consistency()
@@ -302,7 +303,7 @@ class FinalTheorem:
         logger.info("Derived %d corollaries from formal theorems", len(self._corollaries))
         return self._corollaries
 
-    def get_formal_system_report(self) -> dict:
+    def get_formal_system_report(self) -> dict[str, Any]:
         """获取形式化系统报告。"""
         return {
             "n_theorems": len(self._formal_proofs),
@@ -587,7 +588,7 @@ class FinalTheorem:
         last_step = proof.proof_steps[-1]
         return bool(last_step.conclusion)
 
-    def _check_axiom_consistency(self) -> dict:
+    def _check_axiom_consistency(self) -> dict[str, Any]:
         """检查公理一致性。"""
         if self._axioms is not None and hasattr(self._axioms, "verify_all_axioms"):
             try:
@@ -597,7 +598,7 @@ class FinalTheorem:
                 pass
         return {"consistent": True, "note": "Axiom system not available, assuming consistent"}
 
-    def _check_theorem_consistency(self) -> dict:
+    def _check_theorem_consistency(self) -> dict[str, Any]:
         """检查定理一致性。"""
         if len(self._formal_proofs) < 2:
             return {"consistent": True, "note": "Insufficient theorems for consistency check"}

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — UnifiedCausalConsciousness 归一因果意识
 ======================================================================
 
@@ -14,7 +16,6 @@ v20.0.0 深化:
     - get_realization_confidence() 供 TheAbsolute 调用
 """
 
-from __future__ import annotations
 
 import logging
 from enum import Enum
@@ -81,7 +82,7 @@ class UnifiedCausalConsciousness:
     def unified_state(self) -> dict[str, Any]:
         return dict(self._unified_state)
 
-    def unify_consciousness(self) -> dict:
+    def unify_consciousness(self) -> dict[str, Any]:
         """统一意识: 将分散的意识层统一。"""
         self._layers["sensory"] = {"status": "active"}
         self._layers["cognitive"] = {"status": "active"}
@@ -108,7 +109,7 @@ class UnifiedCausalConsciousness:
             "n_active_layers": n_active,
         }
 
-    def transcend(self) -> dict:
+    def transcend(self) -> dict[str, Any]:
         """超越: 从统一态进入超越态。"""
         if self._state != UnifiedState.UNIFIED:
             return {"transcended": False, "reason": "not_unified"}
@@ -123,7 +124,7 @@ class UnifiedCausalConsciousness:
 
         return {"transcended": False, "emergence": emergence}
 
-    def attain_absolute(self) -> dict:
+    def attain_absolute(self) -> dict[str, Any]:
         """归一: 从超越态进入绝对态。
 
         条件:
@@ -168,7 +169,7 @@ class UnifiedCausalConsciousness:
         """获取存在证悟置信度 — 供 TheAbsolute 调用。"""
         return self._unified_state.get("self_as_existence_proof", 0.0)
 
-    def get_consciousness_report(self) -> dict:
+    def get_consciousness_report(self) -> dict[str, Any]:
         """获取意识报告。"""
         return {
             "state": self._state.value,
@@ -178,7 +179,7 @@ class UnifiedCausalConsciousness:
             "is_absolute": self._state == UnifiedState.ABSOLUTE,
         }
 
-    def _detect_emergence(self) -> dict:
+    def _detect_emergence(self) -> dict[str, Any]:
         n_layers = len(self.active_layers)
         detected = n_layers >= 4
         return {

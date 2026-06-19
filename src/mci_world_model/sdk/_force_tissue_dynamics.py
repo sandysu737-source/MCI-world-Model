@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+"""
+MCI World Model v4.4.0 — Force-Tissue Dynamics
+================================================
+
+清创机器人 — 力-组织响应动力学模型。
+
+预测: f(tissue_type, force_applied, velocity) → (depth_removed, force_feedback, safety_flag)
+
+组织特异性参数:
+    坏死:   低阻力 (0.5-2N足以去除), 去除深度 ∝ force
+    腐肉:   中阻力 (1-3N), 纤维结构
+    肉芽:   高阻力 (2-5N), 含血管需保护
+    上皮:   极高阻力 (>5N), 严禁损伤
+
+安全门禁: 力超限/深度超限/组织误判均触发停止
+"""
+
+
+import logging
+from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+# 组织特异性参数
+TISSUE_PARAMS = {
+    0: {"name": "坏死", "stiffness": 0.5, "max_force": 3.0, "max_velocity": 10.0, "removal_rate": 2.0},
+    1: {"name": "腐肉", "stiffness": 1.5, "max_force": 2.0, "max_velocity": 5.0, "removal_rate": 1.0},
+    2: {"name": "肉芽", "stiffness": 3.0, "max_force": 1.0, "max_velocity": 3.0, "removal_rate": 0.2},
+    3: {"name": "上皮", "stiffness": 8.0, "max_force": 0.5, "max_velocity": 1.0, "removal_rate": 0.0},
+}
+
+
+@dataclass
+class RemovalPrediction:
+    """组织去除预测结果。"""
+    depth_removed_mm: float
+    force_feedback_n: float
+    tissue_type: int
+    is_safe: bool
+    warning: str = ""
+
+
+@dataclass
+class SafetyVerdict:
+    """安全判断结果。"""
+    passed: bool
+    reason: str = ""
+    max_allowed_force: float = 0.0
+    max_allowed_depth: float = 0.0
+
+
+class ForceTissueDynamics:
+    """力-组织响应动力学模型。
+
+    用物理合理性的简化模型预测工具-组织交互:
+    - removal_depth = removal_rate * force / stiffness
+    - force_feedback = stiffness * depth_removed (Hooke 定律近似)
+    """
+
+    def __init__(self) -> None:
+        self._params = TISSUE_PARAMS
+
+    def predict_removal(self, tissue_type: int, force_n: float, velocity: float) -> RemovalPrediction:
+        """预测给定力下的组织去除。
+
+        Args:
+            tissue_type: 0=坏死 1=腐肉 2=肉芽 3=上皮
+            force_n: 施加力 (N)
+            velocity: 工具速度 (mm/s)
+        """
+        if tissue_type not in self._params:
+            return RemovalPrediction(0, 0, tissue_type, False, f"未知组织类型: {tissue_type}")
+
+        p = self._params[tissue_type]
+        stiffness = p["stiffness"]
+        removal_rate = p["removal_rate"]
+        max_force = p["max_force"]
+        max_vel = p["max_velocity"]
+
+        # 物理预测
+        depth = removal_rate * max(force_n, 0) / max(stiffness, 0.01)
+        feedback = stiffness * depth
+
+        # 安全判断
+        warnings = []
+        if force_n > max_force:
+            warnings.append(f"力超限: {force_n:.1f}N > {max_force}N ({p['name']}上限)")
+        if velocity > max_vel:
+            warnings.append(f"速度超限: {velocity:.1f}mm/s > {max_vel}mm/s ({p['name']}上限)")
+        if tissue_type == 3 and force_n > 0.1:
+            warnings.append("严禁对上皮组织施加清创力!")
+
+        is_safe = len(warnings) == 0
+
+        return RemovalPrediction(
+            depth_removed_mm=round(depth, 3),
+            force_feedback_n=round(feedback, 3),
+            tissue_type=tissue_type,
+            is_safe=is_safe,
+            warning="; ".join(warnings) if warnings else "",
+        )
+
+    def safety_check(self, tissue_type: int, force_n: float, depth_mm: float) -> SafetyVerdict:
+        """安全门禁检查。
+
+        Args:
+            tissue_type: 组织类型
+            force_n: 当前力 (N)
+            depth_mm: 当前清创深度 (mm)
+        """
+        if tissue_type not in self._params:
+            return SafetyVerdict(False, f"未知组织类型: {tissue_type}")
+
+        p = self._params[tissue_type]
+
+        # 力检查
+        if force_n > p["max_force"]:
+            return SafetyVerdict(False, f"力超限: {force_n:.1f}N > {p['max_force']}N ({p['name']})",
+                                 p["max_force"], depth_mm)
+
+        # 上皮保护
+        if tissue_type == 3:
+            return SafetyVerdict(False, "上皮组织——停止清创", 0.5, 0.0)
+
+        return SafetyVerdict(True, "安全", p["max_force"], depth_mm + 2.0)
+
+    @staticmethod
+    def get_max_force(tissue_type: int) -> float:
+        return TISSUE_PARAMS.get(tissue_type, {}).get("max_force", 0.5)
+
+    @staticmethod
+    def get_max_velocity(tissue_type: int) -> float:
+        return TISSUE_PARAMS.get(tissue_type, {}).get("max_velocity", 1.0)
+
+    @staticmethod
+    def get_tissue_name(tissue_type: int) -> str:
+        return TISSUE_PARAMS.get(tissue_type, {}).get("name", "未知")

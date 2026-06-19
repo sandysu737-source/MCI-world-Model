@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — CausalFederationProtocol 因果联邦协议
 ================================================================
 
@@ -16,7 +18,6 @@
     - 与 P10/P11 模块正交互操作
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -90,12 +91,12 @@ class FederationMessage:
 
     msg_type: FederationMessageType
     sender: str
-    payload: dict = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     target: str | None = None
     timestamp: float = field(default_factory=time.time)
     msg_id: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.msg_id:
             raw = f"{self.msg_type.value}:{self.sender}:{self.timestamp}"
             self.msg_id = hashlib.md5(raw.encode()).hexdigest()[:12]
@@ -120,7 +121,7 @@ class PeerInfo:
 
     node_id: str
     role: NodeRole = NodeRole.FULL_NODE
-    capabilities: dict = field(default_factory=dict)
+    capabilities: dict[str, Any] = field(default_factory=dict)
     trust_score: float = 0.5
     last_seen: float = field(default_factory=time.time)
 
@@ -133,12 +134,12 @@ class PeerInfo:
 class FederationConsensus:
     """联邦共识引擎 — 简化的 2/3 多数投票共识。"""
 
-    def __init__(self, quorum_ratio: float = 2 / 3):
+    def __init__(self, quorum_ratio: float = 2 / 3) -> None:
         if not 0.5 < quorum_ratio <= 1.0:
             raise ValueError(f"quorum_ratio 必须在 (0.5, 1.0], 当前 {quorum_ratio}")
         self._quorum_ratio = quorum_ratio
 
-    def resolve_conflicts(self, conflicts: list[dict]) -> list[dict]:
+    def resolve_conflicts(self, conflicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """解决联邦因果发现中的冲突边。
 
         Args:
@@ -250,7 +251,7 @@ class CausalFederationProtocol:
         federation_endpoint: str | None = None,
         credentials: dict | None = None,
         existing_peers: dict[str, PeerInfo] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """加入因果联邦。
 
         Args:
@@ -295,7 +296,7 @@ class CausalFederationProtocol:
             "capabilities_declared": cap_decl,
         }
 
-    def leave_federation(self, reason: str = "voluntary") -> dict:
+    def leave_federation(self, reason: str = "voluntary") -> dict[str, Any]:
         """退出因果联邦。"""
         leave_msg = FederationMessage(
             msg_type=FederationMessageType.FED_LEAVE,
@@ -310,8 +311,8 @@ class CausalFederationProtocol:
     # ── Query ───────────────────────────────────────────────────────────
 
     def federated_query(
-        self, query: dict, strategy: str = "broadcast"
-    ) -> dict:
+        self, query: dict[str, Any], strategy: str = "broadcast"
+    ) -> dict[str, Any]:
         """联邦因果查询。
 
         Args:
@@ -343,7 +344,7 @@ class CausalFederationProtocol:
             "consensus_level": merged.get("consensus_level", 0),
         }
 
-    def broadcast_query(self, query: dict) -> list[dict]:
+    def broadcast_query(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """广播查询到所有对等节点 (仿真模式)。"""
         results = []
         for peer_id, peer in self._peers.items():
@@ -363,7 +364,7 @@ class CausalFederationProtocol:
     def send_message(
         self,
         msg_type: str,
-        payload: dict,
+        payload: dict[str, Any],
         target: str | None = None,
     ) -> dict | None:
         """发送联邦消息。
@@ -403,8 +404,8 @@ class CausalFederationProtocol:
     # ── Evidence Sharing ────────────────────────────────────────────────
 
     def share_evidence(
-        self, evidence: dict, target_nodes: list[str] | None = None
-    ) -> dict:
+        self, evidence: dict[str, Any], target_nodes: list[str] | None = None
+    ) -> dict[str, Any]:
         """联邦证据共享。
 
         Args:
@@ -440,7 +441,7 @@ class CausalFederationProtocol:
 
     # ── Consensus ───────────────────────────────────────────────────────
 
-    def request_consensus(self, proposal: dict) -> dict:
+    def request_consensus(self, proposal: dict[str, Any]) -> dict[str, Any]:
         """请求联邦共识投票。
 
         Args:
@@ -471,7 +472,7 @@ class CausalFederationProtocol:
 
     # ── Internal Methods ────────────────────────────────────────────────
 
-    def _declare_capabilities(self) -> dict:
+    def _declare_capabilities(self) -> dict[str, Any]:
         """声明节点能力。"""
         return {
             "causal_graph_size": self._causal_graph_version,
@@ -486,7 +487,7 @@ class CausalFederationProtocol:
         raw = f"{self._node_id}:{self._causal_graph_version}"
         return hashlib.md5(raw.encode()).hexdigest()[:16]
 
-    def _local_reason(self, query: dict) -> dict:
+    def _local_reason(self, query: dict[str, Any]) -> dict[str, Any]:
         """本地推理 (简化版)。"""
         return {
             "conclusion": {"local_confidence": 0.7},
@@ -495,7 +496,7 @@ class CausalFederationProtocol:
             "agrees_with_merge": True,
         }
 
-    def _targeted_query(self, query: dict) -> list[dict]:
+    def _targeted_query(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """定向查询: 路由到最相关领域节点。"""
         domain = query.get("domain", "general")
         results = []
@@ -507,7 +508,7 @@ class CausalFederationProtocol:
             results = self.broadcast_query(query)
         return results
 
-    def _hierarchical_query(self, query: dict) -> list[dict]:
+    def _hierarchical_query(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """层级查询: 边缘 → 完整 → 桥接。"""
         results = []
         # 第一层: 边缘节点
@@ -524,7 +525,7 @@ class CausalFederationProtocol:
                 results.append(self._simulate_peer_response(pid, query))
         return results
 
-    def _simulate_peer_response(self, peer_id: str, query: dict) -> dict:
+    def _simulate_peer_response(self, peer_id: str, query: dict[str, Any]) -> dict[str, Any]:
         """仿真模式下模拟对等节点响应。"""
         peer = self._peers[peer_id]
         return {
@@ -538,8 +539,8 @@ class CausalFederationProtocol:
         }
 
     def _merge_federated_results(
-        self, local: dict, federated: list[dict]
-    ) -> dict:
+        self, local: dict[str, Any], federated: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """联邦结果合并: 加权投票 + 冲突检测。"""
         all_results = [local, *federated]
         weights = [r.get("trust_score", 0.5) for r in all_results]
@@ -564,7 +565,7 @@ class CausalFederationProtocol:
             "n_total": len(all_results),
         }
 
-    def _compute_consensus(self, results: list[dict]) -> float:
+    def _compute_consensus(self, results: list[dict[str, Any]]) -> float:
         """计算共识水平。"""
         if not results:
             return 0.0
@@ -578,7 +579,7 @@ class CausalFederationProtocol:
             return [m for m in self._message_log if m.msg_type == mt]
         return list(self._message_log)
 
-    def add_peer(self, peer_id: str, role: str = "full_node", **kwargs) -> None:
+    def add_peer(self, peer_id: str, role: str = "full_node", **kwargs: Any) -> None:
         """手动添加对等节点 (仿真模式)。"""
         self._peers[peer_id] = PeerInfo(
             node_id=peer_id,
@@ -587,6 +588,6 @@ class CausalFederationProtocol:
             trust_score=kwargs.get("trust_score", 0.5),
         )
 
-    def update_capabilities(self, capabilities: dict) -> None:
+    def update_capabilities(self, capabilities: dict[str, Any]) -> None:
         """更新节点能力声明。"""
         self._capabilities.update(capabilities)

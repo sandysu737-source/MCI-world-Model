@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.0 — SIGReg Embedding Regularizer
 =======================================================
@@ -14,7 +16,6 @@ SIGReg 通过最小化与各向同性高斯的矩差来正则化嵌入。
 行数: ~50 行 (对齐 LeJEPA 设计理念)
 """
 
-from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
@@ -204,7 +205,7 @@ def apply_sigreg_to_index(
 # ============================================================
 
 
-def _self_test():
+def _self_test() -> None:
     """Quick self-test for SIGReg."""
     # v3.3.1: 使用局部 RandomState 避免污染全局 RNG
     rng = np.random.RandomState(42)

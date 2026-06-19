@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v5.1.0 — 工作记忆增强器
 ==============================================
 
@@ -35,7 +37,6 @@ WorkingMemoryEnhancer 新增:
     >>> results = enhancer.attention_retrieve(query_vector, top_k=3)
 """
 
-from __future__ import annotations
 
 import logging
 import math

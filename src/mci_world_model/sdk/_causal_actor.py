@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.0.2 — Causal Actor
 ======================================
@@ -21,7 +25,6 @@ LeCun 六模块架构中的 Actor 模块：基于 Cost 梯度搜索最优干预�
         new_state = actor.apply(actions[0])
 """
 
-from __future__ import annotations
 
 import copy
 import logging
@@ -57,9 +60,9 @@ class ActionCandidate:
     proposed_value: float
     expected_cost: float
     confidence: float
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action_type": self.action_type,
             "target": self.target,
@@ -89,7 +92,7 @@ class EnergyGuidedAction(ActionCandidate):
     energy_direction: str = ""
 
     @classmethod
-    def from_edge(cls, edge: dict, energy_core, **kwargs):
+    def from_edge(cls: Any, edge: dict[str, Any], energy_core: Any, **kwargs: Any) -> None:
         """
         基于五行生克自动推断干预方向。
 
@@ -123,7 +126,7 @@ class EnergyGuidedAction(ActionCandidate):
             **{k: v for k, v in kwargs.items() if k != "proposed_value"},
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
         d["energy_direction"] = self.energy_direction
         return d
@@ -151,7 +154,7 @@ class CausalActor:
     MIN_COST_IMPROVEMENT: float = 0.01  # 最小代价改善阈值
     DEFAULT_DELTA: float = 0.1  # 有限差分扰动幅度
 
-    def __init__(self, world_model, cost_module=None, energy_core=None):
+    def __init__(self, world_model: Any, cost_module: Any=None, energy_core: Any=None) -> None:
         """
         Args:
             world_model: MCIWorldModel 实例
@@ -173,10 +176,10 @@ class CausalActor:
         return self._state
 
     @property
-    def action_history(self) -> list[dict]:
+    def action_history(self) -> list[dict[str, Any]]:
         return [a.to_dict() for a in self._action_history[-20:]]
 
-    def _get_cost_module(self):
+    def _get_cost_module(self) -> None:
         """延迟获取 Cost 模块（优先显式传参，其次 world_model 内部）。"""
         if self._cost is not None:
             return self._cost
@@ -294,7 +297,7 @@ class CausalActor:
     # 动作执行
     # -----------------------------------------------------------------
 
-    def apply(self, state, action: ActionCandidate):
+    def apply(self, state: Any, action: ActionCandidate) -> None:
         """
         执行动作，返回新状态。
 
@@ -328,7 +331,7 @@ class CausalActor:
     # 动作实现（私有）
     # -----------------------------------------------------------------
 
-    def _apply_adjust_weight(self, state, action: ActionCandidate):
+    def _apply_adjust_weight(self, state: Any, action: ActionCandidate) -> None:
         """调整因果边权重。"""
         edge_idx = action.metadata.get("edge_index", -1)
         if 0 <= edge_idx < len(state.causal_edges):
@@ -339,7 +342,7 @@ class CausalActor:
                 action.proposed_value,
             )
 
-    def _apply_do_intervention(self, state, action: ActionCandidate):
+    def _apply_do_intervention(self, state: Any, action: ActionCandidate) -> None:
         """Pearl do-算子干预：设置目标变量为指定值。"""
         # 找到所有以 target 为 effect 的边，冻结其权重
         target = action.target
@@ -355,7 +358,7 @@ class CausalActor:
         )
         logger.debug("Actor do-干预: %s = %.4f", target, action.proposed_value)
 
-    def _apply_suggest_edge(self, state, action: ActionCandidate):
+    def _apply_suggest_edge(self, state: Any, action: ActionCandidate) -> None:
         """建议新增因果边。"""
         cause, effect = action.target.split("→", 1)
         new_edge = {
@@ -379,7 +382,7 @@ class CausalActor:
         state,
         max_iterations: int = 3,
         delta: float | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         迭代优化：重复 search → apply 直到代价不再降低。
 
@@ -399,7 +402,7 @@ class CausalActor:
         initial_cost = initial_signal.total
 
         current_state = copy.deepcopy(state)
-        executed_actions: list[dict] = []
+        executed_actions: list[dict[str, Any]] = []
 
         for iteration in range(max_iterations):
             actions = self.search(current_state, n_candidates=1, delta=delta)

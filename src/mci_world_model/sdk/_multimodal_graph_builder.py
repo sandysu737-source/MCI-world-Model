@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.3.0 — MultimodalGraphBuilder 多模态图构建器
 ================================================================
@@ -18,9 +20,8 @@ MCI World Model v3.3.0 — MultimodalGraphBuilder 多模态图构建器
     - 支持向量级相关（cosine similarity 替代 Pearson）
 """
 
-from __future__ import annotations
-
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -40,7 +41,7 @@ class MultimodalGraphBuilder:
         >>> edges = builder.build_from_features(timeline)
     """
 
-    def __init__(self, min_correlation: float = 0.3, max_lag: int = 3):
+    def __init__(self, min_correlation: float = 0.3, max_lag: int = 3) -> None:
         """
         Args:
             min_correlation: 最小相关阈值
@@ -60,7 +61,7 @@ class MultimodalGraphBuilder:
     def build_from_features(
         self,
         feature_timeline: list[dict[str, np.ndarray]],
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """从多模态特征时序构建因果图。
 
         Args:
@@ -82,7 +83,7 @@ class MultimodalGraphBuilder:
             all_modalities.update(step.keys())
         modalities = sorted(all_modalities)
 
-        edges: list[dict] = []
+        edges: list[dict[str, Any]] = []
 
         # 模态内因果边（同一模态不同时间步的自回归）
         for mod in modalities:
@@ -121,7 +122,7 @@ class MultimodalGraphBuilder:
         features_b: np.ndarray,
         modality_a: str,
         modality_b: str,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """两个模态之间的因果边检测。
 
         使用滞后余弦相似度检测因果关系。
@@ -142,7 +143,7 @@ class MultimodalGraphBuilder:
         fa = features_a[:T]
         fb = features_b[:T]
 
-        edges: list[dict] = []
+        edges: list[dict[str, Any]] = []
 
         # A → B (各 lag)
         for lag in range(0, self._max_lag + 1):
@@ -206,7 +207,7 @@ class MultimodalGraphBuilder:
         self,
         series: np.ndarray,
         modality: str,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """构建自回归因果边（t → t+1）。"""
         if len(series) < 3:
             return []

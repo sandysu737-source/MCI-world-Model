@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.1.0 — Spectral Causal Engine
 
@@ -18,7 +22,6 @@ v3.6.0 新增:
 - 向后兼容 — 因果 API 签名不变
 """
 
-from __future__ import annotations
 
 import logging
 import math
@@ -56,7 +59,7 @@ class GaussianDAG:
 
     def __init__(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         tfidf_index: dict[str, set] | None = None,
         energy_bus=None,
     ):
@@ -106,7 +109,7 @@ class GaussianDAG:
     # v3.5.0: Reflection Prior 注入
     # -----------------------------------------------------------------
 
-    def with_reflection_prior(self, prior_matrix: np.ndarray):
+    def with_reflection_prior(self, prior_matrix: np.ndarray) -> None:
         """
         注入 Reflection QA 合成的因果先验矩阵。
 
@@ -120,7 +123,7 @@ class GaussianDAG:
     # v3.6.0: Parametric Prior 注入
     # -----------------------------------------------------------------
 
-    def with_parametric_prior(self, prior):
+    def with_parametric_prior(self, prior: Any) -> None:
         """
         注入参数化模型 (QLoRA) 的因果先验。
 
@@ -196,7 +199,7 @@ class GaussianDAG:
         self._tfidf_matrix = tfidf / norms
         return self._tfidf_matrix
 
-    def _ensure_matrix(self):
+    def _ensure_matrix(self) -> None:
         """确保 TF-IDF 矩阵已构建。"""
         if self._tfidf_matrix is None:
             self.build_tfidf_matrix()
@@ -258,7 +261,7 @@ class GaussianDAG:
     # 能量先验加权
     # -----------------------------------------------------------------
 
-    def energy_prior_boost(self, mem_a: dict, mem_b: dict, base_conf: float) -> tuple[float, str]:
+    def energy_prior_boost(self, mem_a: dict[str, Any], mem_b: dict[str, Any], base_conf: float) -> tuple[float, str]:
         """
         能量先验交叉验证。
 
@@ -305,7 +308,7 @@ class GaussianDAG:
         except ImportError:
             return (base_conf, "none")
 
-    def _infer_energy_type(self, mem: dict) -> str | None:
+    def _infer_energy_type(self, mem: dict[str, Any]) -> str | None:
         """从记忆中推断能量类型。"""
         # 1. 直接标注
         etype = mem.get("energy_type")
@@ -347,7 +350,7 @@ class GaussianDAG:
         p_threshold: float = 0.05,
         max_pairs: int = 200,
         max_scan: int = 50,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         三重验证因果发现:
 
@@ -375,7 +378,7 @@ class GaussianDAG:
 
         # 限制扫描范围 (R1 缓解)
         scan_n = min(n, max_scan)
-        edges: list[dict] = []
+        edges: list[dict[str, Any]] = []
 
         # 全局均值向量作为条件集 Z 的代理
         z_global = mat[:scan_n].mean(axis=0)
@@ -489,7 +492,7 @@ class GaussianDAG:
     # 混淆因子检测
     # -----------------------------------------------------------------
 
-    def detect_confounder(self, mem_a_idx: int, mem_b_idx: int, candidate_z_idx: int) -> dict:
+    def detect_confounder(self, mem_a_idx: int, mem_b_idx: int, candidate_z_idx: int) -> dict[str, Any]:
         """
         检测候选变量 Z 是否为 X↔Y 的混淆因子。
 
@@ -536,7 +539,7 @@ class GaussianDAG:
     # 统计摘要
     # -----------------------------------------------------------------
 
-    def get_statistics(self) -> dict:
+    def get_statistics(self) -> dict[str, Any]:
         """获取当前因果发现引擎的统计摘要。"""
         return {
             "n_memories": len(self.memories),
@@ -552,7 +555,7 @@ class GaussianDAG:
 
     _fourier: FourierCausal | None = None
 
-    def with_fourier_filter(self, fourier: FourierCausal):
+    def with_fourier_filter(self, fourier: FourierCausal) -> None:
         """注入 FourierCausal 实例以启用频域预过滤。"""
         self._fourier = fourier
 
@@ -562,7 +565,7 @@ class GaussianDAG:
         p_threshold: float = 0.05,
         max_pairs: int = 200,
         max_scan: int = 50,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """带频域过滤的隐藏因果发现 (discover_hidden_edges + Fourier 滤波)。"""
         edges = self.discover_hidden_edges(
             min_correlation=min_correlation,
@@ -580,7 +583,7 @@ class GaussianDAG:
 
     _bayesian: BayesianCausal | None = None
 
-    def with_bayesian_quantification(self, bayesian: BayesianCausal):
+    def with_bayesian_quantification(self, bayesian: BayesianCausal) -> None:
         """注入 BayesianCausal 以启用后验量化输出。"""
         self._bayesian = bayesian
 
@@ -611,7 +614,7 @@ class FourierCausal:
         "water": 0.25,  # T=4 → f=0.25 (冬藏)
     }
 
-    def __init__(self, energy_bus=None):
+    def __init__(self, energy_bus: Any=None) -> None:
         """
         Args:
             energy_bus: EnergyBus 实例 (可选，用于 record_snapshot 自动采集)
@@ -666,7 +669,7 @@ class FourierCausal:
     # FFT 频谱分解
     # -----------------------------------------------------------------
 
-    def fft_decompose(self, etype: str) -> dict:
+    def fft_decompose(self, etype: str) -> dict[str, Any]:
         """
         FFT 分解 → 频谱成分分析 + 异常检测。
 
@@ -788,7 +791,7 @@ class FourierCausal:
     # 因果异常事件检测
     # -----------------------------------------------------------------
 
-    def detect_causal_events(self, threshold: float = 0.3) -> list[dict]:
+    def detect_causal_events(self, threshold: float = 0.3) -> list[dict[str, Any]]:
         """
         检测高频异常 → 解释为因果干预事件。
 
@@ -825,7 +828,7 @@ class FourierCausal:
     # 双元素频域相干性
     # -----------------------------------------------------------------
 
-    def cross_spectral_coherence(self, etype_a: str, etype_b: str) -> dict:
+    def cross_spectral_coherence(self, etype_a: str, etype_b: str) -> dict[str, Any]:
         """
         双元素频域相干性分析。
 
@@ -931,7 +934,7 @@ class FourierCausal:
 
         return filtered
 
-    def filter_periodic_edges(self, edges: list[dict], dag: GaussianDAG) -> list[dict]:
+    def filter_periodic_edges(self, edges: list[dict[str, Any]], dag: GaussianDAG) -> list[dict[str, Any]]:
         """
         对 GaussianDAG 发现的因果边进行频域过滤。
 
@@ -985,7 +988,7 @@ class FourierCausal:
     # 五元素频谱平衡报告
     # -----------------------------------------------------------------
 
-    def spectral_balance_report(self) -> dict:
+    def spectral_balance_report(self) -> dict[str, Any]:
         """
         五元素频谱平衡诊断报告。
 
@@ -1148,7 +1151,7 @@ class GaussianDistribution:
 
         return self
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典。"""
         return {
             "mu": self.mu,
@@ -1157,7 +1160,7 @@ class GaussianDistribution:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> GaussianDistribution:
+    def from_dict(cls, d: dict[str, Any]) -> GaussianDistribution:
         """从字典反序列化。"""
         return cls(
             mu=d.get("mu", 0.0),
@@ -1203,14 +1206,14 @@ class BayesianCausal:
         "weak_h1": 1.0,
     }
 
-    def __init__(self, energy_bus=None):
+    def __init__(self, energy_bus: Any=None) -> None:
         """
         Args:
             energy_bus: EnergyBus 实例 (可选, 用于能量先验推断)
         """
         self._bus = energy_bus
         self._posteriors: dict[str, GaussianDistribution] = {}
-        self._test_history: list[dict] = []
+        self._test_history: list[dict[str, Any]] = []
 
     # -----------------------------------------------------------------
     # 先验选择
@@ -1235,7 +1238,7 @@ class BayesianCausal:
         n_samples: int,
         energy_relation: str | None = None,
         prior_strength: str = "informative",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         贝叶斯因果假设检验。
 
@@ -1324,7 +1327,7 @@ class BayesianCausal:
     # 批量更新
     # -----------------------------------------------------------------
 
-    def batch_update(self, edges: list[dict]) -> list[dict]:
+    def batch_update(self, edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         批量更新多条因果边的后验。
 
@@ -1356,7 +1359,7 @@ class BayesianCausal:
     # 摘要
     # -----------------------------------------------------------------
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """
         所有因果边的概率摘要。
 
@@ -1406,7 +1409,7 @@ class BayesianCausal:
     # 假设比较
     # -----------------------------------------------------------------
 
-    def compare_hypotheses(self, edge_id_a: str, edge_id_b: str) -> dict:
+    def compare_hypotheses(self, edge_id_a: str, edge_id_b: str) -> dict[str, Any]:
         """
         比较两条竞争因果边的后验。
 

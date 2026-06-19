@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v14.0.0 — CosmicTrust 宇宙级可信框架
 ========================================================
 
@@ -12,7 +14,6 @@
 维度信任: physical / digital_twin / mixed_reality / creative / meta
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -69,9 +70,9 @@ class CosmicCertificate:
 class ConsistencyReport:
     """跨维度一致性报告。"""
     dimensions: list[str] = field(default_factory=list)
-    pairwise_consistency: list[dict] = field(default_factory=list)
+    pairwise_consistency: list[dict[str, Any]] = field(default_factory=list)
     overall_consistency: float = 0.0
-    inconsistencies: list[dict] = field(default_factory=list)
+    inconsistencies: list[dict[str, Any]] = field(default_factory=list)
 
 
 class CosmicTrust:
@@ -106,7 +107,7 @@ class CosmicTrust:
         self._dimensional_trusts: dict[str, DimensionalTrust] = {}
         self._cosmic_trust_score = 0.0
         self._certificates: dict[str, CosmicCertificate] = {}
-        self._calibration_history: list[dict] = []
+        self._calibration_history: list[dict[str, Any]] = []
         self._consistency_cache: dict[str, ConsistencyReport] = {}
 
         # 初始化各维度信任
@@ -129,9 +130,9 @@ class CosmicTrust:
 
     def assess_cosmic_trust(
         self,
-        reasoning_result: dict,
+        reasoning_result: dict[str, Any],
         dimensions: list[str] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """宇宙级信任评估。
 
         Args:
@@ -182,12 +183,12 @@ class CosmicTrust:
 
     def verify_cross_dimensional_consistency(
         self,
-        results: dict[str, dict],
+        results: dict[str, dict[str, Any]],
     ) -> ConsistencyReport:
         """跨维度一致性验证。"""
         dimensions = list(results.keys())
-        pairwise: list[dict] = []
-        inconsistencies: list[dict] = []
+        pairwise: list[dict[str, Any]] = []
+        inconsistencies: list[dict[str, Any]] = []
 
         for i, d1 in enumerate(dimensions):
             for d2 in dimensions[i + 1:]:
@@ -218,7 +219,7 @@ class CosmicTrust:
         self._consistency_cache[cache_key] = report
         return report
 
-    def calibrate_cosmic_trust(self, ground_truth: dict | None = None) -> dict:
+    def calibrate_cosmic_trust(self, ground_truth: dict | None = None) -> dict[str, Any]:
         """宇宙信任校准。
 
         Args:
@@ -291,7 +292,7 @@ class CosmicTrust:
         logger.info("Issued cosmic certificate %s for %s (trust=%.3f)", cert_id, holder, self._cosmic_trust_score)
         return cert
 
-    def verify_cosmic_certificate(self, cert: CosmicCertificate) -> dict:
+    def verify_cosmic_certificate(self, cert: CosmicCertificate) -> dict[str, Any]:
         """验证宇宙信任证书。"""
         now = time.time()
         stored = self._certificates.get(cert.certificate_id)
@@ -319,7 +320,7 @@ class CosmicTrust:
             return True
         return False
 
-    def get_trust_summary(self) -> dict:
+    def get_trust_summary(self) -> dict[str, Any]:
         """获取信任摘要。"""
         return {
             "cosmic_trust_score": self._cosmic_trust_score,
@@ -333,7 +334,7 @@ class CosmicTrust:
 
     # ── 内部方法 ──────────────────────────────────────────────────
 
-    def _assess_dimensional_trust(self, dimension: str, result: dict) -> float:
+    def _assess_dimensional_trust(self, dimension: str, result: dict[str, Any]) -> float:
         """评估单维度信任。"""
         # 尝试使用外部信任框架
         if dimension in (TrustDimension.PHYSICAL.value, TrustDimension.DIGITAL_TWIN.value, TrustDimension.MIXED_REALITY.value):
@@ -363,7 +364,7 @@ class CosmicTrust:
 
         return max(0.0, min(1.0, base_trust + adjustment))
 
-    def _compute_pairwise_consistency(self, r1: dict, r2: dict) -> float:
+    def _compute_pairwise_consistency(self, r1: dict[str, Any], r2: dict[str, Any]) -> float:
         """计算两维度间一致性。"""
         c1 = r1.get("confidence", 0.5)
         c2 = r2.get("confidence", 0.5)

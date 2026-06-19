@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.0.1 — Energy Cost Module
 ============================================
@@ -21,10 +23,9 @@ LeCun 六模块架构中的 Cost 模块：评估世界状态的"好坏"，
     print(f"Total cost: {signal.total:.4f}")
 """
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class CostSignal:
     energy_balance: float
     causal_consistency: float
     temporal_coherence: float
-    breakdown: dict
+    breakdown: dict[str, Any]
 
     @classmethod
     def zero(cls) -> CostSignal:
@@ -64,7 +65,7 @@ class CostSignal:
             breakdown={"eb": 0.0, "cc": 0.0, "tc": 0.0},
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total": round(self.total, 6),
             "energy_balance": round(self.energy_balance, 6),
@@ -126,7 +127,7 @@ class EnergyCostModule:
     # 核心评估
     # -----------------------------------------------------------------
 
-    def evaluate(self, state) -> CostSignal:
+    def evaluate(self, state: Any) -> CostSignal:
         """
         评估世界状态的代价。
 
@@ -169,7 +170,7 @@ class EnergyCostModule:
     # -----------------------------------------------------------------
 
     # v3.0.4: 改为实例方法，支持时变能量惩罚
-    def _energy_balance_cost(self, state) -> float:
+    def _energy_balance_cost(self, state: Any) -> float:
         """
         计算能量均衡代价。
 
@@ -216,7 +217,7 @@ class EnergyCostModule:
 
         return violations / max(n_edges, 1)
 
-    def _overconstraint_cost(self, state) -> float:
+    def _overconstraint_cost(self, state: Any) -> float:
         """
         v3.0.4: 检测过度克制（相乘）和反向克制（相侮）异常。
 
@@ -239,7 +240,7 @@ class EnergyCostModule:
         return violations / max(len(state.causal_edges), 1)
 
     @staticmethod
-    def _causal_consistency_cost(state) -> float:
+    def _causal_consistency_cost(state: Any) -> float:
         """
         计算因果一致性代价。
 
@@ -272,7 +273,7 @@ class EnergyCostModule:
         return inconsistent / max(n_edges, 1)
 
     @staticmethod
-    def _temporal_coherence_cost(state) -> float:
+    def _temporal_coherence_cost(state: Any) -> float:
         """
         计算时序连贯性代价。
 

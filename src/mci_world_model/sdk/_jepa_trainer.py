@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.0 — JEPA Trainer
 ========================================
@@ -21,7 +23,6 @@ JEPA 端到端训练循环，支持三类训练模式:
     stats = trainer.train(n_epochs=10)
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -48,7 +49,7 @@ class JEPATrainingStats:
     alpha_energy: float = 0.1
     beta_cons: float = 0.05
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "n_epochs": self.n_epochs,
             "n_pairs": self.n_pairs,
@@ -345,8 +346,8 @@ class JEPATrainer:
 
     def _train_e2e_step(
         self,
-        mem_t: list[dict],
-        mem_t1: list[dict],
+        mem_t: list[dict[str, Any]],
+        mem_t1: list[dict[str, Any]],
         s_t1: CausalWorldModelState | None,
         s_t: CausalWorldModelState | None = None,
         learning_rate: float = 0.01,
@@ -494,12 +495,12 @@ class JEPATrainer:
     # -----------------------------------------------------------------
 
     @property
-    def parametric_memory(self):
+    def parametric_memory(self) -> None:
         """返回关联的 ParametricMemory 实例。"""
         return self._parametric_memory
 
     @parametric_memory.setter
-    def parametric_memory(self, pm):
+    def parametric_memory(self, pm: Any) -> None:
         """设置关联的 ParametricMemory 实例。"""
         self._parametric_memory = pm
 
@@ -561,7 +562,7 @@ class JEPATrainer:
         stats = self._parametric_memory.train_on_signals(cause_texts, true_categories, learning_rate=learning_rate)
         return stats.get("final_loss", 0.0)
 
-    def evaluate(self, dataset=None) -> dict:
+    def evaluate(self, dataset: Any=None) -> dict[str, Any]:
         """
         在完整数据集上评估预测器精度。
 

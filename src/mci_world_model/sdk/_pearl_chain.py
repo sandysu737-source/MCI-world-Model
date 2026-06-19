@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v5.1.0 — PearlChain 协调器
 ================================================
 
@@ -34,7 +36,6 @@ F8 根因: L1(关联)/L2(干预)/L3(反事实) 三层独立运行,
     >>> result.l3_result.pn   # 必然性概率
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

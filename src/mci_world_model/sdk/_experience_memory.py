@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — 三维融合经验记忆库 (ExperienceDB)
 
 CEWM v3.5.0 新增组件 (N2)：
@@ -26,7 +28,6 @@ CEWM v3.5.0 新增组件 (N2)：
 依赖：无外部依赖，纯 Python 实现（math + collections）
 """
 
-from __future__ import annotations
 
 import math
 import time
@@ -122,7 +123,7 @@ class RetrievalResult:
     temporal_score: float = 0.0
     rank: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experience_id": self.experience.experience_id,
             "score": round(self.score, 4),
@@ -159,7 +160,7 @@ class ExperienceDBStats:
 class _SemanticIndex:
     """语义维索引：基于标签的 TF-IDF 向量。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._doc_freq: dict[str, int] = defaultdict(int)
         self._n_docs: int = 0
 
@@ -213,7 +214,7 @@ class _SemanticIndex:
             return 0.0
         return score / (math.sqrt(q_norm) * math.sqrt(d_norm))
 
-    def statistics(self) -> dict:
+    def statistics(self) -> dict[str, Any]:
         return {
             "n_docs": self._n_docs,
             "vocabulary_size": len(self._doc_freq),
@@ -224,7 +225,7 @@ class _SemanticIndex:
 class _CausalIndex:
     """因果维索引：基于因果边匹配的结构相似度。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._edge_index: dict[str, set[str]] = defaultdict(set)  # cause → {exp_ids}
         self._effect_index: dict[str, set[str]] = defaultdict(set)  # effect → {exp_ids}
 
@@ -271,7 +272,7 @@ class _CausalIndex:
         effect_matches = self._effect_index.get(effect, set())
         return cause_matches & effect_matches
 
-    def statistics(self) -> dict:
+    def statistics(self) -> dict[str, Any]:
         return {
             "n_cause_nodes": len(self._edge_index),
             "n_effect_nodes": len(self._effect_index),
@@ -282,7 +283,7 @@ class _CausalIndex:
 class _TemporalIndex:
     """时间维索引：基于时间戳的近度排序与衰减。"""
 
-    def __init__(self, half_life_hours: float = 168.0):
+    def __init__(self, half_life_hours: float = 168.0) -> None:
         self.half_life_hours = half_life_hours
 
     def score(self, timestamp: float) -> float:
@@ -350,13 +351,13 @@ class ExperienceDB:
     _forget_count: int = 0
     _id_counter: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self._temporal_index is None:
             self._temporal_index = _TemporalIndex(half_life_hours=self.half_life_hours)
 
     # ── 存储 ──
 
-    def store(self, experience: Experience | None = None, **kwargs) -> str:
+    def store(self, experience: Experience | None = None, **kwargs: Any) -> str:
         """存储一条经验到记忆库。
 
         Args:
@@ -677,7 +678,7 @@ class ExperienceDB:
 
     # ── 序列化 ──
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典。
 
         LOOP-04 (S-3): 包含三维索引状态和内部计数器，

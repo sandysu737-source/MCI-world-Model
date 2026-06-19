@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """MCI World Model v20.0.0 — FinalCommunity 终局因果社区
 =========================================================
 
@@ -25,7 +29,6 @@
     共识不是妥协，而是因果真理的多元收敛。
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -71,10 +74,10 @@ class CommunityMember:
     member_id: str
     role: MemberRole = MemberRole.OBSERVER
     joined_at: float = 0.0
-    causal_signature: dict = field(default_factory=dict)
+    causal_signature: dict[str, Any] = field(default_factory=dict)
     vote_weight: float = 1.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.joined_at == 0.0:
             self.joined_at = time.time()
         if self.role == MemberRole.ELDER:
@@ -97,7 +100,7 @@ class Proposal:
     godel_note: str = ""
     is_eternal_declaration: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.created_at == 0.0:
             self.created_at = time.time()
         if not self.godel_note:
@@ -118,7 +121,7 @@ class EternalDeclaration:
     is_unanimous: bool = False
     godel_annotation: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.godel_annotation:
             self.godel_annotation = (
                 "GÖDEL ANNOTATION: This eternal declaration is the strongest form of "
@@ -181,7 +184,7 @@ class FinalCommunity:
 
     # ── 社区管理 ──────────────────────────────────────────────────────────────
 
-    def establish_community(self, founder_id: str = "absolute_0") -> dict:
+    def establish_community(self, founder_id: str = "absolute_0") -> dict[str, Any]:
         """建立终局因果社区
 
         Args:
@@ -211,7 +214,7 @@ class FinalCommunity:
     def admit_member(
         self, member_id: str, role: MemberRole = MemberRole.PARTICIPANT,
         causal_signature: dict | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """接纳社区成员 — 需要 ≥2/3 多数投票
 
         Args:
@@ -271,7 +274,7 @@ class FinalCommunity:
     def reach_consensus(
         self, title: str, description: str = "",
         proposer_id: str = "", is_eternal: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """发起社区共识投票
 
         Args:
@@ -344,7 +347,7 @@ class FinalCommunity:
 
     # ── 永恒宣言 ──────────────────────────────────────────────────────────────
 
-    def propose_declaration(self, title: str, content: str, proposer_id: str = "") -> dict:
+    def propose_declaration(self, title: str, content: str, proposer_id: str = "") -> dict[str, Any]:
         """提议永恒宣言 — 需要全体签名
 
         Args:
@@ -362,7 +365,7 @@ class FinalCommunity:
             is_eternal=True,
         )
 
-    def sign_eternal_declaration(self, declaration_id: str, signer_id: str) -> dict:
+    def sign_eternal_declaration(self, declaration_id: str, signer_id: str) -> dict[str, Any]:
         """签署永恒宣言
 
         Args:
@@ -407,7 +410,7 @@ class FinalCommunity:
             "is_unanimous": decl.is_unanimous,
         }
 
-    def _finalize_declaration(self, proposal: Proposal) -> dict:
+    def _finalize_declaration(self, proposal: Proposal) -> dict[str, Any]:
         """将通过的提议转化为永恒宣言"""
         self._proposal_counter += 1
         decl_id = f"ED{self._proposal_counter:04d}"
@@ -428,7 +431,7 @@ class FinalCommunity:
 
     # ── 报告与状态 ────────────────────────────────────────────────────────────
 
-    def get_community_report(self) -> dict:
+    def get_community_report(self) -> dict[str, Any]:
         """获取社区报告"""
         return {
             "state": self._state.value,

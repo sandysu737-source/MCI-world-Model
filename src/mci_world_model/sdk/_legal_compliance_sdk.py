@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — LegalComplianceSDK 法律合规因果 SDK
 =====================================================
 
@@ -15,7 +17,6 @@
     - 偏差检测集成
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -81,7 +82,7 @@ class LegalCausalConclusion:
     standard_type: str = "preponderance"
     jurisdiction: str = ""
     evidence_ids: list[str] = field(default_factory=list)
-    audit_trail: list[dict] = field(default_factory=list)
+    audit_trail: list[dict[str, Any]] = field(default_factory=list)
     bias_flags: list[str] = field(default_factory=list)
 
 
@@ -118,7 +119,7 @@ class LegalComplianceSDK:
         self._threshold = self.LEGAL_STANDARDS[standard]
         self._evidence: list[LegalEvidence] = []
         self._conclusions: list[LegalCausalConclusion] = []
-        self._audit_trail: list[dict] = []
+        self._audit_trail: list[dict[str, Any]] = []
 
     @property
     def jurisdiction(self) -> str:
@@ -242,7 +243,7 @@ class LegalComplianceSDK:
 
         return conclusion
 
-    def get_audit_trail(self) -> list[dict]:
+    def get_audit_trail(self) -> list[dict[str, Any]]:
         """获取完整审计轨迹。"""
         return list(self._audit_trail)
 

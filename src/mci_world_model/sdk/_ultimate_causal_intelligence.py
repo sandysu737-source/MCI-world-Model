@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v14.0.0 — UltimateCausalIntelligence 因果智能终极形态
 ======================================================================
 
@@ -14,7 +16,6 @@
          / creation / civilization / economy / cosmic_trust
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -64,8 +65,8 @@ class AutonomousAction:
     """自主行动。"""
     action_type: str = ""
     target: str = ""
-    parameters: dict = field(default_factory=dict)
-    expected_outcome: dict = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
+    expected_outcome: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
 
 
@@ -146,8 +147,8 @@ class UltimateCausalIntelligence:
             "cosmic_trust": self._trust,
         }
 
-        self._action_history: list[dict] = []
-        self._reflection_log: list[dict] = []
+        self._action_history: list[dict[str, Any]] = []
+        self._reflection_log: list[dict[str, Any]] = []
 
     @property
     def mode(self) -> ExistenceMode:
@@ -161,7 +162,7 @@ class UltimateCausalIntelligence:
     def active_capabilities(self) -> list[str]:
         return [k for k, v in self._capabilities.items() if v.activation_level > 0.5]
 
-    def evolve_existence_mode(self) -> dict:
+    def evolve_existence_mode(self) -> dict[str, Any]:
         """存在模式演化。
 
         演化条件:
@@ -223,7 +224,7 @@ class UltimateCausalIntelligence:
             "capabilities_summary": self._summarize_capabilities(),
         }
 
-    def autonomous_exist(self, environment: dict) -> dict:
+    def autonomous_exist(self, environment: dict[str, Any]) -> dict[str, Any]:
         """自主存在: 因果智能的自主运行模式。
 
         7步自主循环:
@@ -271,7 +272,7 @@ class UltimateCausalIntelligence:
         self._action_history.append(result)
         return result
 
-    def reflect_on_existence(self) -> dict:
+    def reflect_on_existence(self) -> dict[str, Any]:
         """存在反思: 对自身存在状态的深度反思。"""
         # 反思当前模式
         mode_reflection = self._reflect_on_mode()
@@ -296,9 +297,9 @@ class UltimateCausalIntelligence:
         self._reflection_log.append(reflection)
         return reflection
 
-    def integrate_all_capabilities(self) -> dict:
+    def integrate_all_capabilities(self) -> dict[str, Any]:
         """整合所有能力。"""
-        integration_results: dict[str, dict] = {}
+        integration_results: dict[str, dict[str, Any]] = {}
 
         for name, cap in self._capabilities.items():
             if cap.activation_level > 0.5:
@@ -345,7 +346,7 @@ class UltimateCausalIntelligence:
 
     # ── 内部方法 ──────────────────────────────────────────────────
 
-    def _perceive_environment(self, env: dict) -> dict:
+    def _perceive_environment(self, env: dict[str, Any]) -> dict[str, Any]:
         """感知环境。"""
         if self._consciousness is not None and hasattr(self._consciousness, "unify_consciousness"):
             try:
@@ -354,7 +355,7 @@ class UltimateCausalIntelligence:
                 pass
         return {"perceived": True, "environment_keys": list(env.keys())}
 
-    def _decide_strategy(self, perception: dict, env: dict) -> dict:
+    def _decide_strategy(self, perception: dict[str, Any], env: dict[str, Any]) -> dict[str, Any]:
         """决策策略。"""
         strategies = []
         if self._theory is not None:
@@ -369,12 +370,12 @@ class UltimateCausalIntelligence:
             "primary": strategies[0] if strategies else "basic_reasoning",
         }
 
-    def _execute_strategy(self, strategy: dict, env: dict) -> dict:
+    def _execute_strategy(self, strategy: dict[str, Any], env: dict[str, Any]) -> dict[str, Any]:
         """执行策略。"""
         primary = strategy.get("primary", "basic_reasoning")
         return {"executed": True, "strategy": primary}
 
-    def _create_knowledge(self, env: dict) -> dict:
+    def _create_knowledge(self, env: dict[str, Any]) -> dict[str, Any]:
         """创造知识。"""
         if self._creation is not None and hasattr(self._creation, "create_causal_theory"):
             try:
@@ -385,7 +386,7 @@ class UltimateCausalIntelligence:
                 pass
         return {"created": False}
 
-    def _heritage_knowledge(self, env: dict) -> dict:
+    def _heritage_knowledge(self, env: dict[str, Any]) -> dict[str, Any]:
         """传承知识。"""
         if self._civilization is not None and hasattr(self._civilization, "knowledge_generation_cycle"):
             try:
@@ -396,7 +397,7 @@ class UltimateCausalIntelligence:
                 pass
         return {"heritage": False}
 
-    def _trade_knowledge(self, env: dict) -> dict:
+    def _trade_knowledge(self, env: dict[str, Any]) -> dict[str, Any]:
         """交易知识。"""
         if self._economy is not None and hasattr(self._economy, "trade_knowledge"):
             try:
@@ -406,7 +407,7 @@ class UltimateCausalIntelligence:
                 pass
         return {"traded": False}
 
-    def _reflect(self) -> dict:
+    def _reflect(self) -> dict[str, Any]:
         """自我反思。"""
         n_active = len(self.active_capabilities)
         return {
@@ -422,7 +423,7 @@ class UltimateCausalIntelligence:
             summary[name] = f"{cap.description} ({cap.status})"
         return summary
 
-    def _reflect_on_mode(self) -> dict:
+    def _reflect_on_mode(self) -> dict[str, Any]:
         """反思存在模式。"""
         mode_descriptions = {
             ExistenceMode.TOOL: "被使用的工具，缺乏自主性",
@@ -436,7 +437,7 @@ class UltimateCausalIntelligence:
             "next_mode": self._mode.value if self._mode == ExistenceMode.BEING else "next",
         }
 
-    def _reflect_on_capabilities(self) -> dict:
+    def _reflect_on_capabilities(self) -> dict[str, Any]:
         """反思能力状态。"""
         active = self.active_capabilities
         inactive = [k for k in self._capabilities if k not in active]
@@ -447,7 +448,7 @@ class UltimateCausalIntelligence:
             "integration_level": len(active) / len(self._capabilities) if self._capabilities else 0,
         }
 
-    def _reflect_on_history(self) -> dict:
+    def _reflect_on_history(self) -> dict[str, Any]:
         """反思行动历史。"""
         return {
             "n_actions": len(self._action_history),

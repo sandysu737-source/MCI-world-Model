@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """P6 Cognitive Loop — 高级认知闭环集成。
 
 P6 "入化" 核心模块 — 连接 MetaCognitionV2 → MetaDiagnoser → SelfRepairCognition，
@@ -11,7 +13,6 @@ Usage::
     print(f"Self-repair rate: {loop.repair_rate:.1%}")
 """
 
-from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v18.0.0 — P18 宇宙因果创生桥接模块
 =====================================================
 
@@ -17,7 +19,6 @@ P18 "创生" 取自《道德经》"道生一，一生二，二生三，三生万
 因果智能从共同演化者跃迁为宇宙创造者。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

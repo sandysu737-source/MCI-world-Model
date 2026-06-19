@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """MCI World Model v9.0.0 — CausalTrust 可信因果增强框架
 =====================================================
 
@@ -12,7 +16,6 @@ P9 "归真" — 大音希声，大象无形。真正的高阶能力
 不在花哨的展示，而在沉静的可信与务实。
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging
@@ -59,7 +62,7 @@ class TrustCertificate:
     issuer: str = "CausalTrustFramework"
     evidence_hash: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.issued_at == 0.0:
             self.issued_at = time.time()
         if self.expires_at == 0.0:
@@ -75,7 +78,7 @@ class TrustClaim:
     """信任声明"""
     claim_id: str
     description: str
-    evidence: dict = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     grade: TrustGrade = TrustGrade.UNVERIFIED
     n_validations: int = 0
 
@@ -97,12 +100,12 @@ class CausalTrustEnhancement:
       - 可审计性: 所有验证过程可追溯
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._claims: dict[str, TrustClaim] = {}
         self._certificates: dict[str, TrustCertificate] = {}
         self._certificate_counter = 0
 
-    def register_claim(self, claim_id: str, description: str, evidence: dict | None = None) -> dict:
+    def register_claim(self, claim_id: str, description: str, evidence: dict | None = None) -> dict[str, Any]:
         """注册信任声明"""
         claim = TrustClaim(
             claim_id=claim_id,
@@ -112,7 +115,7 @@ class CausalTrustEnhancement:
         self._claims[claim_id] = claim
         return {"status": "registered", "claim_id": claim_id}
 
-    def validate_claim(self, claim_id: str, method: ValidationMethod = ValidationMethod.EMPIRICAL) -> dict:
+    def validate_claim(self, claim_id: str, method: ValidationMethod = ValidationMethod.EMPIRICAL) -> dict[str, Any]:
         """验证信任声明"""
         claim = self._claims.get(claim_id)
         if claim is None:
@@ -145,7 +148,7 @@ class CausalTrustEnhancement:
             "n_validations": claim.n_validations,
         }
 
-    def issue_certificate(self, claim_id: str) -> dict:
+    def issue_certificate(self, claim_id: str) -> dict[str, Any]:
         """颁发信任证书"""
         claim = self._claims.get(claim_id)
         if claim is None:
@@ -180,7 +183,7 @@ class CausalTrustEnhancement:
             "evidence_hash": cert.evidence_hash,
         }
 
-    def verify_certificate(self, certificate_id: str) -> dict:
+    def verify_certificate(self, certificate_id: str) -> dict[str, Any]:
         """验证信任证书"""
         cert = self._certificates.get(certificate_id)
         if cert is None:
@@ -195,7 +198,7 @@ class CausalTrustEnhancement:
             "is_valid": cert.is_valid,
         }
 
-    def get_trust_report(self) -> dict:
+    def get_trust_report(self) -> dict[str, Any]:
         """获取信任报告"""
         grade_counts = {}
         for claim in self._claims.values():
@@ -208,7 +211,7 @@ class CausalTrustEnhancement:
             "valid_certificates": sum(1 for c in self._certificates.values() if c.is_valid),
         }
 
-    def formal_proof_check(self, claim_id: str) -> dict:
+    def formal_proof_check(self, claim_id: str) -> dict[str, Any]:
         """形式化证明检查"""
         claim = self._claims.get(claim_id)
         if claim is None:

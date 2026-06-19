@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.4.0 — CognitiveLoopBus Wiener 四环跨层反馈总线
 =================================================================
@@ -30,7 +32,6 @@ MCI World Model v3.4.0 — CognitiveLoopBus Wiener 四环跨层反馈总线
     - 衰减因子 γ ∈ (0,1) 控制跨层传播幅度（R4 风险缓解）
 """
 
-from __future__ import annotations
 
 import logging
 import time

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.1 — Orchestrator 桥接
 
@@ -30,7 +32,6 @@ MCI World Model v3.1.1 — Orchestrator 桥接
     )
 """
 
-from __future__ import annotations
 
 import logging
 from collections.abc import Callable
@@ -79,14 +80,14 @@ class AgentResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def ok(cls, intent_type: str, data: dict, **meta) -> AgentResult:
+    def ok(cls: Any, intent_type: str, data: dict[str, Any], **meta: Any) -> AgentResult:
         return cls(success=True, intent_type=intent_type, data=data, metadata=meta)
 
     @classmethod
     def fail(cls, intent_type: str, error: str) -> AgentResult:
         return cls(success=False, intent_type=intent_type, error=error)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "intent_type": self.intent_type,
@@ -103,7 +104,7 @@ class AgentResult:
 _INTENT_REGISTRY: dict[str, dict[str, Any]] = {}
 
 
-def register_intent(intent_type: str, handler: Callable, description: str = "", **meta) -> None:
+def register_intent(intent_type: str, handler: Callable[..., Any], description: str = "", **meta: Any) -> None:
     """注册自定义意图映射。"""
     _INTENT_REGISTRY[intent_type] = {"handler": handler, "description": description, "meta": meta}
 
@@ -206,7 +207,7 @@ class OrchestratorBridge:
 
         return result
 
-    def execute_workflow(self, workflow_name: str, patient_id: str, context: dict[str, Any] | None = None) -> dict:
+    def execute_workflow(self, workflow_name: str, patient_id: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         执行多意图工作流。
 
@@ -287,7 +288,7 @@ class OrchestratorBridge:
     # 意图处理器
     # -----------------------------------------------------------------
 
-    def _handle_screening(self, params: dict) -> AgentResult:
+    def _handle_screening(self, params: dict[str, Any]) -> AgentResult:
         """
         SCREENING → BayesianNetwork.bayes_inference()
 
@@ -337,7 +338,7 @@ class OrchestratorBridge:
             },
         )
 
-    def _handle_assessment(self, params: dict) -> AgentResult:
+    def _handle_assessment(self, params: dict[str, Any]) -> AgentResult:
         """
         ASSESSMENT → CounterfactualEngine.query()
 
@@ -400,7 +401,7 @@ class OrchestratorBridge:
             },
         )
 
-    def _handle_plan_generation(self, params: dict) -> AgentResult:
+    def _handle_plan_generation(self, params: dict[str, Any]) -> AgentResult:
         """
         PLAN_GENERATION → JEPAEncoder.encode() + JEPAPredictor.predict()
 
@@ -456,7 +457,7 @@ class OrchestratorBridge:
             },
         )
 
-    def _handle_followup(self, params: dict) -> AgentResult:
+    def _handle_followup(self, params: dict[str, Any]) -> AgentResult:
         """
         FOLLOWUP → PhysicalGraphBuilder.build_graph() + EnergyFlowPredictor
 
@@ -508,7 +509,7 @@ class OrchestratorBridge:
             },
         )
 
-    def _handle_monitoring(self, params: dict) -> AgentResult:
+    def _handle_monitoring(self, params: dict[str, Any]) -> AgentResult:
         """
         MONITORING → 指标趋势监控 + 异常检测。
         """
@@ -544,7 +545,7 @@ class OrchestratorBridge:
 
         return AgentResult.ok("MONITORING", {"alerts": alerts, "total_days": len(timeline)})
 
-    def _handle_cf_query(self, params: dict) -> AgentResult:
+    def _handle_cf_query(self, params: dict[str, Any]) -> AgentResult:
         """
         CF_QUERY → CounterfactualOracle.batch_what_if() + rank_scenarios()
 
@@ -552,7 +553,7 @@ class OrchestratorBridge:
         反事实推演结果，并将结果融入后续推理。
 
         Params:
-            hypotheses: list[dict] — 反事实假设列表
+            hypotheses: list[dict[str, Any]] — 反事实假设列表
                 [{"name": "A", "intervention": {...}, "target": "..."}]
             goal: str — 优化目标描述
             target_direction: str — 'higher_is_better' 或 'lower_is_better'

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """CachedDoCalculus — 带 LRU 缓存的 Do-Calculus 干预推理。
 
 P3 "赋魂" 核心模块 — 在 DoCalculus 基础上增加组合键缓存，
@@ -15,7 +17,6 @@ Usage::
     print(cached.cache_info())  # hits, misses, size
 """
 
-from __future__ import annotations
 
 import hashlib
 import time

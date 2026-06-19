@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — DifferentiableCausalInference 可微因果推断
 =============================================================
 
@@ -14,7 +16,6 @@
     - 可微 = 可优化 = 可学习
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

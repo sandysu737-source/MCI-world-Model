@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.0.8 — Lightweight Causal Engine
 
@@ -20,7 +24,6 @@ MCI World Model v3.0.8 — Lightweight Causal Engine
     effects = engine.predict_effects(cause, memories, use_intervention=True, do_value=1.5)
 """
 
-from __future__ import annotations
 
 import logging
 
@@ -159,7 +162,7 @@ class CausalEngine:
         True
     """
 
-    def __init__(self, min_confidence: float = 0.5):
+    def __init__(self, min_confidence: float = 0.5) -> None:
         """
         Args:
             min_confidence: 最低置信度阈值
@@ -180,7 +183,7 @@ class CausalEngine:
 
     def find_causal_pairs(
         self,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         use_statistical: bool = False,
         energy_bus=None,
         index: dict[str, set] | None = None,
@@ -329,11 +332,11 @@ class CausalEngine:
     def predict_effects(
         self,
         cause_content: str,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         top_k: int = 3,
         use_intervention: bool = False,
         do_value: float | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         基于历史记忆预测给定原因的效应。
 
@@ -402,9 +405,9 @@ class CausalEngine:
     def query_causal_chain(
         self,
         query: str,
-        memories: list[dict],
+        memories: list[dict[str, Any]],
         max_depth: int = 2,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         查询因果链：查询 → 直接效应 → 二级效应。
 

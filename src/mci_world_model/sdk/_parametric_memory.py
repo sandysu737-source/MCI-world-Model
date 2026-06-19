@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.0.7 — Parametric Memory Engine
 ===================================================
@@ -28,7 +32,6 @@ MCI World Model v3.0.7 — Parametric Memory Engine
     pm.save_adapter("./checkpoints/mci-world-model-v0.3.7")
 """
 
-from __future__ import annotations
 
 import hashlib
 import json
@@ -91,7 +94,7 @@ class ParametricMemoryConfig:
     # ── 随机种子 ──
     seed: int = 42
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "version": "3.0.7",
             "model_type": "CausalMLP",
@@ -140,7 +143,7 @@ class ParametricMemory:
     4. predict() → 五范畴因果概率预测
     """
 
-    def __init__(self, config: ParametricMemoryConfig | None = None):
+    def __init__(self, config: ParametricMemoryConfig | None = None) -> None:
         """
         Args:
             config: 训练配置（None 时使用默认值）
@@ -150,7 +153,7 @@ class ParametricMemory:
         self._embedder: SimpleTextEmbedder = SimpleTextEmbedder(output_dim=self.config.input_dim)
         self._training_data: list[TrainingSample] = []
         self._is_trained: bool = False
-        self._training_stats: dict = {}
+        self._training_stats: dict[str, Any] = {}
 
     # ────────────────────────────────────────────────
     # 模型初始化
@@ -178,7 +181,7 @@ class ParametricMemory:
 
     def prepare_training_data(
         self,
-        qa_pairs: list,
+        qa_pairs: list[Any],
     ) -> tuple[int, dict]:
         """
         将 Reflection QA 对转换为训练格式。
@@ -256,7 +259,7 @@ class ParametricMemory:
         )
         return n, report
 
-    def get_training_format(self) -> list[dict]:
+    def get_training_format(self) -> list[dict[str, Any]]:
         """获取转换后的训练格式数据。"""
         return [
             {
@@ -310,7 +313,7 @@ class ParametricMemory:
         self,
         training_data: list | None = None,
         energy_loss_fn=None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         执行 CausalMLP 参数化训练。
 
@@ -377,7 +380,7 @@ class ParametricMemory:
         cause_texts: list[str],
         true_categories: list[int],
         learning_rate: float = 0.01,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         快速单轮训练：用于 JEPATrainer 集成场景。
 
@@ -568,7 +571,7 @@ class ParametricMemory:
         target_category: str | None = None,
         top_k: int = 3,
         max_new_tokens: int = 128,  # 保留接口兼容，CausalMLP 不使用
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         参数化因果推理：给定原因文本，预测五范畴因果分布。
 
@@ -639,7 +642,7 @@ class ParametricMemory:
         return self._is_trained
 
     @property
-    def training_stats(self) -> dict:
+    def training_stats(self) -> dict[str, Any]:
         return self._training_stats.copy()
 
     @property
@@ -650,7 +653,7 @@ class ParametricMemory:
     def model(self) -> CausalMLP | None:
         return self._model
 
-    def health_check(self) -> dict:
+    def health_check(self) -> dict[str, Any]:
         """健康检查。"""
         return {
             "model_initialized": self._model is not None,
@@ -677,7 +680,7 @@ def _hash_sample_id(cause: str, effect: str, idx: int) -> str:
     return f"pm_{h[:12]}"
 
 
-def estimate_training_time(n_samples: int, backend: str = "numpy_sgd") -> dict:
+def estimate_training_time(n_samples: int, backend: str = "numpy_sgd") -> dict[str, Any]:
     """
     估算训练时间。
 

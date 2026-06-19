@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.3.0 — PlanAgent 因果决策前置化
 ====================================================
@@ -26,11 +28,10 @@ MCI World Model v3.3.0 — PlanAgent 因果决策前置化
     - 支持 Plan 数据结构的序列化与回放
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from mci_world_model.sdk._action_conditioned_predictor import ActionConditionedPredictor
@@ -60,19 +61,19 @@ class Plan:
         metadata: 额外信息
     """
 
-    actions: list = field(default_factory=list)
-    predicted_trajectory: list = field(default_factory=list)
+    actions: list[Any] = field(default_factory=list)
+    predicted_trajectory: list[Any] = field(default_factory=list)
     expected_cost: float = float("inf")
     confidence: float = 0.0
     reasoning: str = ""
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def horizon(self) -> int:
         """规划步数。"""
         return len(self.actions)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典。"""
         return {
             "horizon": self.horizon,
@@ -152,7 +153,7 @@ class PlanAgent:
         current: WorldState,
         action: Action,
         goal: WorldState,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """评估单个动作的效果。
 
         Args:
@@ -219,7 +220,7 @@ class PlanAgent:
             )
 
         # 构建多分支动作序列
-        action_sequences: list[list] = []
+        action_sequences: list[list[Any]] = []
         for action in candidate_actions[:n_branches]:
             seq = [action] * max_horizon  # 零阶保持
             action_sequences.append(seq)
@@ -305,15 +306,15 @@ class PlanAgent:
             )
 
         best_cost = float("inf")
-        best_actions: list = []
-        best_trajectory: list = []
+        best_actions: list[Any] = []
+        best_trajectory: list[Any] = []
 
         # 递归穷举（最多 5^3 = 125 种组合）
         def _search(
             state: WorldState,
             depth: int,
-            actions_so_far: list,
-            trajectory_so_far: list,
+            actions_so_far: list[Any],
+            trajectory_so_far: list[Any],
         ) -> None:
             nonlocal best_cost, best_actions, best_trajectory
 
@@ -370,7 +371,7 @@ class PlanAgent:
         self,
         plan: Plan,
         state: WorldState,
-    ) -> tuple:
+    ) -> tuple[Any, ...]:
         """执行计划（模拟执行），逐步推进状态。
 
         Args:
@@ -383,8 +384,8 @@ class PlanAgent:
         self._execute_count += 1
 
         current = state.copy()
-        executed_states: list = [current]
-        surprises: list = []
+        executed_states: list[Any] = [current]
+        surprises: list[Any] = []
 
         for i, action in enumerate(plan.actions):
             preds = self._predictor.predict(current, action, n_steps=1)
@@ -452,7 +453,7 @@ class PlanAgent:
     # _generate_default_candidates — 默认候选动作生成
     # -----------------------------------------------------------------
 
-    def _generate_default_candidates(self, state: WorldState) -> list:
+    def _generate_default_candidates(self, state: WorldState) -> list[Any]:
         """根据 WorldState 类型生成默认候选动作。
 
         v4.4.0: 泛化为支持 PendulumState / CartState / 任意 WorldState。

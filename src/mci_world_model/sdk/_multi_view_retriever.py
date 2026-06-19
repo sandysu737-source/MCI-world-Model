@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — 五维融合检索器 (MultiViewRetriever)
 
 CEWM v3.5.0 新增组件 (N3)：
@@ -21,7 +23,6 @@ CEWM v3.5.0 新增组件 (N3)：
 依赖：ExperienceDB（语义/因果/时间三维）
 """
 
-from __future__ import annotations
 
 import math
 import time
@@ -98,7 +99,7 @@ class MultiViewResult:
     rank: int = 0
     strategy: str = "weighted"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experience_id": self.experience.experience_id,
             "score": round(self.score, 4),
@@ -131,7 +132,7 @@ class MultiViewStats:
 class _ContextIndex:
     """上下文维索引：基于情境特征匹配。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._exp_contexts: dict[str, dict[str, str]] = {}
 
     def add(self, exp_id: str, context: dict[str, Any]) -> None:
@@ -168,7 +169,7 @@ class _ContextIndex:
 
         return matches / total if total > 0 else 0.0
 
-    def statistics(self) -> dict:
+    def statistics(self) -> dict[str, Any]:
         return {
             "n_indexed": len(self._exp_contexts),
             "avg_keys": (
@@ -185,7 +186,7 @@ class _ContextIndex:
 class _StructuralIndex:
     """结构维索引：基于状态空间特征向量的余弦相似度。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._features: dict[str, list[float]] = {}
 
     def add(self, exp_id: str, features: list[float]) -> None:
@@ -225,7 +226,7 @@ class _StructuralIndex:
             return 0.0
         return max(0.0, dot / (q_norm * d_norm))  # 确保非负
 
-    def statistics(self) -> dict:
+    def statistics(self) -> dict[str, Any]:
         return {
             "n_indexed": len(self._features),
             "avg_dims": (sum(len(v) for v in self._features.values()) / len(self._features) if self._features else 0),
@@ -282,7 +283,7 @@ class MultiViewRetriever:
     _strategy_count: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     _total_latency_ms: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.experience_db is None:
             self.experience_db = ExperienceDB()
 

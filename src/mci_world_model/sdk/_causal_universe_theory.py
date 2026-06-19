@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v14.0.0 — CausalUniverseTheory 因果宇宙统一理论
 ==================================================================
 
@@ -11,7 +13,6 @@
 统一尺度: micro / meso / macro / meta / quantum
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -33,7 +34,7 @@ class CausalScale(str, Enum):
 class ScaleResult:
     """单尺度推理结果。"""
     scale: str = ""
-    conclusion: dict = field(default_factory=dict)
+    conclusion: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
     method: str = "unknown"
 
@@ -66,9 +67,9 @@ class CausalUniverseTheory:
         self._quantum = quantum_engine
         self._nonlinear = nonlinear_engine
         self._creation = creation_engine
-        self._unification_map: dict[str, dict] = {}
+        self._unification_map: dict[str, dict[str, Any]] = {}
 
-    def unify_causal_reasoning(self, query: dict) -> dict:
+    def unify_causal_reasoning(self, query: dict[str, Any]) -> dict[str, Any]:
         """统一因果推理。"""
         scale_analysis = self._analyze_query_scale(query)
 
@@ -115,7 +116,7 @@ class CausalUniverseTheory:
             "unification_quality": self._assess_unification_quality(unified, consistency),
         }
 
-    def derive_universal_causal_law(self, domain_set: list[str]) -> dict:
+    def derive_universal_causal_law(self, domain_set: list[str]) -> dict[str, Any]:
         """推导普适因果律: 跨所有领域通用的因果规律。"""
         invariants = self._extract_causal_invariants(domain_set)
         candidates = self._generate_universal_law_candidates(invariants)
@@ -132,7 +133,7 @@ class CausalUniverseTheory:
             "invariants": invariants,
         }
 
-    def _analyze_query_scale(self, query: dict) -> dict:
+    def _analyze_query_scale(self, query: dict[str, Any]) -> dict[str, Any]:
         return {
             "applicable_scales": [CausalScale.MICRO.value, CausalScale.MESO.value, CausalScale.MACRO.value, CausalScale.META.value],
             "primary_scale": CausalScale.MESO.value,
@@ -140,13 +141,13 @@ class CausalUniverseTheory:
             "quantum_relevant": False,
         }
 
-    def _unify_multiscale_results(self, results: dict, analysis: dict) -> dict:
+    def _unify_multiscale_results(self, results: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
         unified = {}
         for scale, result in results.items():
             unified[scale] = {"conclusion": result.conclusion, "confidence": result.confidence}
         return unified
 
-    def _check_inter_scale_consistency(self, results: dict) -> dict:
+    def _check_inter_scale_consistency(self, results: dict[str, Any]) -> dict[str, Any]:
         scales = list(results.keys())
         checks = []
         for i, s1 in enumerate(scales):
@@ -156,23 +157,23 @@ class CausalUniverseTheory:
         all_consistent = all(c["consistent"] for c in checks)
         return {"all_consistent": all_consistent, "pairwise": checks}
 
-    def _formulate_unified_conclusion(self, unified: dict, consistency: dict) -> dict:
+    def _formulate_unified_conclusion(self, unified: dict[str, Any], consistency: dict[str, Any]) -> dict[str, Any]:
         return {
             "conclusion": "Unified causal reasoning across scales",
             "n_scales_unified": len(unified),
             "consistency_achieved": consistency["all_consistent"],
         }
 
-    def _assess_unification_quality(self, unified: dict, consistency: dict) -> float:
+    def _assess_unification_quality(self, unified: dict[str, Any], consistency: dict[str, Any]) -> float:
         n_scales = len(unified)
         quality = min(n_scales / 5, 1.0) * (1.0 if consistency["all_consistent"] else 0.7)
         return float(quality)
 
-    def _extract_causal_invariants(self, domain_set: list[str]) -> list[dict]:
+    def _extract_causal_invariants(self, domain_set: list[str]) -> list[dict[str, Any]]:
         return [{"invariant": f"causal_preservation_across_{d}", "domains": domain_set} for d in domain_set[:3]]
 
-    def _generate_universal_law_candidates(self, invariants: list[dict]) -> list[dict]:
+    def _generate_universal_law_candidates(self, invariants: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [{"law": f"Universal: {inv['invariant']}", "scope": "cross_domain"} for inv in invariants]
 
-    def _validate_universality(self, candidate: dict, domain_set: list[str]) -> dict:
+    def _validate_universality(self, candidate: dict[str, Any], domain_set: list[str]) -> dict[str, Any]:
         return {"universal": True, "verified_domains": domain_set}

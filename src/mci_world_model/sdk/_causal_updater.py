@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — 因果图自适应更新器 (CausalUpdater)
 
 CEWM v3.6.0 新增组件 (N4)：
@@ -22,7 +24,6 @@ CEWM v3.6.0 新增组件 (N4)：
     - 新边: 置信度从初始值开始累积
 """
 
-from __future__ import annotations
 
 import math
 import time

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v12.0.0 — FederatedAgentMarket 联邦因果智能体市场
 ====================================================================
 
@@ -15,12 +17,11 @@
     - 基于联邦信任的交易验证
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -60,7 +61,7 @@ class AgentSpec:
     rating: float = 0.0
     n_ratings: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.agent_id:
             self.agent_id = hashlib.md5(
                 f"{self.name}:{self.provider}:{time.time()}".encode()
@@ -90,7 +91,7 @@ class TradeRecord:
     consumer: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.trade_id:
             self.trade_id = hashlib.md5(
                 f"{self.agent_id}:{self.consumer}:{self.timestamp}".encode()
@@ -115,7 +116,7 @@ class FederatedAgentMarket:
         min_trust_for_trade: 交易最低信任分数
     """
 
-    def __init__(self, min_trust_for_trade: float = 0.5):
+    def __init__(self, min_trust_for_trade: float = 0.5) -> None:
         self._agents: dict[str, AgentSpec] = {}
         self._trades: list[TradeRecord] = []
         self._ratings: dict[str, list[float]] = {}
@@ -133,7 +134,7 @@ class FederatedAgentMarket:
 
     # ── Registration ────────────────────────────────────────────────────
 
-    def register_agent(self, agent_spec: AgentSpec) -> dict:
+    def register_agent(self, agent_spec: AgentSpec) -> dict[str, Any]:
         """注册因果智能体。
 
         Args:
@@ -158,7 +159,7 @@ class FederatedAgentMarket:
 
     # ── Discovery ───────────────────────────────────────────────────────
 
-    def discover_agents(self, query: dict) -> list[AgentSpec]:
+    def discover_agents(self, query: dict[str, Any]) -> list[AgentSpec]:
         """发现智能体。
 
         Args:
@@ -190,7 +191,7 @@ class FederatedAgentMarket:
 
     # ── Trading ─────────────────────────────────────────────────────────
 
-    def trade_agent(self, agent_id: str, consumer: str) -> dict:
+    def trade_agent(self, agent_id: str, consumer: str) -> dict[str, Any]:
         """交易智能体。
 
         Args:
@@ -225,7 +226,7 @@ class FederatedAgentMarket:
 
     # ── Rating ──────────────────────────────────────────────────────────
 
-    def rate_agent(self, agent_id: str, rating: float) -> dict:
+    def rate_agent(self, agent_id: str, rating: float) -> dict[str, Any]:
         """评价智能体。
 
         Args:
@@ -256,7 +257,7 @@ class FederatedAgentMarket:
 
     # ── Statistics ──────────────────────────────────────────────────────
 
-    def market_statistics(self) -> dict:
+    def market_statistics(self) -> dict[str, Any]:
         """市场统计。"""
         ratings = [a.rating for a in self._agents.values() if a.n_ratings > 0]
         return {

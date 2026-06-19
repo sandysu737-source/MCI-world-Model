@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v14.0.0 — CosmicAwareness 宇宙级因果觉察
 ============================================================
 
@@ -12,7 +14,6 @@
 觉察范围: local → regional → global → cosmic
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -66,7 +67,7 @@ class CausalAnomaly:
 class EvolutionPrediction:
     """因果演化预测。"""
     timescale: str = ""
-    predicted_changes: list[dict] = field(default_factory=list)
+    predicted_changes: list[dict[str, Any]] = field(default_factory=list)
     confidence: float = 0.0
     n_predicted_events: int = 0
 
@@ -101,7 +102,7 @@ class CosmicAwareness:
         self._cosmic_map = CosmicMap()
         self._domains: dict[str, CausalDomain] = {}
         self._anomalies: list[CausalAnomaly] = []
-        self._awareness_history: list[dict] = []
+        self._awareness_history: list[dict[str, Any]] = []
 
     @property
     def scope(self) -> AwarenessScope:
@@ -111,7 +112,7 @@ class CosmicAwareness:
     def cosmic_map(self) -> CosmicMap:
         return self._cosmic_map
 
-    def expand_awareness(self, scope: str = "global") -> dict:
+    def expand_awareness(self, scope: str = "global") -> dict[str, Any]:
         """扩展觉察范围。
 
         Args:
@@ -226,7 +227,7 @@ class CosmicAwareness:
         Args:
             timescale: 预测时间尺度 (short/medium/long)
         """
-        predicted_changes: list[dict] = []
+        predicted_changes: list[dict[str, Any]] = []
 
         # 基于因果熵趋势预测
         entropy_trend = self._estimate_entropy_trend()
@@ -262,7 +263,7 @@ class CosmicAwareness:
             n_predicted_events=len(predicted_changes),
         )
 
-    def get_awareness_summary(self) -> dict:
+    def get_awareness_summary(self) -> dict[str, Any]:
         """获取觉察摘要。"""
         return {
             "current_scope": self._scope.value,
@@ -277,7 +278,7 @@ class CosmicAwareness:
 
     # ── 内部感知方法 ──────────────────────────────────────────────
 
-    def _sense_local(self) -> dict:
+    def _sense_local(self) -> dict[str, Any]:
         """局部感知: 单节点因果状态。"""
         self._ensure_domain("local_node", "Local Causal Node")
         return {
@@ -286,7 +287,7 @@ class CosmicAwareness:
             "domains": ["local_node"],
         }
 
-    def _sense_regional(self) -> dict:
+    def _sense_regional(self) -> dict[str, Any]:
         """区域感知: 联邦因果状态。"""
         for name in ["federation_north", "federation_south"]:
             self._ensure_domain(name, f"Federation Region: {name}")
@@ -296,7 +297,7 @@ class CosmicAwareness:
             "domains": list(self._domains.keys())[:5],
         }
 
-    def _sense_global(self) -> dict:
+    def _sense_global(self) -> dict[str, Any]:
         """全局感知: 全尺度因果状态。"""
         for name in self.DOMAIN_CATALOG[:6]:
             self._ensure_domain(name, f"Domain: {name}")
@@ -306,7 +307,7 @@ class CosmicAwareness:
             "active_processes": sum(d.n_active_processes for d in self._domains.values()),
         }
 
-    def _sense_cosmic(self) -> dict:
+    def _sense_cosmic(self) -> dict[str, Any]:
         """宇宙感知: 跨维度因果状态。"""
         for name in self.DOMAIN_CATALOG:
             self._ensure_domain(name, f"Domain: {name}")
@@ -332,10 +333,10 @@ class CosmicAwareness:
     def _update_cosmic_map(
         self,
         scope: AwarenessScope,
-        local: dict,
-        regional: dict,
-        global_: dict,
-        cosmic: dict,
+        local: dict[str, Any],
+        regional: dict[str, Any],
+        global_: dict[str, Any],
+        cosmic: dict[str, Any],
     ) -> None:
         """更新宇宙地貌图。"""
         _ = locals().get('all_data', None)
@@ -353,7 +354,7 @@ class CosmicAwareness:
         """发现因果域。"""
         return list(self._domains.values())
 
-    def _trace_cross_scale_chains(self) -> list[dict]:
+    def _trace_cross_scale_chains(self) -> list[dict[str, Any]]:
         """追踪跨尺度因果链。"""
         chains = []
         domain_ids = list(self._domains.keys())

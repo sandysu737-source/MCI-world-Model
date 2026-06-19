@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.0.8 — BatchCounterfactualEngine 批量反事实引擎
 ================================================================
@@ -32,9 +34,8 @@ for 循环实现 (O(N·M·D))，将 evidence/do_x 矩阵化后单次大矩阵模
     results = engine.batch_query(scenarios)  # < 1s for 100+ scenarios
 """
 
-from __future__ import annotations
-
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -71,7 +72,7 @@ class BatchCounterfactualEngine:
         ... ])
     """
 
-    def __init__(self, sem: StructuralEquationModel):
+    def __init__(self, sem: StructuralEquationModel) -> None:
         """
         Args:
             sem: 结构方程模型
@@ -99,7 +100,7 @@ class BatchCounterfactualEngine:
 
     def batch_query(
         self,
-        scenarios: list[dict],
+        scenarios: list[dict[str, Any]],
         n_mc: int = 200,
         compute_pns: bool = True,
     ) -> list[CounterfactualResult]:

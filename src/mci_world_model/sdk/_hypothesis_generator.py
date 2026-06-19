@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — HypothesisGenerator 假设生成器
 =================================================
 
@@ -13,7 +15,6 @@
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

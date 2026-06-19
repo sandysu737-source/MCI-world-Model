@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — AGIIntegrationProtocol AGI集成协议
 =========================================================
 
@@ -16,7 +18,6 @@ AGI 级别集成协议——定义世界模型与通用智能系统的接口，
     - 纯 numpy，零外部依赖
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -51,7 +52,7 @@ class AGIRequest:
 
     request_id: str
     capability: AGICapability
-    payload: dict = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     priority: int = 5
     requires_audit: bool = True
 
@@ -71,7 +72,7 @@ class AGIResponse:
 
     request_id: str
     success: bool = False
-    result: dict = field(default_factory=dict)
+    result: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
     audit_trail_id: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -86,11 +87,11 @@ class AGIIntegrationProtocol:
         >>> response = protocol.handle_request(request)
     """
 
-    def __init__(self, min_confidence: float = 0.5, audit_enabled: bool = True):
+    def __init__(self, min_confidence: float = 0.5, audit_enabled: bool = True) -> None:
         self._min_confidence = min_confidence
         self._audit_enabled = audit_enabled
         self._capabilities: set[AGICapability] = set()
-        self._request_history: list[dict] = []
+        self._request_history: list[dict[str, Any]] = []
         self._request_count: int = 0
 
     @property
@@ -154,7 +155,7 @@ class AGIIntegrationProtocol:
 
         return response
 
-    def _process_capability(self, request: AGIRequest) -> dict:
+    def _process_capability(self, request: AGIRequest) -> dict[str, Any]:
         """处理具体能力请求 (简化实现)。"""
         payload = request.payload
 

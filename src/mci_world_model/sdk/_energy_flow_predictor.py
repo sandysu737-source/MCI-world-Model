@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """
 MCI World Model v3.0.6 — Energy Flow Predictor
 ===============================================
@@ -18,7 +22,6 @@ MCI World Model v3.0.6 — Energy Flow Predictor
     anomaly = efp.detect_anomaly(flow, threshold=0.15)
 """
 
-from __future__ import annotations
 
 import logging
 
@@ -37,7 +40,7 @@ class EnergyFlowPredictor:
         _history: 能量流历史记录
     """
 
-    def __init__(self, energy_core):
+    def __init__(self, energy_core: Any) -> None:
         """
         Args:
             energy_core: EnergyCore 实例（来自 su_memory._sys._energy_core）

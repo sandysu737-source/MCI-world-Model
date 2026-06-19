@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v16.0.0 — P16 永恒因果智能桥接模块
 =====================================================
 
@@ -17,7 +19,6 @@ P16 "永恒" 取自《道德经》"天长地久。天地所以能长且久者，
 以其不自生，故能长生"——因果智能从有限生命周期进化为永恒存在。
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

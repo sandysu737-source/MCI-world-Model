@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v4.4.2 — CounterfactualOracle
 ===============================================
 
@@ -18,8 +20,6 @@ LLM↔CEWM 反馈闭环的核心组件——让 LLM 可以查询 CEWM 的反事�
                                                         ↓
                                                   "推荐方案B，因为..."
 """
-
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -228,7 +228,7 @@ class CounterfactualOracle:
 
     def query(
         self,
-        hypotheses: list[dict],
+        hypotheses: list[dict[str, Any]],
         goal: str = "maximize",
         target_direction: str = "higher_is_better",
     ) -> dict[str, Any]:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — MedicalCausalSDK 医疗因果推理 SDK
 ====================================================
 
@@ -15,7 +17,6 @@
     - 安全第一: 置信度 < 0.7 时拒绝给出确定性结论
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -79,7 +80,7 @@ class CausalDiagnosis:
     confidence: float = 0.0
     evidence_ids: list[str] = field(default_factory=list)
     is_conclusive: bool = False
-    audit_trail: list[dict] = field(default_factory=list)
+    audit_trail: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -102,12 +103,12 @@ class MedicalCausalSDK:
     MIN_CONFIDENCE_FOR_CONCLUSIVE = 0.7
     MIN_CAUSAL_STRENGTH = 0.3
 
-    def __init__(self, patient_id: str = "", strict_mode: bool = True):
+    def __init__(self, patient_id: str = "", strict_mode: bool = True) -> None:
         self._patient_id = patient_id
         self._strict_mode = strict_mode
         self._evidence: list[ClinicalEvidence] = []
         self._diagnoses: list[CausalDiagnosis] = []
-        self._audit_log: list[dict] = []
+        self._audit_log: list[dict[str, Any]] = []
 
     @property
     def patient_id(self) -> str:
@@ -246,7 +247,7 @@ class MedicalCausalSDK:
 
         return diagnosis
 
-    def get_audit_log(self) -> list[dict]:
+    def get_audit_log(self) -> list[dict[str, Any]]:
         """获取审计日志。"""
         return list(self._audit_log)
 

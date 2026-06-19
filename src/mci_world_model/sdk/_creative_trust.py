@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v13.0.0 — CreativeTrust 创造可信框架
 ======================================================
 
@@ -13,7 +15,6 @@
     contradictory_theory (<0.40) — 矛盾理论
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Any
@@ -51,7 +52,7 @@ class CreativeTrust:
         self._trust = trust_framework
         self._novelty = novelty_verifier
 
-    def assess_creative_trust(self, created_theory: Any) -> dict:
+    def assess_creative_trust(self, created_theory: Any) -> dict[str, Any]:
         """评估创造性理论的可信度。"""
         # 基础信任
         base_trust_score = 0.5
@@ -98,7 +99,7 @@ class CreativeTrust:
             "compatibility": compatibility,
         }
 
-    def _check_falsifiability(self, theory: Any) -> dict:
+    def _check_falsifiability(self, theory: Any) -> dict[str, Any]:
         """可证伪性检查。"""
         if hasattr(theory, "falsifiability") and theory.falsifiability:
             n_tests = len(theory.falsifiability.get("testable_predictions", []))
@@ -106,7 +107,7 @@ class CreativeTrust:
             return {"score": float(score), "n_testable_predictions": n_tests}
         return {"score": 0.3, "n_testable_predictions": 0}
 
-    def _check_compatibility(self, theory: Any) -> dict:
+    def _check_compatibility(self, theory: Any) -> dict[str, Any]:
         """兼容性检查。"""
         return {"score": float(np.random.uniform(0.5, 0.9))}
 
@@ -119,7 +120,7 @@ class CreativeTrust:
             return "untested_hypothesis"
         return "contradictory_theory"
 
-    def verify_creative_originality(self, theory: Any, known_theories: list | None = None) -> dict:
+    def verify_creative_originality(self, theory: Any, known_theories: list | None = None) -> dict[str, Any]:
         """验证创造性理论的原创性。"""
         novelty = 0.5
         if self._novelty is not None:
@@ -140,7 +141,7 @@ class CreativeTrust:
             "is_original": originality >= 0.5,
         }
 
-    def establish_trust_chain(self, theory: Any, validators: list[str] | None = None) -> dict:
+    def establish_trust_chain(self, theory: Any, validators: list[str] | None = None) -> dict[str, Any]:
         """建立信任链 — 多方验证。"""
         trust_assessment = self.assess_creative_trust(theory)
         n_validators = len(validators) if validators else 0
@@ -155,7 +156,7 @@ class CreativeTrust:
             "base_trust_score": trust_assessment["creative_trust_score"],
         }
 
-    def get_trust_report(self) -> dict:
+    def get_trust_report(self) -> dict[str, Any]:
         """获取创造信任报告。"""
         return {
             "trust_thresholds": self.TRUST_THRESHOLDS,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 MCI World Model v3.1.0 — PhysicalGraphBuilder 物理量→因果边转换器
 ================================================================
@@ -32,7 +34,6 @@ MCI World Model v3.1.0 — PhysicalGraphBuilder 物理量→因果边转换器
     # edges → JEPAEncoder.to_graph_tensors()
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Any
@@ -84,7 +85,7 @@ class PhysicalGraphBuilder:
     RHO_SUPPRESS_THRESHOLD = -0.3  # rho < -0.3 视为 suppress
     MAX_LAG_DAYS = 7  # 最大滞后天数
 
-    def __init__(self, min_correlation: float = 0.15):
+    def __init__(self, min_correlation: float = 0.15) -> None:
         """
         Args:
             min_correlation: 最小相关系数阈值（abs），低于此值不建边
@@ -97,9 +98,9 @@ class PhysicalGraphBuilder:
 
     def build_graph(
         self,
-        patient_timeline: list[dict],
+        patient_timeline: list[dict[str, Any]],
         max_lag: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         将患者时序数据转换为因果边列表。
 
@@ -133,7 +134,7 @@ class PhysicalGraphBuilder:
         data_matrix = self._build_timeline_matrix(patient_timeline, feature_names)
 
         # ── 计算相关系数 + 滞后检测 ──
-        edges: list[dict] = []
+        edges: list[dict[str, Any]] = []
         for i, f1 in enumerate(feature_names):
             for j, f2 in enumerate(feature_names):
                 if i == j:
@@ -198,7 +199,7 @@ class PhysicalGraphBuilder:
     # 辅助方法
     # -----------------------------------------------------------------
 
-    def _extract_feature_names(self, sample: dict) -> list[str]:
+    def _extract_feature_names(self, sample: dict[str, Any]) -> list[str]:
         """从样本字典提取数值特征名称（排除 day/timestamp 等）。"""
         skip_keys = {"day", "timestamp", "patient_id", "source"}
         names = []
@@ -214,7 +215,7 @@ class PhysicalGraphBuilder:
 
     def _build_timeline_matrix(
         self,
-        timeline: list[dict],
+        timeline: list[dict[str, Any]],
         feature_names: list[str],
     ) -> np.ndarray:
         """构建 (N_days × N_features) 数值矩阵。"""
@@ -297,7 +298,7 @@ class PhysicalGraphBuilder:
 
     def build_state(
         self,
-        patient_timeline: list[dict],
+        patient_timeline: list[dict[str, Any]],
         max_lag: int | None = None,
     ) -> Any:
         """
@@ -327,7 +328,7 @@ class PhysicalGraphBuilder:
 # =============================================================================
 
 
-def signals_to_timeline(signals: list, n_days: int = 30) -> list[dict]:
+def signals_to_timeline(signals: list[Any], n_days: int = 30) -> list[dict[str, Any]]:
     """
     v3.1.0: 将 MultimodalSignal 列表转换为时序字典列表。
 

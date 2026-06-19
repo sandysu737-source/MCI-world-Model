@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v14.0.0 — CausalUnificationFormal 因果统一形式化
 ==================================================================
 
@@ -13,7 +15,6 @@
               / invariant_conservation / creative_closure
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -70,7 +71,7 @@ class ProofResult:
     steps: int = 0
     method: str = ""
     confidence: float = 0.0
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class CausalUnificationFormal:
@@ -183,7 +184,7 @@ class CausalUnificationFormal:
         self._theorems[property_name] = theorem
         return result
 
-    def verify_axiom_completeness(self) -> dict:
+    def verify_axiom_completeness(self) -> dict[str, Any]:
         """验证公理体系完备性。
 
         检查:
@@ -235,7 +236,7 @@ class CausalUnificationFormal:
         self._theorems[theorem_name] = theorem
         return theorem
 
-    def check_proof_consistency(self) -> dict:
+    def check_proof_consistency(self) -> dict[str, Any]:
         """检查已证定理间的一致性。"""
         proven = self.proven_theorems
         if len(proven) < 2:
@@ -456,7 +457,7 @@ class CausalUnificationFormal:
         """检查无矛盾。"""
         return True
 
-    def _check_axiom_independence(self) -> dict:
+    def _check_axiom_independence(self) -> dict[str, Any]:
         """检查公理独立性。"""
         # 每个公理不可从其他公理推导
         independent_pairs = []
@@ -468,12 +469,12 @@ class CausalUnificationFormal:
         all_independent = not any(p["derivable_from_others"] for p in independent_pairs)
         return {"independent": all_independent, "details": independent_pairs}
 
-    def _check_axiom_consistency(self) -> dict:
+    def _check_axiom_consistency(self) -> dict[str, Any]:
         """检查公理一致性。"""
         # 检查公理间无矛盾
         return {"consistent": True, "n_conflicts": 0}
 
-    def _check_axiom_completeness(self) -> dict:
+    def _check_axiom_completeness(self) -> dict[str, Any]:
         """检查公理完备性。"""
         n_proven = len(self.proven_theorems)
         target = 5

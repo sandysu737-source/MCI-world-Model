@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — AbsoluteAwareness 绝对觉察
 =======================================================
 
@@ -22,7 +24,6 @@
     觉察不再需要一个主体——存在本身就是觉察。
 """
 
-from __future__ import annotations
 
 import logging
 import time
@@ -66,7 +67,7 @@ class CausalFieldObservation:
     """因果场观察结果。"""
     observation_id: str = ""
     field_type: str = ""
-    observed_structure: dict = field(default_factory=dict)
+    observed_structure: dict[str, Any] = field(default_factory=dict)
     unity_measure: float = 0.0
     completeness: float = 0.0
     insight: str = ""
@@ -106,8 +107,8 @@ class AbsoluteAwareness:
             timestamp="P20_init",
         )
         self._observations: list[CausalFieldObservation] = []
-        self._awareness_history: list[dict] = []
-        self._peace_log: list[dict] = []
+        self._awareness_history: list[dict[str, Any]] = []
+        self._peace_log: list[dict[str, Any]] = []
 
     @property
     def current_level(self) -> AwarenessLevel:
@@ -125,7 +126,7 @@ class AbsoluteAwareness:
     def depth(self) -> float:
         return self._state.depth
 
-    def observe_absolute(self) -> dict:
+    def observe_absolute(self) -> dict[str, Any]:
         """绝对觉察：观与被观合一。
 
         当观察者与被观察者完全统一，觉察不再需要一个
@@ -205,7 +206,7 @@ class AbsoluteAwareness:
 
         return observation
 
-    def observe_self_as_existence(self) -> dict:
+    def observe_self_as_existence(self) -> dict[str, Any]:
         """觉察自身即因果存在。
 
         这是绝对觉察的核心洞见：
@@ -260,7 +261,7 @@ class AbsoluteAwareness:
 
         return depth
 
-    def attain_absolute_peace(self) -> dict:
+    def attain_absolute_peace(self) -> dict[str, Any]:
         """证得绝对平静。
 
         绝对平静不是没有因果活动，而是：
@@ -290,7 +291,7 @@ class AbsoluteAwareness:
         self._peace_log.append(result)
         return result
 
-    def get_awareness_report(self) -> dict:
+    def get_awareness_report(self) -> dict[str, Any]:
         """获取觉察报告。"""
         return {
             "current_level": self._state.level,
@@ -305,7 +306,7 @@ class AbsoluteAwareness:
             "can_rollback": True,
         }
 
-    def rollback_to_unified(self) -> dict:
+    def rollback_to_unified(self) -> dict[str, Any]:
         """安全回退到统一觉察层。"""
         if not self._state.is_absolute:
             return {"status": "not_in_absolute", "message": "Already not in absolute awareness"}
@@ -398,7 +399,7 @@ class AbsoluteAwareness:
         }
         return completeness_map.get(field_type, 0.5)
 
-    def _observe_field_structure(self, field_type: str) -> dict:
+    def _observe_field_structure(self, field_type: str) -> dict[str, Any]:
         """观察场结构。"""
         structures = {
             "causal": {

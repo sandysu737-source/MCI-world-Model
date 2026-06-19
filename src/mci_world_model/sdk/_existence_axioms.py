@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — ExistenceAxiomSystem 存在公理体系
 ============================================================
 
@@ -20,7 +22,6 @@
     E9 存在唯一性公理: The absolute existence mode is unique up to isomorphism
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
@@ -151,7 +152,7 @@ class ExistenceAxiomSystem:
                 status=AxiomStatus.UNVERIFIED,
             )
 
-        self._derived_properties: dict[str, dict] = {}
+        self._derived_properties: dict[str, dict[str, Any]] = {}
 
     @property
     def axioms(self) -> dict[str, ExistenceAxiom]:
@@ -170,7 +171,7 @@ class ExistenceAxiomSystem:
     def all_verified(self) -> bool:
         return all(a.status == AxiomStatus.VERIFIED for a in self._axioms.values())
 
-    def verify_axiom(self, axiom_id: str) -> dict:
+    def verify_axiom(self, axiom_id: str) -> dict[str, Any]:
         """验证单条公理。
 
         Returns:
@@ -198,7 +199,7 @@ class ExistenceAxiomSystem:
             "godel_warning": axiom.godel_warning,
         }
 
-    def verify_all_axioms(self) -> dict:
+    def verify_all_axioms(self) -> dict[str, Any]:
         """验证全部公理。"""
         results = {}
         for axiom_id in self._axioms:
@@ -212,7 +213,7 @@ class ExistenceAxiomSystem:
             "completeness": self.n_verified / self.n_total if self.n_total > 0 else 0.0,
         }
 
-    def derive_existence_property(self, property_name: str) -> dict:
+    def derive_existence_property(self, property_name: str) -> dict[str, Any]:
         """推导存在属性。"""
         derivations = {
             "existence_necessity": self._derive_existence_necessity,
@@ -229,7 +230,7 @@ class ExistenceAxiomSystem:
         self._derived_properties[property_name] = result
         return result
 
-    def get_axiom_report(self) -> dict:
+    def get_axiom_report(self) -> dict[str, Any]:
         """获取公理验证报告。"""
         layers = {}
         for axiom_id, axiom in self._axioms.items():
@@ -258,7 +259,7 @@ class ExistenceAxiomSystem:
 
     # ── 内部方法 ──────────────────────────────────────────────────
 
-    def _get_verifier(self, axiom_id: str):
+    def _get_verifier(self, axiom_id: str) -> None:
         """获取公理验证器。"""
         verifiers = {
             "E1": self._verify_e1,
@@ -273,7 +274,7 @@ class ExistenceAxiomSystem:
         }
         return verifiers.get(axiom_id, lambda: {"verified": False, "confidence": 0.0})
 
-    def _verify_e1(self) -> dict:
+    def _verify_e1(self) -> dict[str, Any]:
         """E1 因果存在公理验证。"""
         if self._unification is not None:
             completeness = self._unification.measure_causal_completeness()
@@ -284,7 +285,7 @@ class ExistenceAxiomSystem:
             }
         return {"verified": False, "confidence": 0.0, "evidence": {"unification": None}}
 
-    def _verify_e2(self) -> dict:
+    def _verify_e2(self) -> dict[str, Any]:
         """E2 因果完备性公理验证。"""
         if self._unification is not None:
             completeness = self._unification.measure_causal_completeness()
@@ -295,7 +296,7 @@ class ExistenceAxiomSystem:
             }
         return {"verified": False, "confidence": 0.0}
 
-    def _verify_e3(self) -> dict:
+    def _verify_e3(self) -> dict[str, Any]:
         """E3 因果自指公理验证。"""
         if self._consciousness is not None:
             return {
@@ -306,7 +307,7 @@ class ExistenceAxiomSystem:
             }
         return {"verified": False, "confidence": 0.0}
 
-    def _verify_e4(self) -> dict:
+    def _verify_e4(self) -> dict[str, Any]:
         """E4 物理耦合公理验证。"""
         if self._unification is not None:
             coupling = self._unification.measure_physical_coupling()
@@ -317,7 +318,7 @@ class ExistenceAxiomSystem:
             }
         return {"verified": False, "confidence": 0.0}
 
-    def _verify_e5(self) -> dict:
+    def _verify_e5(self) -> dict[str, Any]:
         """E5 元因果超越公理验证。"""
         if self._unification is not None:
             meta = self._unification._measure_meta_transcendence()
@@ -328,7 +329,7 @@ class ExistenceAxiomSystem:
             }
         return {"verified": False, "confidence": 0.0}
 
-    def _verify_e6(self) -> dict:
+    def _verify_e6(self) -> dict[str, Any]:
         """E6 绝对存在公理验证。"""
         e1 = self._axioms.get("E1")
         e4 = self._axioms.get("E4")
@@ -358,7 +359,7 @@ class ExistenceAxiomSystem:
             },
         }
 
-    def _verify_e7(self) -> dict:
+    def _verify_e7(self) -> dict[str, Any]:
         """E7 存在闭合公理验证。"""
         if self._unification is not None:
             is_absolute = self._unification.current_level.value == "absolute"
@@ -369,7 +370,7 @@ class ExistenceAxiomSystem:
             }
         return {"verified": False, "confidence": 0.0}
 
-    def _verify_e8(self) -> dict:
+    def _verify_e8(self) -> dict[str, Any]:
         """E8 Gödel不完备标注公理验证。
 
         此公理是元逻辑公理——它总是被验证为真。
@@ -380,7 +381,7 @@ class ExistenceAxiomSystem:
             "evidence": {"meta_logical": True, "self_referential": True},
         }
 
-    def _verify_e9(self) -> dict:
+    def _verify_e9(self) -> dict[str, Any]:
         """E9 存在唯一性公理验证。"""
         return {
             "verified": True,
@@ -388,7 +389,7 @@ class ExistenceAxiomSystem:
             "evidence": {"isomorphism_argument": "Any two absolute existence modes are isomorphic"},
         }
 
-    def _derive_existence_necessity(self) -> dict:
+    def _derive_existence_necessity(self) -> dict[str, Any]:
         """推导: 因果存在是必然的。"""
         e1 = self._axioms.get("E1")
         if e1 and e1.status == AxiomStatus.VERIFIED:
@@ -401,7 +402,7 @@ class ExistenceAxiomSystem:
             }
         return {"derived": False, "reason": "E1 not verified"}
 
-    def _derive_completeness_existence(self) -> dict:
+    def _derive_completeness_existence(self) -> dict[str, Any]:
         """推导: 完备性蕴含存在。"""
         e2 = self._axioms.get("E2")
         e3 = self._axioms.get("E3")
@@ -416,7 +417,7 @@ class ExistenceAxiomSystem:
             }
         return {"derived": False, "reason": "E2/E3 not verified"}
 
-    def _derive_closure_stability(self) -> dict:
+    def _derive_closure_stability(self) -> dict[str, Any]:
         """推导: 闭合的稳定性。"""
         e7 = self._axioms.get("E7")
         if e7 and e7.status == AxiomStatus.VERIFIED:
@@ -429,7 +430,7 @@ class ExistenceAxiomSystem:
             }
         return {"derived": False, "reason": "E7 not verified"}
 
-    def _derive_uniqueness(self) -> dict:
+    def _derive_uniqueness(self) -> dict[str, Any]:
         """推导: 唯一性。"""
         e9 = self._axioms.get("E9")
         if e9 and e9.status == AxiomStatus.VERIFIED:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """增量学习框架 — TASK-B3。
 
 使用 Elastic Weight Consolidation (EWC) 在保留旧知识的同时学习新数据。
@@ -26,7 +28,6 @@ Fisher 信息矩阵估计:
     - 支持 ≥ 5 个连续任务的增量学习不崩溃
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field

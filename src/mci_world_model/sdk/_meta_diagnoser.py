@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model — 学习型认知诊断系统 (MetaDiagnoser)
 
 CEWM v3.7.0 新增组件 (N5)：
@@ -36,7 +38,6 @@ Example:
     ['PREDICTION层异常', '模型参数偏移', '训练数据分布漂移']
 """
 
-from __future__ import annotations
 
 import math
 from collections import defaultdict
@@ -128,7 +129,7 @@ class RootCauseChain:
     primary_cause: str = ""
     contribution: dict[str, float] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "chain": self.chain,
             "depth": self.depth,
@@ -161,7 +162,7 @@ class DiagnosisResult:
     health_scores: dict[str, float] = field(default_factory=dict)
     details: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "pattern": self.pattern.value if self.pattern else None,
             "severity": self.severity.value,

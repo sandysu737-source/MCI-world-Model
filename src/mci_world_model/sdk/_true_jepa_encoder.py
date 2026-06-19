@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v5.1.0 — TrueJEPA Encoder
 ================================================
 
@@ -41,7 +43,6 @@ F6 修复: JEPA 名不副实 — "联合嵌入预测" 的核心是观测→潜�
     >>> z_next = enc.predict_next(z, action)  # (128,) 预测
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

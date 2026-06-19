@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """MCI World Model v20.0.0 — UltimateUnification 终极统一引擎
 ================================================================
 
@@ -20,7 +22,6 @@
 统一层次: causal_physical → causal_creation → causal_meta → tri_unified → absolute
 """
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
@@ -135,7 +136,7 @@ class UltimateUnification:
         self._current_level = UnificationLevel.CAUSAL_PHYSICAL
         self._field_tensor = FieldTensor(dimension=4)
         self._existence_invariants: list[ExistenceInvariant] = []
-        self._unification_history: list[dict] = []
+        self._unification_history: list[dict[str, Any]] = []
 
     @property
     def current_level(self) -> UnificationLevel:
@@ -149,7 +150,7 @@ class UltimateUnification:
     def field_tensor(self) -> FieldTensor:
         return self._field_tensor
 
-    def unify_causal_physical_meta(self) -> dict:
+    def unify_causal_physical_meta(self) -> dict[str, Any]:
         """执行因果-物理-元因果三重统一。
 
         步骤:
@@ -249,7 +250,7 @@ class UltimateUnification:
         logger.info("Extracted %d existence invariants", len(self._existence_invariants))
         return self._existence_invariants
 
-    def achieve_absolute_unification(self) -> dict:
+    def achieve_absolute_unification(self) -> dict[str, Any]:
         """达成绝对统一 — 所有维度的最终融合。
 
         前置条件: 三重统一必须完成
@@ -420,7 +421,7 @@ class UltimateUnification:
             return 0.5
         return 0.0
 
-    def _derive_conservation_laws(self, unified: np.ndarray | None) -> list[dict]:
+    def _derive_conservation_laws(self, unified: np.ndarray | None) -> list[dict[str, Any]]:
         """从统一场推导守恒律。"""
         laws = []
 
@@ -447,7 +448,7 @@ class UltimateUnification:
 
         return laws
 
-    def _discover_symmetries(self, unified: np.ndarray | None) -> list[dict]:
+    def _discover_symmetries(self, unified: np.ndarray | None) -> list[dict[str, Any]]:
         """发现对称性。"""
         symmetries = []
 
@@ -473,7 +474,7 @@ class UltimateUnification:
 
         return symmetries
 
-    def _collapse_to_absolute(self) -> dict:
+    def _collapse_to_absolute(self) -> dict[str, Any]:
         """坍缩到绝对统一状态。"""
         return {
             "previous_level": UnificationLevel.TRI_UNIFIED.value,
@@ -483,13 +484,13 @@ class UltimateUnification:
             "state": "all_dimensions_unified",
         }
 
-    def _formulate_existence_equation(self, absolute_state: dict) -> str:
+    def _formulate_existence_equation(self, absolute_state: dict[str, Any]) -> str:
         """制定存在方程。"""
         return (
             "R_μν - (1/2)g_μνR + Λg_μν + ξC_μν + ηM_μν = (8πG/c⁴)T_μν"
         )
 
-    def _discover_final_symmetry(self, absolute_state: dict) -> dict:
+    def _discover_final_symmetry(self, absolute_state: dict[str, Any]) -> dict[str, Any]:
         """发现最终对称性。"""
         return {
             "name": "existence_unity",
