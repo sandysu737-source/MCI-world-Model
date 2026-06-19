@@ -24,8 +24,6 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
 
-import numpy as np
-
 logger = logging.getLogger(__name__)
 
 
@@ -379,7 +377,7 @@ class SurgicalWorkflow:
 
     def emergency_stop(self, reason: str = "手动触发") -> bool:
         """触发紧急停止。"""
-        ok, msg = self.transition_to(SurgicalPhase.EMERGENCY_STOP, reason=reason, force=True)
+        ok, _msg = self.transition_to(SurgicalPhase.EMERGENCY_STOP, reason=reason, force=True)
         return ok
 
     def reset_from_estop(self) -> bool:

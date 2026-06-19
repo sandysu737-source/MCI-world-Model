@@ -7,7 +7,7 @@ MCI World Model v4.4.0 — TinyTransformer
 轻量字符级 Transformer 用于清创场景文本推理 (~15K-420K params)。
 
 架构:
-    CharTokenizer (22K vocab) → Embedding → PositionalEncoding → 
+    CharTokenizer (22K vocab) → Embedding → PositionalEncoding →
     Transformer Blocks (×N) → Pooling → Output Head
 
 等级:

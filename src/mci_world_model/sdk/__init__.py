@@ -405,15 +405,20 @@ from mci_world_model.sdk._debridement_data import (
     SyntheticDebridementGenerator,
     WoundDatasetAdapter,
 )
-from mci_world_model.sdk._debridement_world_model import (
-    DebridementConfig,
-    DebridementWorldModel,
-)
-from mci_world_model.sdk._debridement_trainer import (
+from mci_world_model.sdk._debridement_trainer import (  # noqa: F401
     DebridementTrainer,
     TrainHistory,
     TrainingConfig,
     TrainingMetrics,
+)
+from mci_world_model.sdk._debridement_world_model import (
+    DebridementConfig,
+    DebridementWorldModel,
+)
+
+# v4.4.0: 具身清创 — 时序 Transformer + 手术相预测
+from mci_world_model.sdk._debridement_world_model import (  # noqa: F401
+    DebridementWorldModel as DebridementWorldModelV2,
 )
 from mci_world_model.sdk._differentiable_causal import (
     CausalParameter,
@@ -542,10 +547,6 @@ from mci_world_model.sdk._force_tissue_dynamics import (
     ForceTissueDynamics,
     RemovalPrediction,
     SafetyVerdict,
-)
-# v4.4.0: 具身清创 — 时序 Transformer + 手术相预测
-from mci_world_model.sdk._debridement_world_model import (
-    DebridementWorldModel as DebridementWorldModelV2,
 )
 from mci_world_model.sdk._generalized_physics import (
     GeneralizedPhysicsPredictor,
@@ -904,6 +905,13 @@ from mci_world_model.sdk._spectral_causal import (
     GaussianDAG,
     GaussianDistribution,
 )
+from mci_world_model.sdk._surgical_workflow import (  # noqa: F401
+    PhaseTransition,
+    SurgicalPhase,
+    SurgicalState,
+    SurgicalWorkflow,
+    WorkflowReport,
+)
 from mci_world_model.sdk._surprise_detector import (
     SurpriseDetector,
     SurpriseSignal,
@@ -912,27 +920,21 @@ from mci_world_model.sdk._symbol_grounding import (
     GroundingEntry,
     SymbolGroundingLearning,
 )
-# v4.4.0: 小模型 Transformer (清创文本推理)
-from mci_world_model.sdk._tiny_transformer import (
-    TinyTransformer,
-    TinyTransformerConfig,
-)
-from mci_world_model.sdk._tiny_trainer import (
-    TinyTrainConfig,
-    TinyTrainer,
-    TinyTrainMetrics,
-)
-from mci_world_model.sdk._surgical_workflow import (
-    PhaseTransition,
-    SurgicalPhase,
-    SurgicalState,
-    SurgicalWorkflow,
-    WorkflowReport,
-)
 from mci_world_model.sdk._the_absolute import (
     AbsoluteProperty,
     GeneratedStructure,
     TheAbsolute,
+)
+from mci_world_model.sdk._tiny_trainer import (  # noqa: F401
+    TinyTrainConfig,
+    TinyTrainer,
+    TinyTrainMetrics,
+)
+
+# v4.4.0: 小模型 Transformer (清创文本推理)
+from mci_world_model.sdk._tiny_transformer import (  # noqa: F401
+    TinyTransformer,
+    TinyTransformerConfig,
 )
 from mci_world_model.sdk._tissue_classifier import (
     TISSUE_EPITHELIAL,

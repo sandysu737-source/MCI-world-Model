@@ -446,7 +446,7 @@ class DebridementWorldModel:
             logger.error("Load failed: %s", e)
             return None
 
-    
+
     # ── 时序 Transformer (多步序列) ──
 
     def _temporal_transformer_forward(
@@ -461,7 +461,7 @@ class DebridementWorldModel:
         Returns:
             (T, d_model) 上下文化时序表示
         """
-        T = x_seq.shape[0]
+        _T = x_seq.shape[0]
         h = x_seq
         for i in range(self.config.n_layers):
             # Multi-head self-attention over time dimension
@@ -500,7 +500,7 @@ class DebridementWorldModel:
         Returns:
             {"dynamics": (T, state_dim), "tissue_probs": (T, 4), "phase_probs": (T, 4)}
         """
-        T = len(samples)
+        _T = len(samples)
         fused_seq = np.stack([
             self.encode_modalities(s) for s in samples
         ])  # (T, d_model)
@@ -641,6 +641,6 @@ class DebridementWorldModel:
         }
 
 
-def __repr__(self) -> str:
+def repr_info(self) -> str:
         cfg = self.config
         return f"DebridementWorldModel(d={cfg.d_model}, L={cfg.n_layers}, h={cfg.n_heads}, params={self.n_params})"

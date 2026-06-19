@@ -164,7 +164,7 @@ class ForceTissueDynamics:
 
         tissues = np.array([d[0] for d in force_data], dtype=np.int32)
         forces = np.array([d[1] for d in force_data], dtype=np.float64)
-        velocities = np.array([d[2] for d in force_data], dtype=np.float64)
+        _velocities = np.array([d[2] for d in force_data], dtype=np.float64)
         observed_depths = np.array([d[3] for d in force_data], dtype=np.float64)
 
         best_mse = float("inf")

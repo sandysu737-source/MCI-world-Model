@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 # MLX 可选导入
 try:
     import mlx.core as mx
-    import mlx.nn as mx_nn
     import mlx.optimizers as mx_opt
     _HAS_MLX = True
 except ImportError:
