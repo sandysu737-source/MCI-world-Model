@@ -155,15 +155,32 @@ class PCSkeletonDiscoverer:
         # Step 2: 条件独立性检验 — 逐步删边
         corr = np.corrcoef(data.T)
 
+        # 2a: 0 阶检验 (无条件独立)
         for i in range(n_vars):
             for j in range(i + 1, n_vars):
                 if adj[i, j] == 0:
                     continue
-                # 偏相关检验 (0阶)
-                p_val = self._partial_correlation_test(corr, i, j, [], _n_samples)
+                r = self._partial_corr(corr, i, j, [])
+                p_val = self._fisher_z_test(r, _n_samples)
                 if p_val > self._alpha:
                     adj[i, j] = 0
                     adj[j, i] = 0
+
+        # 2b: 1 阶检验 (条件独立, 打破 chain/confounder 伪边)
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                if adj[i, j] == 0:
+                    continue
+                # 遍历所有可能的条件变量 k
+                for k in range(n_vars):
+                    if k in (i, j):
+                        continue
+                    r = self._partial_corr(corr, i, j, [k])
+                    p_val = self._fisher_z_test(r, _n_samples)
+                    if p_val > self._alpha:
+                        adj[i, j] = 0
+                        adj[j, i] = 0
+                        break
 
         # Step 3: 方向推断 (简化: 基于 partial correlation 不对称性)
         edges = self._orient_edges(adj, corr, var_names)
@@ -175,20 +192,38 @@ class PCSkeletonDiscoverer:
             confidence=self._compute_confidence(adj, corr),
         )
 
-    def _partial_correlation_test(self, corr: np.ndarray, i: int, j: int, cond: list[int], n_samples: int = 100) -> float:
-        """偏相关检验 (Fisher z-transform)。
+    @staticmethod
+    def _partial_corr(corr: np.ndarray, i: int, j: int, cond: list[int]) -> float:
+        """计算偏相关系数 r_{ij·cond}。
 
-        简化: 0阶偏相关 = Pearson 相关
+        0 阶: 直接 Pearson 相关
+        1 阶: r_{ij|k} = (r_{ij} - r_{ik}·r_{kj}) / sqrt((1-r_{ik}²)(1-r_{kj}²))
         """
-        r = corr[i, j]
-        # Clamp to avoid inf in atanh
+        if len(cond) == 0:
+            return corr[i, j]
+        if len(cond) == 1:
+            k = cond[0]
+            rik, rkj, rij = corr[i, k], corr[k, j], corr[i, j]
+            denom = np.sqrt(max(1 - rik * rik, 1e-10) * max(1 - rkj * rkj, 1e-10))
+            return (rij - rik * rkj) / denom
+        # 高阶 (>1): 递归消去第一个条件变量后降阶
+        k = cond[0]
+        rik, rkj, rij = corr[i, k], corr[k, j], corr[i, j]
+        denom = np.sqrt(max(1 - rik * rik, 1e-10) * max(1 - rkj * rkj, 1e-10))
+        r_adj = (rij - rik * rkj) / denom
+        # 简化: 忽略条件变量对其他边的影响, 近似递归
+        return r_adj
+
+    def _fisher_z_test(self, r: float, n_samples: int) -> float:
+        """Fisher z-transform 双尾检验。
+
+        H₀: ρ = 0 (独立)
+        返回 p 值, p > alpha 则不能拒绝独立性 → 删边
+        """
         r = np.clip(r, -0.9999, 0.9999)
         z = 0.5 * np.log((1 + r) / (1 - r))
-        n = n_samples
-        se = 1.0 / np.sqrt(max(n - 3, 1))
-        # Two-sided p-value (approximate)
-        p_val = 2.0 * (1.0 - self._normal_cdf(abs(z) / se))
-        return p_val
+        se = 1.0 / np.sqrt(max(n_samples - 3, 1))
+        return 2.0 * (1.0 - self._normal_cdf(abs(z) / se))
 
     @staticmethod
     def _normal_cdf(x: float) -> float:

@@ -76,7 +76,7 @@ class TestPCDiscovery:
         skeleton = pc.discover(data, var_names=["X", "Z", "Y"])
         m = compute_discovery_metrics(skeleton.edges, true)
         assert m["recall"] >= 0.5, f"Recall {m['recall']:.2f}"
-        assert m["shd"] <= 8, f"SHD {m['shd']}"  # 0-order: X→Y 不独立通过 Z
+        assert m["shd"] <= 6, f"SHD {m['shd']}"  # 无向骨架: TP×2 + 噪声残留
 
     def test_confounder_discovery(self) -> None:
         data, true = confounder_data(n=500)
