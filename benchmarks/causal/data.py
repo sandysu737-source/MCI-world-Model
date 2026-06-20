@@ -76,15 +76,14 @@ def linear_gaussian(
 
     # Treatment assignment with confounding
     propensity = 1.0 / (1.0 + np.exp(-X[:, 0]))
-    X = (rng.rand(n) < propensity).astype(np.float64)
+    T = (rng.rand(n) < propensity).astype(np.float64)
 
     # Outcome
     noise = rng.randn(n) * 0.5
-    treatment_col = (rng.rand(n) < propensity).astype(np.float64)
-    Y = ate * treatment_col + X @ beta + noise
+    Y = ate * T + X @ beta + noise
 
     return CausalDataset(
-        treatment=X,
+        treatment=T,
         outcome=Y,
         covariates=X,
         true_ate=ate,
@@ -115,7 +114,7 @@ def nonlinear_scm(
 
     # Treatment assignment
     propensity = 1.0 / (1.0 + np.exp(-(X[:, 0] + X[:, 1])))
-    X = (rng.rand(n) < propensity).astype(np.float64)
+    T = (rng.rand(n) < propensity).astype(np.float64)
 
     # Heterogeneous treatment effect
     tau = 1.0 + 0.5 * X[:, 0] * X[:, 1]
@@ -123,10 +122,10 @@ def nonlinear_scm(
 
     # Outcome
     noise = rng.randn(n) * 0.3
-    Y = tau * X + np.sin(X[:, 2]) + np.exp(0.3 * X[:, 3]) + noise
+    Y = tau * T + np.sin(X[:, 2]) + np.exp(0.3 * X[:, 3]) + noise
 
     return CausalDataset(
-        treatment=X,
+        treatment=T,
         outcome=Y,
         covariates=X,
         true_ate=true_ate,
@@ -227,12 +226,12 @@ def high_dim_confounder(
     # Only first 5 covariates affect treatment and outcome
     score = X[:, :5].sum(axis=1)
     propensity = 1.0 / (1.0 + np.exp(-score))
-    X = (rng.rand(n) < propensity).astype(np.float64)
+    T = (rng.rand(n) < propensity).astype(np.float64)
 
-    Y = X + X[:, :5].sum(axis=1) + rng.randn(n) * 0.5
+    Y = T + X[:, :5].sum(axis=1) + rng.randn(n) * 0.5
 
     return CausalDataset(
-        treatment=X,
+        treatment=T,
         outcome=Y,
         covariates=X,
         true_ate=1.0,
