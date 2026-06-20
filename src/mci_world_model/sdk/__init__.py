@@ -200,6 +200,8 @@ from mci_world_model.sdk._auto_scaler import (
 from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
     AutonomousLawDiscovererV2,
     CausalSkeleton,
+    GESDiscoverer,
+    LiNGAMDiscoverer,
     PCSkeletonDiscoverer,
     SystemReport,
 )
@@ -1409,6 +1411,8 @@ __all__ = [
     # ── v6.0.0 / P6 "入化" ──
     "AutonomousLawDiscovererV2",
     "CausalSkeleton",
+    "GESDiscoverer",
+    "LiNGAMDiscoverer",
     "PCSkeletonDiscoverer",
     "SystemReport",
     "AgentAction",

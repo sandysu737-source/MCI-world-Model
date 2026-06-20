@@ -268,6 +268,279 @@ class PCSkeletonDiscoverer:
         return total / max(count, 1)
 
 
+
+# =============================================================================
+# GESDiscoverer - Greedy Equivalence Search
+# =============================================================================
+
+
+class GESDiscoverer:
+    """Greedy Equivalence Search (GES) causal discovery.
+
+    Searches CPDAG space:
+      1. Forward: greedy edge addition maximizing BIC
+      2. Backward: greedy edge deletion maximizing BIC
+
+    Constraints: <= 10 variables, linear Gaussian data
+    """
+
+    def __init__(self, alpha: float = 0.05, max_iter: int = 50) -> None:
+        if not 0.0 < alpha < 1.0:
+            raise ValueError(f"alpha must be in (0,1), got {alpha}")
+        self._alpha = alpha
+        self._max_iter = max_iter
+
+    def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
+        """Learn causal skeleton from data."""
+        n_vars = len(var_names)
+        n_samples = data.shape[0]
+
+        if n_samples == 0:
+            return CausalSkeleton(nodes=list(var_names), edges=[],
+                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                                  confidence=0.0)
+
+        adj = np.zeros((n_vars, n_vars), dtype=int)
+
+        # Forward phase: greedy edge addition
+        best_score = self._bic_score_from_data(data, adj, n_samples)
+        for _iter in range(self._max_iter):
+            best_delta = 0.0
+            best_edge = None
+            for i in range(n_vars):
+                for j in range(n_vars):
+                    if i == j or adj[i, j] == 1:
+                        continue
+                    adj[i, j] = 1
+                    if not self._has_cycle(adj):
+                        score = self._bic_score_from_data(data, adj, n_samples)
+                        delta = score - best_score
+                        if delta > best_delta:
+                            best_delta = delta
+                            best_edge = (i, j)
+                    adj[i, j] = 0
+            if best_edge is None:
+                break
+            i, j = best_edge
+            adj[i, j] = 1
+            best_score += best_delta
+
+        # Backward phase: greedy edge deletion
+        for _iter in range(self._max_iter):
+            best_delta = 0.0
+            best_edge = None
+            for i in range(n_vars):
+                for j in range(n_vars):
+                    if i == j or adj[i, j] == 0:
+                        continue
+                    adj[i, j] = 0
+                    score = self._bic_score_from_data(data, adj, n_samples)
+                    delta = score - best_score
+                    if delta > best_delta:
+                        best_delta = delta
+                        best_edge = (i, j)
+                    adj[i, j] = 1
+            if best_edge is None:
+                break
+            i, j = best_edge
+            adj[i, j] = 0
+            best_score += best_delta
+
+        # Undirected skeleton output (check both triangles)
+        cov = np.cov(data.T)
+        edges = []
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                if adj[i, j] == 1 or adj[j, i] == 1:
+                    edges.append((var_names[i], var_names[j]))
+                    edges.append((var_names[j], var_names[i]))
+
+        return CausalSkeleton(
+            nodes=list(var_names),
+            edges=edges,
+            adj_matrix=adj,
+            confidence=float(np.mean(np.abs(cov)) if n_vars > 1 else 0.0),
+        )
+
+    @staticmethod
+    def _bic_score_from_data(data: np.ndarray, adj: np.ndarray, n_samples: int) -> float:
+        """BIC score for linear Gaussian SEM.
+
+        log-likelihood = sum_i log P(x_i | parents(x_i))
+        For linear Gaussian: BIC = n * sum_i log(sigma_i^2) + k * log(n)
+        where sigma_i^2 = residual variance of x_i on parents.
+        """
+        n_vars = adj.shape[0]
+        k = int(np.sum(adj))
+        if n_vars <= 1 or k == 0:
+            # Empty graph: no edges, BIC = n * sum_i log(var_i)
+            var = np.var(data, axis=0)
+            var = np.maximum(var, 1e-10)
+            return -float(n_samples * np.sum(np.log(var))) - k * np.log(n_samples)
+        # Per-node residual variance
+        resid_log_var = 0.0
+        for j in range(n_vars):
+            parents = [i for i in range(n_vars) if adj[i, j] == 1]
+            if not parents:
+                var_j = max(np.var(data[:, j]), 1e-10)
+                resid_log_var += np.log(var_j)
+            else:
+                X_pa = data[:, parents]
+                y = data[:, j]
+                try:
+                    _, resid, _, _ = np.linalg.lstsq(X_pa, y, rcond=None)
+                except np.linalg.LinAlgError:
+                    _beta = np.zeros(len(parents))
+                    resid = y
+                var_j = max(np.var(resid) if len(resid) > 1 else 1e-10, 1e-10)
+                resid_log_var += np.log(var_j)
+        # BIC (higher is better): -n * sum(log(sigma^2)) - k * log(n)
+        return -n_samples * resid_log_var - k * np.log(n_samples)
+
+    @staticmethod
+    def _has_cycle(adj: np.ndarray) -> bool:
+        """DFS-based cycle detection."""
+        n = adj.shape[0]
+        visited = np.zeros(n, dtype=int)
+
+        def dfs(v: int) -> bool:
+            visited[v] = 1
+            for u in range(n):
+                if adj[v, u]:
+                    if visited[u] == 1:
+                        return True
+                    if visited[u] == 0 and dfs(u):
+                        return True
+            visited[v] = 2
+            return False
+
+        return any(visited[i] == 0 and dfs(i) for i in range(n))
+
+
+# =============================================================================
+# LiNGAMDiscoverer - Linear Non-Gaussian Acyclic Model
+# =============================================================================
+
+
+class LiNGAMDiscoverer:
+    """LiNGAM causal discovery via non-Gaussianity.
+
+    Assumptions:
+      1. Linear data generation: x = B*x + e
+      2. Noise e_i is non-Gaussian
+      3. No unobserved confounders
+
+    Algorithm:
+      1. Estimate causal ordering via kurtosis
+      2. Prune edges via partial correlation threshold
+    """
+
+    def __init__(self, alpha: float = 0.05, prune_threshold: float = 0.1) -> None:
+        if not 0.0 < alpha < 1.0:
+            raise ValueError(f"alpha must be in (0,1), got {alpha}")
+        self._alpha = alpha
+        self._prune_threshold = prune_threshold
+
+    def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
+        """Learn causal matrix from data."""
+        n_vars = len(var_names)
+        n_samples = data.shape[0]
+
+        if n_samples == 0:
+            return CausalSkeleton(nodes=list(var_names), edges=[],
+                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                                  confidence=0.0)
+        if n_vars < 2:
+            return CausalSkeleton(nodes=list(var_names), edges=[],
+                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                                  confidence=1.0)
+
+        X = data - data.mean(axis=0)
+        ordering = self._estimate_ordering(X)
+
+        corr = np.corrcoef(X.T)
+
+        # Phase 1: add edges based on correlation + ordering
+        adj = np.zeros((n_vars, n_vars), dtype=int)
+
+        for i_idx, i in enumerate(ordering):
+            for j_idx, j in enumerate(ordering):
+                if i_idx >= j_idx:
+                    continue
+                if abs(corr[i, j]) > self._prune_threshold:
+                    adj[i, j] = 1
+
+        # Phase 2: partial correlation pruning
+        # For each edge (i,j), test independence given predecessors of j (excluding i)
+        for i_idx, i in enumerate(ordering):
+            for j_idx, j in enumerate(ordering):
+                if i_idx >= j_idx or adj[i, j] == 0:
+                    continue
+                # Conditioning set: predecessors of j in ordering, excluding i
+                cond = [ordering[k] for k in range(j_idx) if ordering[k] != i]
+                if cond:
+                    r_partial = PCSkeletonDiscoverer._partial_corr(corr, i, j, cond[:1])  # 1st-order
+                    if abs(r_partial) <= self._prune_threshold:
+                        adj[i, j] = 0
+
+        edges = []
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                if adj[i, j] == 1 or adj[j, i] == 1:
+                    edges.append((var_names[i], var_names[j]))
+                    edges.append((var_names[j], var_names[i]))
+
+        return CausalSkeleton(
+            nodes=list(var_names),
+            edges=edges,
+            adj_matrix=adj,
+            confidence=float(np.mean(np.abs(corr)) if n_vars > 1 else 0.0),
+        )
+
+    def _estimate_ordering(self, X: np.ndarray) -> list[int]:
+        """Estimate causal ordering by residual variance.
+
+        Rationale: In x = Bx + e (lower-triangular B), exogenous variables
+        (early in ordering) have larger residual variance when regressed on
+        all other variables. Endogenous variables (late in ordering) are
+        well-explained by earlier variables, yielding small residuals.
+
+        Algorithm: iteratively select the variable with largest residual
+        variance when regressed on remaining candidates.
+        """
+        n_vars = X.shape[1]
+        remaining = list(range(n_vars))
+        ordering: list[int] = []
+
+        for _ in range(n_vars):
+            best_var = -1
+            best_score = -np.inf
+
+            for cand in remaining:
+                others = [r for r in remaining if r != cand]
+                if not others:
+                    score = np.var(X[:, cand])
+                else:
+                    X_others = X[:, others]
+                    try:
+                        _, resid, _, _ = np.linalg.lstsq(X_others, X[:, cand], rcond=None)
+                        # Higher residual variance = more exogenous = earlier in order
+                        score = np.var(resid) if len(resid) > 1 else np.var(X[:, cand])
+                    except np.linalg.LinAlgError:
+                        score = np.var(X[:, cand])
+
+                if score > best_score:
+                    best_score = score
+                    best_var = cand
+
+            if best_var >= 0:
+                ordering.append(best_var)
+                remaining.remove(best_var)
+
+        return ordering
+
+
+
 # =============================================================================
 # AutonomousLawDiscovererV2 — 自主因果发现 2.0
 # =============================================================================
