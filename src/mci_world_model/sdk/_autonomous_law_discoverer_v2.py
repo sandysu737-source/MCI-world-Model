@@ -137,6 +137,14 @@ class PCSkeletonDiscoverer:
             CausalSkeleton 骨架结果
         """
         n_vars = len(var_names)
+        _n_samples = data.shape[0]
+        if _n_samples == 0:
+            return CausalSkeleton(
+                nodes=list(var_names),
+                edges=[],
+                adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                confidence=0.0,
+            )
         if n_vars > 10:
             logger.warning("PC 算法变量数 >10，可能不稳定，建议 ≤10")
 
@@ -145,7 +153,6 @@ class PCSkeletonDiscoverer:
         np.fill_diagonal(adj, 0)
 
         # Step 2: 条件独立性检验 — 逐步删边
-        _n_samples = data.shape[0]
         corr = np.corrcoef(data.T)
 
         for i in range(n_vars):
@@ -153,7 +160,7 @@ class PCSkeletonDiscoverer:
                 if adj[i, j] == 0:
                     continue
                 # 偏相关检验 (0阶)
-                p_val = self._partial_correlation_test(corr, i, j, [])
+                p_val = self._partial_correlation_test(corr, i, j, [], _n_samples)
                 if p_val > self._alpha:
                     adj[i, j] = 0
                     adj[j, i] = 0
@@ -168,7 +175,7 @@ class PCSkeletonDiscoverer:
             confidence=self._compute_confidence(adj, corr),
         )
 
-    def _partial_correlation_test(self, corr: np.ndarray, i: int, j: int, cond: list[int]) -> float:
+    def _partial_correlation_test(self, corr: np.ndarray, i: int, j: int, cond: list[int], n_samples: int = 100) -> float:
         """偏相关检验 (Fisher z-transform)。
 
         简化: 0阶偏相关 = Pearson 相关
@@ -177,7 +184,7 @@ class PCSkeletonDiscoverer:
         # Clamp to avoid inf in atanh
         r = np.clip(r, -0.9999, 0.9999)
         z = 0.5 * np.log((1 + r) / (1 - r))
-        n = corr.shape[0]  # proxy for sample size
+        n = n_samples
         se = 1.0 / np.sqrt(max(n - 3, 1))
         # Two-sided p-value (approximate)
         p_val = 2.0 * (1.0 - self._normal_cdf(abs(z) / se))
@@ -195,21 +202,21 @@ class PCSkeletonDiscoverer:
         return 0.5 * (1.0 + sign * y)
 
     def _orient_edges(self, adj: np.ndarray, corr: np.ndarray, var_names: list[str]) -> list[tuple[str, str]]:
-        """方向推断 — 简化版基于相关性不对称。"""
+        """方向推断 — PC 骨架无向输出（双向边）。
+
+        PC 算法第一阶段产生无向骨架，方向推断 (v-structure 等) 需额外步骤。
+        此处输出双向边以保持骨架语义完整性。
+        """
         edges = []
         n_vars = adj.shape[0]
-        oriented = set()
 
         for i in range(n_vars):
-            for j in range(n_vars):
-                if adj[i, j] == 0 or (j, i) in oriented:
+            for j in range(i + 1, n_vars):
+                if adj[i, j] == 0:
                     continue
-                if i == j:
-                    continue
-                # 简化方向规则: 如果 corr(i,j) 对 i 的其他邻居更稳定 → i→j
-                # 这里用简化启发式: 变量索引小的为 cause
+                # 无向骨架 → 双向输出
                 edges.append((var_names[i], var_names[j]))
-                oriented.add((i, j))
+                edges.append((var_names[j], var_names[i]))
 
         return edges
 

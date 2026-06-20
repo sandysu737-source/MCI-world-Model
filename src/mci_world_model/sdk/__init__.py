@@ -870,6 +870,7 @@ from mci_world_model.sdk._social_cognition import (
     NashEquilibriumResult,
     SocialCognition,
 )
+from mci_world_model.sdk._spectral_causal import BayesianCausal, FourierCausal, GaussianDAG
 from mci_world_model.sdk._the_absolute import (
     AbsoluteProperty,
     GeneratedStructure,
