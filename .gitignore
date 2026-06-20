@@ -70,4 +70,14 @@ benchmarks/sigreg/output/
 benchmarks/sigreg/figures/
 benchmarks/sigreg/data/
 
+# Training branch files (codex/train only)
+src/mci_world_model/sdk/_debridement_trainer.py
+src/mci_world_model/sdk/_tiny_transformer.py
+src/mci_world_model/sdk/_tiny_trainer.py
+src/mci_world_model/sdk/_surgical_workflow.py
+data/debridement_qa_baseline.jsonl
+tests/test_debridement_integration.py
+tests/test_debridement_phase_a.py
+tests/test_debridement_phase_a.py.bak
+tests/test_debridement_phase_b.py
 checkpoints/
