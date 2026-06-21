@@ -267,3 +267,79 @@ class TestAutonomousLawDiscovererV2:
         skeleton = law_discoverer.causal_structure
         assert skeleton is not None
         assert isinstance(skeleton, CausalSkeleton)
+
+# =============================================================================
+# Regression-based edge orientation tests (Phase A: SOTA gap fix)
+# =============================================================================
+
+class TestRegressionEdgeOrientation:
+    """Tests for _orient_edges_by_regression post-processor."""
+
+    def test_orient_chain_x_to_y(self):
+        """Chain X->Y: regression should orient X->Y correctly."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+        rng = np.random.RandomState(42)
+        n = 500
+        X = rng.randn(n)
+        Y = 0.8 * X + 0.5 * rng.randn(n)  # X -> Y with noise on Y
+        data = np.column_stack([X, Y])
+        pc = PCSkeletonDiscoverer(alpha=0.01)
+        skel = pc.discover(data, ["X", "Y"])
+        assert ("X", "Y") in skel.edges
+        assert ("Y", "X") not in skel.edges
+
+    def test_orient_chain_y_to_x(self):
+        """Chain Y->X: regression should orient Y->X correctly."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+        rng = np.random.RandomState(42)
+        n = 500
+        Y = rng.randn(n)
+        X = 0.8 * Y + 0.5 * rng.randn(n)  # Y -> X
+        data = np.column_stack([X, Y])
+        pc = PCSkeletonDiscoverer(alpha=0.01)
+        skel = pc.discover(data, ["X", "Y"])
+        assert ("Y", "X") in skel.edges
+        assert ("X", "Y") not in skel.edges
+
+    def test_orient_v_structure(self):
+        """V-structure X->Z<-Y: should find both directions pointing to Z."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+        rng = np.random.RandomState(42)
+        n = 500
+        X = rng.randn(n)
+        Y = rng.randn(n)
+        Z = 0.7 * X + 0.6 * Y + 0.5 * rng.randn(n)
+        data = np.column_stack([X, Y, Z])
+        pc = PCSkeletonDiscoverer(alpha=0.01)
+        skel = pc.discover(data, ["X", "Y", "Z"])
+        assert ("X", "Z") in skel.edges
+        assert ("Y", "Z") in skel.edges
+
+    def test_orient_no_spurious_reverse(self):
+        """Regression should NOT keep both directions for a single edge."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+        rng = np.random.RandomState(42)
+        n = 500
+        X = rng.randn(n)
+        Y = 0.7 * X + 0.4 * rng.randn(n)
+        data = np.column_stack([X, Y])
+        pc = PCSkeletonDiscoverer(alpha=0.01)
+        skel = pc.discover(data, ["X", "Y"])
+        edge_set = set(skel.edges)
+        for src, dst in skel.edges:
+            assert (dst, src) not in edge_set or src == dst, \
+                f"Bidirectional edge found: {src}<->{dst}"
+
+    def test_orient_adj_matrix_directed(self):
+        """After regression, adj_matrix should be directed (not symmetric)."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+        rng = np.random.RandomState(42)
+        n = 500
+        X = rng.randn(n)
+        Y = 0.7 * X + 0.4 * rng.randn(n)
+        data = np.column_stack([X, Y])
+        pc = PCSkeletonDiscoverer(alpha=0.01)
+        skel = pc.discover(data, ["X", "Y"])
+        adj = skel.adj_matrix
+        assert adj[0, 1] != adj[1, 0] or (adj[0, 1] == 0 and adj[1, 0] == 0), \
+            f"Symmetric adj matrix found: {adj}"

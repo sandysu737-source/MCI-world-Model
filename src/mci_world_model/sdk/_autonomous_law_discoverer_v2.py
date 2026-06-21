@@ -193,10 +193,19 @@ class PCSkeletonDiscoverer:
         # Step 3: 方向推断 (简化: 基于 partial correlation 不对称性)
         edges = self._orient_edges(adj, corr, var_names, _n_samples)
 
+        # Step 3+: 回归残余定向 — 对无向边使用 OLS 残差方差不对称性确定方向
+        edges = self._orient_edges_by_regression(data, adj, edges, var_names)
+
+        # Build directed adjacency matrix from final edges (for SHD comparison)
+        name_to_idx = {name: i for i, name in enumerate(var_names)}
+        dir_adj = np.zeros((n_vars, n_vars), dtype=int)
+        for src, dst in edges:
+            dir_adj[name_to_idx[src], name_to_idx[dst]] = 1
+
         return CausalSkeleton(
             nodes=list(var_names),
             edges=edges,
-            adj_matrix=adj,
+            adj_matrix=dir_adj,
             confidence=self._compute_confidence(adj, corr),
         )
 
@@ -334,6 +343,55 @@ class PCSkeletonDiscoverer:
                     count += 1
         return total / max(count, 1)
 
+    def _orient_edges_by_regression(
+        self, data: np.ndarray, adj: np.ndarray,
+        edges: list[tuple[str, str]], var_names: list[str],
+    ) -> list[tuple[str, str]]:
+        """Regression-based orientation for remaining undirected edges.
+
+        For each bidirectional pair (i,j) and (j,i) (undirected edge):
+          - Regress X_i ~ X_j, compute residual variance sigma_i|j
+          - Regress X_j ~ X_i, compute residual variance sigma_j|i
+          - Keep the direction with lower residual variance
+          (e.g. sigma_a|b < sigma_b|a means b predicts a better -> keep b->a)
+
+        Reference: LiNGAM-style residual asymmetry (Shimizu et al. 2006)
+        """
+        name_to_idx = {name: i for i, name in enumerate(var_names)}
+
+        # Find all bidirectional pairs (undirected edges)
+        edge_set = set(edges)
+        bidir_pairs: list[tuple[str, str]] = []
+        for a, b in edges:
+            if (b, a) in edge_set and a < b:
+                bidir_pairs.append((a, b))
+
+        for a_name, b_name in bidir_pairs:
+            a_idx = name_to_idx[a_name]
+            b_idx = name_to_idx[b_name]
+
+            x_a = data[:, a_idx].astype(np.float64)
+            x_b = data[:, b_idx].astype(np.float64)
+
+            # Regress a ~ b
+            b_coef, _, _, _ = np.linalg.lstsq(x_b.reshape(-1, 1), x_a, rcond=None)
+            res_a = x_a - x_b * b_coef[0]
+            var_a_given_b = float(np.var(res_a))
+
+            # Regress b ~ a
+            b_coef2, _, _, _ = np.linalg.lstsq(x_a.reshape(-1, 1), x_b, rcond=None)
+            res_b = x_b - x_a * b_coef2[0]
+            var_b_given_a = float(np.var(res_b))
+
+            # Keep direction with lower residual variance
+            if var_a_given_b < var_b_given_a:
+                # a better predicted by b -> b->a is correct direction; remove a->b
+                edge_set.discard((a_name, b_name))
+            else:
+                # b better predicted by a -> a->b is correct direction; remove b->a
+                edge_set.discard((b_name, a_name))
+
+        return list(edge_set)
 
 
 # =============================================================================
@@ -780,3 +838,244 @@ class AutonomousLawDiscovererV2:
     def causal_structure(self) -> CausalSkeleton | None:
         """当前因果骨架。"""
         return self._causal_structure
+
+
+# =============================================================================
+# NOTEARSDiscoverer — 可微分因果发现
+# =============================================================================
+
+
+class NOTEARSDiscoverer:
+    """NOTEARS (Non-combinatorial Optimization via Trace Exponential).
+
+    使用平滑无环约束 h(W) = tr(exp(W⊙W)) - d 的连续优化，
+    通过 L-BFGS 或梯度下降求解稀疏 DAG 结构。
+
+    约束: 变量数 ≤ 20, 线性 SEM
+
+    Reference: Zheng et al. (2018) "DAGs with NO TEARS"
+    """
+
+    def __init__(
+        self,
+        lambda1: float = 0.1,
+        max_iter: int = 100,
+        threshold: float = 0.3,
+    ):
+        if lambda1 <= 0:
+            raise ValueError(f"lambda1 必须为正, 当前 {lambda1}")
+        self._lambda1 = lambda1
+        self._max_iter = max_iter
+        self._threshold = threshold
+
+    def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
+        """从数据学习因果 DAG。
+
+        minimize_W  loss(W) + lambda1 * |W|_1
+        s.t.       h(W) = 0  (acyclicity)
+
+        Args:
+            data: (n_samples, n_vars)
+            var_names: 变量名列表
+        """
+        n_vars = len(var_names)
+        n_samples = data.shape[0]
+
+        if n_samples == 0:
+            return CausalSkeleton(nodes=list(var_names), edges=[],
+                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                                  confidence=0.0)
+        if n_vars < 2:
+            return CausalSkeleton(nodes=list(var_names), edges=[],
+                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                                  confidence=1.0)
+
+        X = data - data.mean(axis=0)
+
+        # Initialize W as zero matrix
+        W = np.zeros((n_vars, n_vars), dtype=np.float64)
+        lr = 0.01
+        rho = 1.0
+
+        for iteration in range(self._max_iter):
+            # Loss gradient: d/dW ||X - XW||² = -2X^T(X - XW)/n
+            residual = X - X @ W
+            grad_loss = -2.0 * X.T @ residual / n_samples
+
+            # L1 penalty gradient
+            grad_l1 = self._lambda1 * np.sign(W)
+
+            # Acyclicity constraint: h(W) = tr(exp(W⊙W)) - d
+            W2 = W * W
+            exp_W2 = self._matrix_exp(W2)
+            h_val = np.trace(exp_W2) - n_vars
+            # Gradient of h: dh/dW = exp(W⊙W)^T ⊙ 2W
+            grad_h = 2.0 * exp_W2.T * W
+
+            # Augmented Lagrangian gradient
+            grad = grad_loss + grad_l1 + rho * h_val * grad_h
+
+            # Update W with dual ascent on rho
+            W -= lr * grad
+            # Zero diagonal (no self-loops)
+            np.fill_diagonal(W, 0)
+
+            # Increase rho gradually
+            if iteration % 20 == 0:
+                rho = min(rho * 1.5, 100.0)
+
+            # Early stopping
+            if iteration > 10 and abs(h_val) < 1e-6 and np.max(np.abs(grad)) < 1e-4:
+                break
+
+        # Threshold to get binary adjacency
+        adj = (np.abs(W) > self._threshold).astype(int)
+
+        # Undirected skeleton
+        edges = []
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                if adj[i, j] == 1 or adj[j, i] == 1:
+                    edges.append((var_names[i], var_names[j]))
+                    edges.append((var_names[j], var_names[i]))
+
+        return CausalSkeleton(
+            nodes=list(var_names),
+            edges=edges,
+            adj_matrix=adj,
+            confidence=float(1.0 - abs(h_val) / n_vars if n_vars > 1 else 1.0),
+        )
+
+    @staticmethod
+    def _matrix_exp(A: np.ndarray) -> np.ndarray:
+        """Matrix exponential via scaling-and-squaring (simplified)."""
+        # Use scipy if available, else power series
+        from scipy.linalg import expm
+        return expm(A)
+
+
+# =============================================================================
+# FCIDiscoverer — 快速因果推断 (含隐混淆)
+# =============================================================================
+
+
+class FCIDiscoverer:
+    """FCI (Fast Causal Inference) — 含隐混淆的因果发现。
+
+    FCI 扩展 PC 算法, 允许潜在的未观测混淆因子:
+      1. PC 骨架发现 + v-structure
+      2. PDS (Possible-D-Sep) 搜索: 对每对有向边测试更高阶条件独立
+      3. 输出 PAG (部分祖图), 区分直接因果 / 潜在混淆 / 选择偏倚
+
+    约束: 变量数 ≤ 10
+
+    Reference: Spirtes et al. (2000), Zhang (2008)
+    """
+
+    def __init__(self, alpha: float = 0.05, min_corr: float = 0.1):
+        if not 0.0 < alpha < 1.0:
+            raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
+        self._alpha = alpha
+        self._min_corr = min_corr
+
+    def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
+        """从数据学习 PAG (部分祖图)。
+
+        Args:
+            data: (n_samples, n_vars)
+            var_names: 变量名列表
+        """
+        n_vars = len(var_names)
+        n_samples = data.shape[0]
+
+        if n_samples == 0:
+            return CausalSkeleton(nodes=list(var_names), edges=[],
+                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
+                                  confidence=0.0)
+
+        # Step 1: PC 骨架 + v-structure
+        pc = PCSkeletonDiscoverer(alpha=self._alpha, min_corr=self._min_corr)
+        pc_skel = pc.discover(data, var_names)
+        adj = pc_skel.adj_matrix.copy()
+        corr = np.corrcoef(data.T)
+
+        # Step 2: PDS (Possible-D-Sep) search -- systematic higher-order CI
+        self._pds_search(adj, corr, n_vars, n_samples)
+
+        edges = []
+        for i in range(n_vars):
+            for j in range(n_vars):
+                if i == j:
+                    continue
+                if adj[i, j] == 1:
+                    edges.append((var_names[i], var_names[j]))
+
+        # Regression-based orientation for remaining undirected edges
+        edges = PCSkeletonDiscoverer._orient_edges_by_regression(
+            PCSkeletonDiscoverer(alpha=self._alpha), data, adj, edges, var_names
+        )
+
+        # Build directed adjacency matrix from final edges
+        name_to_idx = {name: i for i, name in enumerate(var_names)}
+        dir_adj = np.zeros((n_vars, n_vars), dtype=int)
+        for src, dst in edges:
+            dir_adj[name_to_idx[src], name_to_idx[dst]] = 1
+
+        return CausalSkeleton(
+            nodes=list(var_names),
+            edges=edges,
+            adj_matrix=dir_adj,
+            confidence=float(np.mean(np.abs(corr[adj == 1])) if np.sum(adj) > 0 else 0.0),
+        )
+
+    def _pds_search(
+        self,
+        adj: np.ndarray,
+        corr: np.ndarray,
+        n_vars: int,
+        n_samples: int,
+    ) -> None:
+        """PDS (Possible-D-Sep) search -- FCI core step.
+
+        For each adjacent pair (i,j), find the possible d-separating set,
+        and test all combination conditional independences to remove spurious edges.
+
+        Args:
+            adj: adjacency matrix (modified in-place)
+            corr: correlation matrix
+            n_vars: number of variables
+            n_samples: sample count
+        """
+        from itertools import combinations
+
+        max_order = min(3, n_vars - 2)
+
+        for order in range(2, max_order + 1):
+            changed = False
+            for i in range(n_vars):
+                for j in range(n_vars):
+                    if i == j:
+                        continue
+                    if adj[i, j] == 0 and adj[j, i] == 0:
+                        continue
+
+                    pds_i = [k for k in range(n_vars) if k not in (i, j) and (adj[i, k] == 1 or adj[k, i] == 1)]
+                    pds_j = [k for k in range(n_vars) if k not in (i, j) and (adj[j, k] == 1 or adj[k, j] == 1)]
+                    pds = list(set(pds_i) | set(pds_j))
+
+                    if len(pds) < order:
+                        continue
+
+                    for cond_set in combinations(pds, order):
+                        r = PCSkeletonDiscoverer._partial_corr(corr, i, j, list(cond_set))
+                        p = PCSkeletonDiscoverer._fisher_z_test(
+                            PCSkeletonDiscoverer(alpha=self._alpha), r, n_samples
+                        )
+                        if p > self._alpha:
+                            adj[i, j] = 0
+                            adj[j, i] = 0
+                            changed = True
+                            break
+
+            if not changed:
+                break

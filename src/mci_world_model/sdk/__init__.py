@@ -200,8 +200,10 @@ from mci_world_model.sdk._auto_scaler import (
 from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
     AutonomousLawDiscovererV2,
     CausalSkeleton,
+    FCIDiscoverer,
     GESDiscoverer,
     LiNGAMDiscoverer,
+    NOTEARSDiscoverer,
     PCSkeletonDiscoverer,
     SystemReport,
 )
@@ -217,8 +219,6 @@ from mci_world_model.sdk._autonomous_memory import (
 
 # v3.0.8: 批量反事实引擎
 from mci_world_model.sdk._batch_counterfactual import BatchCounterfactualEngine
-
-# P3 "赋魂": LRU 缓存 Do-Calculus
 from mci_world_model.sdk._cached_do_calculus import CachedDoCalculus
 
 # 因果引擎基础
@@ -422,6 +422,10 @@ from mci_world_model.sdk._emergency_stop import (
 )
 
 # v3.0.6: 能量流预测器
+from mci_world_model.sdk._energy_counterfactual_bridge import (
+    EnergyCounterfactualBridge,
+    EnergyWhatIfResult,
+)
 from mci_world_model.sdk._energy_flow_predictor import EnergyFlowPredictor
 
 # 能量一致性损失
@@ -607,6 +611,9 @@ from mci_world_model.sdk._medical_causal_sdk import (
     ClinicalEvidence,
     MedicalCausalSDK,
 )
+
+# P3 "赋魂": LRU 缓存 Do-Calculus
+from mci_world_model.sdk._meta_learners import SLearner, TLearner
 from mci_world_model.sdk._metacognition_v2 import (
     MetacognitionState,
     MetacognitionV2,
@@ -872,6 +879,7 @@ from mci_world_model.sdk._social_cognition import (
     SocialCognition,
 )
 from mci_world_model.sdk._spectral_causal import BayesianCausal, FourierCausal, GaussianDAG
+from mci_world_model.sdk._temporal_causal import GrangerCausality, LaggedCorrelationScanner, TemporalCausalReport
 from mci_world_model.sdk._the_absolute import (
     AbsoluteProperty,
     GeneratedStructure,
@@ -1066,6 +1074,11 @@ __all__ = [
     # Pearl Do-Calculus
     "DoCalculus",
     "CachedDoCalculus",
+    "SLearner",
+    "TLearner",
+    "GrangerCausality",
+    "LaggedCorrelationScanner",
+    "TemporalCausalReport",
     # v3.2.0: 独立世界状态
     "Action",
     "ActionConditionedPredictor",
@@ -1130,6 +1143,8 @@ __all__ = [
     # Energy Loss
     "EnergyConsistencyLoss",
     "EnergyCostModule",
+    "EnergyCounterfactualBridge",
+    "EnergyWhatIfResult",
     "EnergyFlowPredictor",
     "EnergyPropagationPredictor",
     "EnhancedOutput",
@@ -1411,8 +1426,10 @@ __all__ = [
     # ── v6.0.0 / P6 "入化" ──
     "AutonomousLawDiscovererV2",
     "CausalSkeleton",
+    "FCIDiscoverer",
     "GESDiscoverer",
     "LiNGAMDiscoverer",
+    "NOTEARSDiscoverer",
     "PCSkeletonDiscoverer",
     "SystemReport",
     "AgentAction",
