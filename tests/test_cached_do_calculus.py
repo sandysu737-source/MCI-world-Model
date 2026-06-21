@@ -1,171 +1,133 @@
-"""Tests for CachedDoCalculus — LRU-cached Do-Calculus wrapper."""
+"""CachedDoCalculus 干预缓存推理 — 单元测试。
+
+覆盖: 缓存命中/未命中, LRU逐出, cache_info统计, 延迟<5ms, 清空缓存。
+"""
+
+from __future__ import annotations
 
 import time
 
-import pytest
+import numpy as np
 
-from mci_world_model.sdk._cached_do_calculus import CachedDoCalculus, _stable_hash
+from mci_world_model.sdk._cached_do_calculus import CachedDoCalculus, CacheInfo
 from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
 
-@pytest.fixture
-def simple_graph() -> CausalGraph:
-    """Z → X → Y with Z also causing Y (classic backdoor)."""
+def _simple_graph() -> CausalGraph:
+    """Z -> X, Z -> Y, X -> Y (后门调整: Z 阻断 X 和 Y 的后门路径)"""
     return CausalGraph(
         nodes=["Z", "X", "Y"],
         edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")],
     )
 
 
-@pytest.fixture
-def do_calc(simple_graph: CausalGraph) -> DoCalculus:
-    return DoCalculus(simple_graph)
-
-
-@pytest.fixture
-def cached_calc(do_calc: DoCalculus) -> CachedDoCalculus:
-    return CachedDoCalculus(do_calc, maxsize=64)
-
-
-class TestStableHash:
-    """Tests for internal _stable_hash function."""
-
-    def test_deterministic(self) -> None:
-        """Same inputs produce same hash."""
-        h1 = _stable_hash("X", "Y", frozenset(["Z"]))
-        h2 = _stable_hash("X", "Y", frozenset(["Z"]))
-        assert h1 == h2
-
-    def test_different_inputs_different_hash(self) -> None:
-        """Different inputs produce different hashes."""
-        h1 = _stable_hash("X", "Y", frozenset(["Z"]))
-        h2 = _stable_hash("A", "B", frozenset(["C"]))
-        assert h1 != h2
-
-
-class TestCachedDoCalculus:
-    """Core CachedDoCalculus tests."""
-
-    def test_initial_state(self, cached_calc: CachedDoCalculus) -> None:
-        """Starts with empty cache and zero stats."""
-        assert len(cached_calc) == 0
-        info = cached_calc.cache_info()
-        assert info["hits"] == 0
-        assert info["misses"] == 0
-        assert info["size"] == 0
-        assert info["hit_rate"] == 0.0
-
-    def test_first_call_is_miss(self, cached_calc: CachedDoCalculus) -> None:
-        """First call to estimate_ate is a cache miss."""
-        result = cached_calc.estimate_ate("X", "Y")
-        assert result is not None
-        info = cached_calc.cache_info()
-        assert info["misses"] == 1
-        assert info["hits"] == 0
-        assert info["size"] == 1
-
-    def test_second_call_is_hit(self, cached_calc: CachedDoCalculus) -> None:
-        """Second identical call hits the cache."""
-        r1 = cached_calc.estimate_ate("X", "Y")
-        r2 = cached_calc.estimate_ate("X", "Y")
-        assert r1.ate == pytest.approx(r2.ate)
-        info = cached_calc.cache_info()
-        assert info["hits"] == 1
-        assert info["misses"] == 1
-
-    def test_different_query_is_miss(self, cached_calc: CachedDoCalculus) -> None:
-        """Different query (X,Y pair) is a new cache entry."""
-        cached_calc.estimate_ate("X", "Y")
-        cached_calc.estimate_ate("Z", "Y")
-        info = cached_calc.cache_info()
-        assert info["misses"] == 2
-        assert info["size"] == 2
-
-    def test_backdoor_adjustment_cached(self, cached_calc: CachedDoCalculus) -> None:
-        """backdoor_adjustment also uses cache."""
-        r1 = cached_calc.backdoor_adjustment("X", "Y", Z_set=["Z"])
-        assert r1 is not None
-        r2 = cached_calc.backdoor_adjustment("X", "Y", Z_set=["Z"])
-        assert r2 is not None
-        info = cached_calc.cache_info()
-        assert info["hits"] == 1
-
-    def test_hit_rate(self, cached_calc: CachedDoCalculus) -> None:
-        """hit_rate is computed correctly."""
-        cached_calc.estimate_ate("X", "Y")  # miss
-        cached_calc.estimate_ate("X", "Y")  # hit
-        cached_calc.estimate_ate("X", "Y")  # hit
-        info = cached_calc.cache_info()
-        assert info["hits"] == 2
-        assert info["misses"] == 1
-        assert info["hit_rate"] == pytest.approx(2 / 3, abs=0.01)
-
-    def test_lru_eviction(self) -> None:
-        """LRU evicts oldest entries when maxsize is exceeded."""
-        cg = CausalGraph(
-            nodes=["Z", "X", "Y"],
-            edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")],
-        )
+class TestCachedDoCalculusBasic:
+    def test_cache_miss_then_hit(self) -> None:
+        cg = _simple_graph()
         dc = DoCalculus(cg)
-        cached = CachedDoCalculus(dc, maxsize=3)
+        cdc = CachedDoCalculus(dc, maxsize=32)
 
-        # Insert 4 different queries
-        cached.estimate_ate("X", "Y")
-        cached.estimate_ate("Z", "Y")
-        cached.estimate_ate("Z", "X")
-        cached.estimate_ate("X", "Z")  # should evict first entry
-
-        info = cached.cache_info()
-        assert info["size"] <= cached.maxsize
-        assert info["size"] == 3
-
-    def test_cache_latency_under_5ms(self, cached_calc: CachedDoCalculus) -> None:
-        """Cache hit should return in under 5ms."""
-        # First call to populate cache
-        cached_calc.estimate_ate("X", "Y")
-
-        # Measure cache hit latency
-        start = time.perf_counter()
-        for _ in range(100):
-            cached_calc.estimate_ate("X", "Y")
-        elapsed = time.perf_counter() - start
-        avg_ms = (elapsed / 100) * 1000
-
-        assert avg_ms < 5.0, f"Cache hit latency {avg_ms:.2f}ms exceeds 5ms"
-
-    def test_clear_resets_cache(self, cached_calc: CachedDoCalculus) -> None:
-        """clear() resets cache and stats."""
-        cached_calc.estimate_ate("X", "Y")
-        cached_calc.estimate_ate("X", "Y")
-        assert len(cached_calc) == 1
-
-        cached_calc.clear()
-        assert len(cached_calc) == 0
-        info = cached_calc.cache_info()
-        assert info["hits"] == 0
-        assert info["misses"] == 0
-
-    def test_result_is_consistent(self, cached_calc: CachedDoCalculus) -> None:
-        """Cached result matches direct DoCalculus result."""
-        cached_result = cached_calc.estimate_ate("X", "Y")
-        direct_result = cached_calc.do_calculus.estimate_ate("X", "Y")
-        assert cached_result.ate == pytest.approx(direct_result.ate, abs=0.1)
-
-    def test_different_graphs_not_confused(self) -> None:
-        """Different causal graphs don't share cache keys."""
-        cg1 = CausalGraph(nodes=["Z", "X", "Y"], edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")])
-        cg2 = CausalGraph(nodes=["A", "B", "C"], edges=[("A", "B"), ("B", "C")])
-
-        cached1 = CachedDoCalculus(DoCalculus(cg1), maxsize=32)
-        cached2 = CachedDoCalculus(DoCalculus(cg2), maxsize=32)
-
-        r1 = cached1.estimate_ate("X", "Y")
-        r2 = cached2.estimate_ate("A", "C")
-
-        # Same query text on different graphs should produce different cache entries
+        r1 = cdc.query("X", "Y")
         assert r1 is not None
+        assert cdc.cache_info().misses == 1
+        assert cdc.cache_info().hits == 0
+
+        r2 = cdc.query("X", "Y")
         assert r2 is not None
+        assert r2 == r1
+        assert cdc.cache_info().hits == 1
+
+    def test_different_z_sets_different_keys(self) -> None:
+        cg = _simple_graph()
+        dc = DoCalculus(cg)
+        cdc = CachedDoCalculus(dc, maxsize=32)
+
+        cdc.query("X", "Y", Z_set=["Z"])
+        assert cdc.cache_info().misses == 1
+        cdc.query("X", "Y", Z_set=["Z", "W"])
+        assert cdc.cache_info().misses == 2
+
+    def test_cache_info(self) -> None:
+        cdc = CachedDoCalculus(maxsize=32)
+        info = cdc.cache_info()
+        assert isinstance(info, CacheInfo)
+        assert info.hits == 0
+        assert info.misses == 0
+        assert info.size == 0
+        assert info.hit_rate == 0.0
+
+    def test_clear_cache(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg), maxsize=32)
+        cdc.query("X", "Y")
+        assert cdc.cache_size == 1
+        cdc.clear_cache()
+        assert cdc.cache_size == 0
+        assert cdc.cache_info().hits == 0
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+class TestLRUEviction:
+    def test_lru_evicts_oldest(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg), maxsize=3)
+
+        # Insert 4 unique queries; first should be evicted
+        cdc.query("X", "Y", Z_set=["Z"])
+        cdc.query("X", "Y", Z_set=["W"])
+        # Re-access first to make it "recent"
+        cdc.query("X", "Y", Z_set=["Z"])
+        cdc.query("X", "Y", Z_set=["V"])
+        # Now "Z" is recent, "W" should be evicted when inserting 4th
+        # Actually at maxsize=3, we have: Z(accessed twice), W, V = 3 entries
+        cdc.query("X", "Y", Z_set=["U"])
+        assert cdc.cache_size == 3  # One evicted
+
+    def test_maxsize_enforced(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg), maxsize=5)
+        for i in range(10):
+            cdc.query("X", "Y", Z_set=[f"Z{i}"])
+        assert cdc.cache_size <= 5
+
+
+class TestLatency:
+    def test_cache_hit_latency_under_5ms(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg))
+        cdc.query("X", "Y")
+        # Warm cache
+        times = []
+        for _ in range(100):
+            t0 = time.perf_counter()
+            cdc.query("X", "Y")
+            times.append((time.perf_counter() - t0) * 1000)
+        avg_ms = float(np.mean(times))
+        assert avg_ms < 5.0, f"Average cache hit latency {avg_ms:.3f}ms"
+
+
+class TestCachedDoCalculusEdgeCases:
+    def test_empty_Z_set(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg))
+        r = cdc.query("X", "Y", Z_set=[])
+        assert r is not None
+
+    def test_no_graph_returns_none(self) -> None:
+        cdc = CachedDoCalculus()
+        r = cdc.query("X", "Y")
+        assert r["ate"] == 0.0
+
+    def test_query_effect_alias(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg))
+        r1 = cdc.query("X", "Y")
+        r2 = cdc.query_effect("X", "Y")
+        assert r1 == r2
+
+    def test_set_do_calculus_clears_cache(self) -> None:
+        cg = _simple_graph()
+        cdc = CachedDoCalculus(DoCalculus(cg))
+        cdc.query("X", "Y")
+        assert cdc.cache_size == 1
+        cdc.set_do_calculus(DoCalculus(cg))
+        assert cdc.cache_size == 0

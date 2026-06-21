@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sandysu737-source/mci-world-model/actions/workflows/ci.yml/badge.svg)](https://github.com/sandysu737-source/mci-world-model/actions)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-4.3.3-orange)](https://github.com/sandysu737-source/mci-world-model/releases)
+[![Version](https://img.shields.io/badge/version-4.4.0-orange)](https://github.com/sandysu737-source/mci-world-model/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Memor-Engine](https://img.shields.io/badge/su--memory--sdk-%3E%3D3.5.1-blue)](https://github.com/sandysu737-source/su-memory-sdk)
 
@@ -215,8 +215,8 @@ pytest tests/ -v -m "not slow"
 
 | 版本 | 主题 | 状态 |
 |------|------|------|
-| **v4.3.3** | CEWM 认知增强世界模型 + 代码审查修复 | ✅ 当前版本 |
-| v4.4.0 | P3 自主学习补齐 (OnlineEWC + CachedDoCalculus) + ruff 清零 | 🚧 进行中 |
+| **v4.3.3** | CEWM 认知增强世界模型 + 代码审查修复 | ✅ 已发布 |
+| **v4.4.0** | P3 自主学习补齐 (OnlineEWC + CachedDoCalculus) + ruff 清零 | ✅ 当前版本 |
 | v5.0.0 | P6-P8 高级认知 + 多模态统一 + 神经符号融合 | 📋 规划中 |
 | v6.0.0 | P9-P11 真实验证 + 跨域融通 + 因果意识 | 📋 规划中 |
 

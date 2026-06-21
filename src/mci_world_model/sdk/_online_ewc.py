@@ -1,145 +1,296 @@
-from __future__ import annotations
+"""MCI World Model v4.4.0 — OnlineEWC 在线弹性权重巩固
 
-"""OnlineEWC — 在线弹性权重巩固 (Elastic Weight Consolidation).
+无缝任务边界的持续学习。复用 IncrementalMLP + EWCConfig 内核，
+提供 OnlineEWC.update(X, y) 流式增量学习接口。
 
-P3 "赋魂" 核心模块 — 基于 IncrementalLearning 的 EWC 实现，
-提供自适应 λ、对角 Fisher 近似 O(N)、任务序列遗忘率 <25% 保证。
+核心差异 vs IncrementalLearningEngine:
+    - 无 TaskSpec 注册, 直接 update(data)
+    - Fisher 对角 O(N) 存储
+    - 自适应 lambda: base_lambda * (1 + 0.2 * n_updates)
 
-Usage::
-    from mci_world_model.sdk._online_ewc import OnlineEWC
-
-    ewc = OnlineEWC(base_lambda=100.0)
-    ewc.update(task_data)      # 每个任务结束时调用
-    loss = ewc.loss(params)    # 返回正则化损失项
+验收标准:
+    - 5 任务后遗忘率 < 25%
+    - loss 非负且单调递减
 """
 
+from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 
 import numpy as np
 
+from mci_world_model.sdk._incremental_learning import (
+    EWCConfig,
+    IncrementalMLP,
+    TaskRecord,
+    TaskSpec,
+)
+
+logger = logging.getLogger(__name__)
+
 
 @dataclass
-class OnlineEWC:
-    """在线弹性权重巩固 — 自适应 λ + 对角 Fisher 近似。
+class OnlineEWCState:
+    """OnlineEWC 运行时状态快照。"""
 
-    Attributes:
-        base_lambda: EWC 正则化强度基值 λ₀。
-        growth_rate: 自适应增长率 — λ(n) = λ₀ * (1 + growth * n_completed)。
-        fisher_diagonals: 每个已完成任务的 Fisher 对角线 {param_name: ndarray}。
-        star_params: 每个已完成任务的最优参数副本 {param_name: ndarray}。
-        n_completed: 已完成任务数。
+    n_updates: int = 0
+    current_loss: float = 0.0
+    adaptive_lambda: float = 100.0
+    n_params: int = 0
+    forgetting_rate: float = 0.0
+
+
+class OnlineEWC:
+    """在线弹性权重巩固 (Online Elastic Weight Consolidation)。
+
+    流式增量学习，无任务边界。每次 update() 自动:
+        1. 保存当前参数快照 + Fisher 对角
+        2. 对新数据训练, 旧任务参数享受 EWC 保护
+        3. 自适应 λ 随 update 次数增长
+
+    Example:
+        >>> ewc = OnlineEWC(input_dim=4, output_dim=2)
+        >>> loss = ewc.update(X_batch1, y_batch1)
+        >>> loss = ewc.update(X_batch2, y_batch2)
+        >>> pred = ewc.predict(X_test)
+        >>> state = ewc.get_state()
     """
 
-    base_lambda: float = 100.0
-    growth_rate: float = 0.2
-    fisher_diagonals: dict[str, np.ndarray] = field(default_factory=dict)
-    star_params: dict[str, np.ndarray] = field(default_factory=dict)
-    n_completed: int = 0
-
-    @property
-    def adaptive_lambda(self) -> float:
-        """当前自适应 λ 值: λ₀ * (1 + growth_rate * n_completed)。"""
-        return self.base_lambda * (1.0 + self.growth_rate * self.n_completed)
-
-    def update(
+    def __init__(
         self,
-        params: dict[str, np.ndarray],
-        task_data: np.ndarray | None = None,
-        *,
-        n_samples: int = 50,
-    ) -> None:
-        """完成一个任务后更新 EWC 状态。
+        input_dim: int,
+        output_dim: int,
+        config: EWCConfig | None = None,
+    ):
+        if input_dim <= 0 or output_dim <= 0:
+            raise ValueError(f"维度必须为正: input={input_dim}, output={output_dim}")
+        self._input_dim = input_dim
+        self._output_dim = output_dim
+        self._config = config or EWCConfig()
+        self._model = IncrementalMLP(
+            input_dim=input_dim,
+            output_dim=output_dim,
+            hidden_dim=self._config.hidden_dim,
+            seed=self._config.seed,
+        )
+        self._task_records: list[TaskRecord] = []
+        self._n_updates: int = 0
+        self._loss_history: list[float] = []
+        self._fisher_buffer: dict[str, np.ndarray] = {}
 
-        使用对角 Fisher 信息近似 (O(N)) 而非完整 Fisher (O(N²))。
+    # ── 公开 API ──
+
+    def update(self, X: np.ndarray, y: np.ndarray) -> float:
+        """增量学习一批新数据。
 
         Args:
-            params: 当前最优参数字典 {name: ndarray}。
-            task_data: 任务数据 (可选，用于 Fisher 估计)。
-            n_samples: Fisher 估计采样数。
+            X: 输入 (n, input_dim)
+            y: 目标 (n, output_dim)
+
+        Returns:
+            最终 epoch 的 MSE loss
         """
-        self.n_completed += 1
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
 
-        # 保存最优参数副本
-        for name, p in params.items():
-            self.star_params[name] = p.copy()
+        if X.shape[1] != self._input_dim or y.shape[1] != self._output_dim:
+            raise ValueError(
+                f"维度不匹配: X {X.shape} vs input {self._input_dim}, "
+                f"y {y.shape} vs output {self._output_dim}"
+            )
 
-        # 对角 Fisher 近似 — O(N)
-        if task_data is not None and len(task_data) > 0:
-            n_use = min(n_samples, len(task_data))
-            indices = np.random.choice(len(task_data), size=n_use, replace=False)
-            samples = task_data[indices]
+        task_id = self._n_updates
+        losses: list[float] = []
 
-            for name, p in params.items():
-                fisher_diag = np.zeros(p.shape, dtype=np.float64)
-                for sample in samples:
-                    # 使用平方梯度作为对角 Fisher 估计
-                    if isinstance(sample, np.ndarray) and sample.ndim > 0:
-                        grad = sample[: p.size].reshape(p.shape)
-                    else:
-                        grad = np.random.randn(*p.shape) * 0.01
-                    fisher_diag += grad ** 2
-                fisher_diag /= n_use
-                self.fisher_diagonals[name] = fisher_diag
-        else:
-            # 无数据时使用单位 Fisher (均匀正则化)
-            for name, p in params.items():
-                self.fisher_diagonals[name] = np.ones_like(p, dtype=np.float64)
+        for epoch in range(self._config.n_epochs):
+            epoch_loss = 0.0
+            indices = np.arange(X.shape[0])
+            np.random.shuffle(indices)
 
-    def loss(self, params: dict[str, np.ndarray]) -> float:
+            for idx in indices:
+                x_i = X[idx : idx + 1]
+                y_i = y[idx : idx + 1]
+
+                if self._task_records:
+                    current_lambda = self._adaptive_lambda
+                    loss = self._model.train_step_with_ewc(
+                        x_i, y_i,
+                        lr=self._config.lr,
+                        task_records=self._task_records,
+                        ewc_lambda=current_lambda,
+                    )
+                else:
+                    loss = self._model.train_step(x_i, y_i, lr=self._config.lr)
+
+                epoch_loss += loss
+            losses.append(epoch_loss / X.shape[0])
+
+        # 保存当前任务记录
+        self._compute_and_save_fisher(X, y, task_id)
+        final_loss = losses[-1] if losses else 0.0
+        self._loss_history.append(final_loss)
+        self._n_updates += 1
+
+        return final_loss
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """用当前模型预测。"""
+        return self._model.forward(X)
+
+    def loss(self, params: dict[str, np.ndarray] | None = None) -> float:
         """计算 EWC 正则化损失。
 
-        L_ewc = (λ/2) * Σ_i F_i * (θ_i - θ_i*)^2
+        L_ewc = λ/2 * Σ_t Σ_p F_p * (θ_p - θ*_p)²
+        """
+        if not self._task_records:
+            return 0.0
+        target = params or {
+            "W1": self._model.W1,
+            "b1": self._model.b1,
+            "W2": self._model.W2,
+            "b2": self._model.b2,
+        }
+        penalty = 0.0
+        for record in self._task_records:
+            for pname in ["W1", "b1", "W2", "b2"]:
+                if pname not in record.optimal_params:
+                    continue
+                current = target[pname]
+                optimal = record.optimal_params[pname]
+                fisher = record.fisher_diagonal.get(pname, np.ones_like(current))
+                penalty += float(np.sum(fisher * (current - optimal) ** 2))
+        return penalty * self._adaptive_lambda / 2.0
+
+    def forget(self, n_tasks_back: int = 1) -> None:
+        """选择性遗忘最近 n 个更新周期。
 
         Args:
-            params: 当前参数字典。
-
-        Returns:
-            EWC 损失值 (非负)。
+            n_tasks_back: 遗忘的最近周期数
         """
-        if self.n_completed == 0:
-            return 0.0
+        n = min(n_tasks_back, len(self._task_records))
+        if n > 0:
+            self._task_records = self._task_records[:-n]
+            self._n_updates = max(0, self._n_updates - n)
 
-        lam = self.adaptive_lambda
-        total_loss = 0.0
+    def get_state(self) -> OnlineEWCState:
+        """返回当前运行时状态。"""
+        return OnlineEWCState(
+            n_updates=self._n_updates,
+            current_loss=self._loss_history[-1] if self._loss_history else 0.0,
+            adaptive_lambda=self._adaptive_lambda,
+            n_params=self._count_params(),
+            forgetting_rate=self._estimate_forgetting(),
+        )
 
-        for name, p in params.items():
-            if name in self.star_params and name in self.fisher_diagonals:
-                p_star = self.star_params[name]
-                fisher = self.fisher_diagonals[name]
-                diff = p - p_star
-                total_loss += float(np.sum(fisher * diff ** 2))
+    # ── 属性 ──
 
-        return (lam / 2.0) * total_loss
+    @property
+    def n_tasks(self) -> int:
+        return self._n_updates
 
-    def forget_rate(
-        self, current_params: dict[str, np.ndarray], initial_params: dict[str, np.ndarray]
-    ) -> float:
-        """估计对初始任务的遗忘率。
+    @property
+    def task_records(self) -> list[TaskRecord]:
+        return list(self._task_records)
 
-        Args:
-            current_params: 当前参数。
-            initial_params: 初始任务的最优参数。
+    @property
+    def model(self) -> IncrementalMLP:
+        return self._model
 
-        Returns:
-            遗忘率 ∈ [0, 1] (0 表示完全记住，1 表示完全遗忘)。
+    @property
+    def _adaptive_lambda(self) -> float:
+        """自适应 EWC lambda — 随 update 次数增长。"""
+        if not self._config.adaptive_ewc:
+            return self._config.ewc_lambda
+        return self._config.ewc_lambda * (
+            1.0 + self._config.ewc_lambda_growth * self._n_updates
+        )
+
+    # ── 内部方法 ──
+
+    def _compute_and_save_fisher(
+        self, X: np.ndarray, y: np.ndarray, task_id: int
+    ) -> None:
+        """计算对角 Fisher 并保存任务记录。"""
+        sample_idx = np.random.choice(
+            X.shape[0],
+            size=min(self._config.fisher_samples, X.shape[0]),
+            replace=False,
+        )
+        X_sample = X[sample_idx]
+        y_sample = y[sample_idx]
+
+        fisher = self._compute_fisher_diag(X_sample, y_sample)
+
+        params = {
+            "W1": self._model.W1.copy(),
+            "b1": self._model.b1.copy(),
+            "W2": self._model.W2.copy(),
+            "b2": self._model.b2.copy(),
+        }
+
+        record = TaskRecord(
+            task=TaskSpec(
+                name=f"task_{task_id}",
+                input_dim=self._input_dim,
+                output_dim=self._output_dim,
+            ),
+            optimal_params=params,
+            fisher_diagonal=fisher,
+            final_loss=self._loss_history[-1] if self._loss_history else 0.0,
+        )
+        self._task_records.append(record)
+
+    def _compute_fisher_diag(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> dict[str, np.ndarray]:
+        """计算参数的对角 Fisher 信息 (O(N) 复杂度)。
+
+        对角 Fisher: F_i = E[(∂log p(y|x)/∂θ_i)²]
+        对 MSE 损失: F_i ≈ mean((∂L/∂θ_i)²)
         """
-        total_diff = 0.0
-        total_norm = 0.0
-        for name, init_val in initial_params.items():
-            if name in current_params:
-                diff = current_params[name] - init_val
-                total_diff += float(np.sum(diff ** 2))
-                total_norm += float(np.sum(init_val ** 2))
-        if total_norm < 1e-12:
+        # 单次前向 + 反向获取梯度
+        pred = self._model.forward(X)
+        batch = X.shape[0]
+        d_out = 2.0 * (pred - y) / batch
+        h_act = self._model._cache["h_act"]
+        x_in = self._model._cache["x"]
+
+        d_W2 = h_act.T @ d_out
+        d_b2 = d_out.sum(axis=0)
+        d_h_act = d_out @ self._model.W2.T
+        d_h = d_h_act * (self._model._cache["h"] > 0).astype(np.float64)
+        d_W1 = x_in.T @ d_h
+        d_b1 = d_h.sum(axis=0)
+
+        fisher = {
+            "W1": d_W1 ** 2,
+            "b1": d_b1 ** 2,
+            "W2": d_W2 ** 2,
+            "b2": d_b2 ** 2,
+        }
+        # 正则化: 防止除零 + 裁剪防止梯度爆炸
+        for k, v in fisher.items():
+            fisher[k] = np.clip(np.maximum(v, 1e-8), 0.0, 100.0)
+        return fisher
+
+    def _count_params(self) -> int:
+        return (
+            self._model.W1.size
+            + self._model.b1.size
+            + self._model.W2.size
+            + self._model.b2.size
+        )
+
+    def _estimate_forgetting(self) -> float:
+        """估计遗忘率: 最近 loss / 全局最小 loss - 1。
+
+        值越大 → 遗忘越严重。
+        """
+        if len(self._loss_history) < 2:
             return 0.0
-        return float(np.sqrt(total_diff / total_norm))
-
-    def reset(self) -> None:
-        """重置 EWC 状态 (用于新一轮实验)。"""
-        self.fisher_diagonals.clear()
-        self.star_params.clear()
-        self.n_completed = 0
-
-
-__all__ = ["OnlineEWC"]
+        recent = np.mean(self._loss_history[-3:]) if len(self._loss_history) >= 3 else self._loss_history[-1]
+        best = min(self._loss_history)
+        if best < 1e-10:
+            return 0.0
+        return max(0.0, (recent - best) / best)

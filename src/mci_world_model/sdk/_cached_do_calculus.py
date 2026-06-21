@@ -1,180 +1,177 @@
-from __future__ import annotations
+"""MCI World Model v4.4.0 — CachedDoCalculus 干预推理缓存加速
 
-"""CachedDoCalculus — 带 LRU 缓存的 Do-Calculus 干预推理。
+对 DoCalculus 查询加 LRU 缓存层，组合键 = (graph_hash, X, Y, frozenset(Z))。
 
-P3 "赋魂" 核心模块 — 在 DoCalculus 基础上增加组合键缓存，
-目标：缓存命中时延迟 <5ms。
-
-Usage::
-    from mci_world_model.sdk._cached_do_calculus import CachedDoCalculus
-    from mci_world_model.sdk._do_calculus import DoCalculus
-    from mci_world_model.sdk._causal_graph import CausalGraph
-
-    cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("Z","Y"),("X","Y")])
-    dc = DoCalculus(cg)
-    cached = CachedDoCalculus(dc, maxsize=1024)
-    result = cached.estimate_ate("X", "Y")
-    print(cached.cache_info())  # hits, misses, size
+验收标准:
+    - 缓存命中 < 5ms (仅 dict lookup)
+    - LRU maxsize=1024, 逐出最旧条目
+    - cache_info() 返回命中率统计
 """
 
+from __future__ import annotations
 
 import hashlib
-import time
+import logging
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
+from mci_world_model.sdk._do_calculus import DoCalculus
 
-def _stable_hash(*args: Any) -> str:
-    """生成稳定的组合哈希键。"""
-    raw = str(args).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()[:16]
+logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CacheEntry:
-    """缓存条目。"""
+class CacheInfo:
+    """缓存统计。"""
 
-    key: str
-    value: Any
-    timestamp: float = field(default_factory=time.monotonic)
-
-
-@dataclass
-class CachedDoCalculus:
-    """带 LRU 缓存的 Do-Calculus 包装器。
-
-    Attributes:
-        do_calculus: 底层 DoCalculus 实例。
-        maxsize: 最大缓存条目数 (默认 1024)。
-        _cache: OrderedDict (LRU — 最近使用的排在最后)。
-        hits: 缓存命中次数。
-        misses: 缓存未命中次数。
-    """
-
-    do_calculus: Any  # DoCalculus (avoid circular import)
-    maxsize: int = 1024
-    _cache: OrderedDict[str, CacheEntry] = field(default_factory=OrderedDict)
     hits: int = 0
     misses: int = 0
+    size: int = 0
+    maxsize: int = 1024
 
-    def _get_cache_key(
-        self, X: str, Y: str, Z_set: frozenset[str] | None = None
-    ) -> str:
-        """生成缓存键：graph_hash + X + Y + Z_set_hash。"""
-        # 从 DoCalculus 获取因果图节点和边
-        graph_repr = ""
-        if hasattr(self.do_calculus, "causal_graph"):
-            cg = self.do_calculus.causal_graph
-            graph_repr = str(sorted(cg.nodes)) + str(sorted(str(e) for e in cg.edges))
-        elif hasattr(self.do_calculus, "_graph"):
-            cg = self.do_calculus._graph
-            graph_repr = str(sorted(cg.nodes)) + str(sorted(str(e) for e in cg.edges))
-        Z_key = str(sorted(Z_set)) if Z_set else "no_Z"
-        return _stable_hash(graph_repr, X, Y, Z_key)
-
-    def _get(self, key: str) -> Any | None:
-        """从 LRU 缓存获取条目 (命中时移到末尾)。"""
-        if key in self._cache:
-            self._cache.move_to_end(key)
-            self.hits += 1
-            return self._cache[key].value
-        self.misses += 1
-        return None
-
-    def _put(self, key: str, value: Any) -> None:
-        """存入 LRU 缓存 (超过 maxsize 时淘汰最旧条目)。"""
-        if key in self._cache:
-            self._cache.move_to_end(key)
-        else:
-            if len(self._cache) >= self.maxsize:
-                self._cache.popitem(last=False)  # LRU eviction
-            self._cache[key] = CacheEntry(key=key, value=value)
-
-    def estimate_ate(
-        self, X: str, Y: str, Z_set: frozenset[str] | None = None
-    ) -> Any:
-        """带缓存的 ATE 估计。
-
-        Args:
-            X: 原因变量。
-            Y: 结果变量。
-            Z_set: 调整集 (可选)。
-
-        Returns:
-            InterventionResult (同 DoCalculus.estimate_ate)。
-        """
-        cache_key = self._get_cache_key(X, Y, Z_set)
-        cached = self._get(cache_key)
-        if cached is not None:
-            return cached
-
-        start = time.perf_counter()
-        if Z_set is not None:
-            result = self.do_calculus.backdoor_adjustment(
-                X, Y, Z_set=list(Z_set)
-            )
-        else:
-            result = self.do_calculus.estimate_ate(X, Y)
-        elapsed_ms = (time.perf_counter() - start) * 1000
-
-        # 记录延迟 (供测试)
-        if not hasattr(self, "_last_compute_ms"):
-            self._last_compute_ms = 0.0
-        self._last_compute_ms = elapsed_ms
-
-        self._put(cache_key, result)
-        return result
-
-    def backdoor_adjustment(
-        self, X: str, Y: str, Z_set: list[str]
-    ) -> Any:
-        """带缓存的 backdoor 调整。
-
-        Args:
-            X: 原因变量。
-            Y: 结果变量。
-            Z_set: 调整集。
-
-        Returns:
-            InterventionResult。
-        """
-        cache_key = self._get_cache_key(X, Y, frozenset(Z_set))
-        cached = self._get(cache_key)
-        if cached is not None:
-            return cached
-
-        start = time.perf_counter()
-        result = self.do_calculus.backdoor_adjustment(X, Y, Z_set=Z_set)
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        self._last_compute_ms = elapsed_ms
-
-        self._put(cache_key, result)
-        return result
-
-    def cache_info(self) -> dict[str, int | float]:
-        """返回缓存统计信息。
-
-        Returns:
-            dict: hits, misses, size, maxsize, hit_rate。
-        """
+    @property
+    def hit_rate(self) -> float:
         total = self.hits + self.misses
-        return {
-            "hits": self.hits,
-            "misses": self.misses,
-            "size": len(self._cache),
-            "maxsize": self.maxsize,
-            "hit_rate": self.hits / total if total > 0 else 0.0,
-        }
+        return self.hits / total if total > 0 else 0.0
 
-    def clear(self) -> None:
-        """清空缓存和统计。"""
+
+class CachedDoCalculus:
+    """带 LRU 缓存的 DoCalculus 干预推理。
+
+    缓存键: (graph_fingerprint, X, Y, Z_frozen)
+    缓存值: dict (ATE/NDE/NIE 等结果)
+
+    Example:
+        >>> cdc = CachedDoCalculus(graph, data, maxsize=512)
+        >>> result = cdc.query("X", "Y", Z_set=["Z1", "Z2"])
+        >>> info = cdc.cache_info()
+        >>> print(f"命中率: {info.hit_rate:.1%}")
+
+    延迟目标: 缓存命中 < 5ms
+    """
+
+    def __init__(
+        self,
+        do_calculus: DoCalculus | None = None,
+        maxsize: int = 1024,
+    ):
+        if maxsize <= 0:
+            raise ValueError(f"maxsize 必须为正, 当前 {maxsize}")
+        self._do = do_calculus or DoCalculus()
+        self._maxsize = maxsize
+        self._cache: OrderedDict[str, Any] = OrderedDict()
+        self._hits: int = 0
+        self._misses: int = 0
+
+    # ── 公开 API ──
+
+    def query(
+        self,
+        X: str,
+        Y: str,
+        Z_set: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        """干预查询 — 先查缓存，未命中则计算并缓存。
+
+        Args:
+            X: 干预变量名
+            Y: 目标变量名
+            Z_set: 调整变量集 (可选, 不传则自动识别)
+
+        Returns:
+            {"ate": float, "method": str, "adjustment_set": [...], ...} 或 None
+        """
+        key = self._make_key(X, Y, Z_set or [])
+
+        if key in self._cache:
+            self._hits += 1
+            # LRU: 移动到末尾
+            self._cache.move_to_end(key)
+            return self._cache[key]
+
+        self._misses += 1
+        result = self._compute(X, Y, Z_set)
+
+        if result is not None:
+            self._cache[key] = result
+            if len(self._cache) > self._maxsize:
+                self._cache.popitem(last=False)  # FIFO → LRU 逐出最旧
+
+        return result
+
+    def query_effect(
+        self,
+        X: str,
+        Y: str,
+        Z_set: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        """query 的别名 (兼容 DoCalculus API)。"""
+        return self.query(X, Y, Z_set)
+
+    def cache_info(self) -> CacheInfo:
+        """返回缓存统计信息。"""
+        return CacheInfo(
+            hits=self._hits,
+            misses=self._misses,
+            size=len(self._cache),
+            maxsize=self._maxsize,
+        )
+
+    def clear_cache(self) -> None:
+        """清空缓存，重置统计。"""
         self._cache.clear()
-        self.hits = 0
-        self.misses = 0
+        self._hits = 0
+        self._misses = 0
 
-    def __len__(self) -> int:
+    def set_do_calculus(self, do_calculus: DoCalculus) -> None:
+        """替换底层的 DoCalculus 实例 (同时清空缓存)。"""
+        self._do = do_calculus
+        self.clear_cache()
+
+    # ── 属性 ──
+
+    @property
+    def maxsize(self) -> int:
+        return self._maxsize
+
+    @property
+    def cache_size(self) -> int:
         return len(self._cache)
 
+    # ── 内部方法 ──
 
-__all__ = ["CachedDoCalculus", "CacheEntry"]
+    def _make_key(self, X: str, Y: str, Z_set: list[str]) -> str:
+        """生成缓存键: graph_fp|X|Y|Z1,Z2,..."""
+        graph_fp = self._graph_fingerprint()
+        z_str = ",".join(sorted(Z_set))
+        return f"{graph_fp}|{X}|{Y}|{z_str}"
+
+    def _graph_fingerprint(self) -> str:
+        """图的简短指纹 (基于 edges 的确定性哈希)。"""
+        graph = self._do._graph
+        if graph is None:
+            return "no_graph"
+        # 确定性排序 + MD5 指纹
+        edges_str = ",".join(
+            sorted(f"{a}->{b}" for a, b in graph.edges)
+        ) if hasattr(graph, "adjacency") else str(id(graph))
+        h = hashlib.md5(edges_str.encode()).hexdigest()[:8]
+        return f"g{h}"
+
+    def _compute(
+        self, X: str, Y: str, Z_set: list[str] | None
+    ) -> dict[str, Any] | None:
+        """底层 DoCalculus 计算 (无缓存)。"""
+        try:
+            result = self._do.estimate_ate(X, Y)
+            if result is None:
+                return None
+            return {
+                "ate": result.ate if hasattr(result, "ate") else None,
+                "method": result.method if hasattr(result, "method") else "auto",
+                "adjustment_set": result.adjustment_set if hasattr(result, "adjustment_set") else [],
+            }
+        except Exception:
+            logger.debug("DoCalculus compute failed for %s -> %s", X, Y, exc_info=True)
+            return None

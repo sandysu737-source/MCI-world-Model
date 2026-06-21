@@ -658,10 +658,9 @@ from mci_world_model.sdk._neurosymbolic_world_model import (
     TripleRepresentation,
 )
 from mci_world_model.sdk._novelty_verifier import NoveltyResult, NoveltyVerifier
+from mci_world_model.sdk._online_ewc import OnlineEWC, OnlineEWCState
 
 # P3 "赋魂": 在线弹性权重巩固
-from mci_world_model.sdk._online_ewc import OnlineEWC
-
 # v5.1.0: P2 SDK 桥接 — Orchestrator 桥接
 from mci_world_model.sdk._orchestrator_bridge import (
     AgentResult,
@@ -1202,6 +1201,7 @@ __all__ = [
     "EWCConfig",
     "IncrementalLearningEngine",
     "OnlineEWC",
+    "OnlineEWCState",
     "SimpleMAML",
     "MAMLTask",
     "IncrementalMLP",

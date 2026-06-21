@@ -11,8 +11,6 @@
 from __future__ import annotations
 
 import numpy as np
-from mci_world_model.sdk._do_calculus import CausalGraph
-from mci_world_model.sdk._counterfactual import CounterfactualEngine
 
 from benchmarks.causal.data import (
     backdoor_graph,
@@ -29,7 +27,8 @@ from benchmarks.causal.metrics import (
     compute_ate_error,
     compute_counterfactual_metrics,
 )
-from mci_world_model.sdk._do_calculus import DoCalculus
+from mci_world_model.sdk._counterfactual import CounterfactualEngine
+from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # D1: ATE Estimation Benchmark
