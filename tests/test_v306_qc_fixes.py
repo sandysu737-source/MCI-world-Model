@@ -38,6 +38,17 @@ def _make_bare_model():
     wm._temporal_core = None
     wm._jepa_encoder = None
     wm._jepa_predictor = None
+    # ── P7/P8 能力中心 ──
+    wm._plugin_manager = None
+    wm._medical_sdk = None
+    wm._legal_sdk = None
+    wm._engineering_sdk = None
+    wm._scientific_discovery = None
+    wm._edge_cloud = None
+    wm._neural_symbolic = None
+    wm._causal_gradient = None
+    wm._symbol_grounding = None
+    wm._agi_protocol = None
     wm._do_calculus = None
     wm._cognitive_loop = None
     wm._meta_diagnoser = None

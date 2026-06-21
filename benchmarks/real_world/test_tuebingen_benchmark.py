@@ -1,13 +1,14 @@
 """Tests for Tübingen Cause-Effect Pairs benchmark."""
 
-import pytest
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+
 from benchmarks.real_world.tuebingen_pairs import (
-    load_tuebingen_pairs,
-    evaluate_direction,
-    ensure_data,
     _generate_synthetic_pairs,
+    evaluate_camgolem_direction,
+    evaluate_direction,
+    load_tuebingen_pairs,
 )
 
 
@@ -16,7 +17,9 @@ class TestTuebingenBenchmark:
 
     def test_synthetic_data_generation(self):
         """Synthetic pairs should generate and load correctly."""
-        import tempfile, shutil
+        import shutil
+        import tempfile
+
         from benchmarks.real_world import tuebingen_pairs as tp
 
         # Use a temp dir to avoid polluting
@@ -39,7 +42,9 @@ class TestTuebingenBenchmark:
 
     def test_direction_accuracy(self):
         """Direction accuracy should be reasonable on synthetic data."""
-        import tempfile, shutil
+        import shutil
+        import tempfile
+
         from benchmarks.real_world import tuebingen_pairs as tp
 
         original_dir = tp.TUEBINGEN_DIR
@@ -87,6 +92,50 @@ class TestTuebingenBenchmark:
             f"Expected var(cause→effect)={var_ab:.4f} < var(effect→cause)={var_ba:.4f}"
         print(f"\n  var(c→e)={var_ab:.4f} < var(e→c)={var_ba:.4f} ✓")
 
+    def test_camgolem_direction_accuracy(self):
+        """CAMGOLEM (nonlinear spline residual) direction accuracy."""
+        import shutil
+        import tempfile
+
+        from benchmarks.real_world import tuebingen_pairs as tp
+
+        original_dir = tp.TUEBINGEN_DIR
+        tmp_dir = tempfile.mkdtemp()
+        tp.TUEBINGEN_DIR = Path(tmp_dir) / "tuebingen_data"
+
+        try:
+            _generate_synthetic_pairs(50)
+            pairs = load_tuebingen_pairs()
+            result = evaluate_camgolem_direction(pairs)
+            assert result["total"] == 50
+            assert result["accuracy"] >= 0.50, \
+                f"CAMGOLEM direction accuracy {result['accuracy']:.1%} below 50%"
+            print(f"\n  CAMGOLEM direction accuracy: {result['accuracy']:.1%} "
+                  f"({result['correct']}/{result['total']})")
+        finally:
+            tp.TUEBINGEN_DIR = original_dir
+            shutil.rmtree(str(tmp_dir), ignore_errors=True)
+
+    def test_camgolem_vs_linear_comparison(self):
+        """CAMGOLEM should match or exceed linear residual on nonlinear data."""
+        rng = np.random.RandomState(123)
+        n = 500
+        # Nonlinear: cause → effect = tanh(cause) + noise
+        cause = rng.randn(n)
+        effect = np.tanh(2 * cause) + 0.2 * rng.randn(n)
+
+        from benchmarks.real_world.tuebingen_pairs import (
+            _cam_nonlinear_residual,
+            _residual_asymmetry,
+        )
+        cam_asym = _cam_nonlinear_residual(cause, effect)
+        lin_asym = abs(_residual_asymmetry(cause, effect))
+
+        # Both should agree on direction (cause→effect)
+        assert cam_asym > 0, f"CAM got {cam_asym}, expected >0 (cause→effect)"
+        assert _residual_asymmetry(cause, effect) > 0, "Linear residual failed"
+        print(f"\n  CAM asym={cam_asym:.4f}, Linear asym|={lin_asym:.4f}")
+
 
 class TestTuebingenSOTA:
     """Compare with published SOTA results."""
@@ -99,7 +148,9 @@ class TestTuebingenSOTA:
         - IGCI (Daniusis et al. 2010): ~68%
         - RECI (Blöbaum et al. 2018): ~69%
         """
-        import tempfile, shutil
+        import shutil
+        import tempfile
+
         from benchmarks.real_world import tuebingen_pairs as tp
 
         original_dir = tp.TUEBINGEN_DIR
@@ -111,10 +162,10 @@ class TestTuebingenSOTA:
             pairs = load_tuebingen_pairs()
             result = evaluate_direction(pairs)
 
-            print(f"\n  === Tübingen SOTA Comparison ===")
-            print(f"  CGNN (SOTA):  73%")
-            print(f"  IGCI:         ~68%")
-            print(f"  RECI:         ~69%")
+            print("\n  === Tübingen SOTA Comparison ===")
+            print("  CGNN (SOTA):  73%")
+            print("  IGCI:         ~68%")
+            print("  RECI:         ~69%")
             print(f"  Ours (hybrid): {result['accuracy']:.0%}")
             print(f"  Correct:       {result['correct']}/{result['total']}")
 

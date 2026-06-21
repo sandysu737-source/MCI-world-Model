@@ -14,15 +14,12 @@ benchmarks/real_world/test_mimic_benchmark.py — MIMIC-III 临床因果推断�
 
 from __future__ import annotations
 
-import time
 import gc
-import numpy as np
-import pytest
+import time
 
 from benchmarks.real_world.mimic_causal_benchmark import (
     MIMICCausalBenchmark,
     generate_synthetic_icu_patients,
-    CausalMetrics,
 )
 
 
@@ -67,8 +64,8 @@ class TestMIMICBenchmark:
         report = benchmark.run_full_report(patients)
         assert isinstance(report, dict)
         assert "cewm" in report
-        print(f"\n  MIMIC Full Report AI vs LLM:")
-        if "llm_baselines" in report and report["llm_baselines"]:
+        print("\n  MIMIC Full Report AI vs LLM:")
+        if report.get("llm_baselines"):
             for baseline in report["llm_baselines"]:
                 print(f"    {baseline.get('model','LLM')}: F1={baseline.get('metrics',{}).get('f1',0):.3f}")
         cewm_m = report["cewm"]["metrics"]
@@ -81,7 +78,7 @@ class TestMIMICBenchmark:
         patients = generate_synthetic_icu_patients(n_patients=10, seed=42)
         result = benchmark.run_cewm_benchmark(patients)
 
-        print(f"\n  Graph Comparison:")
+        print("\n  Graph Comparison:")
         print(f"    CEWM: F1={result.metrics.f1:.3f}, DirAcc={result.metrics.direction_accuracy:.3f}")
         print(f"    TP={result.metrics.n_true_positives}, Pred={result.metrics.n_edges_predicted}, GT={result.metrics.n_edges_ground_truth}")
 

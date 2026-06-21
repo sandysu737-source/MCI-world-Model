@@ -1427,6 +1427,7 @@ __all__ = [
     "AutonomousLawDiscovererV2",
     "CausalSkeleton",
     "CAMDiscoverer",
+    "CAMGOLEMDiscoverer",
     "FCIDiscoverer",
     "GESDiscoverer",
     "LiNGAMDiscoverer",

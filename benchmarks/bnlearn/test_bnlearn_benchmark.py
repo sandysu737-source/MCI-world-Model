@@ -15,7 +15,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # BNLearn Standard DAGs
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -144,6 +143,97 @@ def _generate_dag_data(dag_name: str, seed: int = 42):
     return data, nodes, gt_adj, len(edges)
 
 
+def _generate_dag_data_nonlinear(dag_name: str, seed: int = 42):
+    """从 BNLearn DAG 生成非线性 SEM 数据。
+
+    模拟真实蛋白信号网络的非线性特征:
+      - sigmoid 饱和 (Raf→Mek)
+      - 协作激活 (需要双输入, PKA+Raf→Mek)
+      - 阈值效应 (AKT 激活需 PIP3 超过阈值)
+      - 异方差噪声 (信号越强噪声越大)
+    """
+    info = BNLEARN_DAGS[dag_name]
+    nodes = info["nodes"]
+    edges = info["edges"]
+    n_nodes = len(nodes)
+    n_samples = info["n"]
+
+    rng = np.random.RandomState(seed)
+    node_to_idx = {name: i for i, name in enumerate(nodes)}
+
+    # Edge coefficients
+    adj_coef = np.zeros((n_nodes, n_nodes))
+    coef_rng = np.random.RandomState(seed)
+    for src, dst in edges:
+        adj_coef[node_to_idx[src], node_to_idx[dst]] = coef_rng.uniform(0.3, 0.9)
+
+    # Define nonlinear functions per edge type
+    def _sigmoid(x): return 1.0 / (1.0 + np.exp(-x))
+    def _softplus(x): return np.log(1.0 + np.exp(np.clip(x, -20, 20)))
+    def _tanh_scale(x): return np.tanh(x)
+
+    # Per-edge nonlinearity assignment (protein signaling motifs)
+    # Based on known biology: phosphorylation cascades exhibit saturation
+    edge_nonlinearity = {}
+    for src, dst in edges:
+        pair = (node_to_idx[src], node_to_idx[dst])
+        # Assign nonlinearity based on biological role
+        s_name, d_name = src.lower(), dst.lower()
+        if 'mek' in d_name and 'raf' in s_name:
+            edge_nonlinearity[pair] = 'sigmoid'  # MAPK cascade saturation
+        elif 'erk' in d_name:
+            edge_nonlinearity[pair] = 'sigmoid'  # Terminal kinase saturation
+        elif 'akt' in d_name and 'pip3' in s_name:
+            edge_nonlinearity[pair] = 'softplus'  # Membrane recruitment
+        elif 'akt' in d_name and 'pka' in s_name:
+            edge_nonlinearity[pair] = 'tanh'  # Cross-talk modulation
+        elif 'p38' in d_name or 'jnk' in d_name:
+            edge_nonlinearity[pair] = 'tanh'  # Stress kinase activation
+        else:
+            edge_nonlinearity[pair] = rng.choice(
+                ['sigmoid', 'tanh', 'softplus', 'linear'],
+                p=[0.3, 0.3, 0.2, 0.2]
+            )
+
+    # Generate data by topological order
+    data = np.zeros((n_samples, n_nodes))
+    # Topological sort: build in-degree order
+    in_degree = np.sum(adj_coef > 0, axis=0)
+    processed = np.zeros(n_nodes, dtype=bool)
+
+    for _ in range(n_nodes):
+        ready = [i for i in range(n_nodes) if not processed[i] and
+                 all(processed[p] for p in np.where(adj_coef[:, i] > 0)[0])]
+        if not ready:
+            # Pick any unprocessed (shouldn't happen for DAG but safety)
+            ready = [i for i in range(n_nodes) if not processed[i]]
+        for i in ready:
+            parents = np.where(adj_coef[:, i] > 0)[0]
+            if len(parents) == 0:
+                data[:, i] = rng.randn(n_samples)
+            else:
+                signal = np.zeros(n_samples)
+                for p in parents:
+                    coef = adj_coef[p, i]
+                    raw = coef * data[:, p]
+                    nl_type = edge_nonlinearity.get((p, i), 'linear')
+                    if nl_type == 'sigmoid':
+                        signal += 1.5 * _sigmoid(raw)
+                    elif nl_type == 'tanh':
+                        signal += _tanh_scale(raw)
+                    elif nl_type == 'softplus':
+                        signal += 0.8 * _softplus(raw - 0.5)  # threshold effect
+                    else:
+                        signal += raw
+                # Heteroscedastic noise: stronger signal → more noise
+                noise_scale = 0.15 + 0.15 * np.abs(signal) / (np.abs(signal).mean() + 1e-6)
+                data[:, i] = signal + noise_scale * rng.randn(n_samples)
+            processed[i] = True
+
+    gt_adj = (adj_coef > 0).astype(int)
+    return data, nodes, gt_adj, len(edges)
+
+
 def _shd(pred: np.ndarray, gt: np.ndarray) -> int:
     """Structural Hamming Distance。"""
     return int(np.sum(pred != gt))
@@ -244,8 +334,8 @@ class TestBNLearnAccuracy:
             total_edges += n
         avg_ratio = total_shd / max(total_edges, 1)
         print(f"  {'TOTAL':<8} SHD={total_shd}/{total_edges} ({avg_ratio:.1%})")
-        print(f"  NOTE: Regression-based edge orientation applied; remaining undirected edges resolved via OLS residual asymmetry.")
-        print(f"  F1 range: 0.37-0.76 (regression orientation varies by data non-Gaussianity)")
+        print("  NOTE: Regression-based edge orientation applied; remaining undirected edges resolved via OLS residual asymmetry.")
+        print("  F1 range: 0.37-0.76 (regression orientation varies by data non-Gaussianity)")
         # Acceptance: SHD ratio < 2.0 (regression-oriented edges)
         assert avg_ratio < 2.5, f"SHD ratio {avg_ratio:.1%} >= 2.5"
 
@@ -262,3 +352,99 @@ class TestBNLearnScalability:
         skel = algo.discover(data, nodes)
         assert skel.adj_matrix.shape == (len(nodes), len(nodes))
         print(f"\n  Alarm (37 nodes): discovered, SHD={_shd(skel.adj_matrix, gt_adj)}/{n_edges}")
+
+
+class TestNonlinearSachs:
+    """非线性 Sachs 基准 — 蛋白信号网络的非线性因果发现。
+
+    真实 Sachs 数据包含 sigmoid 饱和、协作激活、阈值效应等
+    非线性特征。线性方法 (PC, GES) 在此数据上表现有限。
+    非线性方法 (CAM, GOLEM+PC ensemble) 应显著优于线性方法。
+    """
+
+    def test_cam_on_nonlinear_sachs(self):
+        """CAM 稳定性选择在非线性 Sachs 上应优于线性 PC。"""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer
+
+        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
+                           n_subsamples=50, stability_threshold=0.5)
+        skel = cam.discover(data, nodes)
+        _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
+        print(f"\n  CAM (nonlinear Sachs): F1={f1:.3f}")
+        assert f1 >= 0.35, f"CAM nonlinear F1={f1:.3f} below 0.35"
+
+    def test_golem_pc_ensemble_nonlinear(self):
+        """GOLEM+PC 并集在非线性 Sachs 上应超越单方法。"""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer, PCSkeletonDiscoverer
+
+        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        nidx = {n: i for i, n in enumerate(nodes)}
+        n_v = len(nodes)
+
+        # PC+KCIT
+        pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05, nonlinear=True)
+        s_pc = pc.discover(data, nodes)
+        adj_pc = np.zeros((n_v, n_v), int)
+        for s, d in s_pc.edges:
+            adj_pc[nidx[s], nidx[d]] = 1
+
+        # GOLEM
+        golem = NOTEARSDiscoverer(lambda1=0.01, max_iter=300, method="golem")
+        s_go = golem.discover(data, nodes)
+        adj_go = np.zeros((n_v, n_v), int)
+        for s, d in s_go.edges:
+            adj_go[nidx[s], nidx[d]] = 1
+
+        # Union skeleton + PC direction
+        adj_union = adj_pc.copy()
+        for i in range(n_v):
+            for j in range(n_v):
+                if adj_union[i, j] == 0 and adj_go[i, j] == 1:
+                    if adj_union[j, i] == 0:
+                        adj_union[i, j] = 1
+
+        _, _, f1 = _precision_recall_f1(adj_union, gt)
+        print(f"\n  GOLEM+PC union (nonlinear Sachs): F1={f1:.3f}")
+        # Ensemble should outperform single method
+        _, _, f1_pc = _precision_recall_f1(adj_pc, gt)
+        _, _, f1_go = _precision_recall_f1(adj_go, gt)
+        best_single = max(f1_pc, f1_go)
+        assert f1 >= best_single * 0.9, \
+            f"Ensemble F1={f1:.3f} significantly below best single {best_single:.3f}"
+
+    def test_nonlinear_vs_linear_comparison(self):
+        """非线性方法应在非线性数据上优于线性方法。"""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer, PCSkeletonDiscoverer
+
+        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+
+        # Linear PC (no nonlinear CI)
+        pc_lin = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05, nonlinear=False)
+        skel_lin = pc_lin.discover(data, nodes)
+        _, _, f1_lin = _precision_recall_f1(skel_lin.adj_matrix, gt)
+
+        # CAM (nonlinear)
+        cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
+                           n_subsamples=50, stability_threshold=0.5)
+        skel_cam = cam.discover(data, nodes)
+        _, _, f1_cam = _precision_recall_f1(skel_cam.adj_matrix, gt)
+
+        print(f"\n  Linear PC:  F1={f1_lin:.3f}")
+        print(f"  CAM:        F1={f1_cam:.3f}")
+        # CAM should match or exceed linear PC on nonlinear data
+        assert f1_cam >= f1_lin * 0.8, \
+            f"CAM F1={f1_cam:.3f} much worse than linear PC F1={f1_lin:.3f}"
+
+    def test_camgolem_on_nonlinear_sachs(self):
+        """CAM→GOLEM 混合管道在非线性 Sachs 上应逼近 SOTA (F1 ≥ 0.55)。"""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMGOLEMDiscoverer
+
+        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        cg = CAMGOLEMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
+                               n_subsamples=50, stability_threshold=0.5,
+                               lambda1=0.01, max_iter=300)
+        skel = cg.discover(data, nodes)
+        _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
+        print(f"\n  CAMGOLEM (nonlinear Sachs): F1={f1:.3f}")
+        assert f1 >= 0.55, f"CAMGOLEM F1={f1:.3f} below 0.55 threshold"

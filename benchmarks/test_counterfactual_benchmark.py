@@ -6,7 +6,6 @@ Tests CEWM CounterfactualEngine on known SEM data.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from mci_world_model.sdk._counterfactual import CounterfactualEngine
 from mci_world_model.sdk._do_calculus import CausalGraph

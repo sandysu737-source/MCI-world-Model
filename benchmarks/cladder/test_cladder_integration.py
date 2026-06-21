@@ -14,10 +14,6 @@ CEWM 结构化求解: 用 CausalGraph + DoCalculus + CounterfactualEngine
 
 from __future__ import annotations
 
-import pytest
-import numpy as np
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLADDER 样本测试题 (硬编码代表性题目)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -108,8 +104,8 @@ class TestCLADDERIntegration:
 
     def test_full_pipeline(self):
         """完整 CLADDER 流水线——全部三层。"""
-        from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
         from mci_world_model.sdk._counterfactual import CounterfactualEngine
+        from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
         score = {"rung1": 0, "rung2": 0, "rung3": 0}
 
@@ -144,7 +140,7 @@ class TestCLADDERIntegration:
         total = sum(score.values())
         total_possible = 3
         accuracy = total / total_possible
-        print(f"\n  === CLADDER Accuracy ===")
+        print("\n  === CLADDER Accuracy ===")
         print(f"  Rung1: {score['rung1']}/1, Rung2: {score['rung2']}/1, Rung3: {score['rung3']}/1")
         print(f"  Total: {total}/{total_possible} = {accuracy:.0%}")
 
@@ -152,9 +148,11 @@ class TestCLADDERIntegration:
 
     def test_cladder_benchmark_speed(self):
         """CLADDER 基准延迟。"""
-        from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
+        import gc
+        import time
+
         from mci_world_model.sdk._counterfactual import CounterfactualEngine
-        import time, gc
+        from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
         n_questions = 100
         cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("Z","Y"),("X","Y")])

@@ -19,10 +19,8 @@ Tübingen Cause-Effect Pairs (Mooij et al., 2016):
 
 from __future__ import annotations
 
-import time
 import gc
-import numpy as np
-import pytest
+import time
 
 from benchmarks.causal_standard.tuebingen_adapter import (
     TuebingenAdapter,

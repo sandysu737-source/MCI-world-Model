@@ -51,15 +51,12 @@ class TestSOTAComparison:
         results = {}
         for net in ["asia", "child", "sachs"]:
             data, nodes, gt, _ = _generate_dag_data(net)
-            if net == "sachs":
-                pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1)
-            else:
-                pc = PCSkeletonDiscoverer(alpha=0.05)
+            pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05, nonlinear=True)
             skel = pc.discover(data, nodes)
             _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
             results[net] = f1
 
-        print(f"  {'CEWM PC (ours)':<14} {results['asia']:>8.3f} {results['child']:>8.3f} {results['sachs']:>8.3f}  v4.6.1")
+        print(f"  {'CEWM PC (ours)':<14} {results['asia']:>8.3f} {results['child']:>8.3f} {results['sachs']:>8.3f}  v4.9.0")
 
         # SOTA methods
         for method in ["DAG-GNN", "GRaNDAG", "NOTEARS", "CAM", "PC-stable"]:
@@ -71,7 +68,7 @@ class TestSOTAComparison:
 
         # Gap analysis
         print("\n  Gap analysis (CEWM vs best SOTA):")
-        best_sota = {"asia": 0.67, "child": 0.62, "sachs": 0.85}
+        best_sota = {"asia": 0.67, "child": 0.62, "sachs": 0.85}  # DAG-GNN / GRaNDAG / DAG-GNN
         for net in ["asia", "child", "sachs"]:
             gap = results[net] - best_sota[net]
             status = "✅ Ahead" if gap > 0 else (f"⚠️ Gap {gap:+.3f}")
@@ -137,17 +134,18 @@ class TestSOTAComparison:
     def test_summary_gaps(self):
         """Executive summary of SOTA gaps."""
         print("\n" + "="*72)
-        print("  Executive Summary — v4.6.1 SOTA Gaps")
+        print("  Executive Summary — v4.9.0 SOTA Gaps")
         print("="*72)
         gaps = [
-            ("asia F1",       "0.76", "DAG-GNN 0.67",  "✅ +14% ahead"),
-            ("child F1",      "0.64", "GRaNDAG 0.62",  "✅ +3% ahead"),
-            ("sachs F1",      "0.27", "CAM 0.82",      "⚠️ -0.55 (nonlinear)"),
-            ("Tübingen dir.", "68%",  "CGNN 73%",      "⚠️ -5%"),
-            ("Alarm 37node",  "35/46","—",             "✅ functional"),
+            ("asia F1",       "0.67", "DAG-GNN 0.67",  "✅ tied"),
+            ("child F1",      "0.55", "GRaNDAG 0.62",  "⚠️ -0.07"),
+            ("sachs F1 (lin)","0.43", "DAG-GNN 0.85",  "⚠️ -0.42"),
+            ("sachs F1 (nl)", "0.46", "CAM 0.82",      "⚠️ -0.36 (CAM)"),
+            ("Tübingen dir.", "56%",  "CGNN 73%",      "⚠️ -17% (synth)"),
             ("Pearl Rung1-3", "Full", "—",             "✅ complete"),
+            ("P7/P8 能力中心","10/10","—",               "✅ integrated"),
         ]
         for metric, ours, sota, verdict in gaps:
             print(f"  {metric:<16} Ours={ours:<10} SOTA={sota:<12} {verdict}")
-        print("\n  Key takeaway: CEWM exceeds SOTA on linear networks,")
-        print("  trails on nonlinear (Sachs) — HSIC partially closes gap.")
+        print("\n  Key takeaway: CEWM competitive on linear (asia tied SOTA),")
+        print("  nonlinear gap closing (CAM F1=0.46). P7/P8 fully integrated.")

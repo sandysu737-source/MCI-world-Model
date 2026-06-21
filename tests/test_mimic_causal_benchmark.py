@@ -77,8 +77,8 @@ class TestSyntheticDataGeneration:
         hr_increases_with_dopamine = 0
         checked = 0
         for p in patients:
-            dop_idx = p.variables.index("dopamine_dose")
-            hr_idx = p.variables.index("heart_rate")
+            dop_idx = p.variables.index("dopamine_high_dose")
+            hr_idx = p.variables.index("heart_rate_increase")
             dop = p.data[:, dop_idx]
             hr = p.data[:, hr_idx]
             valid = np.isfinite(dop) & np.isfinite(hr)
@@ -100,13 +100,13 @@ class TestPatientTimeline:
         data = np.array([[80.0, 65.0], [82.0, 67.0]])
         p = PatientTimeline(
             patient_id="test",
-            variables=["heart_rate", "map"],
+            variables=["heart_rate_increase", "map"],
             data=data,
         )
         dicts = p.to_timeline_dicts()
         assert len(dicts) == 2
         assert dicts[0]["day"] == 1
-        assert dicts[0]["heart_rate"] == 80.0
+        assert dicts[0]["heart_rate_increase"] == 80.0
 
     def test_data_summary(self):
         """数据摘要生成。"""
@@ -309,7 +309,7 @@ class TestMIMICDataLoading:
         # 创建临时 JSONL 文件
         record = {
             "patient_id": "test_001",
-            "variables": ["heart_rate", "map"],
+            "variables": ["heart_rate_increase", "map"],
             "data": [[80.0, 65.0], [82.0, 67.0], [81.0, 66.0]],
         }
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
@@ -337,12 +337,12 @@ class TestLLMOutputParsing:
         """解析标准 JSON 数组输出。"""
         text = """Here are the causal relationships:
 [
-    {"cause": "dopamine_dose", "effect": "heart_rate", "direction": "positive", "confidence": 0.8},
+    {"cause": "dopamine_high_dose", "effect": "heart_rate_increase", "direction": "positive", "confidence": 0.8},
     {"cause": "norepinephrine_dose", "effect": "mean_arterial_pressure", "direction": "positive", "confidence": 0.7}
 ]"""
         edges = parse_llm_causal_output(text)
         assert len(edges) == 2
-        assert edges[0][0] == "dopamine_dose"
+        assert edges[0][0] == "dopamine_high_dose"
         assert edges[0][2] == "positive"
 
     def test_parse_negative_direction(self):

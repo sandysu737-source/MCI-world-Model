@@ -15,13 +15,13 @@ benchmarks/causal_standard/test_causalbench_benchmark.py — CausalBench (CLeAR)
 
 from __future__ import annotations
 
-import time
 import gc
+import time
+
 import numpy as np
-import pytest
 
 from benchmarks.causal_standard.causalbench_adapter import (
-    CausalBenchAdapter, CausalPair, DirectionJudgment, BenchmarkResult,
+    CausalBenchAdapter,
 )
 
 
@@ -129,9 +129,6 @@ class TestCausalBenchAccuracy:
         adapter = CausalBenchAdapter(seed=42)
         pairs = adapter.generate_synthetic_pairs(n_pairs=50)
 
-        from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
-            PCSkeletonDiscoverer, NOTEARSDiscoverer, FCIDiscoverer,
-        )
 
         methods = {
             "CEWM (IGCI)": lambda p: adapter.judge_direction(p).predicted_direction,

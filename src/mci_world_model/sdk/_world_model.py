@@ -776,6 +776,15 @@ class MCIWorldModel:
         self._parametric_memory: Any | None = None  # v4.3.3 ParametricMemory
         self._energy_flow_predictor: Any | None = None  # v4.3.3 EnergyFlowPredictor
         self._causal_updater: Any | None = None  # v4.3.3 CausalUpdater (持久化积累)
+        # ── P7/P8 能力中心 ──
+        self._medical_sdk: Any | None = None  # P7: MedicalCausalSDK
+        self._legal_sdk: Any | None = None  # P7: LegalComplianceSDK
+        self._engineering_sdk: Any | None = None  # P7: EngineeringSafetySDK
+        self._scientific_discovery: Any | None = None  # P7: ScientificDiscovery
+        self._edge_cloud: Any | None = None  # P7: EdgeCloudHybrid
+        self._neural_symbolic: Any | None = None  # P8: NeuralSymbolicFusionV2
+        self._symbol_grounding: Any | None = None  # P8: SymbolGrounding
+        self._agi_protocol: Any | None = None  # P8: AGIProtocol
         self._action_gap_metric: Any | None = None  # LOOP-03: ActionGapMetric (懒加载)
         self._state_parser_registry: Any | None = None  # LOOP-03: StateParserRegistry (懒加载)
 
@@ -914,6 +923,25 @@ class MCIWorldModel:
             except ImportError:
                 report["modules"]["jepa_gnn"] = "unavailable"
 
+            # ── v4.9.0 P7: 检查能力中心模块 ──
+            for mod_name, mod_path in [
+                ("plugin_manager", "mci_world_model.sdk._plugin_interface"),
+                ("medical_sdk", "mci_world_model.sdk._medical_causal_sdk"),
+                ("legal_sdk", "mci_world_model.sdk._legal_compliance_sdk"),
+                ("engineering_sdk", "mci_world_model.sdk._engineering_safety_sdk"),
+                ("scientific_discovery", "mci_world_model.sdk._scientific_discovery"),
+                ("edge_cloud", "mci_world_model.sdk._edge_cloud_hybrid"),
+                ("neural_symbolic", "mci_world_model.sdk._neural_symbolic_fusion_v2"),
+                ("causal_gradient", "mci_world_model.sdk._causal_gradient"),
+                ("symbol_grounding", "mci_world_model.sdk._symbol_grounding"),
+                ("agi_protocol", "mci_world_model.sdk._agi_protocol"),
+            ]:
+                try:
+                    __import__(mod_path)
+                    report["modules"][mod_name] = "available"
+                except ImportError:
+                    report["modules"][mod_name] = "unavailable"
+
             # ── 检查能量损失 ──
             try:
                 from mci_world_model.sdk._energy_loss import (
@@ -951,7 +979,7 @@ class MCIWorldModel:
             self._initialized = report["ready"]
 
             if report["ready"]:
-                logger.info("MCIWorldModel v4.3.3 CEWM 初始化完成")
+                logger.info("MCIWorldModel v4.9.0 CEWM 初始化完成 (含 P7/P8 能力中心)")
             else:
                 logger.warning("MCIWorldModel 初始化不完整: %s", report["warnings"])
 
@@ -961,20 +989,22 @@ class MCIWorldModel:
     # v3.0.4: 能量中心 + 时空编码器 惰性获取器
     # ────────────────────────────────────────────────
 
-    def _get_energy_core(self) -> None:
+    def _get_energy_core(self) -> Any:
         """惰性初始化并返回 EnergyCore 实例。"""
         if self._energy_core is None:
             from su_memory._sys._energy_core import EnergyCore
 
             self._energy_core = EnergyCore()  # type: ignore[no-untyped-call]
+        return self._energy_core
 
 
-    def _get_temporal_core(self) -> None:
+    def _get_temporal_core(self) -> Any:
         """惰性初始化并返回 TemporalCore 实例。"""
         if self._temporal_core is None:
             from su_memory._sys._temporal_core import TemporalCore
 
             self._temporal_core = TemporalCore()  # type: ignore[no-untyped-call]
+        return self._temporal_core
 
     def _get_configurator(self) -> None:
         """v3.0.6: 惰性初始化并返回 HierarchicalConfigurator 实例。"""
@@ -991,6 +1021,80 @@ class MCIWorldModel:
 
             self._causal_actor = CausalActor(self, self._cost_module, energy_core=self._energy_core)
         return self._causal_actor  # type: ignore[return-value]
+
+    # ────────────────────────────────────────────────
+    # v4.9.0: P7/P8 能力中心 惰性接入
+    # ────────────────────────────────────────────────
+
+    def _get_plugin_manager(self) -> Any:
+        """P7: 惰性初始化 PluginManager（插件注册与调度）。"""
+        if self._plugin_manager is None:
+            from mci_world_model.sdk._plugin_interface import PluginManager
+            self._plugin_manager = PluginManager()
+        return self._plugin_manager
+
+    def _get_medical_sdk(self) -> Any:
+        """P7: 惰性初始化 MedicalCausalSDK。"""
+        if self._medical_sdk is None:
+            from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK
+            self._medical_sdk = MedicalCausalSDK()
+        return self._medical_sdk
+
+    def _get_legal_sdk(self) -> Any:
+        """P7: 惰性初始化 LegalComplianceSDK。"""
+        if self._legal_sdk is None:
+            from mci_world_model.sdk._legal_compliance_sdk import LegalComplianceSDK
+            self._legal_sdk = LegalComplianceSDK()
+        return self._legal_sdk
+
+    def _get_engineering_sdk(self) -> Any:
+        """P7: 惰性初始化 EngineeringSafetySDK。"""
+        if self._engineering_sdk is None:
+            from mci_world_model.sdk._engineering_safety_sdk import EngineeringSafetySDK
+            self._engineering_sdk = EngineeringSafetySDK()
+        return self._engineering_sdk
+
+    def _get_scientific_discovery(self) -> Any:
+        """P7: 惰性初始化 ScientificDiscovery。"""
+        if self._scientific_discovery is None:
+            from mci_world_model.sdk._scientific_discovery import ScientificDiscoveryPipeline
+            self._scientific_discovery = ScientificDiscoveryPipeline()
+        return self._scientific_discovery
+
+    def _get_edge_cloud(self) -> Any:
+        """P7: 惰性初始化 EdgeCloudHybrid。"""
+        if self._edge_cloud is None:
+            from mci_world_model.sdk._edge_cloud_hybrid import EdgeCloudHybrid
+            self._edge_cloud = EdgeCloudHybrid()
+        return self._edge_cloud
+
+    def _get_neural_symbolic(self) -> Any:
+        """P8: 惰性初始化 NeuralSymbolicFusionV2。"""
+        if self._neural_symbolic is None:
+            from mci_world_model.sdk._neural_symbolic_fusion_v2 import NeuralSymbolicFusionV2
+            self._neural_symbolic = NeuralSymbolicFusionV2()
+        return self._neural_symbolic
+
+    def _get_causal_gradient(self) -> Any:
+        """P8: 惰性初始化 CausalGradient。"""
+        if self._causal_gradient is None:
+            from mci_world_model.sdk._causal_gradient import CausalGradient
+            self._causal_gradient = CausalGradient(source="world_model", target="causal_graph")
+        return self._causal_gradient
+
+    def _get_symbol_grounding(self) -> Any:
+        """P8: 惰性初始化 SymbolGrounding。"""
+        if self._symbol_grounding is None:
+            from mci_world_model.sdk._symbol_grounding import SymbolGroundingLearning
+            self._symbol_grounding = SymbolGroundingLearning()
+        return self._symbol_grounding
+
+    def _get_agi_protocol(self) -> Any:
+        """P8: 惰性初始化 AGIProtocol。"""
+        if self._agi_protocol is None:
+            from mci_world_model.sdk._agi_protocol import AGIIntegrationProtocol
+            self._agi_protocol = AGIIntegrationProtocol()
+        return self._agi_protocol
 
     # ────────────────────────────────────────────────
     # v3.0.5: 能量分布提取 + EnergyBus 三层传播
@@ -2198,6 +2302,18 @@ class MCIWorldModel:
                 "v4.3.3": "parametric_memory_awakening ✓"
                 if self._parametric_memory is not None
                 else "parametric_memory (pending)",
+                "v4.9.0-p7": "plugin_manager_connected ✓"
+                if self._plugin_manager is not None
+                else "plugin_manager (pending)",
+                "v4.9.0-p7-m2": "industry_sdks_connected ✓"
+                if self._medical_sdk is not None
+                else "industry_sdks (pending)",
+                "v4.9.0-p8": "neural_symbolic_connected ✓"
+                if self._neural_symbolic is not None
+                else "neural_symbolic (pending)",
+                "v4.9.0-p8-m2": "agi_protocol_connected ✓"
+                if self._agi_protocol is not None
+                else "agi_protocol (pending)",
                 "v4.3.3-m2": "energy_flow_closed_loop ✓"
                 if self._energy_flow_predictor is not None
                 else "energy_flow (pending)",
