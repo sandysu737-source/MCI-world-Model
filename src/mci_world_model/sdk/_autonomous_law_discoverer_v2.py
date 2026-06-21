@@ -169,7 +169,7 @@ class PCSkeletonDiscoverer:
                     adj[i, j] = 0
                     adj[j, i] = 0
                     continue
-                p_val = self._fisher_z_test(r, _n_samples)
+                p_val = self._test_independence(data[:, i], data[:, j], r, _n_samples)
                 if p_val > self._alpha:
                     adj[i, j] = 0
                     adj[j, i] = 0
@@ -395,6 +395,55 @@ class PCSkeletonDiscoverer:
 
 
 # =============================================================================
+
+    @staticmethod
+    def _hsic_test(x, y, n_perm=100, sigma=None):
+        """HSIC (Hilbert-Schmidt Independence Criterion) permutation test.
+
+        RBF kernel based nonlinear independence test.
+        Returns p-value (0 = dependent, 1 = independent).
+        """
+        n = len(x)
+        if n < 10:
+            return 1.0
+        x = np.asarray(x, dtype=np.float64).ravel()
+        y = np.asarray(y, dtype=np.float64).ravel()
+
+        if sigma is None:
+            dists = np.abs(x[:, None] - x[None, :])
+            sigma = float(np.median(dists[dists > 0])) if np.any(dists > 0) else 1.0
+            sigma = max(sigma, 1e-3)
+
+        def _rbf(a):
+            sq = np.sum((a[:, None, :] - a[None, :, :]) ** 2, axis=-1)
+            return np.exp(-sq / (2.0 * sigma ** 2))
+
+        K = _rbf(x.reshape(-1, 1))
+        L = _rbf(y.reshape(-1, 1))
+        H = np.eye(n) - 1.0 / n * np.ones((n, n))
+        hsic_obs = float(np.trace(K @ H @ L @ H)) / (n - 1) ** 2
+
+        y_shuf = y.copy()
+        null_hsic = np.zeros(n_perm)
+        rng = np.random.RandomState(42)
+        for p in range(n_perm):
+            rng.shuffle(y_shuf)
+            Lp = _rbf(y_shuf.reshape(-1, 1))
+            null_hsic[p] = float(np.trace(K @ H @ Lp @ H)) / (n - 1) ** 2
+
+        return float(np.mean(null_hsic >= hsic_obs))
+
+    def _test_independence(self, x, y, corr_val, n_samples):
+        """Combined independence test: Fisher z first, HSIC fallback."""
+        r = np.clip(abs(corr_val), 0.0, 0.9999)
+        z = 0.5 * np.log((1 + r) / (1 - r))
+        se = 1.0 / np.sqrt(max(n_samples - 3, 1))
+        p_linear = 2.0 * (1.0 - self._normal_cdf(z / se))
+        if p_linear <= self._alpha:
+            return p_linear
+        p_hsic = self._hsic_test(x, y, n_perm=100)
+        return min(p_linear, p_hsic)
+
 # GESDiscoverer - Greedy Equivalence Search
 # =============================================================================
 
@@ -892,46 +941,30 @@ class NOTEARSDiscoverer:
 
         X = data - data.mean(axis=0)
 
-        # Initialize W as zero matrix
-        W = np.zeros((n_vars, n_vars), dtype=np.float64)
-        lr = 0.01
-        rho = 1.0
+        # Optimize W via L-BFGS-B (scipy) or gradient descent fallback
+        W = self._optimize_w(X, n_vars, n_samples)
 
-        for iteration in range(self._max_iter):
-            # Loss gradient: d/dW ||X - XW||² = -2X^T(X - XW)/n
-            residual = X - X @ W
-            grad_loss = -2.0 * X.T @ residual / n_samples
-
-            # L1 penalty gradient
-            grad_l1 = self._lambda1 * np.sign(W)
-
-            # Acyclicity constraint: h(W) = tr(exp(W⊙W)) - d
-            W2 = W * W
-            exp_W2 = self._matrix_exp(W2)
-            h_val = np.trace(exp_W2) - n_vars
-            # Gradient of h: dh/dW = exp(W⊙W)^T ⊙ 2W
-            grad_h = 2.0 * exp_W2.T * W
-
-            # Augmented Lagrangian gradient
-            grad = grad_loss + grad_l1 + rho * h_val * grad_h
-
-            # Update W with dual ascent on rho
-            W -= lr * grad
-            # Zero diagonal (no self-loops)
-            np.fill_diagonal(W, 0)
-
-            # Increase rho gradually
-            if iteration % 20 == 0:
-                rho = min(rho * 1.5, 100.0)
-
-            # Early stopping
-            if iteration > 10 and abs(h_val) < 1e-6 and np.max(np.abs(grad)) < 1e-4:
-                break
+        # Adaptive threshold selection: find the largest gap in sorted |W| values
+        w_flat = np.abs(W).ravel()
+        w_flat = w_flat[w_flat > 1e-6]
+        if len(w_flat) > 0:
+            w_sorted = np.sort(w_flat)[::-1]  # descending
+            gaps = np.diff(w_sorted)
+            if len(gaps) > 0:
+                best_gap_idx = int(np.argmax(np.abs(gaps)))
+                adaptive_threshold = max(
+                    float(w_sorted[best_gap_idx + 1]) + 0.001,
+                    self._threshold
+                )
+            else:
+                adaptive_threshold = self._threshold
+        else:
+            adaptive_threshold = self._threshold
 
         # Threshold to get binary adjacency
-        adj = (np.abs(W) > self._threshold).astype(int)
+        adj = (np.abs(W) > adaptive_threshold).astype(int)
 
-        # Undirected skeleton
+        # Undirected skeleton (let regression orientation handle direction)
         edges = []
         for i in range(n_vars):
             for j in range(i + 1, n_vars):
@@ -939,12 +972,85 @@ class NOTEARSDiscoverer:
                     edges.append((var_names[i], var_names[j]))
                     edges.append((var_names[j], var_names[i]))
 
+        # Apply regression-based orientation for remaining undirected edges
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+        pc_dummy = PCSkeletonDiscoverer(alpha=0.05)
+        edges = pc_dummy._orient_edges_by_regression(data, adj, edges, var_names)
+
+        # Build directed adjacency from final edges
+        name_to_idx = {name: i for i, name in enumerate(var_names)}
+        dir_adj = np.zeros((n_vars, n_vars), dtype=int)
+        for src, dst in edges:
+            dir_adj[name_to_idx[src], name_to_idx[dst]] = 1
+        adj = dir_adj
+
         return CausalSkeleton(
             nodes=list(var_names),
             edges=edges,
             adj_matrix=adj,
-            confidence=float(1.0 - abs(h_val) / n_vars if n_vars > 1 else 1.0),
+            confidence=float(np.mean(np.abs(W)[adj == 1]) if np.sum(adj) > 0 else 0.0),
         )
+
+    def _optimize_w(
+        self, X: np.ndarray, n_vars: int, n_samples: int
+    ) -> np.ndarray:
+        """Optimize W using scipy L-BFGS-B or gradient descent fallback."""
+        # Try scipy L-BFGS-B first
+        try:
+            from scipy.optimize import minimize
+
+            def _objective_and_grad(w_flat: np.ndarray) -> tuple[float, np.ndarray]:
+                W = w_flat.reshape(n_vars, n_vars)
+                residual = X - X @ W
+                loss = 0.5 * np.sum(residual ** 2) / n_samples
+                l1 = self._lambda1 * np.sum(np.abs(W))
+                W2 = W * W
+                h_val = float(np.trace(self._matrix_exp(W2)) - n_vars)
+                total = loss + l1 + 10.0 * max(0, h_val) ** 2
+
+                grad_loss = -X.T @ residual / n_samples
+                grad_l1 = self._lambda1 * np.sign(W)
+                exp_W2 = self._matrix_exp(W2)
+                grad_h = 2.0 * exp_W2.T * W
+                grad = grad_loss + grad_l1 + 20.0 * max(0, h_val) * grad_h
+                return total, grad.ravel()
+
+            w0 = np.zeros(n_vars * n_vars, dtype=np.float64)
+            result = minimize(
+                _objective_and_grad, w0, method='L-BFGS-B', jac=True,
+                options={'maxiter': self._max_iter, 'ftol': 1e-8},
+            )
+            W_opt = result.x.reshape(n_vars, n_vars)
+            np.fill_diagonal(W_opt, 0)
+            return W_opt
+        except ImportError:
+            pass
+
+        # Gradient descent fallback
+        W = np.zeros((n_vars, n_vars), dtype=np.float64)
+        lr = 0.05
+        rho = 1.0
+
+        for iteration in range(self._max_iter):
+            residual = X - X @ W
+            grad_loss = -2.0 * X.T @ residual / n_samples
+            grad_l1 = self._lambda1 * np.sign(W)
+            W2 = W * W
+            exp_W2 = self._matrix_exp(W2)
+            h_val = np.trace(exp_W2) - n_vars
+            grad_h = 2.0 * exp_W2.T * W
+            grad = grad_loss + grad_l1 + rho * h_val * grad_h
+
+            W -= lr * grad
+            np.fill_diagonal(W, 0)
+
+            if iteration % 15 == 0:
+                rho = min(rho * 2.0, 200.0)
+
+            if iteration > 10 and abs(h_val) < 1e-6 and np.max(np.abs(grad)) < 1e-4:
+                break
+
+        return W
 
     @staticmethod
     def _matrix_exp(A: np.ndarray) -> np.ndarray:
