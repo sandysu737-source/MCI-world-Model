@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -40,7 +41,7 @@ def download_tuebingen_pairs(force: bool = False) -> Path:
     Returns path to the extracted data directory.
     """
     if TUEBINGEN_DIR.exists() and not force:
-        pairs = list(TUEBINGEN_DIR.glob("pair*.txt"))
+        pairs = [p for p in TUEBINGEN_DIR.glob("pair*.txt") if "_des" not in p.name]
         if len(pairs) >= 100:
             logger.info(f"Tübingen pairs already downloaded: {len(pairs)} pairs")
             return TUEBINGEN_DIR
@@ -156,18 +157,27 @@ def load_tuebingen_pairs() -> list[dict]:
         download_tuebingen_pairs()
 
     pairs = []
-    for pair_file in sorted(TUEBINGEN_DIR.glob("pair[0-9]*.txt")):
+    for pair_file in sorted([p for p in TUEBINGEN_DIR.glob("pair[0-9]*.txt") if "_des" not in p.name]):
         pair_id = int(pair_file.stem.replace("pair", ""))
         try:
             data = np.loadtxt(pair_file)
             if data.ndim != 2 or data.shape[1] != 2:
                 continue
+
+            # Parse ground truth from _des.txt
+            des_file = TUEBINGEN_DIR / f"pair{pair_id:04d}_des.txt"
+            ground_truth = "cause→effect"  # default: x→y
+            if des_file.exists():
+                des_text = des_file.read_text()
+                if "y --> x" in des_text or "y -> x" in des_text:
+                    ground_truth = "effect→cause"
+
             pairs.append({
                 "pair_id": pair_id,
                 "cause": data[:, 0],
                 "effect": data[:, 1],
                 "n_samples": data.shape[0],
-                "ground_truth": "cause→effect",
+                "ground_truth": ground_truth,
             })
         except Exception:
             continue
@@ -276,8 +286,12 @@ def evaluate_camgolem_direction(pairs: list[dict]) -> dict:
         res_asym = _cam_nonlinear_residual(cause, effect)
         res_pred = "cause→effect" if res_asym > 0 else "effect→cause"
 
-        # Hybrid: entropy wins ties since it handles non-additive noise better
-        pred = ent_pred
+        # Hybrid: spline residual wins ties (nonlinear-aware)
+        if ent_pred == res_pred:
+            pred = ent_pred
+        else:
+            # When disagree, trust spline residual for nonlinear pairs
+            pred = res_pred
 
         is_correct = pred == pair["ground_truth"]
         if is_correct:
@@ -317,7 +331,7 @@ def evaluate_direction(pairs: list[dict], method: str = "hybrid") -> dict:
         # Method 1: Entropy slope (IGCI)
         slope_cause = _entropy_slope(cause)
         slope_effect = _entropy_slope(effect)
-        ent_pred = "cause→effect" if slope_cause < slope_effect else "effect→cause"
+        ent_pred = "cause→effect" if slope_cause > slope_effect else "effect→cause"  # higher=less complex=cause
 
         # Method 2: Residual asymmetry (LiNGAM)
         res_asym = _residual_asymmetry(cause, effect)
