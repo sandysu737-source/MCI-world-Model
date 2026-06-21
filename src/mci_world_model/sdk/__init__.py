@@ -390,6 +390,11 @@ from mci_world_model.sdk._cross_domain_transfer import (
     TransferResult,
     TransferStatus,
 )
+from mci_world_model.sdk._cross_modal_causal import (
+    CrossModalCausalLink,
+    CrossModalCausalReasoner,
+    CrossModalCausalResult,
+)
 
 # v4.4.0: 具身清创 — 时序 Transformer + 手术相预测
 from mci_world_model.sdk._debridement_world_model import (  # noqa: F401
@@ -627,6 +632,11 @@ from mci_world_model.sdk._modality_encoders import (
     LearnableMixin,
     ThermalEncoder,
     VisionEncoder,
+)
+from mci_world_model.sdk._multi_agent_causal import (  # noqa: F401
+    AgentNegotiation,
+    CausalAgent,
+    ConsensusGraph,
 )
 
 # v3.2.0: Phase 1 P0 — 多分支推演/惊奇检测/PlanAgent
@@ -879,7 +889,11 @@ from mci_world_model.sdk._social_cognition import (
     SocialCognition,
 )
 from mci_world_model.sdk._spectral_causal import BayesianCausal, FourierCausal, GaussianDAG
-from mci_world_model.sdk._temporal_causal import GrangerCausality, LaggedCorrelationScanner, TemporalCausalReport
+from mci_world_model.sdk._temporal_causal import (
+    GrangerCausality,
+    LaggedCorrelationScanner,
+    TemporalCausalReport,
+)
 from mci_world_model.sdk._the_absolute import (
     AbsoluteProperty,
     GeneratedStructure,
