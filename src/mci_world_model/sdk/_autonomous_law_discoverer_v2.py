@@ -403,11 +403,16 @@ class PCSkeletonDiscoverer:
         RBF kernel based nonlinear independence test.
         Returns p-value (0 = dependent, 1 = independent).
         """
+        x = np.asarray(x, dtype=np.float64).ravel()
+        y = np.asarray(y, dtype=np.float64).ravel()
+
+        max_n = 400
+        if len(x) > max_n:
+            idx_sub = np.random.RandomState(42).choice(len(x), max_n, replace=False)
+            x, y = x[idx_sub], y[idx_sub]
         n = len(x)
         if n < 10:
             return 1.0
-        x = np.asarray(x, dtype=np.float64).ravel()
-        y = np.asarray(y, dtype=np.float64).ravel()
 
         if sigma is None:
             dists = np.abs(x[:, None] - x[None, :])
@@ -432,6 +437,59 @@ class PCSkeletonDiscoverer:
             null_hsic[p] = float(np.trace(K @ H @ Lp @ H)) / (n - 1) ** 2
 
         return float(np.mean(null_hsic >= hsic_obs))
+
+    @staticmethod
+    def _partial_hsic(x, y, z, n_perm=50, sigma=None):
+        """Partial HSIC: HSIC on residuals after regressing out conditioning variable Z.
+
+        X_perp = X - E[X|Z], Y_perp = Y - E[Y|Z], then HSIC(X_perp, Y_perp).
+        Uses fewer permutations (50 vs 100) since this is a fallback test.
+        """
+        x = np.asarray(x, dtype=np.float64).ravel()
+        y = np.asarray(y, dtype=np.float64).ravel()
+        z = np.asarray(z, dtype=np.float64).ravel()
+
+        # Downsample for speed (kernel methods are O(n^2))
+        max_n = 400
+        if len(x) > max_n:
+            idx_sub = np.random.RandomState(42).choice(len(x), max_n, replace=False)
+            x, y, z = x[idx_sub], y[idx_sub], z[idx_sub]
+        n = len(x)
+        if n < 10:
+            return 1.0
+
+        # Regress out Z
+        Z_aug = np.column_stack([np.ones(n), z])
+        beta_x, _, _, _ = np.linalg.lstsq(Z_aug, x, rcond=None)
+        beta_y, _, _, _ = np.linalg.lstsq(Z_aug, y, rcond=None)
+        x_res = x - Z_aug @ beta_x
+        y_res = y - Z_aug @ beta_y
+
+        # HSIC on residuals
+        if sigma is None:
+            dists = np.abs(x_res[:, None] - x_res[None, :])
+            sigma = float(np.median(dists[dists > 0])) if np.any(dists > 0) else 1.0
+            sigma = max(sigma, 1e-3)
+
+        def _rbf(a):
+            sq = np.sum((a[:, None, :] - a[None, :, :]) ** 2, axis=-1)
+            return np.exp(-sq / (2.0 * sigma ** 2))
+
+        K = _rbf(x_res.reshape(-1, 1))
+        L = _rbf(y_res.reshape(-1, 1))
+        H = np.eye(n) - 1.0 / n * np.ones((n, n))
+        hsic_obs = float(np.trace(K @ H @ L @ H)) / (n - 1) ** 2
+
+        y_shuf = y_res.copy()
+        null_hsic = np.zeros(n_perm)
+        rng = np.random.RandomState(42)
+        for p in range(n_perm):
+            rng.shuffle(y_shuf)
+            Lp = _rbf(y_shuf.reshape(-1, 1))
+            null_hsic[p] = float(np.trace(K @ H @ Lp @ H)) / (n - 1) ** 2
+
+        return float(np.mean(null_hsic >= hsic_obs))
+
 
     def _test_independence(self, x, y, corr_val, n_samples):
         """Combined independence test: Fisher z first, HSIC fallback."""
@@ -992,12 +1050,14 @@ class NOTEARSDiscoverer:
         )
 
     def _optimize_w(
-        self, X: np.ndarray, n_vars: int, n_samples: int
+        self, X: np.ndarray, n_vars: int, n_samples: int,
+        W_init: np.ndarray | None = None,
     ) -> np.ndarray:
         """Optimize W using scipy L-BFGS-B or gradient descent fallback."""
         # Try scipy L-BFGS-B first
         try:
             from scipy.optimize import minimize
+            _w_init = W_init  # capture for closure
 
             def _objective_and_grad(w_flat: np.ndarray) -> tuple[float, np.ndarray]:
                 W = w_flat.reshape(n_vars, n_vars)
@@ -1015,7 +1075,7 @@ class NOTEARSDiscoverer:
                 grad = grad_loss + grad_l1 + 20.0 * max(0, h_val) * grad_h
                 return total, grad.ravel()
 
-            w0 = np.zeros(n_vars * n_vars, dtype=np.float64)
+            w0 = np.zeros(n_vars * n_vars, dtype=np.float64) if _w_init is None else _w_init.ravel().copy()
             result = minimize(
                 _objective_and_grad, w0, method='L-BFGS-B', jac=True,
                 options={'maxiter': self._max_iter, 'ftol': 1e-8},
@@ -1027,7 +1087,7 @@ class NOTEARSDiscoverer:
             pass
 
         # Gradient descent fallback
-        W = np.zeros((n_vars, n_vars), dtype=np.float64)
+        W = np.zeros((n_vars, n_vars), dtype=np.float64) if W_init is None else W_init.copy()
         lr = 0.05
         rho = 1.0
 

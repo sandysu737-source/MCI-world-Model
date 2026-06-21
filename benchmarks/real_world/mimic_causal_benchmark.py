@@ -413,23 +413,20 @@ class MIMICCausalBenchmark:
         min_corr = self._min_correlation
 
         result_edges = []
-        edge_list = []
-        node_set = set()
+        edge_info: list[tuple[str, str, str, float]] = []  # (cause, effect, direction, confidence)
 
         for i in range(n_vars):
             for j in range(n_vars):
                 if i == j:
                     continue
 
-                # Pairwise valid data (both x and y non-NaN)
                 pair_valid = ~np.isnan(data[:, i]) & ~np.isnan(data[:, j])
                 if pair_valid.sum() < 20:
                     continue
                 x = data[pair_valid, i]
                 y = data[pair_valid, j]
 
-                # Pre-filter: check max cross-correlation across lags 1..3 (lagged)
-                best_corr = abs(np.corrcoef(x, y)[0, 1])  # lag-0
+                best_corr = abs(np.corrcoef(x, y)[0, 1])
                 for lag in range(1, 4):
                     if len(x) > lag + 5:
                         c = abs(np.corrcoef(x[:-lag], y[lag:])[0, 1])
@@ -444,18 +441,45 @@ class MIMICCausalBenchmark:
 
                 lagged = scanner.scan(x, y)
                 direction = "positive" if lagged.peak_correlation > 0 else "negative"
-                # ATE approximated by Granger F-statistic normalized
-                ate = float(np.clip(granger.f_statistic / 50.0, 0.0, 2.0))
+                confidence = float(abs(lagged.peak_correlation))
 
                 cause_name = variables[i]
                 effect_name = variables[j]
-                result_edges.append((cause_name, effect_name, direction, ate, abs(lagged.peak_correlation)))
-                edge_list.append((cause_name, effect_name))
-                node_set.add(cause_name)
-                node_set.add(effect_name)
+                edge_info.append((cause_name, effect_name, direction, confidence))
+
+        # Build graph and compute ATE via DoCalculus
+        node_set = set()
+        edge_list = []
+        for c, e, d, conf in edge_info:
+            node_set.add(c)
+            node_set.add(e)
+            edge_list.append((c, e))
 
         nodes = sorted(node_set)
-        graph = CausalGraph(nodes=nodes, edges=edge_list) if nodes else None
+        graph = None
+        ate_map: dict[tuple[str, str], float] = {}
+
+        if nodes and edge_list:
+            graph = CausalGraph(nodes=nodes, edges=edge_list)
+            data_dict = {}
+            for vi, vname in enumerate(variables):
+                col = data[:, vi]
+                valid = ~np.isnan(col)
+                if valid.sum() > 5:
+                    data_dict[vname] = col[valid]
+            from mci_world_model.sdk._do_calculus import DoCalculus
+            dc = DoCalculus(graph=graph, data=data_dict)
+
+            for cause_name, effect_name in edge_list:
+                try:
+                    res = dc.estimate_ate(cause_name, effect_name)
+                    ate_map[(cause_name, effect_name)] = float(res.ate)
+                except Exception:
+                    ate_map[(cause_name, effect_name)] = 0.0
+
+        for cause_name, effect_name, direction, confidence in edge_info:
+            ate = ate_map.get((cause_name, effect_name), 0.0)
+            result_edges.append((cause_name, effect_name, direction, ate, confidence))
 
         return {"edges": result_edges, "graph": graph}
 
