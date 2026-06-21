@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mci-world-model"
-version = "4.6.0"
+version = "4.6.1"
 description = "MCI World Model — 因果世界模型引擎 (LeCun 六模块完整闭环: Perception+WorldModel+Configurator+Cost+Actor+STM)"
 readme = "README.md"
 license = { file = "LICENSE" }
