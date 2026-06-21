@@ -121,10 +121,13 @@ class PCSkeletonDiscoverer:
     约束: 变量数 ≤ 10
     """
 
-    def __init__(self, alpha: float = 0.05) -> None:
+    def __init__(self, alpha: float = 0.05, min_corr: float = 0.1) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
+        if min_corr < 0.0:
+            raise ValueError(f"min_corr 必须 >= 0, 当前 {min_corr}")
         self._alpha = alpha
+        self._min_corr = min_corr
 
     def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
         """从数据中学习因果骨架。
@@ -161,6 +164,11 @@ class PCSkeletonDiscoverer:
                 if adj[i, j] == 0:
                     continue
                 r = self._partial_corr(corr, i, j, [])
+                if abs(r) < self._min_corr:
+                    # 相关太弱 → 直接删边 (解决大 n 统计显著但实际无关问题)
+                    adj[i, j] = 0
+                    adj[j, i] = 0
+                    continue
                 p_val = self._fisher_z_test(r, _n_samples)
                 if p_val > self._alpha:
                     adj[i, j] = 0
@@ -183,7 +191,7 @@ class PCSkeletonDiscoverer:
                         break
 
         # Step 3: 方向推断 (简化: 基于 partial correlation 不对称性)
-        edges = self._orient_edges(adj, corr, var_names)
+        edges = self._orient_edges(adj, corr, var_names, _n_samples)
 
         return CausalSkeleton(
             nodes=list(var_names),
@@ -236,22 +244,81 @@ class PCSkeletonDiscoverer:
         y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * np.exp(-x * x)
         return 0.5 * (1.0 + sign * y)
 
-    def _orient_edges(self, adj: np.ndarray, corr: np.ndarray, var_names: list[str]) -> list[tuple[str, str]]:
-        """方向推断 — PC 骨架无向输出（双向边）。
+    def _orient_edges(
+        self, adj: np.ndarray, corr: np.ndarray,
+        var_names: list[str], n_samples: int,
+    ) -> list[tuple[str, str]]:
+        """方向推断 — v-structure + Meek R1。
 
-        PC 算法第一阶段产生无向骨架，方向推断 (v-structure 等) 需额外步骤。
-        此处输出双向边以保持骨架语义完整性。
+        Step 3a: v-structure (collider) 检测
+            对每个 triple i-k-j 其中 i—k, k—j 但 i,j 无边:
+            若 i NOT-INDEP j | k → k 是 collider → 定向 i→k, j→k
+
+        Step 3b: Meek R1 — 防环
+            若 i→j—k 且 i,k 无边 → 定向 j→k
+
+        Step 3c: 剩余边保持无向 (双向输出)
         """
-        edges = []
         n_vars = adj.shape[0]
+        # 方向矩阵: 0=无向, 1=i→j, -1=j→i
+        dir_mat = np.zeros((n_vars, n_vars), dtype=int)
 
+        # ── 3a: v-structure 检测 (仅对无屏蔽 triple) ──
+        # 标准 PC: v-structure = i→k←j 仅在 i—k—j 且 i,j NON-ADJACENT 时检测
+        # 测试 i NOT-INDEP j | k → k 是 collider → 定向 i→k, j→k
+        for k in range(n_vars):
+            for i in range(n_vars):
+                if i == k or adj[i, k] == 0:
+                    continue
+                for j in range(i + 1, n_vars):
+                    if j == k or adj[k, j] == 0:
+                        continue
+                    if adj[i, j] != 0:  # 必须是 unshielded triple
+                        continue
+                    r = self._partial_corr(corr, i, j, [k])
+                    p = self._fisher_z_test(r, n_samples)
+                    if p <= self._alpha:  # 拒绝独立性 → k 是 collider
+                        dir_mat[i, k] = 1
+                        dir_mat[k, i] = -1
+                        dir_mat[j, k] = 1
+                        dir_mat[k, j] = -1
+
+        # ── 3b: Meek R1 — 防环传播 ──
+        changed = True
+        while changed:
+            changed = False
+            for i in range(n_vars):
+                for j in range(n_vars):
+                    if i == j or dir_mat[i, j] != 1:  # i → j ?
+                        continue
+                    for k in range(n_vars):
+                        if k in (i, j):
+                            continue
+                        if dir_mat[j, k] != 0:  # j—k ?
+                            continue
+                        if adj[j, k] == 0:  # 必须有边
+                            continue
+                        if adj[i, k] != 0:  # i,k 不能有边 (否则 R1 不适用)
+                            continue
+                        # i→j—k, i,k 无边 → 定向 j→k
+                        dir_mat[j, k] = 1
+                        dir_mat[k, j] = -1
+                        changed = True
+
+        # ── 3c: 输出边 ──
+        edges = []
         for i in range(n_vars):
             for j in range(i + 1, n_vars):
                 if adj[i, j] == 0:
                     continue
-                # 无向骨架 → 双向输出
-                edges.append((var_names[i], var_names[j]))
-                edges.append((var_names[j], var_names[i]))
+                if dir_mat[i, j] == 1:
+                    edges.append((var_names[i], var_names[j]))
+                elif dir_mat[j, i] == 1:
+                    edges.append((var_names[j], var_names[i]))
+                else:
+                    # 无向 → 双向输出
+                    edges.append((var_names[i], var_names[j]))
+                    edges.append((var_names[j], var_names[i]))
 
         return edges
 
