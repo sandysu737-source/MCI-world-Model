@@ -165,9 +165,13 @@ class TestPhysicalGraphLatency:
 
 class TestPerceptionPipelineLatency:
 
-    @pytest.mark.skip(reason="_perception_pipeline module not yet built")
     def test_process_120_signals(self, multimodal_signals):
-        pass  # placeholder for future PerceptionPipeline
+        from mci_world_model._sys._perception_pipeline import PerceptionPipeline
+        pipeline = PerceptionPipeline()
+        ms = _bench(pipeline.process_multimodal, multimodal_signals, rounds=3)
+        result = pipeline.process_multimodal(multimodal_signals)
+        assert result is not None
+        assert ms < 500, f"Perception multimodal: {ms:.1f}ms > 500ms"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
