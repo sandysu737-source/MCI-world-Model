@@ -207,7 +207,7 @@ class CausalGraph:
     # CausalGraph ↔ SEM 双向转换 (v3.0.8)
     # -----------------------------------------------------------------
 
-    def to_sem(
+    def to_sem(  # type: ignore[no-untyped-def]
         self,
         noise_std: float = 0.5,
         activation: str = "linear",
@@ -524,7 +524,8 @@ class DoCalculus:
         当没有真实观测数据时，使用因果图的线性 SEM 模拟数据。
         """
         n_sim = 500
-        n_nodes = self._graph.n_nodes
+        assert self._graph is not None, "Graph not initialized"  # type: ignore[union-attr,index]
+        n_nodes = self._graph.n_nodes  # type: ignore[union-attr,index]
         node_idx = {name: i for i, name in enumerate(self._graph.nodes)}
 
         # 线性 SEM: Y = B^T · Y + ε, ε ~ N(0, 1)
@@ -545,8 +546,8 @@ class DoCalculus:
             # 噪声
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
-            for p_idx in range(n_nodes):
-                if self._graph.adjacency[p_idx, node_i] > 0:
+            for p_idx in range(n_nodes):  # type: ignore[union-attr,index]
+                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore[union-attr,index]
                     weight = self._graph.adjacency[p_idx, node_i]
                     parent_vals += weight * sim_data[:, p_idx]
             sim_data[:, node_i] = parent_vals + noise
@@ -732,7 +733,7 @@ class DoCalculus:
         """
         基于模拟数据的前门调整。
         """
-        n_sim = 500
+        n_sim = 500  # type: ignore[union-attr,index]
         node_idx = {name: i for i, name in enumerate(self._graph.nodes)}
 
         X_idx = node_idx.get(X)
@@ -743,7 +744,7 @@ class DoCalculus:
         topo_order = self._topological_sort()
         if topo_order is None:
             return InterventionResult.empty(method="frontdoor")
-
+  # type: ignore[union-attr,index]
         n_nodes = self._graph.n_nodes
 
         # 模拟自然数据
@@ -751,8 +752,8 @@ class DoCalculus:
         for node_i in topo_order:
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
-            for p_idx in range(n_nodes):
-                if self._graph.adjacency[p_idx, node_i] > 0:
+            for p_idx in range(n_nodes):  # type: ignore[union-attr,index]
+                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore[union-attr,index]
                     parent_vals += self._graph.adjacency[p_idx, node_i] * sim_natural[:, p_idx]
             sim_natural[:, node_i] = parent_vals + noise
 
@@ -764,7 +765,7 @@ class DoCalculus:
                 continue
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
-            for p_idx in range(n_nodes):
+            for p_idx in range(n_nodes):  # type: ignore[union-attr,index]
                 if self._graph.adjacency[p_idx, node_i] > 0:
                     parent_vals += self._graph.adjacency[p_idx, node_i] * sim_do[:, p_idx]
             sim_do[:, node_i] = parent_vals + noise

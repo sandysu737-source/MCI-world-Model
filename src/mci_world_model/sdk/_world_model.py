@@ -510,13 +510,13 @@ class WorkingMemory:
 
         if step.stem_branch_code is None and self._temporal_core is not None:
             now = datetime.now()
-            step.stem_branch_code = self._temporal_core.create_code(
+            step.stem_branch_code = self._temporal_core.create_code(  # type: ignore[attr-defined]
                 stem_idx=now.year % 10,
                 branch_idx=now.month - 1,
             )
 
         if step.energy_state is None and self._energy_core is not None:
-            step.energy_state = self._energy_core.get_energy_state("spacetime", datetime.now().month - 1)
+            step.energy_state = self._energy_core.get_energy_state("spacetime", datetime.now().month - 1)  # type: ignore[attr-defined]
             strength_name = getattr(getattr(step.energy_state, "strength", None), "name", "")
             step.temporal_weight = {
                 "WANG": 1.5,
@@ -562,10 +562,10 @@ class WorkingMemory:
         steps = self.trajectory[-n * 2 :]  # 候选池翻倍
         if self._temporal_core is not None and steps:
             last = steps[-1]
-            now_idx = last.stem_branch_code.cycle_index if last.stem_branch_code is not None else 0
+            now_idx = last.stem_branch_code.cycle_index if last.stem_branch_code is not None else 0  # type: ignore[attr-defined]
             for s in steps:
                 if s.stem_branch_code is not None:
-                    dist = self._temporal_core.get_cycle_distance(now_idx, s.stem_branch_code.cycle_index)
+                    dist = self._temporal_core.get_cycle_distance(now_idx, s.stem_branch_code.cycle_index)  # type: ignore[attr-defined]
                     s.temporal_weight *= math.exp(-0.1 * dist)
         steps.sort(key=lambda s: getattr(s, "temporal_weight", 1.0), reverse=True)
         return steps[:n]
@@ -576,7 +576,7 @@ class WorkingMemory:
         self.trajectory.clear()
         self._state = "IDLE"
 
-    def flush_to_experience_db(
+    def flush_to_experience_db(  # type: ignore[no-untyped-def]
         self,
         experience_db,
         tags: list[str] | None = None,
@@ -650,7 +650,7 @@ class WorkingMemory:
         self.clear()
         return exp_ids
 
-    def retrieve_experience_hints(
+    def retrieve_experience_hints(  # type: ignore[no-untyped-def]
         self,
         experience_db,
         query_tags: list[str],
@@ -675,7 +675,7 @@ class WorkingMemory:
             "max_length": self.max_length,
             "n_steps": len(self.trajectory),
             "state": self._state,
-            "recent_costs": [round(s.cost_signal.total, 6) if s.cost_signal else None for s in self.get_recent(3)],
+            "recent_costs": [round(s.cost_signal.total, 6) if s.cost_signal else None for s in self.get_recent(3)],  # type: ignore[attr-defined]
         }
 
 
@@ -719,7 +719,7 @@ class MCIWorldModel:
     # ── 五范畴状态系统 ──
     FIVE_STATES = ["semantic", "causal", "spacetime", "generative", "trust"]
 
-    def __init__(
+    def __init__(  # type: ignore[no-untyped-def]
         self,
         lite_pro=None,
         config: dict | None = None,
@@ -732,25 +732,25 @@ class MCIWorldModel:
         self._lite_pro = lite_pro
         self._config = config or {}
         self._state = CausalWorldModelState.empty()
-        self._parametric: object | None = None  # 降级为惰性加载 (v3.1.0)
-        self._energy_loss: object | None = None  # EnergyConsistencyLoss
-        self._cost_module: object | None = None  # v3.0.1: EnergyCostModule
-        self._configurator: object | None = None  # v3.0.1: MetaConfigurator
-        self._hierarchical_encoder: object | None = None  # v3.0.2: HierarchicalJEPAEncoder
-        self._causal_actor: object | None = None  # v3.0.2: CausalActor
-        self._perception: object | None = None  # v3.0.3: PerceptionPipeline
+        self._parametric: Any | None = None  # 降级为惰性加载 (v3.1.0)
+        self._energy_loss: Any | None = None  # EnergyConsistencyLoss
+        self._cost_module: Any | None = None  # v3.0.1: EnergyCostModule
+        self._configurator: Any | None = None  # v3.0.1: MetaConfigurator
+        self._hierarchical_encoder: Any | None = None  # v3.0.2: HierarchicalJEPAEncoder
+        self._causal_actor: Any | None = None  # v3.0.2: CausalActor
+        self._perception: Any | None = None  # v3.0.3: PerceptionPipeline
         self._initialized: bool = False
 
         # v3.0.4: 能量仲裁器 + 时空编码器（惰性初始化）
-        self._energy_core: object | None = None
-        self._temporal_core: object | None = None
+        self._energy_core: Any | None = None
+        self._temporal_core: Any | None = None
 
         # v3.1.0 JEPA: 编码器 + 预测器 (懒加载)
-        self._jepa_encoder: object | None = None
-        self._jepa_predictor: object | None = None
+        self._jepa_encoder: Any | None = None
+        self._jepa_predictor: Any | None = None
 
         # Pearl L2: do-calculus 干预引擎 (懒加载)
-        self._do_calculus: object | None = None
+        self._do_calculus: Any | None = None
         self._do_calculus_lock: threading.Lock = threading.Lock()
         self._intervention_history: list[dict[str, Any]] = []
         # v3.3.1: 干预历史并发保护
@@ -763,51 +763,51 @@ class MCIWorldModel:
         self._discover_lock: threading.Lock = threading.Lock()
 
         # v4.3.0 CEWM 组件 (懒加载)
-        self._cognitive_loop: object | None = None
-        self._meta_diagnoser: object | None = None
-        self._multi_view_retriever: object | None = None
-        self._surprise_detector: object | None = None  # v4.3.1 SurpriseDetector
-        self._plan_agent: object | None = None  # v4.3.2 PlanAgent
-        self._action_conditioned_predictor: object | None = None  # v4.3.2 ActionConditionedPredictor
-        self._multi_branch_predictor: object | None = None  # v4.3.2 MultiBranchPredictor
-        self._reflection_synthesizer: object | None = None  # v4.3.2 ReflectionSynthesizer
-        self._cognitive_diversity: object | None = None  # v4.3.2 CognitiveDiversity
-        self._negative_heuristic: object | None = None  # v4.3.2 NegativeHeuristic
-        self._parametric_memory: object | None = None  # v4.3.3 ParametricMemory
-        self._energy_flow_predictor: object | None = None  # v4.3.3 EnergyFlowPredictor
-        self._causal_updater: object | None = None  # v4.3.3 CausalUpdater (持久化积累)
-        self._action_gap_metric: object | None = None  # LOOP-03: ActionGapMetric (懒加载)
-        self._state_parser_registry: object | None = None  # LOOP-03: StateParserRegistry (懒加载)
+        self._cognitive_loop: Any | None = None
+        self._meta_diagnoser: Any | None = None
+        self._multi_view_retriever: Any | None = None
+        self._surprise_detector: Any | None = None  # v4.3.1 SurpriseDetector
+        self._plan_agent: Any | None = None  # v4.3.2 PlanAgent
+        self._action_conditioned_predictor: Any | None = None  # v4.3.2 ActionConditionedPredictor
+        self._multi_branch_predictor: Any | None = None  # v4.3.2 MultiBranchPredictor
+        self._reflection_synthesizer: Any | None = None  # v4.3.2 ReflectionSynthesizer
+        self._cognitive_diversity: Any | None = None  # v4.3.2 CognitiveDiversity
+        self._negative_heuristic: Any | None = None  # v4.3.2 NegativeHeuristic
+        self._parametric_memory: Any | None = None  # v4.3.3 ParametricMemory
+        self._energy_flow_predictor: Any | None = None  # v4.3.3 EnergyFlowPredictor
+        self._causal_updater: Any | None = None  # v4.3.3 CausalUpdater (持久化积累)
+        self._action_gap_metric: Any | None = None  # LOOP-03: ActionGapMetric (懒加载)
+        self._state_parser_registry: Any | None = None  # LOOP-03: StateParserRegistry (懒加载)
 
         # v4.4.2: Phase 2 — 安全约束 + 反事实 Oracle
-        self._safety_monitor: object | None = None  # SafetyMonitor
-        self._cf_oracle: object | None = None  # CounterfactualOracle
+        self._safety_monitor: Any | None = None  # SafetyMonitor
+        self._cf_oracle: Any | None = None  # CounterfactualOracle
 
         # ── P6-P8 v6.0~v8.0: 新增模块 (懒加载) ──
-        self._law_discoverer_v2: object | None = None  # P6: AutonomousLawDiscovererV2
-        self._social_cognition: object | None = None  # P6: SocialCognition
-        self._self_repair: object | None = None  # P6: SelfRepairCognition
-        self._auto_scaler: object | None = None  # P7: AutoScaler
-        self._compliance_engine: object | None = None  # P7: ComplianceRuleEngine
-        self._plugin_manager: object | None = None  # P7: PluginManager
-        self._unified_modal_encoder: object | None = None  # P6: UnifiedModalEncoder
-        self._metacognition_v2: object | None = None  # P6: MetacognitionV2
-        self._medical_sdk: object | None = None  # P7: MedicalCausalSDK
-        self._legal_sdk: object | None = None  # P7: LegalComplianceSDK
-        self._engineering_sdk: object | None = None  # P7: EngineeringSafetySDK
-        self._auditable_causal: object | None = None  # P7: AuditableCausalReasoning
-        self._edge_cloud: object | None = None  # P7: EdgeCloudHybrid
-        self._cross_modal_causal: object | None = None  # P7: CrossModalCausalReasoner
-        self._causal_imagination: object | None = None  # P6: CausalImaginationEngine
-        self._differentiable_causal: object | None = None  # P6: DifferentiableCausalInference
-        self._domain_sdk: object | None = None  # P7: MCIDomainSDK
-        self._sci_pipeline: object | None = None  # P7: ScientificDiscoveryPipeline
-        self._hypothesis_gen: object | None = None  # P7: HypothesisGenerator
-        self._fusion_v2: object | None = None  # P8: NeuralSymbolicFusionV2
-        self._causal_gradient: object | None = None  # P8: CausalGradientPropagation
-        self._symbol_grounding: object | None = None  # P8: SymbolGroundingLearning
-        self._agi_protocol: object | None = None  # P8: AGIIntegrationProtocol
-        self._experiment_designer: object | None = None  # P8: ExperimentDesigner
+        self._law_discoverer_v2: Any | None = None  # P6: AutonomousLawDiscovererV2
+        self._social_cognition: Any | None = None  # P6: SocialCognition
+        self._self_repair: Any | None = None  # P6: SelfRepairCognition
+        self._auto_scaler: Any | None = None  # P7: AutoScaler
+        self._compliance_engine: Any | None = None  # P7: ComplianceRuleEngine
+        self._plugin_manager: Any | None = None  # P7: PluginManager
+        self._unified_modal_encoder: Any | None = None  # P6: UnifiedModalEncoder
+        self._metacognition_v2: Any | None = None  # P6: MetacognitionV2
+        self._medical_sdk: Any | None = None  # P7: MedicalCausalSDK
+        self._legal_sdk: Any | None = None  # P7: LegalComplianceSDK
+        self._engineering_sdk: Any | None = None  # P7: EngineeringSafetySDK
+        self._auditable_causal: Any | None = None  # P7: AuditableCausalReasoning
+        self._edge_cloud: Any | None = None  # P7: EdgeCloudHybrid
+        self._cross_modal_causal: Any | None = None  # P7: CrossModalCausalReasoner
+        self._causal_imagination: Any | None = None  # P6: CausalImaginationEngine
+        self._differentiable_causal: Any | None = None  # P6: DifferentiableCausalInference
+        self._domain_sdk: Any | None = None  # P7: MCIDomainSDK
+        self._sci_pipeline: Any | None = None  # P7: ScientificDiscoveryPipeline
+        self._hypothesis_gen: Any | None = None  # P7: HypothesisGenerator
+        self._fusion_v2: Any | None = None  # P8: NeuralSymbolicFusionV2
+        self._causal_gradient: Any | None = None  # P8: CausalGradientPropagation
+        self._symbol_grounding: Any | None = None  # P8: SymbolGroundingLearning
+        self._agi_protocol: Any | None = None  # P8: AGIIntegrationProtocol
+        self._experiment_designer: Any | None = None  # P8: ExperimentDesigner
 
         # 如果传入了 lite_pro，自动初始化
         if lite_pro is not None:
@@ -966,23 +966,22 @@ class MCIWorldModel:
         if self._energy_core is None:
             from su_memory._sys._energy_core import EnergyCore
 
-            self._energy_core = EnergyCore()
-        return self._energy_core
+            self._energy_core = EnergyCore()  # type: ignore[no-untyped-call]
+
 
     def _get_temporal_core(self) -> None:
         """惰性初始化并返回 TemporalCore 实例。"""
         if self._temporal_core is None:
             from su_memory._sys._temporal_core import TemporalCore
 
-            self._temporal_core = TemporalCore()
-        return self._temporal_core
+            self._temporal_core = TemporalCore()  # type: ignore[no-untyped-call]
 
     def _get_configurator(self) -> None:
         """v3.0.6: 惰性初始化并返回 HierarchicalConfigurator 实例。"""
         if self._configurator is None:
             from mci_world_model._sys._configurator import HierarchicalConfigurator
 
-            self._configurator = HierarchicalConfigurator(energy_core=self._energy_core)
+            self._configurator = HierarchicalConfigurator(energy_core=self._energy_core)  # type: ignore[no-untyped-call]
         return self._configurator
 
     def _get_causal_actor(self) -> None:
@@ -991,7 +990,7 @@ class MCIWorldModel:
             from mci_world_model.sdk._causal_actor import CausalActor
 
             self._causal_actor = CausalActor(self, self._cost_module, energy_core=self._energy_core)
-        return self._causal_actor
+        return self._causal_actor  # type: ignore[return-value]
 
     # ────────────────────────────────────────────────
     # v3.0.5: 能量分布提取 + EnergyBus 三层传播
@@ -1023,7 +1022,7 @@ class MCIWorldModel:
         Returns:
             EnergyBus 实例（已连接所有因果边）
         """
-        from su_memory._sys._energy_bus import (
+        from su_memory._sys._energy_bus import (  # type: ignore[attr-defined]
             EnergyBus,
             EnergyLayer,
             EnergyNode,
@@ -1044,7 +1043,7 @@ class MCIWorldModel:
         for edge in self._state.causal_edges:
             cause_e = edge.get("cause_energy", "earth")
             effect_e = edge.get("effect_energy", "earth")
-            rel = self._get_energy_core().analyze_interaction(cause_e, effect_e)
+            rel = self._get_energy_core().analyze_interaction(cause_e, effect_e)  # type: ignore[func-returns-value,attr-defined]
             if rel and rel[0].name != "SAME":
                 bus.connect(
                     f"wm_{cause_e}",
@@ -1065,8 +1064,8 @@ class MCIWorldModel:
             EnergyBus.get_bus_state() 返回的总线状态字典
         """
         bus = self._build_energy_bus()
-        bus.propagate(steps=steps)
-        return bus.get_bus_state()
+        bus.propagate(steps=steps)  # type: ignore[attr-defined]
+        return bus.get_bus_state()  # type: ignore[attr-defined]
 
     # ────────────────────────────────────────────────
     # v3.0.6: 因果边标准化
@@ -1618,7 +1617,7 @@ class MCIWorldModel:
                 edges=[],
             )
 
-        self._do_calculus.set_graph(cg)
+        self._do_calculus.set_graph(cg)  # type: ignore[arg-type]
 
         # ── 执行干预分析 ──
         x_name = next(iter(do_x.keys()))
@@ -1661,8 +1660,8 @@ class MCIWorldModel:
         # ── 构建反事实图 (干预边被切断) ──
         try:
             if cg.n_nodes > 0 and x_name in cg.nodes:
-                x_idx = cg.node_index(x_name)
-                if x_idx is not None and cg.adjacency is not None:
+                x_idx = cg.node_index(x_name)  # type: ignore[attr-defined]
+                if x_idx is not None and cg.adjacency is not None:  # type: ignore[attr-defined]
                     cf_adj = cg.adjacency.copy()
                     # 切断所有指向 X 的边 (do-operator 语义)
                     cf_adj[:, x_idx] = 0.0
