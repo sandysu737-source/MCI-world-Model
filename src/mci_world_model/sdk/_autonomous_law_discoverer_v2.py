@@ -148,8 +148,8 @@ class PCSkeletonDiscoverer:
                 adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
                 confidence=0.0,
             )
-        if n_vars > 10:
-            logger.warning("PC 算法变量数 >10，可能不稳定，建议 ≤10")
+        if n_vars > 30:
+            logger.warning("PC 算法变量数 >30，可能不稳定，建议 ≤30")
 
         # Step 1: 初始化完全图
         adj = np.ones((n_vars, n_vars), dtype=int)
