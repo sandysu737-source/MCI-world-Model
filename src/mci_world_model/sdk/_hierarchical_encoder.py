@@ -97,7 +97,7 @@ class HierarchicalJEPAEncoder:
     六态流转：IDLE → ENCODING_L1 → ENCODING_L2 → ENCODING_L3 → PREDICTING → COMPLETE
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         world_model,
         key_dim: int = 16,

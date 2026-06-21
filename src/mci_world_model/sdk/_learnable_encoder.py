@@ -520,7 +520,7 @@ class LearnableStateEncoder:
         params["latent_dim"] = np.array([self._latent_dim])
         params["hidden_dim"] = np.array([self._hidden_dim])
         params["train_steps"] = np.array([self._train_steps])
-        np.savez_compressed(path, **params)
+        np.savez_compressed(path, **params)  # type: ignore
         logger.info("Saved encoder params to %s (%d params)", path, self.n_params)
 
     def load_params(self, path: str) -> None:

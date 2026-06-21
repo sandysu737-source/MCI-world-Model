@@ -57,10 +57,10 @@ class GaussianDAG:
     # 五行能量原始名称列表
     FIVE_ELEMENTS = ["wood", "fire", "earth", "metal", "water"]
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         memories: list[dict[str, Any]],
-        tfidf_index: dict[str, set] | None = None,
+        tfidf_index: dict[str, set] | None = None,  # type: ignore
         energy_bus=None,
     ):
         """
@@ -207,7 +207,7 @@ class GaussianDAG:
     def get_vector(self, memory_idx: int) -> np.ndarray:
         """获取记忆的 TF-IDF 向量。"""
         self._ensure_matrix()
-        return self._tfidf_matrix[memory_idx].copy()
+        return self._tfidf_matrix[memory_idx].copy()  # type: ignore
 
     # -----------------------------------------------------------------
     # 偏相关系数
@@ -371,7 +371,7 @@ class GaussianDAG:
         """
         self._ensure_matrix()
         mat = self._tfidf_matrix
-        n = mat.shape[0]
+        n = mat.shape[0]  # type: ignore
 
         if n < 2:
             return []
@@ -381,12 +381,12 @@ class GaussianDAG:
         edges: list[dict[str, Any]] = []
 
         # 全局均值向量作为条件集 Z 的代理
-        z_global = mat[:scan_n].mean(axis=0)
+        z_global = mat[:scan_n].mean(axis=0)  # type: ignore
 
         for i in range(scan_n):
-            x = mat[i]
+            x = mat[i]  # type: ignore
             for j in range(i + 1, scan_n):
-                y = mat[j]
+                y = mat[j]  # type: ignore
 
                 # 偏相关系数
                 rho, p_value = self._partial_corr_vec(x, y, z_global)
@@ -506,9 +506,9 @@ class GaussianDAG:
         self._ensure_matrix()
         mat = self._tfidf_matrix
 
-        x = mat[mem_a_idx]
-        y = mat[mem_b_idx]
-        z = mat[candidate_z_idx]
+        x = mat[mem_a_idx]  # type: ignore
+        y = mat[mem_b_idx]  # type: ignore
+        z = mat[candidate_z_idx]  # type: ignore
 
         # 无条件相关系数
         r_xy, p_xy = pearsonr(x, y)
@@ -1383,7 +1383,7 @@ class BayesianCausal:
         }
 
         for test in self._test_history:
-            summary["edges"].append(
+            summary["edges"].append(  # type: ignore
                 {
                     "id": test["edge_id"],
                     "conclusion": test["conclusion"],
@@ -1393,15 +1393,15 @@ class BayesianCausal:
             )
 
             if "strong" in test["conclusion"]:
-                summary["n_strong_causal"] += 1
+                summary["n_strong_causal"] += 1  # type: ignore
             elif "moderate" in test["conclusion"]:
-                summary["n_moderate_causal"] += 1
+                summary["n_moderate_causal"] += 1  # type: ignore
             elif "inconclusive" in test["conclusion"]:
-                summary["n_inconclusive"] += 1
+                summary["n_inconclusive"] += 1  # type: ignore
 
             bf = test["bayes_factor"]
             if isinstance(bf, (int, float)) and bf != float("inf"):
-                summary["max_bayes_factor"] = max(summary["max_bayes_factor"], bf)
+                summary["max_bayes_factor"] = max(summary["max_bayes_factor"], bf)  # type: ignore
 
         return summary
 

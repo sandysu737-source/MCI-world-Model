@@ -70,8 +70,8 @@ class CausalEstimateReport:
         return {
             "n_estimates": len(self.estimates),
             "naive_ate": self.naive_ate,
-            "best_method": self.best().method if self.best() else "none",
-            "best_ate": self.best().ate if self.best() else float("nan"),
+            "best_method": self.best().method if self.best() else "none",  # type: ignore
+            "best_ate": self.best().ate if self.best() else float("nan"),  # type: ignore
             "methods": [e.method for e in self.estimates],
         }
 

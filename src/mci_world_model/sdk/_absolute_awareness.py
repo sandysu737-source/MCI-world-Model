@@ -463,7 +463,7 @@ class AbsoluteAwareness:
                 self._state.level = AwarenessLevel.PARTICIPATING
                 self._state.observer_observed_unity = unity
                 self._state.causal_field_awareness = completeness
-        elif current == AwarenessLevel.PARTICATING:
+        elif current == AwarenessLevel.PARTICATING:  # type: ignore
             if unity >= 0.8 and completeness >= 0.8:
                 self._state.level = AwarenessLevel.UNIFIED
                 self._state.observer_observed_unity = unity

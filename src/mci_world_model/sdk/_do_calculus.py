@@ -524,8 +524,8 @@ class DoCalculus:
         当没有真实观测数据时，使用因果图的线性 SEM 模拟数据。
         """
         n_sim = 500
-        assert self._graph is not None, "Graph not initialized"  # type: ignore[union-attr,index]
-        n_nodes = self._graph.n_nodes  # type: ignore[union-attr,index]
+        assert self._graph is not None, "Graph not initialized"
+        n_nodes = self._graph.n_nodes
         node_idx = {name: i for i, name in enumerate(self._graph.nodes)}
 
         # 线性 SEM: Y = B^T · Y + ε, ε ~ N(0, 1)
@@ -546,9 +546,9 @@ class DoCalculus:
             # 噪声
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
-            for p_idx in range(n_nodes):  # type: ignore[union-attr,index]
-                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore[union-attr,index]
-                    weight = self._graph.adjacency[p_idx, node_i]
+            for p_idx in range(n_nodes):
+                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore
+                    weight = self._graph.adjacency[p_idx, node_i]  # type: ignore
                     parent_vals += weight * sim_data[:, p_idx]
             sim_data[:, node_i] = parent_vals + noise
 
@@ -733,8 +733,8 @@ class DoCalculus:
         """
         基于模拟数据的前门调整。
         """
-        n_sim = 500  # type: ignore[union-attr,index]
-        node_idx = {name: i for i, name in enumerate(self._graph.nodes)}
+        n_sim = 500
+        node_idx = {name: i for i, name in enumerate(self._graph.nodes)}  # type: ignore
 
         X_idx = node_idx.get(X)
         Y_idx = node_idx.get(Y)
@@ -744,17 +744,17 @@ class DoCalculus:
         topo_order = self._topological_sort()
         if topo_order is None:
             return InterventionResult.empty(method="frontdoor")
-  # type: ignore[union-attr,index]
-        n_nodes = self._graph.n_nodes
+
+        n_nodes = self._graph.n_nodes  # type: ignore
 
         # 模拟自然数据
         sim_natural = np.zeros((n_sim, n_nodes), dtype=np.float64)
         for node_i in topo_order:
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
-            for p_idx in range(n_nodes):  # type: ignore[union-attr,index]
+            for p_idx in range(n_nodes):
                 if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore[union-attr,index]
-                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim_natural[:, p_idx]
+                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim_natural[:, p_idx]  # type: ignore
             sim_natural[:, node_i] = parent_vals + noise
 
         # 干预模拟: 固定 X = x_value, 再模拟下游
@@ -765,9 +765,9 @@ class DoCalculus:
                 continue
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
-            for p_idx in range(n_nodes):  # type: ignore[union-attr,index]
-                if self._graph.adjacency[p_idx, node_i] > 0:
-                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim_do[:, p_idx]
+            for p_idx in range(n_nodes):
+                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore
+                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim_do[:, p_idx]  # type: ignore
             sim_do[:, node_i] = parent_vals + noise
 
         y_do = np.mean(sim_do[:, Y_idx])
@@ -928,7 +928,7 @@ class DoCalculus:
     ) -> InterventionResult:
         """模拟数据的直接效应。"""
         n_sim = 500
-        node_idx = {name: i for i, name in enumerate(self._graph.nodes)}
+        node_idx = {name: i for i, name in enumerate(self._graph.nodes)}  # type: ignore
 
         X_idx = node_idx.get(X)
         Y_idx = node_idx.get(Y)
@@ -939,15 +939,15 @@ class DoCalculus:
         if topo_order is None:
             return InterventionResult.empty(method="direct")
 
-        n_nodes = self._graph.n_nodes
+        n_nodes = self._graph.n_nodes  # type: ignore
 
         sim = np.zeros((n_sim, n_nodes), dtype=np.float64)
         for node_i in topo_order:
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
             for p_idx in range(n_nodes):
-                if self._graph.adjacency[p_idx, node_i] > 0:
-                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim[:, p_idx]
+                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore
+                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim[:, p_idx]  # type: ignore
             sim[:, node_i] = parent_vals + noise
 
         # do-intervention
@@ -959,8 +959,8 @@ class DoCalculus:
             noise = self._rng.randn(n_sim) * 0.5
             parent_vals = np.zeros(n_sim)
             for p_idx in range(n_nodes):
-                if self._graph.adjacency[p_idx, node_i] > 0:
-                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim_do[:, p_idx]
+                if self._graph.adjacency[p_idx, node_i] > 0:  # type: ignore
+                    parent_vals += self._graph.adjacency[p_idx, node_i] * sim_do[:, p_idx]  # type: ignore
             sim_do[:, node_i] = parent_vals + noise
 
         y_do = np.mean(sim_do[:, Y_idx])

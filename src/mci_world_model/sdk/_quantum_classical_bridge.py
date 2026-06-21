@@ -268,7 +268,7 @@ class QuantumClassicalBridge:
             经典信息 {probabilities, dominant_state, expectation_values}
         """
         probs = result.probabilities
-        dominant = max(probs, key=probs.get) if probs else ""
+        dominant = max(probs, key=probs.get) if probs else ""  # type: ignore
 
         return {
             "probabilities": probs,

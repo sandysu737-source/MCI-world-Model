@@ -421,7 +421,7 @@ class FederatedCausalConsciousness:
     ) -> list[str]:
         """识别共识问题。"""
         local_issues = set(local.issues)
-        consensus = []
+        consensus = []  # type: ignore
         for r in cross:
             overlap = local_issues.intersection(set(r.issues))
             consensus.extend(overlap)

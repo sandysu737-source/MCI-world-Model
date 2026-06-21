@@ -98,7 +98,7 @@ class DebridementSample:
     TISSUE_EPITHELIAL: int = 3
 
     TISSUE_NAMES: dict[str, Any] = field(
-        default_factory=lambda: {0: "坏死", 1: "腐肉", 2: "肉芽", 3: "上皮"},
+        default_factory=lambda: {0: "坏死", 1: "腐肉", 2: "肉芽", 3: "上皮"},  # type: ignore
         init=False,
         repr=False,
     )
@@ -110,18 +110,18 @@ class DebridementSample:
     PHASE_VERIFY: int = 3
 
     PHASE_NAMES: dict[str, Any] = field(
-        default_factory=lambda: {0: "探查", 1: "清创", 2: "止血", 3: "验证"},
+        default_factory=lambda: {0: "探查", 1: "清创", 2: "止血", 3: "验证"},  # type: ignore
         init=False,
         repr=False,
     )
 
     @property
     def tissue_name(self) -> str:
-        return self.TISSUE_NAMES.get(self.tissue_label, "未知")
+        return self.TISSUE_NAMES.get(self.tissue_label, "未知")  # type: ignore
 
     @property
     def phase_name(self) -> str:
-        return self.PHASE_NAMES.get(self.surgical_phase, "未知")
+        return self.PHASE_NAMES.get(self.surgical_phase, "未知")  # type: ignore
 
     def to_vector(self) -> np.ndarray:
         """将所有模态拼接为统一向量 (用于模型输入)。"""
@@ -246,7 +246,7 @@ class SyntheticDebridementGenerator:
             # 填充剩余
             for _ in range(n - len(samples)):
                 samples.append(self.generate_sample())
-            self._rng.shuffle(samples)
+            self._rng.shuffle(samples)  # type: ignore
             return samples
         return [self.generate_sample() for _ in range(n)]
 
@@ -283,7 +283,7 @@ class SyntheticDebridementGenerator:
 
         return img
 
-    def _generate_depth(self, depth_range: tuple) -> np.ndarray:
+    def _generate_depth(self, depth_range: tuple) -> np.ndarray:  # type: ignore
         """生成合成深度图 (创面凹陷)。"""
         dmin, dmax = depth_range
         depth = np.full((224, 224), 2.0, dtype=np.float32)  # 背景 2mm
@@ -302,7 +302,7 @@ class SyntheticDebridementGenerator:
 
         return depth
 
-    def _generate_thermal(self, temp_range: tuple) -> np.ndarray:
+    def _generate_thermal(self, temp_range: tuple) -> np.ndarray:  # type: ignore
         """生成合成热成像 (温度分布)。"""
         tmin, tmax = temp_range
         baseline = 36.0  # 正常体温
@@ -323,7 +323,7 @@ class SyntheticDebridementGenerator:
 
         return thermal
 
-    def _generate_force_torque(self, force_range: tuple) -> np.ndarray:
+    def _generate_force_torque(self, force_range: tuple) -> np.ndarray:  # type: ignore
         """生成合成力/力矩数据。"""
         fmin, fmax = force_range
         return self._rng.uniform(fmin, fmax, 6).astype(np.float32)

@@ -547,14 +547,14 @@ class PersistentExperienceMemory:
     # 内部方法
     # =====================================================================
 
-    def _load_experience(self, exp_id: str) -> dict | None:
+    def _load_experience(self, exp_id: str) -> dict | None:  # type: ignore
         cursor = self._conn.execute("SELECT * FROM experiences WHERE id = ?", (exp_id,))
         row = cursor.fetchone()
         if row:
             return self._row_to_dict(row)
         return None
 
-    def _row_to_dict(self, row: tuple) -> dict[str, Any]:
+    def _row_to_dict(self, row: tuple) -> dict[str, Any]:  # type: ignore
         return {
             "id": row[0],
             "tags": json.loads(row[1]) if row[1] else [],

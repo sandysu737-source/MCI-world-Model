@@ -80,7 +80,7 @@ class JEPATrainer:
                      + β * consistency_loss]
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         encoder,
         predictor,
@@ -158,7 +158,7 @@ class JEPATrainer:
     # 训练
     # -----------------------------------------------------------------
 
-    def train(
+    def train(  # type: ignore
         self,
         dataset=None,
         n_epochs: int = 10,

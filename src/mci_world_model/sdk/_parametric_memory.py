@@ -182,7 +182,7 @@ class ParametricMemory:
     def prepare_training_data(
         self,
         qa_pairs: list[Any],
-    ) -> tuple[int, dict]:
+    ) -> tuple[int, dict]:  # type: ignore
         """
         将 Reflection QA 对转换为训练格式。
 
@@ -309,9 +309,9 @@ class ParametricMemory:
     # 训练
     # ────────────────────────────────────────────────
 
-    def train(
+    def train(  # type: ignore
         self,
-        training_data: list | None = None,
+        training_data: list | None = None,  # type: ignore
         energy_loss_fn=None,
     ) -> dict[str, Any]:
         """

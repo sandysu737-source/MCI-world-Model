@@ -139,7 +139,7 @@ class TissueClassifier:
     def __init__(
         self,
         input_dim: int = 256,
-        hidden_dims: tuple = (256, 128),
+        hidden_dims: tuple = (256, 128),  # type: ignore
         seed: int = 42,
     ):
         self._input_dim = input_dim
@@ -387,7 +387,7 @@ class TissueClassifier:
             save_dict["_input_dim"] = np.array(self._input_dim, dtype=np.int32)
             save_dict["_hidden_dims"] = np.array(self._hidden_dims, dtype=np.int32)
 
-            np.savez_compressed(path, **save_dict)
+            np.savez_compressed(path, **save_dict)  # type: ignore
 
             meta = {
                 "version": "4.4.0",

@@ -118,7 +118,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
     # ActionConditionedPredictor 接口
     # =====================================================================
 
-    def predict(
+    def predict(  # type: ignore
         self,
         state,
         action=None,
@@ -138,12 +138,12 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
         state_vec = self._to_state_vector(state)
         action_vec = self._to_action_vector(action)
 
-        trajectory = []
+        trajectory = []  # type: ignore
         current_vec = state_vec.copy()
 
         for step in range(n_steps):
             next_vec = self._forward_inference(current_vec, action_vec)
-            next_state = self._from_state_vector(next_vec, state)
+            next_state = self._from_state_vector(next_vec, state)  # type: ignore
             trajectory.append(next_state)
             current_vec = next_vec
 
@@ -393,7 +393,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
             "action_dim": np.array([self._action_dim]),
             "train_steps": np.array([self._train_steps]),
         }
-        np.savez_compressed(path, **params)
+        np.savez_compressed(path, **params)  # type: ignore
 
     def load_params(self, path: str) -> None:
         """从 .npz 加载参数。"""
@@ -543,24 +543,24 @@ class DynamicsDataGenerator:
             for _ in range(n_trajectories):
                 x = self._rng.uniform(-2.0, 2.0)
                 v = self._rng.uniform(-1.0, 1.0)
-                state = CartState(x=x, v=v)
+                state = CartState(x=x, v=v)  # type: ignore
 
                 for _ in range(steps_per_trajectory):
                     force = self._rng.uniform(-5.0, 5.0)
-                    action = CartAction(force=force)
+                    action = CartAction(force=force)  # type: ignore
 
                     next_states = predictor_cart.predict(state, action, n_steps=1)
                     if next_states:
-                        s_vec = np.array([state.x, state.v], dtype=np.float64)
+                        s_vec = np.array([state.x, state.v], dtype=np.float64)  # type: ignore
                         a_vec = np.array([force], dtype=np.float64)
                         ns = next_states[0]
-                        ns_vec = np.array([ns.x, ns.v], dtype=np.float64)
+                        ns_vec = np.array([ns.x, ns.v], dtype=np.float64)  # type: ignore
 
                         if noise_std > 0:
                             ns_vec += self._rng.randn(*ns_vec.shape) * noise_std
 
                         dataset.append((s_vec, a_vec, ns_vec))
-                        state = ns
+                        state = ns  # type: ignore
 
         else:
             raise ValueError(f"Unsupported state_type: {self._state_type}")

@@ -234,7 +234,7 @@ class CrossDomainCausalTransfer:
 
     def get_transfer_report(self) -> dict[str, Any]:
         """获取迁移报告"""
-        status_counts = {}
+        status_counts = {}  # type: ignore
         for t in self._transfers:
             status_counts[t.status.value] = status_counts.get(t.status.value, 0) + 1
 

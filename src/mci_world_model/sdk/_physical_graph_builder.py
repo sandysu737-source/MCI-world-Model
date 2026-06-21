@@ -345,11 +345,11 @@ def signals_to_timeline(signals: list[Any], n_days: int = 30) -> list[dict[str, 
     day_signals: dict[int, dict[str, float]] = {}
     from mci_world_model._sys._perception_pipeline import PerceptionPipeline
 
-    pipeline = PerceptionPipeline()
+    pipeline = PerceptionPipeline()  # type: ignore
     features = pipeline.process_multimodal(signals, enable_fusion=False)
 
     # 从处理后的特征重建按天分组结构
-    for feat in features:
+    for feat in features:  # type: ignore
         ts = feat.get("timestamp", "")
         day = 0
         # 尝试从 timestamp 提取天数
@@ -372,7 +372,7 @@ def signals_to_timeline(signals: list[Any], n_days: int = 30) -> list[dict[str, 
     timeline = []
     for d in sorted(day_signals.keys()):
         entry = {"day": d}
-        entry.update(day_signals[d])
+        entry.update(day_signals[d])  # type: ignore
         timeline.append(entry)
 
     return timeline

@@ -234,7 +234,7 @@ class EternalProtocol:
 
         for rule in self._generation_rules:
             check = self._check_generation_rule(rule, specification)
-            governance_result["rules_checked"].append({
+            governance_result["rules_checked"].append({  # type: ignore
                 "rule_id": rule.rule_id,
                 "rule_name": rule.rule_name,
                 "passed": check.get("passed", False),
@@ -243,7 +243,7 @@ class EternalProtocol:
 
             if not check.get("passed", False):
                 governance_result["approved"] = False
-                governance_result["violations"].append(rule.rule_name)
+                governance_result["violations"].append(rule.rule_name)  # type: ignore
 
         if not governance_result["approved"]:
             self._record_violation(

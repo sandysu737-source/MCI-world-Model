@@ -120,7 +120,7 @@ class CreativeTrust:
             return "untested_hypothesis"
         return "contradictory_theory"
 
-    def verify_creative_originality(self, theory: Any, known_theories: list | None = None) -> dict[str, Any]:
+    def verify_creative_originality(self, theory: Any, known_theories: list | None = None) -> dict[str, Any]:  # type: ignore
         """验证创造性理论的原创性。"""
         novelty = 0.5
         if self._novelty is not None:

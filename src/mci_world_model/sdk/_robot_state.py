@@ -94,11 +94,11 @@ class RobotWorldState(WorldState):
     def step_physics(self) -> RobotWorldState:
         """简单 Euler 演化（无动力学，仅位置+=速度*dt）。"""
         self._ensure_arrays()
-        new_pos = self.joint_positions + self.joint_velocities * self.dt
+        new_pos = self.joint_positions + self.joint_velocities * self.dt  # type: ignore
         return RobotWorldState(
-            joint_positions=new_pos,
-            joint_velocities=self.joint_velocities.copy(),
-            joint_efforts=self.joint_efforts.copy(),
+            joint_positions=new_pos,  # type: ignore
+            joint_velocities=self.joint_velocities.copy(),  # type: ignore
+            joint_efforts=self.joint_efforts.copy(),  # type: ignore
             n_joints=self.n_joints,
             dt=self.dt,
         )
@@ -108,9 +108,9 @@ class RobotWorldState(WorldState):
         return {
             "type": "RobotWorldState",
             "n_joints": self.n_joints,
-            "joint_positions": self.joint_positions.tolist(),
-            "joint_velocities": self.joint_velocities.tolist(),
-            "joint_efforts": self.joint_efforts.tolist(),
+            "joint_positions": self.joint_positions.tolist(),  # type: ignore
+            "joint_velocities": self.joint_velocities.tolist(),  # type: ignore
+            "joint_efforts": self.joint_efforts.tolist(),  # type: ignore
         }
 
 
@@ -145,7 +145,7 @@ class RobotAction(Action):
                 joint_velocities=new_vel,
                 joint_efforts=self.target_efforts.copy()
                 if self.target_efforts is not None
-                else state.joint_efforts.copy(),
+                else state.joint_efforts.copy(),  # type: ignore
                 n_joints=state.n_joints,
                 dt=state.dt,
             )

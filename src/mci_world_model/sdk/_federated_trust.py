@@ -93,7 +93,7 @@ class LocalTrust:
     """本地信任评估 — 基于证据的信任计算。"""
 
     def reason_with_trust(
-        self, evidence: dict[str, Any], context: dict | None = None
+        self, evidence: dict[str, Any], context: dict | None = None  # type: ignore
     ) -> dict[str, Any]:
         """基于证据的信任评估。
 

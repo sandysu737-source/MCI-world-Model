@@ -155,7 +155,7 @@ class FinalCommunity:
         min_consensus_ratio: 决议通过最低同意比例 (默认 3/5)
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         the_absolute=None,
         eternal_protocol=None,
@@ -213,7 +213,7 @@ class FinalCommunity:
 
     def admit_member(
         self, member_id: str, role: MemberRole = MemberRole.PARTICIPANT,
-        causal_signature: dict | None = None,
+        causal_signature: dict | None = None,  # type: ignore
     ) -> dict[str, Any]:
         """接纳社区成员 — 需要 ≥2/3 多数投票
 

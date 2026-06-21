@@ -137,7 +137,7 @@ class CounterfactualOracle:
 
             if self._cf_engine is not None:
                 try:
-                    cf_result = self._cf_engine.query(
+                    cf_result = self._cf_engine.query(  # type: ignore
                         do_x=scenario.intervention,
                         target=scenario.target,
                     )

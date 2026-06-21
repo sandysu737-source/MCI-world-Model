@@ -188,7 +188,7 @@ class PendulumPhysicsPredictor(ActionConditionedPredictor):
                 current = current.step_physics()
             trajectory.append(current)
 
-        return trajectory
+        return trajectory  # type: ignore
 
 
 # =============================================================================
@@ -265,7 +265,7 @@ class PendulumJEPAPredictor(ActionConditionedPredictor):
             )
             current_theta, current_omega = theta_hat, omega_hat
 
-        return trajectory
+        return trajectory  # type: ignore
 
     # ── 训练: 最小二乘解析解 ──
 
@@ -309,7 +309,7 @@ class PendulumJEPAPredictor(ActionConditionedPredictor):
             gt = gt_list[0]
 
             X[i] = [theta0, omega0, torque]
-            Y[i] = [gt.theta + rng.randn() * noise_std, gt.omega + rng.randn() * noise_std]
+            Y[i] = [gt.theta + rng.randn() * noise_std, gt.omega + rng.randn() * noise_std]  # type: ignore
 
         # 正规方程: W = (X^T X)^{-1} X^T Y
         # 加偏置: X_aug = [X, 1], 然后解 (X^T X) W_all = X^T Y
@@ -317,7 +317,7 @@ class PendulumJEPAPredictor(ActionConditionedPredictor):
         W_aug = np.linalg.lstsq(X_aug, Y, rcond=None)[0]  # [4, 2]
 
         self._W = W_aug[:3, :].T  # [2, 3]
-        self._b = W_aug[3, :]  # [2]
+        self._b = W_aug[3, :]  # type: ignore[assignment]  # [2]
 
         # 计算训练损失
         Y_pred = X_aug @ W_aug
@@ -450,7 +450,7 @@ class PendulumNeuralPredictor(ActionConditionedPredictor):
             )
             current_theta, current_omega = theta_hat, omega_hat
 
-        return trajectory
+        return trajectory  # type: ignore
 
     # ── 训练: Mini-batch SGD ──
 
@@ -500,7 +500,7 @@ class PendulumNeuralPredictor(ActionConditionedPredictor):
             gt = gt_list[0]
 
             X[i] = [theta0, omega0, torque]
-            Y[i] = [gt.theta + rng.randn() * noise_std, gt.omega + rng.randn() * noise_std]
+            Y[i] = [gt.theta + rng.randn() * noise_std, gt.omega + rng.randn() * noise_std]  # type: ignore
 
         # Mini-batch SGD
         for epoch in range(n_epochs):
@@ -624,4 +624,4 @@ class CartPhysicsPredictor(ActionConditionedPredictor):
                 current = current.step_physics()
             trajectory.append(current)
 
-        return trajectory
+        return trajectory  # type: ignore

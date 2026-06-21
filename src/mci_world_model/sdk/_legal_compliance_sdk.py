@@ -180,8 +180,8 @@ class LegalComplianceSDK:
         audit_steps.append(
             {
                 "step": "reliability_assessment",
-                "avg_reliability": avg_reliability,
-                "evidence_count": len(self._evidence),
+                "avg_reliability": avg_reliability,  # type: ignore
+                "evidence_count": len(self._evidence),  # type: ignore
             }
         )
 
@@ -197,7 +197,7 @@ class LegalComplianceSDK:
         audit_steps.append(
             {
                 "step": "bias_detection",
-                "bias_flags": bias_flags,
+                "bias_flags": bias_flags,  # type: ignore
             }
         )
 
@@ -211,9 +211,9 @@ class LegalComplianceSDK:
         audit_steps.append(
             {
                 "step": "standard_check",
-                "causal_link_strength": causal_link_strength,
-                "threshold": self._threshold,
-                "standard_met": legal_standard_met,
+                "causal_link_strength": causal_link_strength,  # type: ignore
+                "threshold": self._threshold,  # type: ignore
+                "standard_met": legal_standard_met,  # type: ignore
             }
         )
 

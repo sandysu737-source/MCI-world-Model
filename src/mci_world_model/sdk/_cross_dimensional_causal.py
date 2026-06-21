@@ -134,7 +134,7 @@ class CrossDimensionalCausal:
             "has_mixed_reality": self._mixed is not None,
         }
 
-    def verify_dimensional_alignment(self, dim_results: dict | None = None) -> dict[str, Any]:
+    def verify_dimensional_alignment(self, dim_results: dict | None = None) -> dict[str, Any]:  # type: ignore
         """验证维度间的因果对齐。"""
         if dim_results is None:
             dim_results = {}

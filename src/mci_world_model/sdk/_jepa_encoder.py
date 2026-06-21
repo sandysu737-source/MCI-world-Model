@@ -48,7 +48,7 @@ class JEPAEncoder:
                                              loss + backward
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         world_model,
         differentiable: bool = False,
@@ -84,8 +84,8 @@ class JEPAEncoder:
 
     def encode(
         self,
-        memories: list[dict[str, Any]] = None,
-        signals: list[dict[str, Any]] = None,
+        memories: list[dict[str, Any]] = None,  # type: ignore
+        signals: list[dict[str, Any]] = None,  # type: ignore
         use_parametric: bool = False,
     ) -> CausalWorldModelState:
         """
@@ -145,9 +145,9 @@ class JEPAEncoder:
 
                 timeline = signals_to_timeline(signals)
             else:
-                timeline = signals  # type: ignore
+                timeline = signals
         else:
-            timeline = signals  # type: ignore
+            timeline = signals
 
         edges = builder.build_graph(timeline)
         timestamp = signals[0].get("timestamp", "") if isinstance(signals[0], dict) else ""
@@ -183,8 +183,8 @@ class JEPAEncoder:
         # 4. 将潜向量存入 parametric_cache
         if latent is not None:
             if not hasattr(state, "parametric_cache") or state.parametric_cache is None:
-                state.parametric_cache = {}
-            state.parametric_cache["learnable_latent"] = latent.tolist()
+                state.parametric_cache = {}  # type: ignore
+            state.parametric_cache["learnable_latent"] = latent.tolist()  # type: ignore
 
         return state
 
@@ -220,9 +220,9 @@ class JEPAEncoder:
 
                 timeline = signals_to_timeline(signals)
             else:
-                timeline = signals  # type: ignore
+                timeline = signals
         else:
-            timeline = signals  # type: ignore
+            timeline = signals
 
         edges = builder.build_graph(timeline)
         timestamp = signals[0].get("timestamp", "") if isinstance(signals[0], dict) else ""
@@ -270,7 +270,7 @@ class JEPAEncoder:
             for mem in memories:
                 content = mem.get("content", "")
                 if content:
-                    collector.add_observation(
+                    collector.add_observation(  # type: ignore
                         source_id=mem.get("id", f"mem_{hash(content) % 100000}"),
                         observation_type="memory_content",
                         value=True,
@@ -286,12 +286,12 @@ class JEPAEncoder:
         try:
             from mci_world_model._sys.chrono import TemporalSystem
 
-            ts = TemporalSystem()
+            ts = TemporalSystem()  # type: ignore
             for mem in memories:
                 timestamp = mem.get("timestamp", "")
                 if timestamp:
                     try:
-                        temporal_info = ts.encode(timestamp)
+                        temporal_info = ts.encode(timestamp)  # type: ignore
                         mem["_temporal"] = temporal_info
                     except Exception as e:
                         logger.debug("时序编码跳过单条: %s", e)
@@ -343,7 +343,7 @@ class JEPAEncoder:
         try:
             from mci_world_model.sdk._jepa_gat_encoder import GATEncoder
 
-            self._gat_encoder = GATEncoder(input_dim=8, key_dim=key_dim)
+            self._gat_encoder = GATEncoder(input_dim=8, key_dim=key_dim)  # type: ignore
             logger.info("M3 GAT 编码器初始化完成 (key_dim=%d)", key_dim)
         except ImportError as e:
             logger.warning("GAT 编码器不可用: %s", e)
@@ -354,7 +354,7 @@ class JEPAEncoder:
         """返回 GAT 编码器实例（M3 使用）。"""
         return self._gat_encoder
 
-    def training_encode(
+    def training_encode(  # type: ignore
         self,
         memories: list[dict[str, Any]],
         state=None,
@@ -433,7 +433,7 @@ class JEPAEncoder:
         adj: np.ndarray,
         node_names: list[str],
         edge_feat: np.ndarray | None = None,
-        metadata: dict | None = None,
+        metadata: dict | None = None,  # type: ignore
     ) -> CausalWorldModelState:
         """
         从 GNN 预测的图张量重建 CausalWorldModelState。

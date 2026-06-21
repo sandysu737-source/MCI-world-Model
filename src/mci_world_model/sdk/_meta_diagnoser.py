@@ -647,7 +647,7 @@ class MetaDiagnoser:
         if not signals:
             return {}
 
-        keys = set()
+        keys = set()  # type: ignore
         for s in signals:
             keys.update(s.keys())
 

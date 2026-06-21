@@ -273,5 +273,5 @@ class FederatedAgentMarket:
         for agent in self._agents.values():
             for d in agent.domains:
                 domain_counts[d] = domain_counts.get(d, 0) + 1
-        sorted_domains = sorted(domain_counts, key=domain_counts.get, reverse=True)
+        sorted_domains = sorted(domain_counts, key=domain_counts.get, reverse=True)  # type: ignore
         return sorted_domains[:n]

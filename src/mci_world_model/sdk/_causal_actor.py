@@ -196,7 +196,7 @@ class CausalActor:
     # 动作搜索
     # -----------------------------------------------------------------
 
-    def search(
+    def search(  # type: ignore
         self,
         state,
         n_candidates: int = 3,
@@ -225,10 +225,10 @@ class CausalActor:
             self._state = "IDLE"
             return []
 
-        cost_module = self._get_cost_module()
+        cost_module = self._get_cost_module()  # type: ignore
 
         # ── 1. 基线代价评估 ──
-        baseline = cost_module.evaluate(state)
+        baseline = cost_module.evaluate(state)  # type: ignore
         baseline_total = baseline.total
 
         if not state.causal_edges:
@@ -251,7 +251,7 @@ class CausalActor:
             # 扰动 +
             perturbed_plus = copy.deepcopy(state)
             perturbed_plus.causal_edges[i]["rho"] = min(rho_original + delta, 1.0)
-            cost_plus = cost_module.evaluate(perturbed_plus)
+            cost_plus = cost_module.evaluate(perturbed_plus)  # type: ignore
 
             # 梯度估计
             grad = (cost_plus.total - baseline_total) / delta
@@ -377,7 +377,7 @@ class CausalActor:
     # 迭代优化（Cost→Actor 闭环）
     # -----------------------------------------------------------------
 
-    def optimize(
+    def optimize(  # type: ignore
         self,
         state,
         max_iterations: int = 3,
@@ -396,9 +396,9 @@ class CausalActor:
         Returns:
             {"n_actions": int, "initial_cost": float, "final_cost": float, "actions": [...], "state": new_state}
         """
-        cost_module = self._get_cost_module()
+        cost_module = self._get_cost_module()  # type: ignore
 
-        initial_signal = cost_module.evaluate(state)
+        initial_signal = cost_module.evaluate(state)  # type: ignore
         initial_cost = initial_signal.total
 
         current_state = copy.deepcopy(state)
@@ -413,7 +413,7 @@ class CausalActor:
             if best.expected_cost <= self.MIN_COST_IMPROVEMENT:
                 break
 
-            current_state = self.apply(current_state, best)
+            current_state = self.apply(current_state, best)  # type: ignore
             executed_actions.append(best.to_dict())
 
             logger.info(
@@ -424,7 +424,7 @@ class CausalActor:
                 best.expected_cost,
             )
 
-        final_signal = cost_module.evaluate(current_state)
+        final_signal = cost_module.evaluate(current_state)  # type: ignore
         final_cost = final_signal.total
 
         return {

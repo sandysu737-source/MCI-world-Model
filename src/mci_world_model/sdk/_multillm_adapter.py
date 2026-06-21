@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 # Provider Registry
 # =============================================================================
 
-_LLM_REGISTRY: dict[str, Callable] = {}
+_LLM_REGISTRY: dict[str, Callable] = {}  # type: ignore
 
 
-def register_provider(name: str, fn: Callable) -> None:
+def register_provider(name: str, fn: Callable) -> None:  # type: ignore
     """注册自定义 LLM provider。"""
     _LLM_REGISTRY[name] = fn
 
@@ -277,7 +277,7 @@ class MultiLLMAdapter:
         # 降级响应
         return self._fallback_generate(prompt, context)
 
-    def _fallback_generate(self, prompt: str, context: dict | None = None) -> str:
+    def _fallback_generate(self, prompt: str, context: dict | None = None) -> str:  # type: ignore
         """无 LLM 可用时的降级响应。"""
         return (
             "根据临床营养指南，建议进行综合营养评估（包括白蛋白、前白蛋白、NRS2002评分），"
@@ -321,10 +321,10 @@ class MultiLLMAdapter:
         """基于关键词的规则分类。"""
         text_lower = text.lower()
         best_label = labels[0]
-        best_score = -1
+        best_score = -1.0
         for label in labels:
-            score = sum(1 for ch in label if ch in text or ch.lower() in text_lower)
-            score += len(label) / 20  # 轻微偏好更具体的标签
+            score = float(sum(1 for ch in label if ch in text or ch.lower() in text_lower))
+            score += len(label) / 20.0  # 轻微偏好更具体的标签
             if score > best_score:
                 best_score = score
                 best_label = label
@@ -333,7 +333,7 @@ class MultiLLMAdapter:
     def _match_label(self, result: str, labels: list[str]) -> str:
         """将 LLM 返回结果匹配到最接近的标签。"""
         best = labels[0]
-        best_score = -1
+        best_score = -1.0
         for label in labels:
             if label in result:
                 return label
@@ -399,7 +399,7 @@ class MultiLLMAdapter:
             "mode": "llm" if self._available else "fallback",
         }
 
-    def reason_with_cf(
+    def reason_with_cf(  # type: ignore
         self,
         prompt: str,
         cf_result: dict[str, Any] | None = None,

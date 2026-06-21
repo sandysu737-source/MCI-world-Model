@@ -193,14 +193,14 @@ class PearlChain:
         result = L1ObservationResult(cause=cause, effect=effect)
 
         if data is None or cause not in data or effect not in data:
-            result.note = "insufficient_data_for_L1"
+            result.note = "insufficient_data_for_L1"  # type: ignore
             return result
 
         x = np.asarray(data[cause], dtype=np.float64)
         y = np.asarray(data[effect], dtype=np.float64)
 
         if len(x) < 3 or len(y) < 3:
-            result.note = "insufficient_samples_for_L1"
+            result.note = "insufficient_samples_for_L1"  # type: ignore
             return result
 
         min_len = min(len(x), len(y))
@@ -320,7 +320,7 @@ class PearlChain:
                 cg = CausalGraph(nodes=[cause, effect], edges=[(cause, effect)])
                 engine = CounterfactualEngine.from_causal_graph(cg)
 
-            cf_result = engine.query(
+            cf_result = engine.query(  # type: ignore
                 evidence=evidence,
                 do_x=do_intervention,
                 target=effect,

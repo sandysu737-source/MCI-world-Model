@@ -216,7 +216,7 @@ class DebridementWorldModel:
         depth_feat = self._depth_encoder.encode(sample.depth_image).astype(np.float64)
         if len(depth_feat) < cfg.depth_dim:
             depth_feat = np.pad(depth_feat, (0, cfg.depth_dim - len(depth_feat)))
-        depth_feat = depth_feat[:cfg.depth_dim] @ self._proj_depth[:cfg.depth_dim]
+        depth_feat = depth_feat[:cfg.depth_dim] @ self._proj_depth[:cfg.depth_dim]  # type: ignore
 
         # Thermal
         thermal_flat = sample.thermal_image.astype(np.float64).ravel()[:cfg.thermal_dim]
@@ -230,13 +230,13 @@ class DebridementWorldModel:
         force_feat = self._force_encoder.encode(sample.force_torque).astype(np.float64)
         if len(force_feat) < cfg.force_dim:
             force_feat = np.pad(force_feat, (0, cfg.force_dim - len(force_feat)))
-        force_feat = force_feat[:cfg.force_dim] @ self._proj_force[:cfg.force_dim]
+        force_feat = force_feat[:cfg.force_dim] @ self._proj_force[:cfg.force_dim]  # type: ignore
 
         # Proprioception
         prop = np.concatenate([sample.joint_positions, sample.joint_velocities, sample.joint_efforts]).astype(np.float64)
         if len(prop) < cfg.proprio_dim:
             prop = np.pad(prop, (0, cfg.proprio_dim - len(prop)))
-        prop_feat = prop[:cfg.proprio_dim] @ self._proj_proprio[:cfg.proprio_dim]
+        prop_feat = prop[:cfg.proprio_dim] @ self._proj_proprio[:cfg.proprio_dim]  # type: ignore
 
         # Clinical metadata
         clinical = np.array([
@@ -246,7 +246,7 @@ class DebridementWorldModel:
         ], dtype=np.float64)
         if len(clinical) < cfg.clinical_dim:
             clinical = np.pad(clinical, (0, cfg.clinical_dim - len(clinical)))
-        clinical_feat = clinical[:cfg.clinical_dim] @ self._proj_clinical[:cfg.clinical_dim]
+        clinical_feat = clinical[:cfg.clinical_dim] @ self._proj_clinical[:cfg.clinical_dim]  # type: ignore
 
         # Stack modalities and fuse via projection + sum
         modal_feats = [rgb_feat, depth_feat, thermal_feat, force_feat, prop_feat, clinical_feat]
@@ -265,11 +265,11 @@ class DebridementWorldModel:
             v = h @ self._attn_Wv[i]
             # For single vector: attention weight = 1.0 (scalar), just pass v through
             attn_out = v @ self._attn_Wo[i]
-            h = self._layer_norm(h + attn_out, self._ln1[i])
+            h = self._layer_norm(h + attn_out, self._ln1[i])  # type: ignore
 
             # FFN
             ffn = np.maximum(h @ self._ffn_W1[i], 0) @ self._ffn_W2[i]
-            h = self._layer_norm(h + ffn, self._ln2[i])
+            h = self._layer_norm(h + ffn, self._ln2[i])  # type: ignore
         return h
 
     @staticmethod
@@ -413,7 +413,7 @@ class DebridementWorldModel:
                         for i, arr in enumerate(v):
                             save_dict[f"{attr}_{i}"] = arr
             save_dict["_config_d_model"] = np.array(self._d_model, dtype=np.int32)
-            np.savez_compressed(path, **save_dict)
+            np.savez_compressed(path, **save_dict)  # type: ignore
             meta = {"version": "4.4.0", "model_type": "DebridementWorldModel", "trained": self._trained}
             with open(path + ".json", "w") as f:
                 json.dump(meta, f, indent=2)
@@ -479,13 +479,13 @@ class DebridementWorldModel:
                 scores = scores - (1.0 - mask_2d) * 1e9
 
             attn_weights = self._softmax(scores)  # (T, T)
-            attn_out = attn_weights @ _v @ self._attn_Wo[i]
+            attn_out = attn_weights @ _v @ self._attn_Wo[i]  # type: ignore
 
-            h = self._layer_norm(h + attn_out, self._ln1[i])
+            h = self._layer_norm(h + attn_out, self._ln1[i])  # type: ignore
 
             # FFN
             ffn = np.maximum(h @ self._ffn_W1[i], 0) @ self._ffn_W2[i]
-            h = self._layer_norm(h + ffn, self._ln2[i])
+            h = self._layer_norm(h + ffn, self._ln2[i])  # type: ignore
         return h
 
     def forward_sequence(
@@ -559,7 +559,7 @@ class DebridementWorldModel:
         try:
             import mlx.core as mx
         except ImportError:
-            return self.forward(sample_arrays)  # type: ignore[return-value]
+            return self.forward(sample_arrays)
 
         cfg = self.config
 
@@ -572,12 +572,12 @@ class DebridementWorldModel:
         clinical_vec = mx.array(sample_arrays.get("clinical", np.zeros(cfg.clinical_dim))[:cfg.clinical_dim])
 
         # 投影
-        p_rgb = mx.array(self._proj_rgb)
-        p_depth = mx.array(self._proj_depth)
-        p_thermal = mx.array(self._proj_thermal)
-        p_force = mx.array(self._proj_force)
-        p_proprio = mx.array(self._proj_proprio)
-        p_clinical = mx.array(self._proj_clinical)
+        p_rgb = mx.array(self._proj_rgb)  # type: ignore
+        p_depth = mx.array(self._proj_depth)  # type: ignore
+        p_thermal = mx.array(self._proj_thermal)  # type: ignore
+        p_force = mx.array(self._proj_force)  # type: ignore
+        p_proprio = mx.array(self._proj_proprio)  # type: ignore
+        p_clinical = mx.array(self._proj_clinical)  # type: ignore
 
         h_rgb = rgb_vec @ p_rgb
         h_depth = depth_vec @ p_depth
@@ -641,6 +641,6 @@ class DebridementWorldModel:
         }
 
 
-def repr_info(self) -> str:
+def repr_info(self) -> str:  # type: ignore
         cfg = self.config
         return f"DebridementWorldModel(d={cfg.d_model}, L={cfg.n_layers}, h={cfg.n_heads}, params={self.n_params})"

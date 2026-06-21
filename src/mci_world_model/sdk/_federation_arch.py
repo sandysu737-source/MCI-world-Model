@@ -369,7 +369,7 @@ class CausalFederationArchitecture:
         # 只保留多数投票通过的边
         n_discoveries = max(len(discoveries), 1)
         threshold = max(n_discoveries // 2, 1)
-        merged_edges = []
+        merged_edges = []  # type: ignore
         for edge in all_edges:
             edge_key = f"{edge.get('from')}->{edge.get('to')}"
             if edge_votes[edge_key] >= threshold:

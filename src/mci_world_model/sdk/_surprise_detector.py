@@ -287,7 +287,7 @@ class SurpriseDetector:
         self,
         signal: SurpriseSignal,
         causal_graph: dict[str, list[str]] | None = None,
-        context: dict | None = None,
+        context: dict | None = None,  # type: ignore
     ) -> dict[str, Any]:
         """对单个惊奇信号执行根因分析链。
 

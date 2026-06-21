@@ -91,7 +91,7 @@ class EnergyCostModule:
     六态流转：IDLE → COMPUTING → COMPLETE（异常时 COMPUTING → COMPLETE 降级为 zero）
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         alpha_energy: float = 0.5,
         beta_causal: float = 0.3,

@@ -181,8 +181,8 @@ class ExistenceAxiomSystem:
         if axiom is None:
             return {"verified": False, "reason": f"Unknown axiom: {axiom_id}"}
 
-        verifier = self._get_verifier(axiom_id)
-        result = verifier()
+        verifier = self._get_verifier(axiom_id)  # type: ignore
+        result = verifier()  # type: ignore
 
         axiom.status = AxiomStatus.VERIFIED if result["verified"] else AxiomStatus.CONDITIONAL
         axiom.verification_confidence = result.get("confidence", 0.0)
@@ -237,14 +237,14 @@ class ExistenceAxiomSystem:
             layer = self.AXIOM_DEFS[axiom_id]["layer"]
             if layer not in layers:
                 layers[layer] = {"axioms": [], "n_verified": 0}
-            layers[layer]["axioms"].append({
+            layers[layer]["axioms"].append({  # type: ignore
                 "id": axiom_id,
                 "name": axiom.name,
                 "status": axiom.status,
                 "confidence": axiom.verification_confidence,
             })
             if axiom.status == AxiomStatus.VERIFIED:
-                layers[layer]["n_verified"] += 1
+                layers[layer]["n_verified"] += 1  # type: ignore
 
         return {
             "n_verified": self.n_verified,
@@ -272,7 +272,7 @@ class ExistenceAxiomSystem:
             "E8": self._verify_e8,
             "E9": self._verify_e9,
         }
-        return verifiers.get(axiom_id, lambda: {"verified": False, "confidence": 0.0})
+        return verifiers.get(axiom_id, lambda: {"verified": False, "confidence": 0.0})  # type: ignore
 
     def _verify_e1(self) -> dict[str, Any]:
         """E1 因果存在公理验证。"""

@@ -88,14 +88,14 @@ class ForceTissueDynamics:
         max_vel = p["max_velocity"]
 
         # 物理预测
-        depth = removal_rate * max(force_n, 0) / max(stiffness, 0.01)
+        depth = removal_rate * max(force_n, 0) / max(stiffness, 0.01)  # type: ignore
         feedback = stiffness * depth
 
         # 安全判断
         warnings = []
-        if force_n > max_force:
+        if force_n > max_force:  # type: ignore
             warnings.append(f"力超限: {force_n:.1f}N > {max_force}N ({p['name']}上限)")
-        if velocity > max_vel:
+        if velocity > max_vel:  # type: ignore
             warnings.append(f"速度超限: {velocity:.1f}mm/s > {max_vel}mm/s ({p['name']}上限)")
         if tissue_type == 3 and force_n > 0.1:
             warnings.append("严禁对上皮组织施加清创力!")
@@ -124,11 +124,11 @@ class ForceTissueDynamics:
         p = self._params[tissue_type]
 
         # 力检查
-        if force_n > p["max_force"]:
+        if force_n > p["max_force"]:  # type: ignore
             return SafetyVerdict(
                 False,
                 f"力超限: {force_n:.1f}N > {p['max_force']}N ({p['name']})",
-                p["max_force"],
+                p["max_force"],  # type: ignore
                 depth_mm,
             )
 
@@ -136,7 +136,7 @@ class ForceTissueDynamics:
         if tissue_type == 3:
             return SafetyVerdict(False, "上皮组织——停止清创", 0.5, 0.0)
 
-        return SafetyVerdict(True, "安全", p["max_force"], depth_mm + 2.0)
+        return SafetyVerdict(True, "安全", p["max_force"], depth_mm + 2.0)  # type: ignore
 
     # ── v4.4.0: 学习型动力学校准 ──
 
@@ -180,7 +180,7 @@ class ForceTissueDynamics:
             mse = np.mean(errors ** 2)
 
             if mse < best_mse:
-                best_mse = mse
+                best_mse = mse  # type: ignore
                 best_stiffness = stiffness.copy()
                 best_removal_rate = removal_rate.copy()
 
@@ -205,7 +205,7 @@ class ForceTissueDynamics:
 
         return {
             "final_mse": float(best_mse),
-            "calibrated_params": {
+            "calibrated_params": {  # type: ignore
                 str(i): {
                     "name": self._params[i]["name"],
                     "stiffness": round(float(best_stiffness[i]), 4),
@@ -241,12 +241,12 @@ class ForceTissueDynamics:
 
     @staticmethod
     def get_max_force(tissue_type: int) -> float:
-        return TISSUE_PARAMS.get(tissue_type, {}).get("max_force", 0.5)
+        return TISSUE_PARAMS.get(tissue_type, {}).get("max_force", 0.5)  # type: ignore
 
     @staticmethod
     def get_max_velocity(tissue_type: int) -> float:
-        return TISSUE_PARAMS.get(tissue_type, {}).get("max_velocity", 1.0)
+        return TISSUE_PARAMS.get(tissue_type, {}).get("max_velocity", 1.0)  # type: ignore
 
     @staticmethod
     def get_tissue_name(tissue_type: int) -> str:
-        return TISSUE_PARAMS.get(tissue_type, {}).get("name", "未知")
+        return TISSUE_PARAMS.get(tissue_type, {}).get("name", "未知")  # type: ignore

@@ -431,7 +431,7 @@ class CausalMLP:
             save_dict["_meta_input_dim"] = np.array(self._input_dim, dtype=np.int32)
             save_dict["_meta_num_categories"] = np.array(self._num_categories, dtype=np.int32)
             save_dict["_meta_hidden_dims"] = np.array(self._hidden_dims, dtype=np.int32)
-            np.savez_compressed(path, **save_dict)
+            np.savez_compressed(path, **save_dict)  # type: ignore
 
             # 保存元信息 JSON
             meta = {

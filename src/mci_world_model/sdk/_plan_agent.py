@@ -189,7 +189,7 @@ class PlanAgent:
         self,
         current: WorldState,
         goal: WorldState,
-        candidate_actions: list | None = None,
+        candidate_actions: list | None = None,  # type: ignore
         max_horizon: int = 5,
         n_branches: int = 3,
     ) -> Plan:
@@ -272,7 +272,7 @@ class PlanAgent:
         current: WorldState,
         goal: WorldState,
         horizon: int = 3,
-        candidate_actions: list | None = None,
+        candidate_actions: list | None = None,  # type: ignore
     ) -> Plan:
         """穷举前瞻：在有限候选动作中搜索最优动作序列。
 
@@ -424,7 +424,7 @@ class PlanAgent:
         current: WorldState,
         goal: WorldState,
         surprise: SurpriseSignal | None = None,
-        candidate_actions: list | None = None,
+        candidate_actions: list | None = None,  # type: ignore
     ) -> Plan:
         """惊奇触发重规划：当实际偏离预期时重新规划。
 

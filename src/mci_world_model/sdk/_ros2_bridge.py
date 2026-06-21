@@ -166,7 +166,7 @@ class ROS2Bridge:
         self._publisher: Any = None
 
         # 模拟模式回调
-        self._sim_callbacks: list[Callable[[dict], None]] = []
+        self._sim_callbacks: list[Callable[[dict], None]] = []  # type: ignore
 
     @property
     def current_state(self) -> RobotWorldState | None:
@@ -208,7 +208,7 @@ class ROS2Bridge:
 
         logger.info("ROS2Bridge 已停止")
 
-    def on_joint_state(self, msg: dict | Any) -> None:
+    def on_joint_state(self, msg: dict | Any) -> None:  # type: ignore
         """接收 JointState 消息并转换为 RobotWorldState。
 
         Args:
@@ -263,7 +263,7 @@ class ROS2Bridge:
             except Exception as e:
                 logger.warning("spin_once 异常: %s", e)
 
-    def register_callback(self, callback: Callable[[dict], None]) -> None:
+    def register_callback(self, callback: Callable[[dict], None]) -> None:  # type: ignore
         """注册模拟模式回调。
 
         Args:
@@ -285,7 +285,7 @@ class ROS2Bridge:
 
     # ── 内部方法 ──
 
-    def _convert_joint_state(self, msg: dict | Any) -> RobotWorldState | None:
+    def _convert_joint_state(self, msg: dict | Any) -> RobotWorldState | None:  # type: ignore
         """将 JointState 消息转换为 RobotWorldState。"""
         try:
             if isinstance(msg, dict):

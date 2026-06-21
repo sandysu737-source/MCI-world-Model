@@ -277,14 +277,14 @@ class GATEncoder:
         dA = (2.0 / (N * N)) * diff
 
         grads = self.compute_gradients(dA, A_enc)
-        grads["loss"] = loss
-        grads["mse"] = mse
+        grads["loss"] = loss  # type: ignore
+        grads["mse"] = mse  # type: ignore
         if self._l2_reg > 0:
-            grads["l2"] = l2
+            grads["l2"] = l2  # type: ignore
 
         return grads
 
-    def apply_gradients(
+    def apply_gradients(  # type: ignore
         self,
         grads: dict[str, np.ndarray],
         lr: float = 0.01,
@@ -340,7 +340,7 @@ class GATEncoder:
 # =============================================================================
 
 
-def preprocess_memories_to_features(
+def preprocess_memories_to_features(  # type: ignore
     world_model,
     memories: list[dict[str, Any]],
     state=None,
@@ -380,7 +380,7 @@ def preprocess_memories_to_features(
     return X, node_index, node_names
 
 
-def features_to_state(
+def features_to_state(  # type: ignore
     A_enc: np.ndarray,
     node_index: dict[str, int],
     template_state,

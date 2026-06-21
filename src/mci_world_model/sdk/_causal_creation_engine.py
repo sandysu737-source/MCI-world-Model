@@ -147,7 +147,7 @@ class DomainKnowledge:
                 continue
             for t in theories:
                 results.append({"domain": dom, "theory": t, "similarity": np.random.uniform(0.3, 0.9)})
-        return sorted(results, key=lambda x: x["similarity"], reverse=True)[:5]
+        return sorted(results, key=lambda x: x["similarity"], reverse=True)[:5]  # type: ignore
 
     def total_count(self) -> int:
         return sum(len(v) for v in self._theories.values())

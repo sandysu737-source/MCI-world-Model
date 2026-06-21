@@ -490,7 +490,7 @@ class ExperienceDB:
     def retrieve_by_causal_edge(self, cause: str, effect: str, top_k: int = 5) -> list[RetrievalResult]:
         """快捷检索：按特定因果边查找相关经验。"""
         matching_ids = self._causal_index.find_by_edge(cause, effect)
-        results = []
+        results = []  # type: ignore
         for exp_id in matching_ids:
             exp = self._experiences.get(exp_id)
             if exp:

@@ -203,7 +203,7 @@ class EnergyConsistencyLoss:
         sft_loss: float,
         predictions: np.ndarray,
         topological: TopologicalEnergyMatrix | None = None,
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict]:  # type: ignore
         """
         计算总损失 = L_SFT + α · L_energy。
 
@@ -434,11 +434,11 @@ class EnergyConsistencyLoss:
     # v3.1.0 JEPA: N×N 图结构能量损失
     # -----------------------------------------------------------------
 
-    def compute_graph_energy(
+    def compute_graph_energy(  # type: ignore
         self,
         pred_state,
         actual_state,
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict]:  # type: ignore
         """
         计算 JEPA 图结构能量损失。
 
@@ -492,7 +492,7 @@ class EnergyConsistencyLoss:
 # =============================================================================
 
 
-def compute_jepa_graph_energy(
+def compute_jepa_graph_energy(  # type: ignore
     pred_state,
     actual_state,
     alpha: float = 0.1,

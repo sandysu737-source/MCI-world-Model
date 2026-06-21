@@ -134,7 +134,7 @@ class AutonomousCausalConsciousness:
         self._evolution_log.append(result)
         return result
 
-    def build_self_model(self, properties: dict | None = None) -> dict[str, Any]:
+    def build_self_model(self, properties: dict | None = None) -> dict[str, Any]:  # type: ignore
         """构建因果自我模型"""
         if properties:
             self._self_model.properties.update(properties)

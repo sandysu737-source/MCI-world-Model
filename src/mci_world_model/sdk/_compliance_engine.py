@@ -614,13 +614,13 @@ class ComplianceRuleEngine:
         """注册三大领域的默认规则集。"""
         # 医疗领域
         for rule_cls in [_EvidenceSufficiencyRule, _InterventionSafetyRule, _PatientConsentRule]:
-            self._rules.append(rule_cls())
+            self._rules.append(rule_cls())  # type: ignore
         # 法律领域
         for rule_cls in [_JurisdictionRule, _AuditTrailRule, _BiasDetectionRule]:
-            self._rules.append(rule_cls())
+            self._rules.append(rule_cls())  # type: ignore
         # 工程领域
         for rule_cls in [_SafetyMarginRule, _RedundancyCheckRule, _FailureModeRule]:
-            self._rules.append(rule_cls())
+            self._rules.append(rule_cls())  # type: ignore
 
         logger.info("合规引擎: 已注册 %d 条默认规则", len(self._rules))
 
@@ -731,7 +731,7 @@ class ComplianceRuleEngine:
         for level in ComplianceLevel:
             by_level[level.value] = sum(1 for r in self._check_history if r.level == level)
 
-        by_domain = {}
+        by_domain = {}  # type: ignore
         for report in self._check_history:
             by_domain.setdefault(report.domain, 0)
             by_domain[report.domain] += 1

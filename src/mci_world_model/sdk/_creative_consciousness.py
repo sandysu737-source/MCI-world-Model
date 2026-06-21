@@ -74,7 +74,7 @@ class CreativeCausalConsciousness:
         return self._drive
 
     def enter_creative_mode(
-        self, domain: str, drive_adjustment: dict | None = None
+        self, domain: str, drive_adjustment: dict | None = None  # type: ignore
     ) -> dict[str, Any]:
         """进入创造模式。"""
         if drive_adjustment:
@@ -149,7 +149,7 @@ class CreativeCausalConsciousness:
             },
         }
 
-    def aesthetic_evaluation(self, theory: dict | Any) -> dict[str, Any]:
+    def aesthetic_evaluation(self, theory: dict | Any) -> dict[str, Any]:  # type: ignore
         """因果美学评估: 简洁性、对称性、解释力。"""
         if theory is None:
             return {"score": 0, "simplicity": 0, "symmetry": 0, "explanatory_power": 0}
@@ -186,7 +186,7 @@ class CreativeCausalConsciousness:
             return "extrapolation"
         return "analogy"
 
-    def _evaluate_creation(self, creation_result: dict | None) -> dict[str, Any]:
+    def _evaluate_creation(self, creation_result: dict | None) -> dict[str, Any]:  # type: ignore
         if creation_result is None:
             return {"quality": 0.0, "novelty": 0.0}
         theory = creation_result.get("created_theory")

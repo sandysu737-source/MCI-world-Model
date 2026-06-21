@@ -152,7 +152,7 @@ class AuditableCausalReasoning:
         self,
         trail: AuditTrail,
         description: str,
-        evidence_data: dict | None = None,
+        evidence_data: dict | None = None,  # type: ignore
         confidence: float = 0.0,
     ) -> AuditStep:
         """添加证据步骤。
@@ -181,8 +181,8 @@ class AuditableCausalReasoning:
         trail: AuditTrail,
         method: str,
         confidence: float = 0.0,
-        inputs: dict | None = None,
-        outputs: dict | None = None,
+        inputs: dict | None = None,  # type: ignore
+        outputs: dict | None = None,  # type: ignore
     ) -> AuditStep:
         """添加推理步骤。
 
@@ -212,7 +212,7 @@ class AuditableCausalReasoning:
         trail: AuditTrail,
         validation_type: str,
         passed: bool,
-        details: dict | None = None,
+        details: dict | None = None,  # type: ignore
     ) -> AuditStep:
         """添加验证步骤。
 

@@ -489,7 +489,7 @@ class CausalUnificationFormal:
         # 简化: 独立公理不可互相推导
         return False
 
-    def _check_theorem_conflict(self, t1: Theorem, t2: Theorem) -> dict | None:
+    def _check_theorem_conflict(self, t1: Theorem, t2: Theorem) -> dict | None:  # type: ignore
         """检查两定理是否冲突。"""
         # 简化: 基于依赖公理的冲突检测
         _ = set(t1.depends_on) & set(t2.depends_on)

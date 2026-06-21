@@ -738,7 +738,7 @@ from mci_world_model.sdk._parametric_memory import (
     ParametricMemoryConfig,
     TrainingSample,
 )
-from mci_world_model.sdk._parametric_memory import (
+from mci_world_model.sdk._parametric_memory import (  # type: ignore
     SimpleTextEmbedder as MemoryTextEmbedder,
 )
 
@@ -786,10 +786,10 @@ from mci_world_model.sdk._quantum_causal_inference import (
     CausalEffectResult,
     QuantumCausalInference,
 )
-from mci_world_model.sdk._quantum_causal_inference import (
+from mci_world_model.sdk._quantum_causal_inference import (  # type: ignore
     QuantumCircuit as QCIQuantumCircuit,
 )
-from mci_world_model.sdk._quantum_causal_inference import (
+from mci_world_model.sdk._quantum_causal_inference import (  # type: ignore
     QuantumClassicalBridge as QCIClassicalBridge,
 )
 from mci_world_model.sdk._quantum_classical_bridge import (

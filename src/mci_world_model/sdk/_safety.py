@@ -620,7 +620,7 @@ class TissueForceConstraint(SafetyConstraint):
         p = self._params.get(self._tissue_label, {"max_force": 0.5, "name": "未知"})
         current_force = getattr(state, "tool_force_n", 0.0) if hasattr(state, "tool_force_n") else 0.0
 
-        if current_force > p["max_force"]:
+        if current_force > p["max_force"]:  # type: ignore
             return SafetyCheckResult(
                 passed=False,
                 reason=f"组织力超限: {current_force:.1f}N > {p['max_force']}N ({p['name']})",

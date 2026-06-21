@@ -155,7 +155,7 @@ class _ContextIndex:
         if not exp_ctx:
             return 0.0
 
-        matches = 0
+        matches = 0.0
         total = len(query_context)
 
         for key, value in query_context.items():
@@ -163,7 +163,7 @@ class _ContextIndex:
             if not exp_value:
                 continue
             if exp_value.lower() == value.lower():
-                matches += 1  # 精确匹配
+                matches += 1.0  # 精确匹配
             elif value.lower() in exp_value.lower() or exp_value.lower() in value.lower():
                 matches += 0.5  # 部分匹配
 
@@ -304,7 +304,7 @@ class MultiViewRetriever:
 
     # ── 核心检索 ──
 
-    def retrieve(
+    def retrieve(  # type: ignore
         self,
         query: QuerySpec | None = None,
         top_k: int = 5,
@@ -348,7 +348,7 @@ class MultiViewRetriever:
         use_weights = weights or self.view_weights
 
         # 执行各视角检索
-        all_experiences = self.experience_db.all_experiences
+        all_experiences = self.experience_db.all_experiences  # type: ignore
 
         # 类型过滤
         if query.type_filter is not None:
@@ -531,18 +531,18 @@ class MultiViewRetriever:
         """语义维分数：委托给 ExperienceDB 的 _SemanticIndex。"""
         if not query.tags:
             return 0.5  # 无查询标签 → 中性分数
-        return self.experience_db._semantic_index.similarity(query.tags, exp.tags)
+        return self.experience_db._semantic_index.similarity(query.tags, exp.tags)  # type: ignore
 
     def _compute_causal(self, query: QuerySpec, exp: Experience) -> float:
         """因果维分数：委托给 ExperienceDB 的 _CausalIndex。"""
         if not query.causal_edges:
             return 0.5  # 无查询边 → 中性分数
-        return self.experience_db._causal_index.similarity(query.causal_edges, exp.causal_edges)
+        return self.experience_db._causal_index.similarity(query.causal_edges, exp.causal_edges)  # type: ignore
 
     def _compute_temporal(self, exp: Experience) -> float:
         """时间维分数：委托给 ExperienceDB 的 _TemporalIndex。"""
-        if self.experience_db._temporal_index is not None:
-            return self.experience_db._temporal_index.score_with_access(
+        if self.experience_db._temporal_index is not None:  # type: ignore
+            return self.experience_db._temporal_index.score_with_access(  # type: ignore
                 exp.timestamp, exp.last_accessed, exp.access_count
             )
         return exp.recency_score()

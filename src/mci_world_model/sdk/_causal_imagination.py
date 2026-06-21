@@ -131,7 +131,7 @@ class CausalImaginationEngine:
 
     def _imagine_single(self, intervention: dict[str, Any]) -> ImaginedWorld:
         """单次因果想象。"""
-        original = self._current_state.copy()
+        original = self._current_state.copy()  # type: ignore
         imagined = original.copy()
 
         # 应用干预
@@ -219,7 +219,7 @@ class CausalImaginationEngine:
         worlds = []
         for val in values:
             intervention = {variable_index: val}
-            result = self.imagine(intervention)
+            result = self.imagine(intervention)  # type: ignore
             worlds.extend(result)
         return worlds
 

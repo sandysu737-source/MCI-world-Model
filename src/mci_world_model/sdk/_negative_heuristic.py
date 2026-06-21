@@ -342,9 +342,9 @@ class NegativeHeuristic:
         # 只有 ABSOLUTE 级别才绝对拒绝
         return not any(v.severity == RuleSeverity.ABSOLUTE for v in viols)
 
-    def protective_belt_suggestions(
+    def protective_belt_suggestions(  # type: ignore
         self,
-        diagnosis: dict | None = None,
+        diagnosis: dict | None = None,  # type: ignore
         **kwargs,
     ) -> list[ProtectiveBeltSuggestion]:
         """基于诊断结果生成保护带修正建议。

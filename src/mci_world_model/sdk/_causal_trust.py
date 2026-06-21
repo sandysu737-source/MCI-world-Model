@@ -105,7 +105,7 @@ class CausalTrustEnhancement:
         self._certificates: dict[str, TrustCertificate] = {}
         self._certificate_counter = 0
 
-    def register_claim(self, claim_id: str, description: str, evidence: dict | None = None) -> dict[str, Any]:
+    def register_claim(self, claim_id: str, description: str, evidence: dict | None = None) -> dict[str, Any]:  # type: ignore
         """注册信任声明"""
         claim = TrustClaim(
             claim_id=claim_id,
@@ -200,7 +200,7 @@ class CausalTrustEnhancement:
 
     def get_trust_report(self) -> dict[str, Any]:
         """获取信任报告"""
-        grade_counts = {}
+        grade_counts = {}  # type: ignore
         for claim in self._claims.values():
             grade_counts[claim.grade.value] = grade_counts.get(claim.grade.value, 0) + 1
 

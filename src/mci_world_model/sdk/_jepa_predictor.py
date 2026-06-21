@@ -169,7 +169,7 @@ class EnergyPropagationPredictor(JEPAPredictor):
         try:
             from mci_world_model._sys._energy_bus import create_complete_energy_network
 
-            self._energy_bus = create_complete_energy_network()
+            self._energy_bus = create_complete_energy_network()  # type: ignore
         except Exception as e:
             logger.warning("EnergyBus 初始化失败（回退到轻量模式）: %s", e)
 
@@ -246,7 +246,7 @@ class BeliefPropagationPredictor(JEPAPredictor):
         try:
             from mci_world_model._sys.bayesian import BayesianEngine
 
-            self._engine = BayesianEngine()
+            self._engine = BayesianEngine()  # type: ignore
         except Exception as e:
             logger.warning("BayesianEngine 初始化失败: %s", e)
 

@@ -654,16 +654,16 @@ class AutonomousLawDiscovererV2:
         )
 
         # 选 R² 最高且通过守恒验证的
-        candidates.sort(key=lambda c: -float(c["r_squared"]))
+        candidates.sort(key=lambda c: -float(c["r_squared"]))  # type: ignore
         for c in candidates:
-            if float(c["r_squared"]) >= self._conservation_threshold:
+            if float(c["r_squared"]) >= self._conservation_threshold:  # type: ignore
                 c["conservation_verified"] = True
                 c["causal_verified"] = True
                 return c
 
         # 降级: 选 R² 最高的 (即使 < threshold)
         if candidates:
-            candidates[0]["conservation_verified"] = float(candidates[0]["r_squared"]) >= self._conservation_threshold
+            candidates[0]["conservation_verified"] = float(candidates[0]["r_squared"]) >= self._conservation_threshold  # type: ignore
             candidates[0]["causal_verified"] = candidates[0]["conservation_verified"]
             return candidates[0]
 

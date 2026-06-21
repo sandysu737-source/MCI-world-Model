@@ -132,7 +132,7 @@ class ReflectionSynthesizer:
         "亿": 100000000,
     }
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         energy_bus=None,
         bayesian=None,
@@ -191,7 +191,7 @@ class ReflectionSynthesizer:
         # 按指示词和动词切分
         segments = [content]
         for indicator in self.ENTITY_INDICATORS:
-            new_segments = []
+            new_segments = []  # type: ignore
             for seg in segments:
                 if indicator in seg:
                     parts = seg.split(indicator, 1)
@@ -622,7 +622,7 @@ class ReflectionSynthesizer:
                     scores[etype] += 1
 
         if scores:
-            return max(scores, key=scores.get)
+            return max(scores, key=scores.get)  # type: ignore
         return "unknown"
 
     def _get_enhanced_element(self, element: str) -> str | None:

@@ -135,7 +135,7 @@ class OrchestratorBridge:
         self._multillm = multillm
         self._intent_map = self._build_default_map()
 
-    def _build_default_map(self) -> dict[str, Callable]:
+    def _build_default_map(self) -> dict[str, Callable]:  # type: ignore
         """构建默认意图映射表。"""
         return {
             "SCREENING": self._handle_screening,

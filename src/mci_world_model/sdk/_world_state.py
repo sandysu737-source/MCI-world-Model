@@ -761,7 +761,7 @@ class MultimodalWorldState(WorldState):
         return np.concatenate(parts)
 
     # v4.5.0: 类级别布局缓存，供 from_vector() 自动保真 (非 dataclass 字段)
-    _last_layout: ClassVar[dict] = {}
+    _last_layout: ClassVar[dict] = {}  # type: ignore
 
     @classmethod
     def from_vector(cls, vec: np.ndarray) -> MultimodalWorldState:

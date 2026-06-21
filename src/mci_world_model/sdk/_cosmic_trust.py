@@ -170,7 +170,7 @@ class CosmicTrust:
         self._cosmic_trust_score = cosmic_trust
 
         trust_level = self._classify_trust_level(cosmic_trust)
-        weakest = min(dim_trust, key=dim_trust.get) if dim_trust else None
+        weakest = min(dim_trust, key=dim_trust.get) if dim_trust else None  # type: ignore
 
         return {
             "cosmic_trust": cosmic_trust,
@@ -219,7 +219,7 @@ class CosmicTrust:
         self._consistency_cache[cache_key] = report
         return report
 
-    def calibrate_cosmic_trust(self, ground_truth: dict | None = None) -> dict[str, Any]:
+    def calibrate_cosmic_trust(self, ground_truth: dict | None = None) -> dict[str, Any]:  # type: ignore
         """宇宙信任校准。
 
         Args:

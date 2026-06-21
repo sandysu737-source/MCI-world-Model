@@ -137,7 +137,7 @@ class MCTSNode:
         self.total_value: float = 0.0
         self.prior = prior
         self.is_expanded = False
-        self._untried_actions: list | None = None
+        self._untried_actions: list | None = None  # type: ignore
 
     @property
     def q_value(self) -> float:
@@ -222,7 +222,7 @@ class MCTSNode:
             node.visit_count += 1
             node.total_value += discounted
             discounted *= gamma
-            node = node.parent
+            node = node.parent  # type: ignore
 
     def is_leaf(self) -> bool:
         """是否为叶子节点 (未展开或无子节点)。"""

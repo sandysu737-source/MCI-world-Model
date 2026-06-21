@@ -249,7 +249,7 @@ class MultiBranchPredictor:
         if counterfactual_engine is not None:
             # 使用反事实引擎
             try:
-                cf_results = counterfactual_engine.batch_query(interventions)
+                cf_results = counterfactual_engine.batch_query(interventions)  # type: ignore
                 for i, cf in enumerate(cf_results):
                     results.append(
                         {

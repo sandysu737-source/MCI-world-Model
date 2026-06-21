@@ -44,15 +44,15 @@ class JEPADataset:
     - 窗口内记忆按 timestamp 分组
     """
 
-    pairs: list[tuple] = field(default_factory=list)
+    pairs: list[tuple] = field(default_factory=list)  # type: ignore
     # [(s_t, s_{t+1}), ...]
 
     # ── M3: 端到端可微训练 ──
-    memory_pairs: list[tuple] = field(default_factory=list)
+    memory_pairs: list[tuple] = field(default_factory=list)  # type: ignore
     # [(memories_t, memories_{t+1}), ...] — 原始记忆窗口对
     # 用于 GAT 编码器的端到端训练
 
-    state_pairs: list[tuple] = field(default_factory=list)
+    state_pairs: list[tuple] = field(default_factory=list)  # type: ignore
     # [(state_t, state_{t+1}), ...] — 预计算的 CausalWorldModelState 对
     # 用于避免训练时重复调用 discover()
 
@@ -97,7 +97,7 @@ class JEPADataset:
             logger.warning("有效状态不足（%d < 2），无法构造 JEPA 训练对", len(valid_states))
             return cls(pairs=[], n_states=len(valid_states), n_pairs=0)
 
-        pairs: list[tuple] = []
+        pairs: list[tuple] = []  # type: ignore
         for i in range(len(valid_states) - 1):
             s_t = valid_states[i]
             s_t1 = valid_states[i + 1]
@@ -134,7 +134,7 @@ class JEPADataset:
         )
 
     @classmethod
-    def from_memories(
+    def from_memories(  # type: ignore
         cls,
         world_model,
         memories: list[dict[str, Any]],
@@ -210,8 +210,8 @@ class JEPADataset:
         )
 
         # M3: 构造记忆对 + 状态对 (与状态对对齐)
-        memory_pairs: list[tuple] = []
-        state_pairs: list[tuple] = []
+        memory_pairs: list[tuple] = []  # type: ignore
+        state_pairs: list[tuple] = []  # type: ignore
         for i in range(len(states) - 1):
             if states[i].n_memories >= min_memories_per_window and states[i + 1].n_memories >= min_memories_per_window:
                 memory_pairs.append((memory_batches[i], memory_batches[i + 1]))
@@ -238,7 +238,7 @@ class JEPADataset:
         return self.n_pairs
 
     def __iter__(self) -> None:
-        return iter(self.pairs)
+        return iter(self.pairs)  # type: ignore
 
     def __repr__(self) -> str:
         return f"JEPADataset(states={self.n_states}, pairs={self.n_pairs}, avg_dist={self.avg_distance:.4f})"

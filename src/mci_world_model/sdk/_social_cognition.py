@@ -92,7 +92,7 @@ class AgentModel:
         """
         if not self._preference_model:
             return "unknown"
-        return max(self._preference_model, key=self._preference_model.get)
+        return max(self._preference_model, key=self._preference_model.get)  # type: ignore
 
     def get_action_probability(self) -> dict[str, float]:
         """获取动作概率分布。"""

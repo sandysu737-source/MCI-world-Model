@@ -281,7 +281,7 @@ class BatchCounterfactualEngine:
                 note=f"method=batch_pearl_three_step, do=({do_desc})",
             )
 
-        return all_results  # type: ignore
+        return all_results
 
     # -----------------------------------------------------------------
     # 字符串表示

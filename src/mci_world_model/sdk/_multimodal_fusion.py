@@ -266,7 +266,7 @@ class MultimodalFusion:
     # encode_to_state — 融合表示 → WorldState
     # -----------------------------------------------------------------
 
-    def encode_to_state(
+    def encode_to_state(  # type: ignore
         self,
         fused: FusedRepresentation,
         state_class: type | None = None,

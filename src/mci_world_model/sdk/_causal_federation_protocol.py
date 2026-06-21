@@ -249,7 +249,7 @@ class CausalFederationProtocol:
     def join_federation(
         self,
         federation_endpoint: str | None = None,
-        credentials: dict | None = None,
+        credentials: dict | None = None,  # type: ignore
         existing_peers: dict[str, PeerInfo] | None = None,
     ) -> dict[str, Any]:
         """加入因果联邦。
@@ -366,7 +366,7 @@ class CausalFederationProtocol:
         msg_type: str,
         payload: dict[str, Any],
         target: str | None = None,
-    ) -> dict | None:
+    ) -> dict | None:  # type: ignore
         """发送联邦消息。
 
         Args:

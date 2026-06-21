@@ -69,7 +69,7 @@ class EnhancedPerception:
 
         return signals
 
-    def _llm_extract(self, text: str, context: dict | None) -> list[dict[str, Any]]:
+    def _llm_extract(self, text: str, context: dict | None) -> list[dict[str, Any]]:  # type: ignore
         """使用 LLM 提取结构化信号。"""
         try:
             prompt = f"""从以下临床文本中提取定量信号。仅输出 JSON 数组格式，每个信号包含:
@@ -194,7 +194,7 @@ class EnhancedPerception:
         if self._pipeline is None:
             from mci_world_model._sys._perception_pipeline import PerceptionPipeline
 
-            self._pipeline = PerceptionPipeline()
+            self._pipeline = PerceptionPipeline()  # type: ignore
 
         # 转换为 MultimodalSignal 格式
         multimodal = self._dict_to_multimodal(signals)
@@ -281,7 +281,7 @@ class EnhancedPerception:
         """
         signals = self.extract_signals(text, context)
         if not signals:
-            from mci_world_model.sdk._jepa_encoder import CausalWorldModelState
+            from mci_world_model.sdk._jepa_encoder import CausalWorldModelState  # type: ignore
 
             return CausalWorldModelState.empty()
 
