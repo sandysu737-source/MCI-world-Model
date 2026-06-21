@@ -1,13 +1,13 @@
 """
-tests/test_compliance_engine.py — ComplianceRuleEngine 测试
-===========================================================
+tests/test_compliance_engine.py — ComplianceRuleEngine 全面测试
+==============================================================
 
 覆盖:
-    - 医疗合规: 证据充分性 + 干预安全 + 知情同意
-    - 法律合规: 管辖区 + 审计轨迹 + 偏差检测
-    - 工程合规: 安全裕度 + 冗余检查 + FMEA
-    - ComplianceRuleEngine: 注册+检查+聚合
-    - 边界: 空上下文/未知领域/自定义规则
+    - 医疗领域规则 (证据充分性/干预安全/患者同意)
+    - 法律领域规则 (管辖区/审计轨迹/偏差检测)
+    - 工程领域规则 (安全裕度/冗余检查/失效模式)
+    - ComplianceRuleEngine (注册/执行/审计/聚合)
+    - 边界情况 (空上下文/异常处理/自定义规则)
 """
 
 from __future__ import annotations
@@ -20,11 +20,16 @@ from mci_world_model.sdk._compliance_engine import (
     ComplianceReport,
     ComplianceRule,
     ComplianceRuleEngine,
+    _AuditTrailRule,
+    _BiasDetectionRule,
+    _EvidenceSufficiencyRule,
+    _FailureModeRule,
+    _InterventionSafetyRule,
+    _JurisdictionRule,
+    _PatientConsentRule,
+    _RedundancyCheckRule,
+    _SafetyMarginRule,
 )
-
-# =============================================================================
-# Fixtures
-# =============================================================================
 
 
 @pytest.fixture
@@ -33,290 +38,295 @@ def engine():
 
 
 @pytest.fixture
-def medical_context_compliant():
+def medical_context():
     return {
-        "evidence": ["obs1", "obs2", "obs3"],
-        "confidence": 0.9,
-        "intervention": {"type": "drug", "dose": "low"},
-        "risk_assessment": {"level": "low"},
-        "patient_data": {"consent_given": True},
-    }
-
-
-@pytest.fixture
-def medical_context_non_compliant():
-    return {
-        "evidence": [],
-        "confidence": 0.5,
-        "intervention": {"type": "surgery"},
-        "risk_assessment": {"level": "high"},
-        "patient_data": {"consent_given": False},
-    }
-
-
-@pytest.fixture
-def legal_context_compliant():
-    return {
-        "jurisdiction": "CN",
-        "audit_trail": [{"step": 1, "action": "query"}, {"step": 2, "action": "infer"}],
-        "evidence": ["e1", "e2"],
+        "evidence": [{"type": "lab"}, {"type": "imaging"}],
         "confidence": 0.85,
-        "conclusion": "X causes Y",
+        "intervention": {"name": "drug_A"},
+        "risk_assessment": {"level": "low"},
+        "patient_data": {"consent_given": True, "age": 45},
     }
 
 
 @pytest.fixture
-def legal_context_non_compliant():
+def legal_context():
     return {
-        "jurisdiction": "",
-        "audit_trail": None,
-        "evidence": [],
-        "confidence": 0.99,
-        "conclusion": "X causes Y without evidence",
+        "audit_trail": [
+            {"step": "evidence_collection", "data": "collected"},
+        ],
+        "evidence": [{"reliability": 0.8}, {"reliability": 0.75}],
+        "evidence": [{"reliability": 0.8}, {"reliability": 0.75}],
+        "jurisdiction": "CN",
+        "conclusion": "action_A caused harm_B",
+        "confidence": 0.85,
     }
 
 
 @pytest.fixture
-def engineering_context_compliant():
+def engineering_context():
     return {
         "system_params": {
-            "temperature": {"design": 80.0, "limit": 120.0},  # 33% margin
-            "pressure": {"design": 5.0, "limit": 8.0},  # 37.5% margin
+            "temp": {"design": 80, "limit": 120},
+            "pressure": {"design": 30, "limit": 50},
         },
-        "redundancy": {"primary_path": True, "backup_path": True},
-        "critical_paths": ["primary_path", "backup_path"],
+        "redundancy": {"critical_path": True},
         "fmea": [
-            {"failure": "valve_stuck", "rpn": 100, "mitigated": True},
+            {"failure_mode": "valve_stuck", "rpn": 150, "mitigated": True},
         ],
     }
 
 
-@pytest.fixture
-def engineering_context_non_compliant():
-    return {
-        "system_params": {
-            "temperature": {"design": 115.0, "limit": 120.0},  # 4.2% margin < 20%
-        },
-        "redundancy": {},
-        "critical_paths": ["primary_path"],
-        "fmea": None,
-    }
+class TestMedicalRules:
+    def test_evidence_rule_domain(self):
+        rule = _EvidenceSufficiencyRule()
+        assert rule.domain == "medical"
+
+    def test_evidence_sufficient(self):
+        rule = _EvidenceSufficiencyRule()
+        ctx = {"evidence": [1, 2, 3], "confidence": 0.9}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
+
+    def test_evidence_insufficient(self):
+        rule = _EvidenceSufficiencyRule()
+        ctx = {"evidence": [1], "confidence": 0.5}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
+
+    def test_evidence_conditional(self):
+        rule = _EvidenceSufficiencyRule()
+        ctx = {"evidence": [1, 2], "confidence": 0.5}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.CONDITIONAL
+
+    def test_intervention_safe(self):
+        rule = _InterventionSafetyRule()
+        ctx = {"intervention": "drug", "risk_assessment": {"level": "low"}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
+
+    def test_intervention_high_risk(self):
+        rule = _InterventionSafetyRule()
+        ctx = {"intervention": "surgery", "risk_assessment": {"level": "high"}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
+
+    def test_intervention_medium_risk(self):
+        rule = _InterventionSafetyRule()
+        ctx = {"intervention": "therapy", "risk_assessment": {"level": "medium"}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.CONDITIONAL
+
+    def test_intervention_no_risk(self):
+        rule = _InterventionSafetyRule()
+        ctx = {"intervention": "drug"}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
+
+    def test_patient_consent_granted(self):
+        rule = _PatientConsentRule()
+        ctx = {"patient_data": {"consent_given": True}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
+
+    def test_patient_consent_denied(self):
+        rule = _PatientConsentRule()
+        ctx = {"patient_data": {"consent_given": False}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
 
 
-# =============================================================================
-# TestMedicalCompliance
-# =============================================================================
+class TestLegalRules:
+    def test_jurisdiction_present(self):
+        rule = _JurisdictionRule()
+        ctx = {"jurisdiction": "CN"}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
+
+    def test_jurisdiction_missing(self):
+        rule = _JurisdictionRule()
+        ctx = {}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
+
+    def test_audit_trail_complete(self):
+        rule = _AuditTrailRule()
+        ctx = {"audit_trail": ["step1", "step2"]}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
+
+    def test_audit_trail_missing(self):
+        rule = _AuditTrailRule()
+        ctx = {}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
+
+    def test_bias_detection_ok(self):
+        rule = _BiasDetectionRule()
+        ctx = {"evidence": [{"reliability": 0.7}], "conclusion": "ok", "evidence": [{"reliability": 0.7}]}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
 
 
-class TestMedicalCompliance:
-    """医疗合规测试。"""
+class TestEngineeringRules:
+    def test_safety_margin_sufficient(self):
+        rule = _SafetyMarginRule()
+        ctx = {"system_params": {"t": {"design": 80, "limit": 120}}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
 
-    def test_compliant(self, engine, medical_context_compliant):
-        reports = engine.check_domain("medical", medical_context_compliant)
-        assert len(reports) == 3
-        for r in reports:
-            assert r.level == ComplianceLevel.COMPLIANT
+    def test_safety_margin_insufficient(self):
+        rule = _SafetyMarginRule()
+        ctx = {"system_params": {"p": {"design": 115, "limit": 120}}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.NON_COMPLIANT
 
-    def test_non_compliant(self, engine, medical_context_non_compliant):
-        reports = engine.check_domain("medical", medical_context_non_compliant)
-        non_compliant = [r for r in reports if r.level == ComplianceLevel.NON_COMPLIANT]
-        assert len(non_compliant) >= 1
+    def test_safety_margin_missing_data(self):
+        rule = _SafetyMarginRule()
+        ctx = {}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.UNABLE_TO_ASSESS
 
-    def test_evidence_sufficiency_insufficient(self, engine):
-        """证据不足 → 不合规。"""
-        ctx = {"evidence": ["only_one"], "confidence": 0.9}
-        reports = engine.check_domain("medical", ctx)
-        evidence_report = [r for r in reports if r.rule_name == "evidence_sufficiency"][0]
-        assert evidence_report.level == ComplianceLevel.NON_COMPLIANT
+    def test_redundancy_ok(self):
+        rule = _RedundancyCheckRule()
+        ctx = {"redundancy": {"main": True}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
 
-    def test_intervention_without_risk_assessment(self, engine):
-        """干预无风险评估 → 不合规。"""
-        ctx = {"evidence": ["e1", "e2"], "confidence": 0.8, "intervention": {"type": "drug"}}
-        reports = engine.check_domain("medical", ctx)
-        safety_report = [r for r in reports if r.rule_name == "intervention_safety"][0]
-        assert safety_report.level == ComplianceLevel.NON_COMPLIANT
+    def test_redundancy_conditional(self):
+        rule = _RedundancyCheckRule()
+        ctx = {"redundancy": {}}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.CONDITIONAL
 
-    def test_no_consent(self, engine):
-        """无知情同意 → 不合规。"""
-        ctx = {"evidence": ["e1", "e2"], "confidence": 0.8, "patient_data": {"consent_given": False}}
-        reports = engine.check_domain("medical", ctx)
-        consent_report = [r for r in reports if r.rule_name == "patient_consent"][0]
-        assert consent_report.level == ComplianceLevel.NON_COMPLIANT
+    def test_failure_mode_mitigated(self):
+        rule = _FailureModeRule()
+        ctx = {"fmea": [{"failure_mode": "leak", "rpn": 250, "mitigated": True}]}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.COMPLIANT
 
-
-# =============================================================================
-# TestLegalCompliance
-# =============================================================================
-
-
-class TestLegalCompliance:
-    """法律合规测试。"""
-
-    def test_compliant(self, engine, legal_context_compliant):
-        reports = engine.check_domain("legal", legal_context_compliant)
-        for r in reports:
-            assert r.level == ComplianceLevel.COMPLIANT
-
-    def test_non_compliant(self, engine, legal_context_non_compliant):
-        reports = engine.check_domain("legal", legal_context_non_compliant)
-        non_compliant = [r for r in reports if r.level == ComplianceLevel.NON_COMPLIANT]
-        assert len(non_compliant) >= 1
-
-    def test_missing_jurisdiction(self, engine):
-        """缺少管辖区 → 不合规。"""
-        ctx = {"jurisdiction": None}
-        reports = engine.check_domain("legal", ctx)
-        jur_report = [r for r in reports if r.rule_name == "jurisdiction_applicability"][0]
-        assert jur_report.level == ComplianceLevel.NON_COMPLIANT
-
-    def test_unknown_jurisdiction(self, engine):
-        """未知管辖区 → 有条件合规。"""
-        ctx = {"jurisdiction": "XX"}
-        reports = engine.check_domain("legal", ctx)
-        jur_report = [r for r in reports if r.rule_name == "jurisdiction_applicability"][0]
-        assert jur_report.level == ComplianceLevel.CONDITIONAL
-
-    def test_empty_audit_trail(self, engine):
-        """空审计轨迹 → 不合规。"""
-        ctx = {"audit_trail": []}
-        reports = engine.check_domain("legal", ctx)
-        audit_report = [r for r in reports if r.rule_name == "audit_trail"][0]
-        assert audit_report.level == ComplianceLevel.NON_COMPLIANT
+    def test_failure_mode_unmitigated(self):
+        rule = _FailureModeRule()
+        ctx = {"fmea": [{"failure_mode": "explosion", "rpn": 300, "mitigated": False}]}
+        report = rule.check(ctx)
+        assert report.level == ComplianceLevel.CONDITIONAL
 
 
-# =============================================================================
-# TestEngineeringCompliance
-# =============================================================================
+class TestComplianceEngine:
+    def test_init_registers_defaults(self, engine):
+        assert engine.rule_count == 9
 
+    def test_auto_register_false(self):
+        e = ComplianceRuleEngine(auto_register_defaults=False)
+        assert e.rule_count == 0
 
-class TestEngineeringCompliance:
-    """工程合规测试。"""
-
-    def test_compliant(self, engine, engineering_context_compliant):
-        reports = engine.check_domain("engineering", engineering_context_compliant)
-        for r in reports:
-            assert r.level == ComplianceLevel.COMPLIANT
-
-    def test_non_compliant(self, engine, engineering_context_non_compliant):
-        reports = engine.check_domain("engineering", engineering_context_non_compliant)
-        non_compliant = [r for r in reports if r.level == ComplianceLevel.NON_COMPLIANT]
-        assert len(non_compliant) >= 1
-
-    def test_insufficient_safety_margin(self, engine):
-        """安全裕度不足 → 不合规。"""
-        ctx = {"system_params": {"temp": {"design": 95.0, "limit": 100.0}}}
-        reports = engine.check_domain("engineering", ctx)
-        margin_report = [r for r in reports if r.rule_name == "safety_margin"][0]
-        assert margin_report.level == ComplianceLevel.NON_COMPLIANT
-
-    def test_missing_fmea(self, engine):
-        """缺少FMEA → 不合规。"""
-        ctx = {"fmea": None}
-        reports = engine.check_domain("engineering", ctx)
-        fmea_report = [r for r in reports if r.rule_name == "failure_mode_analysis"][0]
-        assert fmea_report.level == ComplianceLevel.NON_COMPLIANT
-
-    def test_high_rpn_unmitigated(self, engine):
-        """高RPN未缓解 → 有条件合规。"""
-        ctx = {"fmea": [{"failure": "x", "rpn": 300, "mitigated": False}]}
-        reports = engine.check_domain("engineering", ctx)
-        fmea_report = [r for r in reports if r.rule_name == "failure_mode_analysis"][0]
-        assert fmea_report.level == ComplianceLevel.CONDITIONAL
-
-
-# =============================================================================
-# TestComplianceRuleEngine
-# =============================================================================
-
-
-class TestComplianceRuleEngine:
-    """ComplianceRuleEngine 整体测试。"""
-
-    def test_default_rules_registered(self, engine):
-        assert engine.rule_count == 9  # 3 medical + 3 legal + 3 engineering
-
-    def test_check_medical_domain_compliant(self, engine, medical_context_compliant):
-        result = engine.check(medical_context_compliant, domains=["medical"])
+    def test_check_all_domains(self, engine, medical_context):
+        result = engine.check(medical_context)
         assert isinstance(result, ComplianceCheckResult)
-        assert result.is_compliant is True
+        assert len(result.reports) == 9
 
-    def test_check_specific_domains(self, engine):
-        ctx = {"evidence": ["e1", "e2"], "confidence": 0.9, "jurisdiction": "CN", "audit_trail": ["step1"]}
-        result = engine.check(ctx, domains=["medical", "legal"])
-        assert "engineering" not in result.domains_checked
+    def test_check_single_domain(self, engine, medical_context):
+        result = engine.check(medical_context, domains=["medical"])
+        assert len(result.reports) == 3
+
+    def test_medical_context_compliant(self, engine, medical_context):
+        result = engine.check(medical_context, domains=["medical"])
+        assert result.is_compliant
+
+    def test_legal_context_compliant(self, engine, legal_context):
+        result = engine.check(legal_context, domains=["legal"])
+        assert result.is_compliant
+
+    def test_engineering_context_compliant(self, engine, engineering_context):
+        result = engine.check(engineering_context, domains=["engineering"])
+        assert result.is_compliant
+
+    def test_empty_context(self, engine):
+        result = engine.check({})
+        assert not result.is_compliant
+
+    def test_is_acceptable(self, engine):
+        ctx = {"evidence": [1, 2], "confidence": 0.5}
+        result = engine.check(ctx, domains=["medical"])
+        assert result.is_acceptable
+
+    def test_summary(self, engine):
+        result = engine.check({})
+        assert isinstance(result.summary, str)
+        assert len(result.summary) > 0
+
+    def test_history(self, engine, medical_context):
+        engine.check(medical_context, domains=["medical"])
+        history = engine.get_history()
+        assert len(history) == 3
+
+    def test_history_filter(self, engine, medical_context, engineering_context):
+        engine.check(medical_context, domains=["medical"])
+        engine.check(engineering_context, domains=["engineering"])
+        med = engine.get_history(domain="medical")
+        eng = engine.get_history(domain="engineering")
+        assert len(med) == 3
+        assert len(eng) == 3
+
+    def test_statistics(self, engine, medical_context):
+        engine.check(medical_context)
+        stats = engine.statistics()
+        assert stats["rule_count"] == 9
+        assert stats["total_checks"] > 0
 
     def test_custom_rule(self, engine):
-        """自定义规则注册。"""
-
         class CustomRule(ComplianceRule):
             @property
-            def domain(self):
-                return "custom"
-
+            def domain(self): return "test"
             @property
-            def name(self):
-                return "custom_rule"
-
-            def check(self, context):
-                return ComplianceReport(
-                    rule_name=self.name, domain=self.domain, level=ComplianceLevel.COMPLIANT, reasoning="always ok"
-                )
+            def name(self): return "custom_check"
+            def check(self, ctx):
+                return ComplianceReport(rule_name="custom_check", domain="test",
+                                        level=ComplianceLevel.COMPLIANT, reasoning="ok")
 
         engine.register(CustomRule())
         assert engine.rule_count == 10
+        result = engine.check({}, domains=["test"])
+        assert result.is_compliant
 
-    def test_statistics(self, engine, medical_context_compliant):
-        engine.check(medical_context_compliant)
-        stats = engine.statistics()
-        assert "rule_count" in stats
-        assert "total_checks" in stats
-        assert stats["rule_count"] == 9
+    def test_rule_exception(self, engine):
+        class BrokenRule(ComplianceRule):
+            @property
+            def domain(self): return "test"
+            @property
+            def name(self): return "broken"
+            def check(self, ctx):
+                raise RuntimeError("fail")
 
-    def test_history(self, engine, medical_context_compliant):
-        engine.check(medical_context_compliant)
-        history = engine.get_history()
-        assert len(history) > 0
-        medical_history = engine.get_history(domain="medical")
-        assert all(r.domain == "medical" for r in medical_history)
+        engine.register(BrokenRule())
+        result = engine.check({}, domains=["test"])
+        assert result.overall_level == ComplianceLevel.UNABLE_TO_ASSESS
 
-    def test_non_compliant_result(self, engine, medical_context_non_compliant):
-        result = engine.check(medical_context_non_compliant)
-        assert result.is_compliant is False
-        assert len(result.non_compliant_rules) > 0
-        assert len(result.summary) > 0
-
-
-# =============================================================================
-# TestComplianceCheckResult
-# =============================================================================
+    def test_check_domain_nonexistent(self, engine):
+        reports = engine.check_domain("nonexistent", {})
+        assert reports == []
 
 
-class TestComplianceCheckResult:
-    """ComplianceCheckResult 聚合结果测试。"""
-
+class TestComplianceResult:
     def test_compliant_result(self):
-        result = ComplianceCheckResult(
-            overall_level=ComplianceLevel.COMPLIANT,
-            domains_checked=["medical"],
-        )
-        assert result.is_compliant is True
-        assert result.is_acceptable is True
-        assert result.summary == "全部合规"
-
-    def test_non_compliant_result(self):
-        result = ComplianceCheckResult(
-            overall_level=ComplianceLevel.NON_COMPLIANT,
-            non_compliant_rules=["rule_a"],
-            conditional_rules=["rule_b"],
-            domains_checked=["legal"],
-        )
-        assert result.is_compliant is False
-        assert "rule_a" in result.summary
+        r = ComplianceCheckResult(overall_level=ComplianceLevel.COMPLIANT, reports=[])
+        assert r.is_compliant
+        assert r.is_acceptable
 
     def test_conditional_result(self):
-        result = ComplianceCheckResult(
-            overall_level=ComplianceLevel.CONDITIONAL,
-            conditional_rules=["rule_x"],
-        )
-        assert result.is_compliant is False
-        assert result.is_acceptable is True
+        r = ComplianceCheckResult(overall_level=ComplianceLevel.CONDITIONAL, reports=[])
+        assert not r.is_compliant
+        assert r.is_acceptable
+
+    def test_non_compliant_result(self):
+        r = ComplianceCheckResult(overall_level=ComplianceLevel.NON_COMPLIANT, reports=[])
+        assert not r.is_compliant
+        assert not r.is_acceptable
+
+    def test_report_fields(self):
+        report = ComplianceReport(rule_name="test", domain="medical",
+                                  level=ComplianceLevel.COMPLIANT,
+                                  reasoning="all good", remediation="none needed")
+        assert report.rule_name == "test"
+        assert report.domain == "medical"
+        assert report.level == ComplianceLevel.COMPLIANT

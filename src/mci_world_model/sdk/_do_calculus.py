@@ -200,6 +200,7 @@ class CausalGraph:
                 mediators.append(child)
         return mediators
 
+
     def __repr__(self) -> str:
         return f"CausalGraph(nodes={len(self.nodes)}, edges={len(self.edges)})"
 
@@ -1132,6 +1133,86 @@ class DoCalculus:
             sample_size=sample_size,
             note=note,
         )
+
+
+    # -----------------------------------------------------------------
+    # 批量 API
+    # -----------------------------------------------------------------
+
+    def batch_estimate_ate(
+        self,
+        pairs: list[tuple[str, str]],
+        x_value: float = 1.0,
+        x_baseline: float = 0.0,
+    ) -> list[InterventionResult]:
+        """批量估计多对 (X, Y) 的 ATE。
+
+        Args:
+            pairs: [(X1, Y1), (X2, Y2), ...]
+            x_value: do(X) 干预值
+            x_baseline: 基线值
+
+        Returns:
+            [InterventionResult, ...] 与 pairs 顺序一致
+        """
+        return [
+            self.estimate_ate(X, Y, x_value=x_value, x_baseline=x_baseline)
+            for X, Y in pairs
+        ]
+
+    def batch_identify_adjustment_sets(
+        self,
+        pairs: list[tuple[str, str]],
+    ) -> dict[tuple[str, str], list[str] | None]:
+        """批量识别调整变量集。
+
+        Args:
+            pairs: [(X1, Y1), (X2, Y2), ...]
+
+        Returns:
+            {(X, Y): [Z1, Z2, ...] or None} 映射
+        """
+        result: dict[tuple[str, str], list[str] | None] = {}
+        for X, Y in pairs:
+            adj = self.identify_adjustment_set(X, Y)
+            # Try frontdoor if backdoor not available
+            if adj is None:
+                med = self.identify_frontdoor_mediators(X, Y)
+                result[(X, Y)] = med  # mediators as pseudo-adjustment
+            else:
+                result[(X, Y)] = adj
+        return result
+
+    def batch_query(
+        self,
+        queries: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """批量干预查询 (兼容高层 API)。
+
+        Args:
+            queries: [{"X": "x1", "Y": "y1", "x_value": 1.0}, ...]
+
+        Returns:
+            [{"ate": float, "method": str, ...}, ...]
+        """
+        results: list[dict[str, Any]] = []
+        for q in queries:
+            X = q["X"]
+            Y = q["Y"]
+            xv = q.get("x_value", 1.0)
+            xb = q.get("x_baseline", 0.0)
+            r = self.estimate_ate(X, Y, x_value=xv, x_baseline=xb)
+            results.append({
+                "X": X,
+                "Y": Y,
+                "ate": r.ate,
+                "method": r.method,
+                "adjustment_set": r.adjustment_set,
+                "ci_low": r.confidence_interval[0],
+                "ci_high": r.confidence_interval[1],
+                "p_value": r.p_value,
+            })
+        return results
 
     def __repr__(self) -> str:
         g = "graph" if self._graph else "no_graph"

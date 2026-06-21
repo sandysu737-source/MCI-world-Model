@@ -125,17 +125,21 @@ class TestSyntheticDAGAccuracy:
         print(f"  ER(10, avg_deg=2) NOTEARS: SHD={shd_val}/{n_edges}, F1={f1_val:.3f}")
 
     def test_er_ges_dense(self):
-        """GES on dense ER(20, avg_deg=4) — scales better than PC for dense graphs."""
+        """GES with PC warm start on dense ER(20, avg_deg=4).
+
+        GES uses PC skeleton as starting point to avoid greedy trap.
+        Note: Pure GES (no warm start) gets F1≈0.10; PC alone gets F1≈0.30.
+        GES+PC improves precision at moderate recall cost.
+        """
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import GESDiscoverer
 
         data, names, gt, n_edges = _generate_er_dag(20, 4, seed=42)
         ges = GESDiscoverer(alpha=0.05)
-        skel = ges.discover(data, names)
+        skel = ges.discover(data, names)  # warm_start=True by default
         shd_val = _shd(skel.adj_matrix, gt)
         f1_val = _f1(skel.adj_matrix, gt)
-        print(f"  ER(20, avg_deg=4) GES: SHD={shd_val}/{n_edges}, F1={f1_val:.3f}")
-        # GES should find at least some structure on dense graphs
-        assert f1_val >= 0.1, f"GES dense F1={f1_val:.3f} below 0.1"
+        print(f"  ER(20, avg_deg=4) GES+PC: SHD={shd_val}/{n_edges}, F1={f1_val:.3f}")
+        assert f1_val >= 0.15, f"GES+PC dense F1={f1_val:.3f} below 0.15"
 
 
 

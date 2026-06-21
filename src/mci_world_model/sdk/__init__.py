@@ -1426,6 +1426,7 @@ __all__ = [
     # ── v6.0.0 / P6 "入化" ──
     "AutonomousLawDiscovererV2",
     "CausalSkeleton",
+    "CAMDiscoverer",
     "FCIDiscoverer",
     "GESDiscoverer",
     "LiNGAMDiscoverer",

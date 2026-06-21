@@ -612,3 +612,95 @@ class TestDoCalculusSimulatedPath:
         result1 = DoCalculus(graph=cg, seed=42).estimate_ate("X", "Y")
         result2 = DoCalculus(graph=cg, seed=42).estimate_ate("X", "Y")
         assert result1.ate == pytest.approx(result2.ate)
+
+
+# =============================================================================
+# 批量 API 测试 (v4.5.0)
+# =============================================================================
+
+
+class TestBatchAPI:
+    """DoCalculus + CausalGraph 批量 API。"""
+
+    @pytest.fixture
+    def dc(self):
+        cg = CausalGraph(
+            nodes=["Z", "X", "Y", "W"],
+            edges=[("Z", "X"), ("Z", "Y"), ("X", "Y"), ("X", "W")],
+        )
+        return DoCalculus(graph=cg, seed=42)
+
+    # ── CausalGraph.batch_estimate_ate ──
+
+    def test_batch_estimate_ate_returns_list(self, dc):
+        """返回与输入等长的列表。"""
+        pairs = [("X", "Y"), ("Z", "Y")]
+        results = dc.batch_estimate_ate(pairs)
+        assert len(results) == len(pairs)
+        for r in results:
+            assert isinstance(r, InterventionResult)
+
+    def test_batch_estimate_ate_empty(self, dc):
+        """空列表 → 空列表。"""
+        assert dc.batch_estimate_ate([]) == []
+
+    def test_batch_estimate_ate_order(self, dc):
+        """结果顺序与输入一致。"""
+        pairs = [("X", "Y"), ("Z", "Y"), ("X", "W")]
+        results = dc.batch_estimate_ate(pairs)
+        for i, (X, Y) in enumerate(pairs):
+            assert results[i].intervention == f"do({X}=1.0)"
+            assert results[i].target == Y
+
+    # ── CausalGraph.batch_identify_adjustment_sets ──
+
+    def test_batch_identify_adj_sets(self, dc):
+        """识别调整变量集。"""
+        adj = dc.batch_identify_adjustment_sets([("X", "Y"), ("Z", "Y")])
+        assert isinstance(adj, dict)
+        assert ("X", "Y") in adj
+        assert ("Z", "Y") in adj
+
+    # ── CausalGraph.batch_query ──
+
+    def test_batch_query_dict_format(self, dc):
+        """batch_query 字典格式。"""
+        queries = [
+            {"X": "X", "Y": "Y", "x_value": 1.0, "x_baseline": 0.0},
+            {"X": "Z", "Y": "X", "x_value": 2.0, "x_baseline": 0.0},
+        ]
+        results = dc.batch_query(queries)
+        assert len(results) == 2
+        for r in results:
+            assert "ate" in r
+            assert "method" in r
+            assert "ci_low" in r
+            assert "ci_high" in r
+
+    # ── DoCalculus.batch_estimate_ate ──
+
+    def test_dc_batch_estimate_ate(self, dc):
+        """DoCalculus 批量 ATE。"""
+        pairs = [("X", "Y"), ("Z", "Y")]
+        results = dc.batch_estimate_ate(pairs)
+        assert len(results) == 2
+        assert results[0].ate is not None
+        assert results[1].ate is not None
+
+    # ── DoCalculus.batch_identify_adjustment_sets ──
+
+    def test_dc_batch_identify_adj(self, dc):
+        """DoCalculus 批量识别。"""
+        adj = dc.batch_identify_adjustment_sets([("X", "Y"), ("Z", "X")])
+        assert ("X", "Y") in adj
+        assert ("Z", "X") in adj
+
+    # ── 空值处理 ──
+
+    def test_batch_query_empty(self, dc):
+        """空查询 → 空列表。"""
+        assert dc.batch_query([]) == []
+
+    def test_batch_identify_empty(self, dc):
+        """空 pairs → 空 dict。"""
+        assert dc.batch_identify_adjustment_sets([]) == {}
