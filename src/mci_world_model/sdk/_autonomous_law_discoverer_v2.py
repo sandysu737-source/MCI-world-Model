@@ -121,13 +121,14 @@ class PCSkeletonDiscoverer:
     约束: 变量数 ≤ 10
     """
 
-    def __init__(self, alpha: float = 0.05, min_corr: float = 0.1) -> None:
+    def __init__(self, alpha: float = 0.05, min_corr: float = 0.1, nonlinear: bool = False) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
         if min_corr < 0.0:
             raise ValueError(f"min_corr 必须 >= 0, 当前 {min_corr}")
         self._alpha = alpha
         self._min_corr = min_corr
+        self._use_nonlinear = nonlinear
 
     def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
         """从数据中学习因果骨架。
@@ -169,7 +170,10 @@ class PCSkeletonDiscoverer:
                     adj[i, j] = 0
                     adj[j, i] = 0
                     continue
-                p_val = self._test_independence(data[:, i], data[:, j], r, _n_samples)
+                if self._use_nonlinear:
+                    p_val = self._test_independence(data[:, i], data[:, j], r, _n_samples)
+                else:
+                    p_val = self._fisher_z_test(r, _n_samples)
                 if p_val > self._alpha:
                     adj[i, j] = 0
                     adj[j, i] = 0
@@ -185,6 +189,11 @@ class PCSkeletonDiscoverer:
                         continue
                     r = self._partial_corr(corr, i, j, [k])
                     p_val = self._fisher_z_test(r, _n_samples)
+                    if self._use_nonlinear and p_val > self._alpha:
+                        p_hsic = self._partial_hsic(
+                            data[:, i], data[:, j], data[:, k], n_perm=60
+                        )
+                        p_val = min(p_val, p_hsic)
                     if p_val > self._alpha:
                         adj[i, j] = 0
                         adj[j, i] = 0
@@ -406,7 +415,7 @@ class PCSkeletonDiscoverer:
         x = np.asarray(x, dtype=np.float64).ravel()
         y = np.asarray(y, dtype=np.float64).ravel()
 
-        max_n = 400
+        max_n = 800
         if len(x) > max_n:
             idx_sub = np.random.RandomState(42).choice(len(x), max_n, replace=False)
             x, y = x[idx_sub], y[idx_sub]

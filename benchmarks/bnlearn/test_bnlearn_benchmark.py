@@ -229,7 +229,7 @@ class TestBNLearnAccuracy:
         report = []
         for dag_name in ["asia", "sachs", "child"]:
             data, nodes, gt_adj, n_edges = _generate_dag_data(dag_name)
-            pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1)
+            pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1, nonlinear=True)
             skel = pc.discover(data, nodes)
             shd_val = _shd(skel.adj_matrix, gt_adj)
             _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
