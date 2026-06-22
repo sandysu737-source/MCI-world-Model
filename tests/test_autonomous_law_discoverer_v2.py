@@ -330,7 +330,7 @@ class TestRegressionEdgeOrientation:
         pc = PCSkeletonDiscoverer(alpha=0.01)
         skel = pc.discover(data, ["X", "Y"])
         # Edge should exist (X→Y, Y→X, or both)
-        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges,             f"No edge found between X and Y"
+        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges,             "No edge found between X and Y"
         # If only one direction, it should be correct (X→Y)
         if ("X", "Y") in skel.edges and ("Y", "X") not in skel.edges:
             pass  # X→Y only: correct

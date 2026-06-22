@@ -1,12 +1,10 @@
 """Tests for Multi-Agent Causal Negotiation."""
 
 import numpy as np
-import pytest
 
 from mci_world_model.sdk._multi_agent_causal import (
-    CausalAgent,
     AgentNegotiation,
-    ConsensusGraph,
+    CausalAgent,
 )
 
 
