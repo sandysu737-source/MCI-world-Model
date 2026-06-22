@@ -1,18 +1,17 @@
 """End-to-end tests for EngineeringSafetySDK — P7 engineering safety validation."""
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mci_world_model.sdk._engineering_safety_sdk import (
-    SafetyParameter,
-    FMEAItem,
-    EngineeringCausalResult,
     EngineeringSafetySDK,
+    FMEAItem,
+    SafetyParameter,
 )
-
 
 # ────────────────────────────────────────────────────────────────────
 # SafetyParameter tests

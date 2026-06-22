@@ -136,7 +136,7 @@ class TestBidirectionalRoundtrip:
     def test_noisy_input_degradation(self, fusion):
         """Fusion score should degrade gracefully with noise."""
         clean = np.array([1.0, 0.2, 0.05])
-        state_clean = fusion.fuse(clean, n_iterations=10)
+        state_clean = fusion.fuse(clean, n_iterations=10)  # noqa: F841
 
         noisy = clean + np.random.RandomState(42).normal(0, 0.3, 3)
         noisy = np.abs(noisy)
