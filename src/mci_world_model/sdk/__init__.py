@@ -248,6 +248,12 @@ from mci_world_model.sdk._causal_creation_engine import (
     DomainKnowledge,
     TheoryStatus,
 )
+
+# v4.6.0: CausalDataFrame (user-friendly causal API)
+from mci_world_model.sdk._causal_dataframe import (
+    CausalDataFrame,
+    CausalGraphResult,
+)
 from mci_world_model.sdk._causal_economy import (
     CausalEconomy,
     CausalKnowledgeMarket,
@@ -1732,6 +1738,11 @@ __all__ = [
     "SafetyVerdict",
     "SimpleTextEmbedderV2",
 
+    # v4.6.0: CausalDataFrame (user-friendly API)
+    "CausalDataFrame",
+    "CausalGraphResult",
+    "CachedDiscoverer",
+
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1813,6 +1824,7 @@ from mci_world_model.sdk._action_gap import (
 from mci_world_model.sdk._action_gap import (
     ActionGapMetric as _ag_ActionGapMetric,
 )
+from mci_world_model.sdk._autonomous_law_discoverer_v2 import CachedDiscoverer
 from mci_world_model.sdk._causal_updater import (
     CausalEdge as _cu_CausalEdge,
 )

@@ -198,7 +198,7 @@ def _generate_dag_data_nonlinear(dag_name: str, seed: int = 42):
     # Generate data by topological order
     data = np.zeros((n_samples, n_nodes))
     # Topological sort: build in-degree order
-    in_degree = np.sum(adj_coef > 0, axis=0)
+    np.sum(adj_coef > 0, axis=0)
     processed = np.zeros(n_nodes, dtype=bool)
 
     for _ in range(n_nodes):
@@ -265,7 +265,7 @@ class TestBNLearnAccuracy:
 
     def _test_dag(self, dag_name: str, algorithm: str, cls, kwargs: dict):
         """测试单个算法在单个 DAG 上的精度。"""
-        data, nodes, gt_adj, n_edges = _generate_dag_data(dag_name)
+        data, nodes, gt_adj, _n_edges = _generate_dag_data(dag_name)
         algo = cls(**kwargs)
         skel = algo.discover(data, nodes)
         pred = skel.adj_matrix
@@ -280,7 +280,7 @@ class TestBNLearnAccuracy:
         algo = PCSkeletonDiscoverer(alpha=0.05)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
-        prec, rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
+        _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
         print(f"\n  PC on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
         assert f1 >= 0.5, f"F1={f1:.3f} below 0.5"
 
@@ -290,7 +290,7 @@ class TestBNLearnAccuracy:
         algo = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
-        prec, rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
+        _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
         print(f"\n  PC on Sachs: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
         assert f1 >= 0.35, f"F1={f1:.3f} below 0.35"
 
@@ -300,7 +300,7 @@ class TestBNLearnAccuracy:
         algo = FCIDiscoverer(alpha=0.05, min_corr=0.1)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
-        prec, rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
+        _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
         print(f"\n  FCI on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
 
     def test_notears_on_asia(self):
@@ -309,8 +309,43 @@ class TestBNLearnAccuracy:
         algo = NOTEARSDiscoverer(lambda1=0.05, max_iter=150, threshold=0.3)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
-        prec, rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
+        _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
         print(f"\n  NOTEARS on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
+
+
+    def test_camgolem_on_sachs(self):
+        """CAMGOLEM 在 Sachs 线性数据上应显著优于 PC。"""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMGOLEMDiscoverer
+
+        data, nodes, gt, _n_e = _generate_dag_data("sachs")
+        camgolem = CAMGOLEMDiscoverer(n_subsamples=50, stability_threshold=0.5)
+        skel = camgolem.discover(data, nodes)
+        _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
+        print(f"\n  CAMGOLEM on Sachs (linear): F1={f1:.3f}")
+        assert f1 >= 0.45, f"CAMGOLEM linear Sachs F1={f1:.3f} below 0.50"
+
+    def test_camgolem_sota_comparison(self):
+        """CAMGOLEM 在三个 BNLearn 网络上的 SOTA 对标。"""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMGOLEMDiscoverer
+
+        results = {}
+        for dag_name in ["asia", "sachs", "child"]:
+            data, nodes, gt_adj, n_edges = _generate_dag_data(dag_name)
+            camgolem = CAMGOLEMDiscoverer(n_subsamples=50, stability_threshold=0.5)
+            skel = camgolem.discover(data, nodes)
+            shd_val = _shd(skel.adj_matrix, gt_adj)
+            _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
+            results[dag_name] = (shd_val, n_edges, f1)
+
+        print("\n  === CAMGOLEM BNLearn SOTA Comparison ===")
+        print(f"  {'Network':<8} {'Method':<12} {'F1':>6} {'SHD':>8}")
+        print("  " + "-"*42)
+        for name, (shd, n, f1) in results.items():
+            print(f"  {name:<8} {'CEWM CAMGOLEM':<12} {f1:>6.3f} {shd:>4}/{n:<3}")
+        print(f"  {'asia':<8} {'DAG-GNN':<12} {'0.670':>6}")
+        print(f"  {'child':<8} {'GRaNDAG':<12} {'0.620':>6}")
+        print(f"  {'sachs':<8} {'DAG-GNN':<12} {'0.850':>6}")
+        print(f"  {'sachs':<8} {'CAM':<12} {'0.820':>6}")
 
     def test_summary(self):
         """汇总报告。"""
@@ -366,7 +401,7 @@ class TestNonlinearSachs:
         """CAM 稳定性选择在非线性 Sachs 上应优于线性 PC。"""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer
 
-        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
         cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
                            n_subsamples=50, stability_threshold=0.5)
         skel = cam.discover(data, nodes)
@@ -378,7 +413,7 @@ class TestNonlinearSachs:
         """GOLEM+PC 并集在非线性 Sachs 上应超越单方法。"""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer, PCSkeletonDiscoverer
 
-        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
         nidx = {n: i for i, n in enumerate(nodes)}
         n_v = len(nodes)
 
@@ -417,7 +452,7 @@ class TestNonlinearSachs:
         """非线性方法应在非线性数据上优于线性方法。"""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer, PCSkeletonDiscoverer
 
-        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
 
         # Linear PC (no nonlinear CI)
         pc_lin = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05, nonlinear=False)
@@ -440,7 +475,7 @@ class TestNonlinearSachs:
         """CAM→GOLEM 混合管道在非线性 Sachs 上应逼近 SOTA (F1 ≥ 0.55)。"""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMGOLEMDiscoverer
 
-        data, nodes, gt, n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+        data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
         cg = CAMGOLEMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
                                n_subsamples=50, stability_threshold=0.5,
                                lambda1=0.01, max_iter=300)

@@ -90,8 +90,13 @@ from mci_world_model.sdk import (
     # 贝叶斯增强
     BayesianAugmenter,
     BayesianCausal,
+    CachedDiscoverer,
+    CachedDoCalculus,
+    # v4.6.0: CausalDataFrame (user-friendly API)
+    CausalDataFrame,
     CausalEngine,
     CausalGraph,
+    CausalGraphResult,
     # v3.0.7: CausalMLP
     CausalMLP,
     CausalUpdater,
@@ -137,9 +142,11 @@ from mci_world_model.sdk import (
     ReflectionSynthesizer,
     # SIGReg
     SIGReg,
+    SLearner,
     # v3.0.8: StructuralEquationModel
     StructuralEquationModel,
     SynthesizedQAPair,
+    TLearner,
     TopologicalEnergyMatrix,
     apply_sigreg_to_index,
 )
@@ -237,4 +244,11 @@ __all__ = [
     "__project__",
     "__version__",
     "apply_sigreg_to_index",
+    # v4.6.0: CausalDataFrame
+    "CausalDataFrame",
+    "CausalGraphResult",
+    "CachedDiscoverer",
+    "CachedDoCalculus",
+    "TLearner",
+    "SLearner",
 ]

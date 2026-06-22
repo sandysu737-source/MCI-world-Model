@@ -133,11 +133,34 @@ jobs:
               print(f'  ✓ {mod}')
           "
 
+
+  # ===================== Gate 5: BNLearn Benchmark =====================
+  gate-5-bnlearn:
+    name: "Gate 5 · BNLearn Benchmark"
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install (full)
+        run: pip install -e ".[full]"
+
+      - name: Run BNLearn Benchmark
+        run: |
+          PYTHONPATH=${{ github.workspace }}/src pytest benchmarks/bnlearn/ -v --tb=short --timeout=120
+
   # ===================== Publish: Tag & Release (main only) =====================
   release:
     name: "Publish · Tag & Release"
     runs-on: macos-latest
-    needs: [gate-1-lint, gate-2-types, gate-3-test, gate-4-bench]
+    needs: [gate-1-lint, gate-2-types, gate-3-test, gate-4-bench, gate-5-bnlearn]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write

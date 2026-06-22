@@ -19,6 +19,7 @@ import gc
 import time
 
 import numpy as np
+import pytest
 
 from benchmarks.real_world.mimic_causal_benchmark import (
     MIMICCausalBenchmark,
@@ -126,6 +127,7 @@ class TestMIMICBenchmark:
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
             CAMGOLEMDiscoverer,
+            FCIDiscoverer,
             PCSkeletonDiscoverer,
         )
 
@@ -172,7 +174,7 @@ class TestMIMICBenchmark:
 
         gc.disable()
         t0 = time.perf_counter()
-        result = benchmark.run_cewm_benchmark(patients)
+        benchmark.run_cewm_benchmark(patients)
         t = time.perf_counter() - t0
         gc.enable()
 

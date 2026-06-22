@@ -199,51 +199,59 @@ class PCSkeletonDiscoverer:
                         adj[j, i] = 0
                         break
 
-        # 2c: 2 阶检验 (条件独立，打破更复杂伪边) — 仅在 nonlinear 模式
-        if self._use_nonlinear and n_vars > 5:
+        # 2c: 高阶条件独立检验 (2阶+, 所有模式)
+        # PC 算法核心: 迭代 k=2,3,... 直到 k > max_degree
+        # sachs (11节点) 需要到 k=3 才能正确删边
+        max_k = min(n_vars - 2, 4)  # 上限 4 阶, 避免组合爆炸
+        for k in range(2, max_k + 1):
+            edge_removed = False
             for i in range(n_vars):
                 for j in range(i + 1, n_vars):
                     if adj[i, j] == 0:
                         continue
-                    # 快速线性预筛：偏相关系数
-                    for k1 in range(n_vars):
-                        if k1 in (i, j):
-                            continue
-                        for k2 in range(k1 + 1, n_vars):
-                            if k2 in (i, j):
-                                continue
-                            r = self._partial_corr(corr, i, j, [k1, k2])
-                            p_linear = self._fisher_z_test(r, _n_samples)
-                            if p_linear > self._alpha * 0.5:
-                                # 线性已弱 → KCIT 确认
-                                # 取 200 子样本加速
-                                idx_sub = np.random.RandomState(42).choice(
-                                    _n_samples, min(_n_samples, 300), replace=False
-                                )
-                                p_kcit1 = self._kcit_test(
-                                    data[idx_sub, i], data[idx_sub, j],
-                                    data[idx_sub, k1], n_perm=40
-                                )
-                                if p_kcit1 > self._alpha:
-                                    adj[i, j] = 0
-                                    adj[j, i] = 0
-                                    break
-                                p_kcit2 = self._kcit_test(
-                                    data[idx_sub, i], data[idx_sub, j],
-                                    data[idx_sub, k2], n_perm=40
-                                )
-                                if p_kcit2 > self._alpha:
-                                    adj[i, j] = 0
-                                    adj[j, i] = 0
-                                    break
-                        if adj[i, j] == 0:
+                    # 选取条件集: adj(i)\j 或 adj(j)\i (选小的)
+                    adj_i = [x for x in range(n_vars) if x != j and adj[i, x] == 1]
+                    adj_j = [x for x in range(n_vars) if x != i and adj[j, x] == 1]
+                    cond_set = adj_i if len(adj_i) <= len(adj_j) else adj_j
+                    if len(cond_set) < k:
+                        continue
+                    # 枚举 cond_set 的 k-子集 (限制最多 200 个子集)
+                    from itertools import combinations
+                    subsets = list(combinations(cond_set, k))
+                    max_subsets = 200
+                    if len(subsets) > max_subsets:
+                        rng = np.random.RandomState(k * 100 + i * 31 + j * 17)
+                        indices = rng.choice(len(subsets), max_subsets, replace=False)
+                        subsets = [subsets[idx] for idx in indices]
+                    for S in subsets:
+                        r = self._partial_corr(corr, i, j, list(S))
+                        p_val = self._fisher_z_test(r, _n_samples)
+                        if self._use_nonlinear and p_val > self._alpha * 0.8:
+                            # KCIT 复核 (取 min 以收紧)
+                            idx_sub = np.random.RandomState(k * 17 + i + j).choice(
+                                _n_samples, min(_n_samples, 500), replace=False
+                            )
+                            p_kcit = self._kcit_test(
+                                data[idx_sub, i], data[idx_sub, j],
+                                data[idx_sub, next(iter(S))], n_perm=50
+                            )
+                            p_val = min(p_val, p_kcit)
+                        if p_val > self._alpha:
+                            adj[i, j] = 0
+                            adj[j, i] = 0
+                            edge_removed = True
                             break
+            if not edge_removed:
+                break  # 没有边可删, 提前终止迭代
 
         # Step 3: 方向推断 (简化: 基于 partial correlation 不对称性)
         edges = self._orient_edges(adj, corr, var_names, _n_samples)
 
         # Step 3+: 回归残余定向 — 对无向边使用 OLS 残差方差不对称性确定方向
         edges = self._orient_edges_by_regression(data, adj, edges, var_names)
+
+        # Step 3++: BIC 边剪枝 (disabled — too aggressive for small DAGs)
+        # edges = self._bic_edge_pruning(data, adj, edges, var_names, _n_samples)
 
         # Build directed adjacency matrix from final edges (for SHD comparison)
         name_to_idx = {name: i for i, name in enumerate(var_names)}
@@ -280,7 +288,75 @@ class PCSkeletonDiscoverer:
         # 简化: 忽略条件变量对其他边的影响, 近似递归
         return r_adj
 
+
+    def discover_bootstrap(
+        self, data: np.ndarray, var_names: list[str],
+        n_bootstrap: int = 30, edge_threshold: float = 0.5,
+    ) -> CausalSkeleton:
+        """Bootstrap-aggregated PC discovery (PC-stable style).
+
+        Runs PC on n_bootstrap resamples, keeps edges appearing in
+        ≥ edge_threshold fraction. Improves precision on dense networks.
+
+        Args:
+            data: (n_samples, n_vars)
+            var_names: variable names
+            n_bootstrap: number of bootstrap resamples (default 30)
+            edge_threshold: keep edges with frequency ≥ this (default 0.5)
+
+        Returns:
+            CausalSkeleton with stability-selected edges
+        """
+        n_vars = len(var_names)
+        n_samples = data.shape[0]
+        if n_samples < 10 or n_vars < 2:
+            return self.discover(data, var_names)
+
+        # Edge frequency counters (directed)
+        edge_counts = np.zeros((n_vars, n_vars), dtype=float)
+        rng = np.random.RandomState(42)
+
+        for b in range(n_bootstrap):
+            # Bootstrap resample with replacement
+            idx = rng.choice(n_samples, n_samples, replace=True)
+            X_boot = data[idx]
+            skel = self.discover(X_boot, var_names)
+
+            # Record edges
+            name_to_idx = {n: i for i, n in enumerate(var_names)}
+            for src, dst in skel.edges:
+                edge_counts[name_to_idx[src], name_to_idx[dst]] += 1
+
+        # Stability selection
+        edge_freq = edge_counts / n_bootstrap
+
+        # Resolve bidirectional: keep direction with higher frequency
+        adj_final = np.zeros((n_vars, n_vars), dtype=int)
+        for i in range(n_vars):
+            for j in range(n_vars):
+                if i == j:
+                    continue
+                if edge_freq[i, j] >= edge_threshold and edge_freq[i, j] >= edge_freq[j, i]:
+                    adj_final[i, j] = 1
+
+        # Build edges
+        edges = []
+        for i in range(n_vars):
+            for j in range(n_vars):
+                if adj_final[i, j] == 1:
+                    edges.append((var_names[i], var_names[j]))
+
+        confidence = float(np.mean(edge_freq[adj_final == 1])) if np.sum(adj_final) > 0 else 0.0
+
+        return CausalSkeleton(
+            nodes=list(var_names),
+            edges=edges,
+            adj_matrix=adj_final,
+            confidence=confidence,
+        )
+
     def _fisher_z_test(self, r: float, n_samples: int) -> float:
+
         """Fisher z-transform 双尾检验。
 
         H₀: ρ = 0 (独立)
@@ -380,6 +456,50 @@ class PCSkeletonDiscoverer:
 
         return edges
 
+
+    def _bic_edge_pruning(
+        self, data: np.ndarray, adj: np.ndarray,
+        edges: list[tuple[str, str]], var_names: list[str], n_samples: int,
+    ) -> list[tuple[str, str]]:
+        """BIC-based edge pruning: remove spurious edges where independence model fits better.
+
+        For each edge (i,j), compare:
+          BIC_dep = -n * log(var(residual)) - k*log(n)  (dependent model: i~j)
+          BIC_ind = -n * log(var(i)) - 0                (independent model: i independent of j)
+        If BIC_ind > BIC_dep + threshold, prune the edge.
+        """
+        name_to_idx = {name: i for i, name in enumerate(var_names)}
+        edge_set = set(edges)
+        pruned = set()
+
+        for a_name, b_name in list(edge_set):
+            if (a_name, b_name) in pruned or (b_name, a_name) in pruned:
+                continue
+            a_idx = name_to_idx[a_name]
+            b_idx = name_to_idx[b_name]
+
+            x_a = data[:, a_idx].astype(np.float64)
+            x_b = data[:, b_idx].astype(np.float64)
+
+            # BIC for dependent model (x_b ~ x_a)
+            A = np.column_stack([x_a, np.ones(len(x_a))])
+            _, res, _, _ = np.linalg.lstsq(A, x_b, rcond=None)
+            var_dep = max(np.var(res) if res.size > 0 else 1e-10, 1e-10)
+            bic_dep = n_samples * np.log(var_dep) + 2 * np.log(n_samples)
+
+            # BIC for independent model (x_b ~ constant)
+            var_ind = max(np.var(x_b), 1e-10)
+            bic_ind = n_samples * np.log(var_ind) + 1 * np.log(n_samples)
+
+            # If independent model is significantly better, prune edge
+            bic_threshold = 3.0  # Kass & Raftery positive evidence threshold
+            if bic_ind < bic_dep - bic_threshold:
+                pruned.add((a_name, b_name))
+                pruned.add((b_name, a_name))
+
+        edge_set -= pruned
+        return list(edge_set)
+
     @staticmethod
     def _compute_confidence(adj: np.ndarray, corr: np.ndarray) -> float:
         """骨架置信度 — 边的平均|偏相关|。"""
@@ -434,13 +554,16 @@ class PCSkeletonDiscoverer:
             var_a_given_b = float(np.var(res_ba)) if res_ba.size > 0 else 1e10
             var_b_given_a = float(np.var(res_ab)) if res_ab.size > 0 else 1e10
 
-            # Decision: BIC first, LiNGAM tiebreak
-            if bic_ab > bic_ba + 1.0:  # clear BIC preference
+            # Decision: BIC first, LiNGAM + asymmetry ratio as tiebreaker
+            abs(bic_ab - bic_ba) / max(abs(bic_ab), abs(bic_ba), 1.0)
+            if bic_ab > bic_ba + 1.0:  # clear BIC preference a→b
                 edge_set.discard((b_name, a_name))
-            elif bic_ba > bic_ab + 1.0 or var_a_given_b < var_b_given_a:
+            elif bic_ba > bic_ab + 1.0:  # clear BIC preference b→a
                 edge_set.discard((a_name, b_name))
-            elif var_b_given_a < var_a_given_b:
+            elif var_a_given_b < var_b_given_a * 0.95:  # a→b clear via residual
                 edge_set.discard((b_name, a_name))
+            elif var_b_given_a < var_a_given_b * 0.95:  # b→a clear via residual
+                edge_set.discard((a_name, b_name))
             # else: both directions very close — keep undirected (both directions remain)
 
         return list(edge_set)
@@ -1686,7 +1809,7 @@ class CAMDiscoverer:
     """
 
     def __init__(self, alpha: float = 0.05, n_splines: int = 5,
-                 max_parents: int = 5, n_subsamples: int = 50,
+                 max_parents: int = 8, n_subsamples: int = 50,
                  stability_threshold: float = 0.6) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
@@ -1965,3 +2088,70 @@ class CAMGOLEMDiscoverer:
             adj_matrix=adj,
             confidence=confidence,
         )
+
+
+
+
+# =============================================================================
+# CachedDiscoverer — LRU-cached causal discovery wrapper
+# =============================================================================
+
+
+class CachedDiscoverer:
+    """LRU-cached wrapper for any causal discoverer.
+
+    Caches results by (data_hash, method_params) key.
+    Useful for repeated discovery queries in notebooks and pipelines.
+
+    Usage:
+        >>> cached = CachedDiscoverer(CAMGOLEMDiscoverer(), maxsize=64)
+        >>> g1 = cached.discover(data, nodes)
+        >>> g2 = cached.discover(data, nodes)  # cache hit
+    """
+
+    def __init__(self, discoverer, maxsize: int = 64):
+        self._discoverer = discoverer
+        self._cache: dict = {}
+        self._maxsize = maxsize
+        self._hits = 0
+        self._misses = 0
+
+    def discover(self, data: np.ndarray, var_names: list[str]):
+        key = self._make_key(data, var_names)
+
+        if key in self._cache:
+            self._hits += 1
+            return self._cache[key]
+
+        self._misses += 1
+        result = self._discoverer.discover(data, var_names)
+
+        # LRU eviction
+        if len(self._cache) >= self._maxsize:
+            oldest = next(iter(self._cache))
+            del self._cache[oldest]
+
+        self._cache[key] = result
+        return result
+
+    def cache_info(self) -> dict:
+        return {
+            "hits": self._hits,
+            "misses": self._misses,
+            "size": len(self._cache),
+            "maxsize": self._maxsize,
+        }
+
+    def _make_key(self, data: np.ndarray, var_names: list[str]) -> int:
+        """Hash key from data fingerprint + variable names."""
+        # Fast hash: mean + std of first 1000 samples + var names
+        subset = data[:1000] if data.shape[0] > 1000 else data
+        fp = (subset.mean(axis=0).tobytes() +
+              subset.std(axis=0).tobytes() +
+              str(sorted(var_names)).encode())
+        return hash(fp)
+
+    def clear(self):
+        self._cache.clear()
+        self._hits = 0
+        self._misses = 0

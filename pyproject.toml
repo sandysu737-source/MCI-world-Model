@@ -97,7 +97,7 @@ where = ["src"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-extend-exclude = ["build", "dist", ".venv"]
+extend-exclude = ["build", "dist", ".venv", ".github", ".notebooks", "notebooks", "Makefile"]
 
 [tool.ruff.lint]
 select = [
