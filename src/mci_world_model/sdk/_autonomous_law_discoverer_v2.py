@@ -1811,6 +1811,75 @@ class FCIDiscoverer:
                 break
 
 
+    def pag_edge_labels(self, data: np.ndarray, var_names: list[str]) -> dict:
+        """Classify FCI output into PAG edge types.
+
+        Returns dict mapping edge type to list of directed edges:
+          - "direct":    A → B       (no latent confounder)
+          - "bidirected": A ↔ B      (latent confounder)
+          - "undirected": A — B      (insufficient info)
+          - "partial":   A ∘→ B     (A is ancestor, unknown if direct)
+
+        This provides the human-readable PAG (Partial Ancestral Graph)
+        output that distinguishes direct causation from confounding.
+        """
+        skel = self.discover(data, var_names)
+        adj = skel.adj_matrix
+        n_vars = len(var_names)
+        corr = np.corrcoef(data.T)
+
+        labels = {
+            "direct": [],
+            "bidirected": [],
+            "undirected": [],
+            "partial": [],
+        }
+
+        for i in range(n_vars):
+            for j in range(i + 1, n_vars):
+                fwd = adj[i, j]
+                rev = adj[j, i]
+
+                if fwd and rev:
+                    # Bidirectional → potential latent confounder
+                    labels["bidirected"].append((var_names[i], var_names[j]))
+                elif fwd and not rev:
+                    # Directed i→j
+                    # Check if could be confounded: high residual correlation
+                    # after regressing j on i
+                    X = np.column_stack([np.ones(len(data)), data[:, i]])
+                    try:
+                        _, res, _, _ = np.linalg.lstsq(X, data[:, j], rcond=None)
+                        rss = float(res[0]) if res.size > 0 else 1.0
+                        residual_std = np.sqrt(rss / max(len(data) - 2, 1))
+                    except np.linalg.LinAlgError:
+                        residual_std = 1.0
+
+                    if residual_std < 0.5 and abs(corr[i, j]) > 0.3:
+                        labels["direct"].append((var_names[i], var_names[j]))
+                    else:
+                        labels["partial"].append((var_names[i], var_names[j]))
+                elif rev and not fwd:
+                    # Directed j→i
+                    X = np.column_stack([np.ones(len(data)), data[:, j]])
+                    try:
+                        _, res, _, _ = np.linalg.lstsq(X, data[:, i], rcond=None)
+                        rss = float(res[0]) if res.size > 0 else 1.0
+                        residual_std = np.sqrt(rss / max(len(data) - 2, 1))
+                    except np.linalg.LinAlgError:
+                        residual_std = 1.0
+
+                    if residual_std < 0.5 and abs(corr[i, j]) > 0.3:
+                        labels["direct"].append((var_names[j], var_names[i]))
+                    else:
+                        labels["partial"].append((var_names[j], var_names[i]))
+                else:
+                    # No edge in either direction
+                    continue
+
+        return labels
+
+
 # =============================================================================
 # CAMDiscoverer — Causal Additive Models (nonlinear)
 # =============================================================================
