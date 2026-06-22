@@ -364,6 +364,93 @@ def evaluate_direction(pairs: list[dict], method: str = "hybrid") -> dict:
     }
 
 
+def _hsic_direction(cause: np.ndarray, effect: np.ndarray) -> float:
+    """HSIC-based direction score: >0 if cause→effect preferred.
+
+    Under the causal direction, the residuals (effect regressed on cause)
+    should be independent of the cause. We test both directions and return
+    the difference in independence scores.
+    """
+    n = len(cause)
+    x, y = cause.copy(), effect.copy()
+
+    # Direction 1: x→y, test if residuals(y|x) ⟂ x
+    A_xy = np.column_stack([x, np.ones(n)])
+    coeff_xy, _, _, _ = np.linalg.lstsq(A_xy, y, rcond=None)
+    resid_xy = y - A_xy @ coeff_xy
+
+    # Direction 2: y→x, test if residuals(x|y) ⟂ y
+    A_yx = np.column_stack([y, np.ones(n)])
+    coeff_yx, _, _, _ = np.linalg.lstsq(A_yx, x, rcond=None)
+    resid_yx = x - A_yx @ coeff_yx
+
+    # HSIC approximation: correlation between squared residuals and cause
+    # Lower correlation → more independent → preferred direction
+    def hsic_approx(a, b):
+        """Fast HSIC approximation via correlation of absolute values."""
+        a_centered = a - a.mean()
+        b_centered = b - b.mean()
+        return abs(np.dot(a_centered, b_centered)) / max(np.std(a) * np.std(b) * n, 1e-10)
+
+    hsic_xy = hsic_approx(x, np.abs(resid_xy))
+    hsic_yx = hsic_approx(y, np.abs(resid_yx))
+
+    # Positive → cause→effect preferred (lower HSIC in causal direction)
+    return hsic_yx - hsic_xy
+
+
+def evaluate_triple_direction(pairs: list[dict]) -> dict:
+    """Three-method hybrid: IGCI entropy + LiNGAM residual + HSIC independence.
+
+    Voting:
+      - All 3 agree → confident
+      - 2/3 agree → majority wins
+      - All disagree → entropy wins (best standalone: 62.2%)
+    """
+    correct = 0
+    results = []
+    for pair in pairs:
+        cause = pair["cause"]
+        effect = pair["effect"]
+
+        # Method 1: Entropy slope (62.2% standalone)
+        sc = _entropy_slope(cause)
+        se = _entropy_slope(effect)
+        ent_pred = "cause→effect" if sc > se else "effect→cause"
+
+        # Method 2: Residual asymmetry (53.1% standalone)
+        ra = _residual_asymmetry(cause, effect)
+        res_pred = "cause→effect" if ra > 0 else "effect→cause"
+
+        # Method 3: HSIC independence (new)
+        hs = _hsic_direction(cause, effect)
+        hsic_pred = "cause→effect" if hs > 0 else "effect→cause"
+
+        # Voting
+        votes_cause = sum(1 for p in [ent_pred, res_pred, hsic_pred] if p == "cause→effect")
+        if votes_cause >= 2:
+            pred = "cause→effect"
+        else:
+            pred = "effect→cause"
+
+        is_correct = pred == pair["ground_truth"]
+        if is_correct:
+            correct += 1
+        results.append({
+            "pair_id": pair["pair_id"],
+            "correct": is_correct,
+            "ent_pred": ent_pred,
+            "res_pred": res_pred,
+            "hsic_pred": hsic_pred,
+        })
+
+    return {
+        "accuracy": correct / max(len(pairs), 1),
+        "correct": correct,
+        "total": len(pairs),
+        "results": results,
+    }
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Convenience: ensure data exists on import
 # ─────────────────────────────────────────────────────────────────────────────

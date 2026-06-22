@@ -133,7 +133,11 @@ class TestMIMICBenchmark:
         pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05, nonlinear=True)
         pc_skel = pc.discover(data, var_names)
 
-        # CAMGOLEM
+        # FCI (handles latent confounders)
+        fci = FCIDiscoverer(alpha=0.05, min_corr=0.05)
+        fci_skel = fci.discover(data, var_names)
+
+        # CAMGOLEM (sparse high-dim: limited by CAM skeleton phase)
         cg = CAMGOLEMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
                                 n_subsamples=30, stability_threshold=0.4,
                                 lambda1=0.01, max_iter=200)
@@ -150,14 +154,16 @@ class TestMIMICBenchmark:
             return prec, rec, f1
 
         pc_prec, pc_rec, pc_f1 = prf(pc_skel.adj_matrix)
+        fci_prec, fci_rec, fci_f1 = prf(fci_skel.adj_matrix)
         cg_prec, cg_rec, cg_f1 = prf(cg_skel.adj_matrix)
 
         print(f"\n  MIMIC Causal Discovery (n={data.shape[0]}, vars={n_v}, edges={n_gt_edges})")
         print(f"  PC:       P={pc_prec:.3f} R={pc_rec:.3f} F1={pc_f1:.3f}")
+        print(f"  FCI:      P={fci_prec:.3f} R={fci_rec:.3f} F1={fci_f1:.3f}")
         print(f"  CAMGOLEM: P={cg_prec:.3f} R={cg_rec:.3f} F1={cg_f1:.3f}")
 
         # At least one method should find some edges
-        assert pc_f1 > 0.0 or cg_f1 > 0.0, "No causal edges discovered"
+        assert pc_f1 > 0.0 or fci_f1 > 0.0, "No causal edges discovered"
 
     def test_scalability(self):
         """可扩展性: 50 患者。"""

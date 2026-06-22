@@ -7,6 +7,7 @@ import numpy as np
 from benchmarks.real_world.tuebingen_pairs import (
     _generate_synthetic_pairs,
     evaluate_camgolem_direction,
+    evaluate_triple_direction,
     evaluate_direction,
     load_tuebingen_pairs,
 )
