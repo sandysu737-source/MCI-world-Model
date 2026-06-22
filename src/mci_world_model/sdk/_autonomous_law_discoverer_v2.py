@@ -1305,6 +1305,7 @@ class NOTEARSDiscoverer:
         max_iter: int = 100,
         threshold: float = 0.3,
         method: str = "golem",
+        direct_from_w: bool = True,
     ):
         if lambda1 <= 0:
             raise ValueError(f"lambda1 必须为正, 当前 {lambda1}")
@@ -1314,6 +1315,7 @@ class NOTEARSDiscoverer:
         self._max_iter = max_iter
         self._threshold = threshold
         self._method = method  # 'golem' (default) or 'notears' (legacy)
+        self._direct_from_w = direct_from_w
 
     def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
         """从数据学习因果 DAG。
@@ -1362,7 +1364,30 @@ class NOTEARSDiscoverer:
         else:
             W = self._optimize_w(X, n_vars, n_samples, W_init=W_init)
 
-        # Stage 1: Get candidate edge set from PC skeleton (reliable directions)
+        # Stage 1: Direct thresholding on GOLEM W (more aggressive, fewer false negatives)
+        # For GOLEM, the optimized W already encodes DAG structure;
+        # thresholding directly preserves learned sparsity patterns.
+        if self._method == "golem" and self._direct_from_w:
+            adj_refit = np.zeros((n_vars, n_vars), dtype=int)
+            for i in range(n_vars):
+                for j in range(n_vars):
+                    if i == j:
+                        continue
+                    # Keep edge if |W[i,j]| > threshold AND W[i,j] > W[j,i]
+                    if abs(W[i, j]) > self._threshold and abs(W[i, j]) > abs(W[j, i]):
+                        adj_refit[i, j] = 1
+            # Build edges directly
+            edges = []
+            for i in range(n_vars):
+                for j in range(n_vars):
+                    if adj_refit[i, j] == 1:
+                        edges.append((var_names[i], var_names[j]))
+            return CausalSkeleton(
+                nodes=list(var_names), edges=edges, adj_matrix=adj_refit,
+                confidence=float(np.mean(np.abs(W)[adj_refit == 1]) if np.sum(adj_refit) > 0 else 0.0),
+            )
+
+        # Stage 1 (default): Get candidate edge set from PC skeleton (reliable directions)
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
         pc_refit = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05)
         pc_skel = pc_refit.discover(data, var_names)
@@ -1810,14 +1835,21 @@ class CAMDiscoverer:
 
     def __init__(self, alpha: float = 0.05, n_splines: int = 5,
                  max_parents: int = 8, n_subsamples: int = 50,
-                 stability_threshold: float = 0.6) -> None:
+                 stability_threshold: float = 0.6,
+                 kernel: str = "spline", n_rbf_centers: int = 10,
+                 rbf_gamma: float | None = None) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
+        if kernel not in ("spline", "rbf"):
+            raise ValueError(f"kernel 必须是 'spline' 或 'rbf', 当前 {kernel}")
         self._alpha = alpha
         self._n_splines = n_splines
         self._max_parents = max_parents
         self._n_subsamples = n_subsamples  # B in Bühlmann 2014
         self._stability_threshold = stability_threshold  # π_thr
+        self._kernel = kernel
+        self._n_rbf_centers = n_rbf_centers
+        self._rbf_gamma = rbf_gamma
 
     def discover(self, data: np.ndarray, var_names: list[str]) -> CausalSkeleton:
         """Discover causal graph with stability selection.
@@ -1917,12 +1949,13 @@ class CAMDiscoverer:
     def _nonlinear_score(self, x: np.ndarray, y: np.ndarray) -> float:
         """Score nonlinear relationship between x and y.
 
-        Returns F-statistic from comparing:
-          H0: y = β₀ + β₁x (linear only)
-          H1: y = β₀ + Σ_k β_k·spline_k(x) (spline basis)
+        When kernel="spline": F-statistic comparing linear vs spline basis.
+        When kernel="rbf": F-statistic comparing linear vs RBF kernel features.
 
         Higher score → stronger nonlinear relationship → x is likely a parent of y.
         """
+        if self._kernel == "rbf":
+            return self._rbf_score(x, y)
         x = np.asarray(x, dtype=np.float64).ravel()
         y = np.asarray(y, dtype=np.float64).ravel()
         n = len(x)
@@ -1961,6 +1994,72 @@ class CAMDiscoverer:
             return 0.0
 
         f_stat = ((rss_lin - rss_spline) / df_diff) / max(rss_spline / max(n - df_spline, 1), 1e-10)
+
+        return float(f_stat)
+
+    def _rbf_score(self, x: np.ndarray, y: np.ndarray) -> float:
+        """Score nonlinear relationship using Gaussian RBF kernel features.
+
+        RBF (Radial Basis Function) kernels capture arbitrary smooth nonlinearities
+        better than truncated power splines, especially for:
+          - Multi-modal relationships
+          - Periodic nonlinearities
+          - Sharp transitions
+
+        Uses Nyström-style random Fourier features for O(N·D) complexity
+        instead of O(N²) kernel matrix.
+        """
+        x = np.asarray(x, dtype=np.float64).ravel()
+        y = np.asarray(y, dtype=np.float64).ravel()
+        n = len(x)
+
+        if n < 10:
+            return 0.0
+
+        # Linear model (H0)
+        X_lin = np.column_stack([np.ones(n), x])
+        try:
+            coeff_lin, res_lin, _, _ = np.linalg.lstsq(X_lin, y, rcond=None)
+            rss_lin = float(res_lin[0]) if res_lin.size > 0 else float(
+                np.sum((y - X_lin @ coeff_lin) ** 2))
+        except np.linalg.LinAlgError:
+            return 0.0
+
+        # RBF kernel feature expansion
+        # Use random Fourier features: z(x) = [cos(ω₁x+b₁), ..., cos(ω_Dx+b_D)]
+        # where ω ~ N(0, γ) and b ~ U(0, 2π)
+        sigma = float(np.std(x))
+        if sigma < 1e-10:
+            return 0.0
+        gamma = self._rbf_gamma if self._rbf_gamma is not None else 1.0 / (2.0 * sigma * sigma)
+
+        rng = np.random.RandomState(42)
+        n_features = self._n_rbf_centers
+        omega = rng.normal(0, np.sqrt(2 * gamma), n_features)
+        bias = rng.uniform(0, 2 * np.pi, n_features)
+
+        # Build RBF feature matrix
+        X_rbf = np.column_stack([np.ones(n), x])  # start with linear terms
+        for w, b in zip(omega, bias):
+            X_rbf = np.column_stack([X_rbf, np.cos(w * x + b)])
+
+        try:
+            coeff_rbf, res_rbf, _, _ = np.linalg.lstsq(X_rbf, y, rcond=None)
+            rss_rbf = float(res_rbf[0]) if res_rbf.size > 0 else float(
+                np.sum((y - X_rbf @ coeff_rbf) ** 2))
+        except np.linalg.LinAlgError:
+            return 0.0
+
+        # F-test
+        df_lin = 2  # intercept + slope
+        df_rbf = X_rbf.shape[1]
+        df_diff = df_rbf - df_lin
+
+        if df_diff <= 0 or rss_rbf >= rss_lin:
+            return 0.0
+
+        f_stat = ((rss_lin - rss_rbf) / df_diff) / max(
+            rss_rbf / max(n - df_rbf, 1), 1e-10)
 
         return float(f_stat)
 

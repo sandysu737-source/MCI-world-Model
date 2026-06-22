@@ -124,6 +124,30 @@ class MultiViewStats:
     avg_latency_ms: float = 0.0
 
 
+@dataclass
+class RetrievalEvalResult:
+    """检索评测结果 — Recall@k / Precision@k / MRR / NDCG@k."""
+
+    k: int = 5
+    num_queries: int = 0
+    mean_recall: float = 0.0
+    mean_precision: float = 0.0
+    mean_mrr: float = 0.0
+    mean_ndcg: float = 0.0
+    hit_rate: float = 0.0
+    per_query: list[dict] = field(default_factory=list)
+
+    def summary(self) -> str:
+        return (
+            f"RetrievalEval(k={self.k}, queries={self.num_queries})\n"
+            f"  Recall@{self.k}:    {self.mean_recall:.3f}\n"
+            f"  Precision@{self.k}: {self.mean_precision:.3f}\n"
+            f"  MRR:              {self.mean_mrr:.3f}\n"
+            f"  NDCG@{self.k}:      {self.mean_ndcg:.3f}\n"
+            f"  HitRate@{self.k}:   {self.hit_rate:.3f}"
+        )
+
+
 # =============================================================================
 # 上下文维索引
 # =============================================================================
@@ -566,6 +590,93 @@ class MultiViewRetriever:
             avg_latency_ms=self._total_latency_ms / max(1, self._query_count),
         )
 
+    def evaluate(
+        self,
+        queries: list[QuerySpec],
+        ground_truth: list[set[str]],
+        k: int = 5,
+    ) -> RetrievalEvalResult:
+        """评估检索质量。
+
+        对每个查询，计算与 ground_truth 的匹配指标。
+
+        Args:
+            queries: 查询列表
+            ground_truth: 每个查询对应的相关经验 ID 集合
+            k: 截断位置
+
+        Returns:
+            RetrievalEvalResult with Recall@k, Precision@k, MRR, NDCG@k
+        """
+        if len(queries) != len(ground_truth):
+            raise ValueError(
+                f"queries ({len(queries)}) and ground_truth ({len(ground_truth)}) must have same length"
+            )
+        if len(queries) == 0:
+            return RetrievalEvalResult(k=k)
+
+        per_query: list[dict] = []
+        recall_sum = precision_sum = mrr_sum = ndcg_sum = 0.0
+        hits = 0
+
+        for q, gt in zip(queries, ground_truth):
+            results = self.retrieve(q, top_k=k)
+            retrieved_ids = {r.experience.experience_id for r in results}
+
+            # Recall@k: |retrieved ∩ gt| / |gt|
+            tp = len(retrieved_ids & gt)
+            recall = tp / max(len(gt), 1)
+
+            # Precision@k: |retrieved ∩ gt| / k
+            precision = tp / k
+
+            # MRR: 1 / rank_of_first_relevant
+            mrr = 0.0
+            for rank, r in enumerate(results, 1):
+                if r.experience.experience_id in gt:
+                    mrr = 1.0 / rank
+                    break
+
+            # NDCG@k: DCG / IDCG
+            dcg = 0.0
+            idcg = 0.0
+            for rank, r in enumerate(results, 1):
+                rel = 1.0 if r.experience.experience_id in gt else 0.0
+                dcg += rel / math.log2(rank + 1)
+            for rank in range(1, min(len(gt), k) + 1):
+                idcg += 1.0 / math.log2(rank + 1)
+
+            ndcg = dcg / max(idcg, 1e-10)
+
+            recall_sum += recall
+            precision_sum += precision
+            mrr_sum += mrr
+            ndcg_sum += ndcg
+            if tp > 0:
+                hits += 1
+
+            per_query.append({
+                "query": str(q.tags or q.causal_edges or "unnamed"),
+                "recall": recall,
+                "precision": precision,
+                "mrr": mrr,
+                "ndcg": ndcg,
+                "tp": tp,
+                "gt_size": len(gt),
+            })
+
+        n = len(queries)
+        return RetrievalEvalResult(
+            k=k,
+            num_queries=n,
+            mean_recall=recall_sum / n,
+            mean_precision=precision_sum / n,
+            mean_mrr=mrr_sum / n,
+            mean_ndcg=ndcg_sum / n,
+            hit_rate=hits / n,
+            per_query=per_query,
+        )
+
     def reset_stats(self) -> None:
         """重置统计计数器。"""
         self._query_count = 0
@@ -582,3 +693,106 @@ class MultiViewRetriever:
         self._context_index = _ContextIndex()
         self._structural_index = _StructuralIndex()
         self.reset_stats()
+
+
+# =============================================================================
+# HybridRetriever — 两阶段检索 (召回 + 精排)
+# =============================================================================
+
+
+class HybridRetriever:
+    """Two-stage retrieval wrapper: fast recall → precise re-rank.
+
+    Phase 1 (Recall): TF-IDF tag similarity → top K candidates (K=20)
+    Phase 2 (Re-rank): full 5-view fusion → top_k final results
+
+    Auto-activates two-stage mode when experience count > 1000.
+    Below threshold, delegates directly to MultiViewRetriever (one-pass).
+
+    Usage:
+        >>> hr = HybridRetriever(retriever)
+        >>> results = hr.retrieve(query, top_k=5)  # auto two-stage
+
+    Reference:
+        Industrial standard (Azure AI Search, Pinecone):
+        recall 20 → re-rank top 3 avoids noise interference
+        from off-topic results polluting the LLM context.
+    """
+
+    RECALL_K: int = 20     # recall pool size
+    AUTO_THRESHOLD: int = 1000  # auto-enable above this N
+
+    def __init__(self, retriever: MultiViewRetriever,
+                 enable_two_stage: bool | None = None,
+                 recall_k: int = 20):
+        self._retriever = retriever
+        self._recall_k = recall_k
+        self._enable = enable_two_stage  # None = auto
+        # Stats
+        self._one_pass_count = 0
+        self._two_stage_count = 0
+
+    def retrieve(self, query, top_k: int = 5, **kwargs):
+        """Retrieve with auto two-stage selection.
+
+        When enable_two_stage=True (or auto-detected):
+          Phase 1: semantic-only scoring → recall_k candidates
+          Phase 2: full 5-view Borda fusion → top_k results
+        """
+        n = len(self._retriever.experience_db.all_experiences)
+
+        use_two_stage = self._enable
+        if use_two_stage is None:
+            use_two_stage = n > self.AUTO_THRESHOLD
+
+        if not use_two_stage or n <= self._recall_k:
+            self._one_pass_count += 1
+            return self._retriever.retrieve(query, top_k=top_k, **kwargs)
+
+        # ── Phase 1: Fast recall via semantic-only ──
+
+        # Score all experiences by semantic similarity only
+        candidates: list[tuple] = []
+        for exp in self._retriever.experience_db.all_experiences:
+            sem_score = self._retriever._compute_semantic(query, exp)
+            candidates.append((exp, sem_score))
+
+        # Top-K recall
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        recall_pool = candidates[:self._recall_k]
+
+        # ── Phase 2: Full 5-view re-rank ──
+        scored: list[tuple] = []
+        for exp, _sem in recall_pool:
+            view_scores = {
+                "semantic": self._retriever._compute_semantic(query, exp),
+                "causal": self._retriever._compute_causal(query, exp),
+                "temporal": self._retriever._compute_temporal(exp),
+                "contextual": self._retriever._context_index.similarity(
+                    query.context if hasattr(query, 'context') else {}, exp.experience_id),
+                "structural": self._retriever._structural_index.similarity(
+                    query.state_features if hasattr(query, 'state_features') else [], exp.experience_id),
+            }
+            scored.append((exp, view_scores))
+
+        # Borda fusion (robust to outlier scores)
+        results = self._retriever._borda_fusion(scored, self._retriever.view_weights, 0.0)
+        results.sort(key=lambda r: r.score, reverse=True)
+        top = results[:top_k]
+
+        # Mark ranks
+        for i, r in enumerate(top, 1):
+            r.rank = i
+        self._two_stage_count += 1
+        return top
+
+    def statistics(self):
+        """Return usage statistics."""
+        base = self._retriever.statistics()
+        return {
+            **vars(base),
+            "one_pass_queries": self._one_pass_count,
+            "two_stage_queries": self._two_stage_count,
+            "auto_threshold": self.AUTO_THRESHOLD,
+            "recall_k": self._recall_k,
+        }

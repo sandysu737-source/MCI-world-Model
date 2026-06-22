@@ -492,7 +492,7 @@ class TestTuebingenDirection:
         pairs = load_tuebingen_pairs()
         result = evaluate_direction(pairs)
         assert result["accuracy"] > 0.50, \
-            f"Hybrid accuracy {result['direction_accuracy']:.1%} ≤ 50%"
+            f"Hybrid accuracy {result['accuracy']:.1%} ≤ 50%"
 
     def test_triple_voting_above_hybrid(self):
         """Triple voting should outperform hybrid method."""
@@ -500,14 +500,14 @@ class TestTuebingenDirection:
         hybrid = evaluate_direction(pairs)
         triple = evaluate_triple_direction(pairs)
         assert triple["accuracy"] >= hybrid["accuracy"] - 0.05, \
-            f"Triple {triple['direction_accuracy']:.1%} ≪ Hybrid {hybrid['direction_accuracy']:.1%}"
+            f"Triple {triple['accuracy']:.1%} ≪ Hybrid {hybrid['accuracy']:.1%}"
 
     def test_camgolem_direction_above_chance(self):
         """CAM+GOLEM direction should exceed 50%. """
         pairs = load_tuebingen_pairs()
         result = evaluate_camgolem_direction(pairs)
         assert result["accuracy"] > 0.48, \
-            f"CAMGOLEM accuracy {result['direction_accuracy']:.1%} ≤ 48%"
+            f"CAMGOLEM accuracy {result['accuracy']:.1%} ≤ 48%"
 
     def test_report(self):
         """Generate comprehensive direction benchmark report."""

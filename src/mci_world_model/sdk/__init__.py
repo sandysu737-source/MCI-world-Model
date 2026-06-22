@@ -1742,6 +1742,11 @@ __all__ = [
     "CausalDataFrame",
     "CausalGraphResult",
     "CachedDiscoverer",
+    "RetrievalEvalResult",
+    "DenseRetriever",
+    "DenseSearchResult",
+    "DenseSearchResults",
+    "HybridRetriever",
 
 ]
 
@@ -1752,6 +1757,11 @@ __all__ = [
 # 必须在此处执行，因为 _sys/__init__.py 不能直接导入 sdk 模块（循环依赖）。
 # 注入后，world_model.py 从 _sys 导入时将获得真实类而非 None。
 import mci_world_model._sys as _sys_module
+from mci_world_model.sdk._dense_retriever import (
+    DenseRetriever,
+    DenseSearchResult,
+    DenseSearchResults,
+)
 
 # 直接从源模块导入（不能用 sdk 命名空间中的变量，因为它们是 None 占位符）
 from mci_world_model.sdk._experience_memory import (
@@ -1772,6 +1782,7 @@ from mci_world_model.sdk._experience_memory import (
 from mci_world_model.sdk._multi_view_retriever import (
     FusionStrategy as _mvr_FusionStrategy,
 )
+from mci_world_model.sdk._multi_view_retriever import HybridRetriever
 from mci_world_model.sdk._multi_view_retriever import (
     MultiViewResult as _mvr_MultiViewResult,
 )
@@ -1783,6 +1794,9 @@ from mci_world_model.sdk._multi_view_retriever import (
 )
 from mci_world_model.sdk._multi_view_retriever import (
     QuerySpec as _mvr_QuerySpec,
+)
+from mci_world_model.sdk._multi_view_retriever import (
+    RetrievalEvalResult as _mvr_RetrievalEvalResult,
 )
 from mci_world_model.sdk._multi_view_retriever import (
     RetrievalView as _mvr_RetrievalView,
@@ -1800,6 +1814,8 @@ _V350_INJECTIONS = {
     "QuerySpec": _mvr_QuerySpec,
     "RetrievalResult": _exp_RetrievalResult,
     "RetrievalView": _mvr_RetrievalView,
+    "RetrievalEvalResult": _mvr_RetrievalEvalResult,
+
 }
 
 # 注入到 _sys 命名空间

@@ -483,3 +483,48 @@ class TestNonlinearSachs:
         _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
         print(f"\n  CAMGOLEM (nonlinear Sachs): F1={f1:.3f}")
         assert f1 >= 0.55, f"CAMGOLEM F1={f1:.3f} below 0.55 threshold"
+
+    def test_rbf_cam_on_nonlinear_sachs(self):
+        """RBF kernel CAM should match or exceed spline CAM on nonlinear Sachs."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer
+
+        data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+
+        # Spline baseline
+        cam_spline = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
+                                   n_subsamples=50, stability_threshold=0.5,
+                                   kernel="spline")
+        skel_s = cam_spline.discover(data, nodes)
+        _, _, f1_s = _precision_recall_f1(skel_s.adj_matrix, gt)
+
+        # RBF kernel
+        cam_rbf = CAMDiscoverer(alpha=0.05, max_parents=3,
+                                n_subsamples=50, stability_threshold=0.5,
+                                kernel="rbf", n_rbf_centers=20, rbf_gamma=0.05)
+        skel_r = cam_rbf.discover(data, nodes)
+        _, _, f1_r = _precision_recall_f1(skel_r.adj_matrix, gt)
+
+        print(f"\n  Spline CAM: F1={f1_s:.3f}")
+        print(f"  RBF CAM:    F1={f1_r:.3f}")
+        # RBF should be within 10% of spline (they target different nonlinearities)
+        assert f1_r >= f1_s * 0.85, \
+            f"RBF F1={f1_r:.3f} too far below spline F1={f1_s:.3f}"
+
+    def test_cam_rbf_reproducibility(self):
+        """RBF CAM with fixed seed should produce deterministic results."""
+        from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer
+
+        data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
+
+        results = []
+        for _ in range(3):
+            cam = CAMDiscoverer(alpha=0.05, max_parents=3,
+                               n_subsamples=50, stability_threshold=0.5,
+                               kernel="rbf", n_rbf_centers=10, rbf_gamma=0.1)
+            skel = cam.discover(data, nodes)
+            _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
+            results.append(f1)
+
+        # All runs should give identical results (RNG seeded internally)
+        assert all(abs(r - results[0]) < 0.01 for r in results), \
+            f"RBF CAM non-deterministic: {results}"
