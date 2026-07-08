@@ -272,6 +272,11 @@ class PCSkeletonDiscoverer:
 
         0 阶: 直接 Pearson 相关
         1 阶: r_{ij|k} = (r_{ij} - r_{ik}·r_{kj}) / sqrt((1-r_{ik}²)(1-r_{kj}²))
+        高阶 (>1): 由 {i,j}∪cond 子矩阵的 precision matrix (逆) 归一化得到:
+            r_{ij|S} = -P^{-1}[0,1] / sqrt(P^{-1}[0,0] · P^{-1}[1,1])
+
+        之前的高阶实现错误地只处理 cond[0] 就返回, 导致 2 阶及以上全部
+        退化为 1 阶, 无法正确识别需要多变量条件化才成立的条件独立。
         """
         if len(cond) == 0:
             return corr[i, j]
@@ -280,13 +285,16 @@ class PCSkeletonDiscoverer:
             rik, rkj, rij = corr[i, k], corr[k, j], corr[i, j]
             denom = np.sqrt(max(1 - rik * rik, 1e-10) * max(1 - rkj * rkj, 1e-10))
             return (rij - rik * rkj) / denom
-        # 高阶 (>1): 递归消去第一个条件变量后降阶
-        k = cond[0]
-        rik, rkj, rij = corr[i, k], corr[k, j], corr[i, j]
-        denom = np.sqrt(max(1 - rik * rik, 1e-10) * max(1 - rkj * rkj, 1e-10))
-        r_adj = (rij - rik * rkj) / denom
-        # 简化: 忽略条件变量对其他边的影响, 近似递归
-        return r_adj
+        # 高阶 (>1): precision matrix 的归一化元素
+        idx = [i, j] + list(cond)
+        sub = corr[np.ix_(idx, idx)]
+        try:
+            P_inv = np.linalg.inv(sub)
+        except np.linalg.LinAlgError:
+            sub_reg = sub + 1e-8 * np.eye(sub.shape[0])
+            P_inv = np.linalg.inv(sub_reg)
+        denom = np.sqrt(max(P_inv[0, 0] * P_inv[1, 1], 1e-20))
+        return float(-P_inv[0, 1] / denom)
 
 
     def discover_bootstrap(
@@ -982,21 +990,28 @@ class GESDiscoverer:
 
 
 # =============================================================================
-# LiNGAMDiscoverer - Linear Non-Gaussian Acyclic Model
+# LiNGAMDiscoverer - 残差方差因果序启发式 (LiNGAM-family)
 # =============================================================================
 
 
 class LiNGAMDiscoverer:
-    """LiNGAM causal discovery via non-Gaussianity.
+    """因果序发现 — 残差方差启发式 (LiNGAM 家族的简化版)。
 
-    Assumptions:
-      1. Linear data generation: x = B*x + e
-      2. Noise e_i is non-Gaussian
-      3. No unobserved confounders
+    注意: 这是一个**简化实现**, 不是完整的 DirectLiNGAM 算法。
+    完整 LiNGAM (Shimizu et al. 2011) 依赖噪声的非高斯性 (峭度/独立分量)
+    来确定因果方向。本实现改用**残差方差**作为因果序的代理指标:
 
-    Algorithm:
-      1. Estimate causal ordering via kurtosis
-      2. Prune edges via partial correlation threshold
+      - 对线性 SEM x = B·x + e (下三角 B), 外生变量(因果序靠前)对其余
+        变量做回归后的残差方差更大, 因为它们不被任何其他变量解释。
+      - 内生变量(因果序靠后)能被前置变量很好地解释, 残差方差小。
+
+    这是对 LiNGAM "非高斯 ⇒ 方向可识别" 思想的方差近似, 在以下条件下有效:
+      1. 线性数据生成: x = B·x + e
+      2. 无未观测混淆
+      3. 噪声方差可区分 (外生变量噪声 ≥ 内生变量残差)
+
+    局限: 当噪声近高斯或各成分噪声方差接近时, 方差启发式可能失效。
+    对严格的非高斯方向推断, 请配合 IGCI / HSIC 投票使用。
     """
 
     def __init__(self, alpha: float = 0.05, prune_threshold: float = 0.1) -> None:
@@ -1564,27 +1579,29 @@ class NOTEARSDiscoverer:
                 rss = max(rss, 1e-10)
                 # GOLEM loss
                 loss_nll = 0.5 * n_vars_d * np.log(rss / max(n_samples, 1))
-                # log|det(I-W)|
+                # log|det(I-W)|  — GOLEM 的无环性惩罚。
+                # 当 det(I-W) ≤ 0 (有环) 时, log|det| → -∞, 损失应 → +∞ 推离环。
+                # 用大惩罚值近似, 并对梯度做符号一致处理。
                 I_minus_W = np.eye(n_vars) - W
-                try:
-                    sign, logdet = np.linalg.slogdet(I_minus_W)
-                    if sign <= 0:
-                        logdet = -1e10  # large penalty for invalid det
-                    loss_dag = -logdet  # -log|det| penalizes cycles
-                except np.linalg.LinAlgError:
+                sign, logdet = np.linalg.slogdet(I_minus_W)
+                if sign <= 0:
+                    # 有环: 大惩罚 + 与惩罚方向一致的梯度推力
                     loss_dag = 1e10
+                else:
+                    loss_dag = -logdet  # -log|det| 惩罚接近环的区域
                 l1 = self._lambda1 * np.sum(np.abs(W))
                 total = loss_nll + loss_dag + l1
 
                 # Gradient
                 # d(loss_nll)/dW = -d * X^T @ residual / RSS
                 grad_nll = -n_vars_d * X.T @ residual / rss
-                # d(loss_dag)/dW = (I-W)^{-T}
+                # d(-log|det(I-W)|)/dW = (I-W)^{-T}  (对 |det| 求导, 符号无关)
+                # 用 solve 替代 inv 提升数值稳定性; 奇异时回退到单位阵。
                 try:
-                    inv_IW = np.linalg.inv(I_minus_W)
-                    grad_dag = inv_IW.T
+                    # 解 (I-W)^T Z = I  =>  Z = (I-W)^{-T}, 等价于 inv(I-W).T
+                    grad_dag = np.linalg.solve(I_minus_W.T, np.eye(n_vars))
                 except np.linalg.LinAlgError:
-                    grad_dag = np.eye(n_vars)  # fallback
+                    grad_dag = np.eye(n_vars)  # 奇异回退: 不施加 DAG 梯度推力
                 grad_l1 = self._lambda1 * np.sign(W)
                 grad = grad_nll + grad_dag + grad_l1
                 return total, grad.ravel()

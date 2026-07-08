@@ -143,6 +143,36 @@ def _generate_synthetic_pairs(n_pairs: int = 108) -> None:
     logger.info(f"Generated {n_pairs} synthetic Tübingen-like pairs")
 
 
+def load_pairmeta_weights() -> dict[int, float]:
+    """Load official Tübingen pair weights from pairmeta.txt.
+
+    The official benchmark (Mooij et al. 2016) assigns each pair a weight
+    so that pairs of the same type share a total weight of 1. The weighted
+    accuracy is the canonical metric reported in the literature.
+
+    pairmeta.txt format (space-separated):
+        pair_id  cause_var  effect_var  type  weight
+
+    Returns:
+        {pair_id: weight}
+    """
+    meta_file = TUEBINGEN_DIR / "pairmeta.txt"
+    weights: dict[int, float] = {}
+    if not meta_file.exists():
+        logger.warning("pairmeta.txt not found; weighted scoring unavailable")
+        return weights
+    for line in meta_file.read_text().splitlines():
+        parts = line.split()
+        if len(parts) >= 5:
+            try:
+                pid = int(parts[0])
+                w = float(parts[5])
+                weights[pid] = w
+            except (ValueError, IndexError):
+                continue
+    return weights
+
+
 def load_tuebingen_pairs() -> list[dict]:
     """Load all Tübingen pairs into a list of dicts.
 
@@ -152,9 +182,12 @@ def load_tuebingen_pairs() -> list[dict]:
       - effect: np.ndarray
       - n_samples: int
       - ground_truth: "cause→effect" (always cause column → effect column)
+      - weight: float (official Mooij 2016 weight, defaults to 1.0 if missing)
     """
     if not TUEBINGEN_DIR.exists():
         download_tuebingen_pairs()
+
+    official_weights = load_pairmeta_weights()
 
     pairs = []
     for pair_file in sorted([p for p in TUEBINGEN_DIR.glob("pair[0-9]*.txt") if "_des" not in p.name]):
@@ -178,11 +211,12 @@ def load_tuebingen_pairs() -> list[dict]:
                 "effect": data[:, 1],
                 "n_samples": data.shape[0],
                 "ground_truth": ground_truth,
+                "weight": official_weights.get(pair_id, 1.0),
             })
         except Exception:
             continue
 
-    logger.info(f"Loaded {len(pairs)} Tübingen pairs")
+    logger.info(f"Loaded {len(pairs)} Tübingen pairs ({len(official_weights)} with official weights)")
     return pairs
 
 
@@ -360,6 +394,45 @@ def evaluate_direction(pairs: list[dict], method: str = "hybrid") -> dict:
         "accuracy": accuracy,
         "correct": correct,
         "total": total,
+        "results": results,
+    }
+
+
+def evaluate_direction_weighted(pairs: list[dict], method: str = "hybrid") -> dict:
+    """Evaluate causal direction with OFFICIAL Tübingen weighted accuracy.
+
+    The canonical Tübingen benchmark metric (Mooij et al. 2016) is the
+    *weighted* accuracy, where each pair's contribution is scaled by its
+    type-weight so that no type is over-represented:
+
+        weighted_acc = Σ_i (w_i · correct_i) / Σ_i w_i
+
+    This differs from the unweighted ``correct/total`` when pair types have
+    unequal counts (e.g. many "pair0055+" share the same source type).
+
+    Returns dict with both weighted and unweighted accuracy for comparison.
+    """
+    base = evaluate_direction(pairs, method=method)
+    results = base["results"]
+    # Build pair_id -> result map
+    result_by_id = {r["pair_id"]: r for r in results}
+    weight_by_id = {p["pair_id"]: p.get("weight", 1.0) for p in pairs}
+
+    weighted_correct = 0.0
+    weighted_total = 0.0
+    for pid, res in result_by_id.items():
+        w = weight_by_id.get(pid, 1.0)
+        weighted_total += w
+        if res["correct"]:
+            weighted_correct += w
+
+    weighted_acc = weighted_correct / max(weighted_total, 1e-12)
+    return {
+        "weighted_accuracy": weighted_acc,
+        "accuracy": base["accuracy"],  # unweighted, for comparison
+        "correct": base["correct"],
+        "total": base["total"],
+        "method": method,
         "results": results,
     }
 

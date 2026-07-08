@@ -165,6 +165,11 @@ markers = [
     "unit: fast unit tests (<100ms each)",
     "functional: functional/integration tests",
     "benchmark: performance benchmark tests",
+    "oracle: L1 解析解对照测试 (已知答案, 必须通过, 硬门禁)",
+    "invariant: L0 数学不变式测试 (守恒律/边界, 必须通过, 硬门禁)",
+    "contract: 行为契约测试 (文档化设计意图)",
+    "reference: L2 参考库对照测试 (networkx/causal-learn 等, 警告)",
+    "realdata: L3 真实数据基准测试 (Tübingen/Sachs 等, 警告)",
 ]
 
 [tool.pytest-benchmark]

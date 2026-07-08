@@ -94,16 +94,19 @@ from mci_world_model.sdk import (
 states = [wm.initialize()]  # CausalWorldModelState 列表（按 timestamp 排序）
 dataset = JEPADataset.from_states(states, window_size=2)
 
-# 2) 编码器（依赖世界模型）+ 预测器（具体子类，3 选 1）
+# 2) 编码器（依赖世界模型）+ 预测器（3 选 1）
+#    ⚠️ IdentityPredictor 等三个基线是「不可参下界」，train() 不更新参数。
+#       它们用于建立预测精度下界，任何有意义的预测器必须比它们更准。
 encoder = JEPAEncoder(MCIWorldModel())
-predictor = IdentityPredictor()  # 或 EnergyPropagationPredictor() / BeliefPropagationPredictor()
+predictor = IdentityPredictor()  # 不可参基线 (下界)
 
 # 3) 训练器：α 能量损失权重 / β 一致性损失权重
+#    注意: 对不可参基线，train() 的 loss 恒定 (无学习)，learning_rate 被忽略。
 trainer = JEPATrainer(
     encoder, predictor, dataset,
     alpha_energy=0.1, beta_cons=0.05,
 )
-stats = trainer.train(n_epochs=10, learning_rate=1e-3)
+stats = trainer.train(n_epochs=10, learning_rate=1e-3)  # 基线: loss 不下降
 ```
 
 ### 3️⃣ Energy Center — 能量中心三才合一

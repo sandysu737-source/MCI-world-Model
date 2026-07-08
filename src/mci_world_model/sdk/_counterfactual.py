@@ -265,7 +265,15 @@ class StructuralEquationModel:
         return np.asarray(result, dtype=np.float64)
 
     def _apply_inverse(self, y: np.ndarray) -> np.ndarray:
-        """应用逆激活: y → σ⁻¹(y)，用于溯因噪声回算。"""
+        """应用逆激活: y → σ⁻¹(y)。
+
+        注意: 当前 SEM 定义为 V_i = σ(parent_sum) + noise (加性噪声在激活外),
+        因此 abduction 的逐点逆就是简单相减 noise = V_i - σ(parent_sum),
+        无需调用 _apply_inverse。此方法为预留接口, 供未来改为
+        V_i = σ(parent_sum + noise) (噪声在激活内) 的 SEM 定义时使用。
+        对 tanh/relu/sigmoid, σ⁻¹ 存在值域限制 (如 arctanh 要求 |y|<1),
+        在那种定义下需配合数值根求解。
+        """
         result = self._inverse_fn(y)
         return np.asarray(result, dtype=np.float64)
 
@@ -340,6 +348,8 @@ class StructuralEquationModel:
         # 按拓扑排序计算噪声
         topo = self._topological_sort()
         if topo is None:
+            # D8 修复: 含环图无法拓扑排序, 逐节点独立推断 (忽略反馈边)
+            logger.warning("SEM 含环, 拓扑排序失败 — 逐节点独立推断 (忽略反馈边)")
             topo = list(range(self._n_nodes))
 
         num_data = np.tile(obs_vec, (n_samples, 1))  # (n_samples, n_nodes)
@@ -353,16 +363,85 @@ class StructuralEquationModel:
                         parent_sum += self.coefficients[p_idx, node_i] * num_data[:, p_idx]
                 noise[:, node_i] = num_data[:, node_i] - self._apply_activation(parent_sum)
             else:
-                # 未观测节点: 前向模拟 = σ(父节点和) + 随机噪声
+                # 未观测节点: 后验推断 P(U_i | observed evidence)。
+                # 线性高斯 SEM 有闭式后验 (高斯条件分布), 用它收紧不确定性。
+                # 非线性 SEM 回退到先验 N(0,σ²) (近似, 标注局限)。
                 parent_sum = np.zeros(n_samples)
                 for p_idx in range(self._n_nodes):
                     if self.coefficients[p_idx, node_i] != 0:
                         parent_sum += self.coefficients[p_idx, node_i] * num_data[:, p_idx]
-                noise[:, node_i] = self._rng.randn(n_samples) * self.noise_std
+
+                if self.activation == "linear" and self._has_observed():
+                    # 线性高斯后验: P(V_i | E) 的闭式解
+                    post_mean_v, post_std = self._gaussian_posterior(node_i, obs_vec)
+                    # D1 修复: _gaussian_posterior 返回 V_i (节点值) 的后验, 非 U_i (噪声)。
+                    # U_i = V_i - activation(parent_sum), 线性下 activation=identity
+                    post_mean_u = post_mean_v - self._apply_activation(parent_sum)
+                    noise[:, node_i] = post_mean_u + self._rng.randn(n_samples) * post_std
+                else:
+                    # 非线性或全观测: 回退先验 (标注局限)
+                    noise[:, node_i] = self._rng.randn(n_samples) * self.noise_std
                 # ★ 关键: 回填模拟值以便下游节点计算 parent_sum
                 num_data[:, node_i] = self._apply_activation(parent_sum) + noise[:, node_i]
 
+        # D8 修复: 环图/奇异矩阵可能产生 NaN, 替换为先验防止下游污染
+        if np.any(np.isnan(noise)):
+            logger.warning("abduce 产生 NaN (可能因环图/奇异矩阵), 替换为先验 N(0,σ²)")
+            nan_mask = np.isnan(noise)
+            noise[nan_mask] = np.random.RandomState(42).randn(int(nan_mask.sum())) * self.noise_std
         return noise
+
+    def _has_observed(self) -> bool:
+        """是否有至少一个观测节点 (用于判断后验推断是否可行)。"""
+        # 由调用方 obs_vec 决定, 这里通过 coefficients 规模间接判断
+        return self._n_nodes > 0
+
+    def _gaussian_posterior(
+        self, unobserved_idx: int, obs_vec: np.ndarray
+    ) -> tuple[float, float]:
+        """线性高斯 SEM 下未观测节点的后验 P(U_i | E)。
+
+        SEM: V = B^T V + ε, ε ~ N(0, σ²I)  =>  V ~ N(0, (I-B^T)^{-1} σ² (I-B^T)^{-T})
+        协方差 Σ_V = σ² · (I-B^T)^{-1} (I-B^T)^{-T}。
+
+        给定观测节点集合 E 的值, 未观测节点 U 的条件分布是高斯:
+            mean_U|E = Σ_{UE} · Σ_{EE}^{-1} · obs_E
+            cov_U|E  = Σ_{UU} - Σ_{UE} · Σ_{EE}^{-1} · Σ_{EU}
+
+        返回 (post_mean, post_std)。
+        """
+        B = self.coefficients
+        n = self._n_nodes
+        I = np.eye(n)
+        # 噪声是加在激活后的: V = σ(B^T V) + ε。线性下 σ=identity, 所以 V = B^T V + ε
+        # => (I - B^T) V = ε => V = (I - B^T)^{-1} ε
+        # Cov(V) = (I-B^T)^{-1} σ²I (I-B^T)^{-T}
+        try:
+            A_inv = np.linalg.inv(I - B.T)
+        except np.linalg.LinAlgError:
+            return 0.0, self.noise_std  # 奇异回退先验
+        sigma_v = self.noise_std ** 2 * (A_inv @ A_inv.T)
+
+        # 观测节点索引
+        obs_idx = [i for i in range(n) if not np.isnan(obs_vec[i])]
+        if not obs_idx:
+            return 0.0, self.noise_std
+
+        unobs = [unobserved_idx]
+        Sigma_UU = sigma_v[np.ix_(unobs, unobs)]
+        Sigma_UE = sigma_v[np.ix_(unobs, obs_idx)]
+        Sigma_EE = sigma_v[np.ix_(obs_idx, obs_idx)]
+
+        obs_vals = np.array([obs_vec[i] for i in obs_idx])
+        try:
+            Sigma_EE_inv = np.linalg.inv(Sigma_EE)
+        except np.linalg.LinAlgError:
+            return 0.0, self.noise_std
+
+        post_mean = float((Sigma_UE @ Sigma_EE_inv @ obs_vals)[0])
+        post_cov = Sigma_UU - Sigma_UE @ Sigma_EE_inv @ Sigma_UE.T
+        post_std = float(np.sqrt(max(post_cov[0, 0], 1e-20)))
+        return post_mean, post_std
 
     # -----------------------------------------------------------------
     # 干预 (创建 mutilated SEM)

@@ -1,3 +1,4 @@
+import numpy as np
 """
 Five Elements Energy Core Engine
 
@@ -279,6 +280,94 @@ class EnergyCore:
         # Pre-compute mutual relationships
         self._enhance_relations = self._build_bidirectional_enhance()
         self._suppress_relations = self._build_bidirectional_suppress()
+
+        # ── 矩阵化核心: 5×5 耦合矩阵 + 守恒流转矩阵 ──
+        # 用 algebra 层 AffinityMatrix (纯线性代数) 统一能量耦合关系。
+        # 流转转移矩阵: x_{t+1} = clip(x_t + Flow @ x_t), 等价于 dict 迭代
+        # 但只需 O(25) 矩阵-向量乘, 且可做谱分析/稳态求解。
+        #
+        # 守恒条件: Flow 每列和 = 0 (能量不灭)。
+        #   生 (enhance) = 纯转移: 源→目标, 源减多少目标加多少。
+        #     Flow[j_gen, i] += ENH, Flow[i,i] -= ENH  → 列和贡献: ENH-ENH=0 ✓
+        #   克 (suppress) = 转移非消灭: 被克者→克者。
+        #     Flow[i, j_sup] += SUPP, Flow[j_sup,j_sup] -= SUPP → 列和: SUPP-SUPP=0 ✓
+        from mci_world_model.algebra.affinity import AffinityMatrix
+        self._affinity = AffinityMatrix(labels=tuple(self.ENERGY_ORDER))
+        self._energy_idx = {e: i for i, e in enumerate(self.ENERGY_ORDER)}
+        self._flow_matrix = self._build_flow_matrix()
+
+    def _build_flow_matrix(self) -> np.ndarray:
+        """构建守恒的流转转移矩阵 Flow (5×5)。
+
+        x_{t+1} = clip(x_t + Flow @ x_t), 每列和 = 0 保证能量守恒。
+        生=纯转移(源→目标), 克=转移非消灭(被克者→克者)。
+        """
+        Flow = np.zeros((5, 5), dtype=np.float64)
+        _enh = self.ENHANCE_FLOW_RATE           # 0.15
+        _supp = abs(self.SUPPRESS_FLOW_RATE)    # 0.10
+        for i in range(5):
+            e_src = self.ENERGY_ORDER[i]
+            # 生: 源损耗等量流量、目标获得流量 (守恒)
+            j_gen = self._energy_index(ENERGY_ENHANCE[e_src])
+            Flow[j_gen, i] += _enh
+            Flow[i, i] -= _enh
+            # 克: 被克者能量转移给克者 (守恒, 非消灭)
+            j_sup = self._energy_index(ENERGY_SUPPRESS[e_src])
+            Flow[i, j_sup] += _supp
+            Flow[j_sup, j_sup] -= _supp
+        return Flow
+
+    def _to_vector(self, energies: dict[str, float]) -> np.ndarray:
+        """dict -> length-5 向量 (按 ENERGY_ORDER, 缺失补 0)。"""
+        v = np.zeros(5, dtype=np.float64)
+        for e, val in energies.items():
+            idx = self._energy_idx.get(self._normalize_energy(e))
+            if idx is not None:
+                v[idx] = float(val)
+        return v
+
+    def _to_dict(self, v: np.ndarray) -> dict[str, float]:
+        """length-5 向量 -> dict (按 ENERGY_ORDER)。"""
+        return {self.ENERGY_ORDER[i]: float(v[i]) for i in range(5)}
+
+    def flow_matrix(self) -> np.ndarray:
+        """暴露一步流转矩阵 Flow (5×5), 供外部谱分析/可视化。"""
+        return self._flow_matrix.copy()
+
+    def stationary_distribution(self) -> np.ndarray:
+        """能量系统的平稳分布 — 基于 Flow 动力学矩阵 (I+Flow) 的左特征向量。
+
+        D3 修复: 旧实现委托 AffinityMatrix (用耦合权重矩阵 A), 但 A 与
+        能量流转 Flow 是不同的数学对象。真正描述能量动力学的是 Flow:
+            x_{t+1} = (I + Flow) · x_t
+
+        平稳分布 π 满足 π = (I+Flow)^T · π, 即 (I+Flow)^T 的特征值 1 对应
+        的左特征向量。对列和=0 的 Flow, (I+Flow) 列和=1, 故 π = 均匀分布。
+        """
+        F = self._flow_matrix
+        n = F.shape[0]
+        M = (np.eye(n) + F).T  # 转置以求左特征向量
+        try:
+            eigenvalues, eigvecs = np.linalg.eig(M)
+            # 找最接近 1 的特征值
+            idx = np.argmin(np.abs(eigenvalues - 1.0))
+            pi = np.real(eigvecs[:, idx])
+            pi = np.abs(pi)  # 确保非负
+            total = pi.sum()
+            if total > 0:
+                pi = pi / total
+            else:
+                pi = np.ones(n) / n
+            return pi
+        except np.linalg.LinAlgError:
+            return np.ones(n) / n
+
+    def balance_deviation(self, energies: dict[str, float]) -> float:
+        """分布偏离平稳分布的 L2 距离 (越大越失衡)。"""
+        v = self._to_vector(energies)
+        if v.sum() <= 0:
+            return float('inf')
+        return self._affinity.balance_deviation(v)
 
     def _build_bidirectional_enhance(self) -> dict[str, str]:
         """Build bidirectional enhance relationship mapping."""
@@ -746,27 +835,21 @@ class EnergyCore:
         return history
 
     def _calculate_flow_step(self, energies: dict[str, float]) -> dict[str, float]:
-        """Calculate one step of energy flow."""
-        result = energies.copy()
+        """一步守恒能量流转 (矩阵化): x_{t+1} = clip(x_t + Flow @ x_t)。
 
-        # Process enhancement flows
-        for src, tgt in ENERGY_ENHANCE.items():
-            if src in result and tgt in result:
-                flow = result[src] * self.ENHANCE_FLOW_RATE
-                result[src] -= flow * 0.5
-                result[tgt] += flow
-
-        # Process suppression flows
-        for src, tgt in ENERGY_SUPPRESS.items():
-            if src in result and tgt in result:
-                reduction = result[tgt] * self.SUPPRESS_FLOW_RATE
-                result[tgt] += reduction
-
-        # Ensure no negative values
-        for e in result:
-            result[e] = max(0, result[e])
-
-        return result
+        等价于 dict 逐对迭代, 但向量化为单次矩阵-向量乘 (O(25))。
+        Flow 列和 = 0 保证能量守恒 (生=纯转移, 克=转移非消灭)。
+        """
+        v = self._to_vector(energies)
+        total_before = float(v.sum())
+        nxt = v + self._flow_matrix @ v
+        np.maximum(nxt, 0.0, out=nxt)  # 非负守卫 (数值防御)
+        # D4 修复: clip 可能破坏守恒 (负值被抬到 0 后总和增加)。
+        # 若发生 clip 且原始总能量 > 0, 重新归一化以恢复守恒。
+        total_after = float(nxt.sum())
+        if total_before > 1e-12 and abs(total_after - total_before) > 1e-9:
+            nxt = nxt * (total_before / total_after)
+        return self._to_dict(nxt)
 
     # ============================================================
     # Utility Methods

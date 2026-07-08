@@ -437,6 +437,7 @@ from mci_world_model.sdk._energy_counterfactual_bridge import (
     EnergyCounterfactualBridge,
     EnergyWhatIfResult,
 )
+from mci_world_model.sdk._energy_causal_graph import EnergyWeightedCausalGraph
 from mci_world_model.sdk._energy_flow_predictor import EnergyFlowPredictor
 
 # 能量一致性损失
@@ -1165,6 +1166,7 @@ __all__ = [
     "EnergyCostModule",
     "EnergyCounterfactualBridge",
     "EnergyWhatIfResult",
+    "EnergyWeightedCausalGraph",
     "EnergyFlowPredictor",
     "EnergyPropagationPredictor",
     "EnhancedOutput",

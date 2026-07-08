@@ -361,6 +361,38 @@ class NeurosymbolicWorldModel:
     def config(self) -> NeurosymbolicConfig:
         return self._config
 
+    def train_jepa(
+        self,
+        observations: np.ndarray,
+        actions: np.ndarray | None = None,
+        n_epochs: int = 10,
+    ) -> dict[str, Any]:
+        """训练 JEPA 物理路径 (若 jepa_encoder 为 TrueJEPAEncoder)。
+
+        将神经符号世界模型的物理路径真正接入可学习 JEPA 编码器,
+        使 encode_triple / _infer_physical 使用训练后的潜空间。
+
+        Args:
+            observations: 观测序列 (N, obs_dim)
+            actions: 动作序列 (N, action_dim)
+            n_epochs: 训练轮数
+
+        Returns:
+            训练统计 dict; 若编码器不可训练则返回 {"status": "skipped"}。
+        """
+        enc = self._jepa_encoder
+        train_fn = getattr(enc, "train", None)
+        if train_fn is None or not callable(train_fn):
+            return {"status": "skipped", "reason": "encoder has no train method"}
+        try:
+            result = train_fn(observations, actions=actions, n_epochs=n_epochs)
+            if isinstance(result, dict):
+                result.setdefault("status", "trained")
+            return result
+        except Exception as e:
+            logger.warning("JEPA training failed: %s", e)
+            return {"status": "error", "reason": str(e)}
+
     # -----------------------------------------------------------------
     # 路径推理
     # -----------------------------------------------------------------
@@ -639,11 +671,28 @@ class NeurosymbolicWorldModel:
 
     @staticmethod
     def _state_to_vector(state: Any) -> np.ndarray:
-        """将状态转为向量。"""
+        """将状态转为向量。
+
+        支持: ndarray / to_vector() / list / tuple / dict。
+        dict 解析顺序: 'vector' 键 → 全部数值 values 拼接。
+        """
         if isinstance(state, np.ndarray):
             return state.astype(np.float64).ravel()
         if hasattr(state, "to_vector"):
             return np.asarray(state.to_vector(), dtype=np.float64).ravel()
         if isinstance(state, (list, tuple)):
             return np.asarray(state, dtype=np.float64).ravel()
+        if isinstance(state, dict):
+            if "vector" in state:
+                return np.asarray(state["vector"], dtype=np.float64).ravel()
+            vals = []
+            for v in state.values():
+                if isinstance(v, (int, float)):
+                    vals.append(float(v))
+                elif isinstance(v, (list, tuple, np.ndarray)):
+                    arr = np.asarray(v, dtype=np.float64).ravel()
+                    if arr.size > 0:
+                        vals.extend(arr.tolist())
+            if vals:
+                return np.asarray(vals, dtype=np.float64)
         return np.array([], dtype=np.float64)

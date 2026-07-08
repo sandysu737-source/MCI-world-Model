@@ -169,6 +169,21 @@ class CausalGraph:
                 children.append(self.nodes[j])
         return children
 
+    def to_dag(self):
+        """转换为 algebra 层的 CausalDAG (用于 d-separation 等图论运算)。
+
+        桥接业务层 CausalGraph (邻接矩阵表示) 到纯数学层 CausalDAG
+        (边列表表示), 使 do-calculus 能调用 algebra 的 d-separation /
+        后门准则等图论算法。
+        """
+        from mci_world_model.algebra.causal_graph import CausalDAG
+        dag = CausalDAG()
+        for n in self.nodes:
+            dag.add_node(n)
+        for src, dst in self.edges:
+            dag.add_edge(src, dst, weight=1.0)
+        return dag
+
     def get_descendants(self, node: str) -> set[str]:
         """获取节点的所有后代 (BFS)。"""
         result: set[str] = set()
@@ -352,29 +367,27 @@ class DoCalculus:
         后门准则 (Pearl, 2009):
         Z 是一个有效的调整集，当且仅当:
         1. Z 不包含 X 的后代
-        2. Z 阻断 X 和 Y 之间所有含有指向 X 的箭头的路径
+        2. Z 阻断 X 和 Y 之间所有含有指向 X 的箭头的路径 (后门路径)
 
-        简化实现: 取 X 的所有父节点作为最小充分调整集。
-        原因: X 的父节点集合自然满足后门准则的条件 1 (父节点不是 X 的后代)
-              和条件 2 (阻断所有后门路径)。
-
-        Args:
-            X: 干预变量
-            Y: 目标变量
-
-        Returns:
-            调整变量名列表，或 None (表示后门调整不可用)
+        实现: 委托 algebra 层 CausalDAG 的图论算法做真正的后门准则验证。
+        先取 X 的父节点作为候选 (常见的充分调整集), 再用 d-separation
+        验证它确实阻断所有后门路径。若父节点集无效则回退到 None。
         """
         if self._graph is None:
             return None
 
-        # 取 X 的所有父节点作为候选调整集
-        parents = self._graph.get_parents(X)
+        # 候选调整集: X 的父节点 (排除 X, Y 自身)
+        parents = [p for p in self._graph.get_parents(X) if p not in (Y, X)]
 
-        # 过滤掉 Y 本身和重复
-        adjustment_set = [p for p in parents if p not in (Y, X)]
-
-        return adjustment_set if adjustment_set else None
+        # 用 algebra 层验证后门准则
+        dag = self._graph.to_dag()
+        if dag.is_valid_adjustment_set(X, Y, set(parents)):
+            return parents if parents else None
+        # 父节点集无效: 尝试找最小有效调整集
+        minimal = dag.find_minimal_adjustment_set(X, Y)
+        if minimal is not None:
+            return sorted(minimal)
+        return None
 
     # -----------------------------------------------------------------
     # 前门准则 — 中介变量识别
@@ -446,9 +459,18 @@ class DoCalculus:
 
         Returns:
             InterventionResult 含 ATE 估计
+
+        Warns:
+            当无真实观测数据时, 结果基于因果图模拟的 SEM 数据 (循环验证),
+            ATE 反映图的拓扑结构而非真实因果效应。结果 method 字段标注为
+            "backdoor_simulated" 以提醒用户。
         """
         if self._is_simulated and self._graph is not None:
-            return self._backdoor_simulated(X, Y, Z_set, x_value, x_baseline)
+            result = self._backdoor_simulated(X, Y, Z_set, x_value, x_baseline)
+            # D6 修复: 明确标注结果来自模拟 (循环验证), 避免误导用户
+            if result.method != "none":
+                result.method = "backdoor_simulated"
+            return result
 
         # ── 基于观测数据的后门调整 ──
         if X not in self._data or Y not in self._data:
@@ -461,28 +483,29 @@ class DoCalculus:
         if n_samples < 5:
             return InterventionResult.empty(method="backdoor")
 
-        # 条件期望: E[Y | X≈x, Z=z]
-        y_given_do_x = []
-        for z_name in Z_set:
-            if z_name not in self._data:
-                continue
-            z_data = self._data[z_name]
-            z_unique = np.unique(z_data)
-            z_probs = np.array([np.mean(z_data == z) for z in z_unique])
-
-            y_expected = 0.0
-            for zi, z_val in enumerate(z_unique):
-                mask = z_data == z_val
-                y_cond = np.mean(y_data[mask]) if np.any(mask) else 0.0
-                y_expected += y_cond * z_probs[zi]
-
-            y_given_do_x.append(y_expected)
-
-        # ATE = 干预期望 - 基线期望
-        y_do = np.mean(y_given_do_x) if y_given_do_x else np.mean(y_data)
-        y_baseline_est = np.mean(y_data)
-
-        ate = y_do - y_baseline_est
+        # 后门调整公式: E[Y | do(X=x)] = Σ_z E[Y | X=x, Z=z] · P(Z=z)
+        # 用 OLS 回归 Y ~ X + Z 估计条件期望 E[Y|X=x,Z=z], 再按 P(Z) 加权求和。
+        # 这是线性/可加假设下的标准后门调整实现; 对连续和离散 X/Z 均适用。
+        z_names = [z for z in Z_set if z in self._data]
+        if not z_names:
+            # 无调整变量: ATE = E[Y|X=x_value] - E[Y|X=x_baseline]
+            def _ey_given_x(x_level: float) -> float:
+                mask = np.abs(x_data - x_level) < 1e-6
+                return float(np.mean(y_data[mask])) if np.any(mask) else float(np.mean(y_data))
+            ate = _ey_given_x(x_value) - _ey_given_x(x_baseline)
+        else:
+            # 构建设计矩阵 [1, X, Z1, Z2, ...] 做 OLS
+            Z_mat = np.column_stack([self._data[z] for z in z_names])
+            design = np.column_stack([np.ones(n_samples), x_data, Z_mat])
+            try:
+                beta, _, _, _ = np.linalg.lstsq(design, y_data, rcond=None)
+                # beta = [截距, coef_X, coef_Z1, ...]
+                coef_x = beta[1]
+                # 线性 SEM 下 E[Y|do(X=x)] = β_X · x + const, ATE = β_X · (x_value - x_baseline)
+                # const 项 (含 Z 的边际贡献) 在两次 do 中相消
+                ate = float(coef_x * (x_value - x_baseline))
+            except np.linalg.LinAlgError:
+                ate = 0.0
 
         # 置信区间 (Wald-type)
         y_std = np.std(y_data) if n_samples > 1 else 0.1

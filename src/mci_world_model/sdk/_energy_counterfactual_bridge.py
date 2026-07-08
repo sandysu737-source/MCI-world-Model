@@ -143,17 +143,25 @@ class EnergyCounterfactualBridge:
         energy: str,
         boost: float = 1.0,
         baseline_energies: dict[str, float] | None = None,
+        mode: str = "propagation",
     ) -> list[EnergyWhatIfResult]:
         """单变量能量干预查询。
 
         "如果增强/减弱某一个能量维度，其他维度如何变化？"
 
-        使用差值法: 比较干预前后的 simulate_energy_flow() 稳定态。
+        两种模式:
+          - mode="propagation" (默认, 推荐): 基于 Flow 矩阵的单步传播效应。
+            计算 δ = do向量 - 基线向量, 然后效应 = F·δ。这是矩阵动力学的
+            反事实语义——能量守恒系统中, 真正的因果效应是"干预脉冲沿生克
+            环的单步传播", 而非"两个终态的差"(守恒系统终态都趋均匀, 无区分度)。
+          - mode="steady_state": 旧的稳态差值法 (守恒修复后区分度低, 保留
+            供对比)。
 
         Args:
             energy: 干预的能量类型
             boost: 干预倍数 (>1 增强, <1 减弱)
             baseline_energies: 基线能量分布 (None → 默认均衡)
+            mode: "propagation" (矩阵传播) 或 "steady_state" (稳态差值)
 
         Returns:
             受影响的所有维度的 WhatIf 结果列表
@@ -162,19 +170,60 @@ class EnergyCounterfactualBridge:
             raise ValueError(
                 f"未知能量类型 '{energy}'，已知: {self._categories}"
             )
+        if mode not in ("propagation", "steady_state"):
+            raise ValueError(f"mode 必须是 'propagation' 或 'steady_state', got '{mode}'")
 
         if baseline_energies is None:
             baseline_energies = self._default_energies()
 
-        # 基线仿真 → 稳定态
-        baseline_stable = self._simulate_to_stable(baseline_energies)
+        if mode == "propagation":
+            return self._what_if_propagation(energy, boost, baseline_energies)
+        return self._what_if_steady_state(energy, boost, baseline_energies)
 
-        # 干预仿真 → 稳定态
+    def _what_if_propagation(
+        self, energy: str, boost: float, baseline: dict[str, float]
+    ) -> list[EnergyWhatIfResult]:
+        """矩阵传播反事实: 效应 = F·(do向量 - 基线向量)。
+
+        这是守恒能量系统中正确的反事实语义。Flow 矩阵的列结构编码了
+        每个维度的生克出边, 单步传播给出干预的即时因果效应。
+        """
+        # 构建干预向量 (归一化: 干预维度 boost, 其余按比例缩减以保持总量)
+        base_vec = self._to_ordered_vec(baseline)
+        do_vec = base_vec.copy()
+        idx = self._categories.index(energy)
+        do_vec[idx] *= boost
+        if do_vec.sum() > 0:
+            do_vec = do_vec / do_vec.sum() * base_vec.sum()  # 保持总能量
+        delta_input = do_vec - base_vec
+
+        # Flow 矩阵单步传播
+        F = self._energy_matrix()
+        effect = F @ delta_input
+
+        results: list[EnergyWhatIfResult] = []
+        for i, cat in enumerate(self._categories):
+            if cat == energy:
+                continue
+            mechanism = self._classify_mechanism(energy, cat)
+            results.append(EnergyWhatIfResult(
+                intervention=f"do({energy}=×{boost:.1f})",
+                target_energy=cat,
+                baseline=float(base_vec[i]),
+                counterfactual=float(base_vec[i] + effect[i]),
+                delta=float(effect[i]),
+                mechanism=mechanism,
+            ))
+        return results
+
+    def _what_if_steady_state(
+        self, energy: str, boost: float, baseline_energies: dict[str, float]
+    ) -> list[EnergyWhatIfResult]:
+        """旧稳态差值法 (守恒修复后区分度低, 保留供对比)。"""
+        baseline_stable = self._simulate_to_stable(baseline_energies)
         intervened = dict(baseline_energies)
         intervened[energy] *= boost
         intervened_stable = self._simulate_to_stable(intervened)
-
-        # 计算差值
         results: list[EnergyWhatIfResult] = []
         for cat in self._categories:
             if cat == energy:
@@ -190,8 +239,39 @@ class EnergyCounterfactualBridge:
                 delta=c - b,
                 mechanism=mechanism,
             ))
-
         return results
+
+    def _to_ordered_vec(self, energies: dict[str, float]) -> np.ndarray:
+        """dict → 按 categories 顺序的 length-5 向量。"""
+        v = np.zeros(len(self._categories), dtype=np.float64)
+        for i, cat in enumerate(self._categories):
+            v[i] = float(energies.get(cat, 0.0))
+        return v
+
+    def _energy_matrix(self) -> np.ndarray:
+        """获取 EnergyCore 的 Flow 矩阵 (兼容有无 flow_matrix 方法)。"""
+        if hasattr(self._energy_core, "flow_matrix"):
+            return self._energy_core.flow_matrix()
+        # 回退: 手动构建 (旧 EnergyCore)
+        return self._build_flow_matrix_fallback()
+
+    def _build_flow_matrix_fallback(self) -> np.ndarray:
+        """无 flow_matrix 方法时手动构建守恒 Flow 矩阵。"""
+        from mci_world_model._sys._terms import ENERGY_ENHANCE, ENERGY_SUPPRESS
+        n = len(self._categories)
+        F = np.zeros((n, n), dtype=np.float64)
+        enh = getattr(self._energy_core, "ENHANCE_FLOW_RATE", 0.15)
+        supp = abs(getattr(self._energy_core, "SUPPRESS_FLOW_RATE", 0.10))
+        idx = {c: i for i, c in enumerate(self._categories)}
+        for src, tgt in ENERGY_ENHANCE.items():
+            if src in idx and tgt in idx:
+                F[idx[tgt], idx[src]] += enh
+                F[idx[src], idx[src]] -= enh
+        for src, tgt in ENERGY_SUPPRESS.items():
+            if src in idx and tgt in idx:
+                F[idx[src], idx[tgt]] += supp
+                F[idx[tgt], idx[tgt]] -= supp
+        return F
 
     def batch_what_if(
         self,

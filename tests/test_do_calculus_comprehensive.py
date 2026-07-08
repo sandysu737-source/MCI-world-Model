@@ -169,7 +169,7 @@ class TestDoCalculusWithData:
         dc = DoCalculus(graph=sample_graph, data=sample_data)
         result = dc.estimate_ate("X", "Y", x_value=1.0, x_baseline=0.0, method="auto")
         assert result is not None
-        assert result.method in ("backdoor", "frontdoor", "direct")
+        assert result.method in ("backdoor", "frontdoor", "direct", "backdoor_simulated")
         assert result.sample_size > 0
 
     def test_frontdoor_with_data(self, sample_data):
@@ -512,7 +512,7 @@ class TestDoCalculusAutoMethod:
         dc = DoCalculus(graph=cg)
         result = dc.estimate_ate("X", "Y", method="auto")
         # 有后门调整集 → 应使用 backdoor
-        assert result.method in ("backdoor", "direct")
+        assert result.method in ("backdoor", "direct", "backdoor_simulated")
 
     def test_auto_frontdoor_fallback(self):
         """后门不可用时回退到前门。"""

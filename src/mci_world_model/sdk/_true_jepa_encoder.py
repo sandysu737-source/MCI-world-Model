@@ -91,7 +91,18 @@ class TrueJEPAConfig:
 
 
 class _MLP:
-    """轻量 MLP: Input → Hidden → ReLU → Output。"""
+    """轻量 MLP: Input → Hidden → ReLU → Output，带解析反向传播。
+
+    反向传播通过链式法则解析推导 (非数值梯度):
+        z1 = x @ W1 + b1
+        h1 = ReLU(z1)
+        out = h1 @ W2 + b2
+
+    给定 dout = dL/dout (shape: output_dim):
+        dW2 = h1^T @ dout      db2 = dout
+        dh1 = dout @ W2^T      dz1 = dh1 * (z1 > 0)
+        dW1 = x^T @ dz1        db1 = dz1
+    """
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, seed: int = 42):
         rng = np.random.RandomState(seed)
@@ -108,10 +119,10 @@ class _MLP:
     def forward(self, x: np.ndarray) -> np.ndarray:
         """前向传播: (input_dim,) → (output_dim,)。"""
         x = np.asarray(x, dtype=np.float64).ravel()
-        h = x @ self._W1 + self._b1
-        h = np.maximum(h, 0)  # ReLU
-        out = h @ self._W2 + self._b2
-        self._cache = {"x": x, "h": h}
+        z1 = x @ self._W1 + self._b1
+        h1 = np.maximum(z1, 0.0)  # ReLU
+        out = h1 @ self._W2 + self._b2
+        self._cache = {"x": x, "z1": z1, "h1": h1}
         return out
 
     def forward_batch(self, x: np.ndarray) -> np.ndarray:
@@ -119,11 +130,40 @@ class _MLP:
         x = np.asarray(x, dtype=np.float64)
         if x.ndim == 1:
             x = x.reshape(1, -1)
-        h = x @ self._W1 + self._b1
-        h = np.maximum(h, 0)
-        out = h @ self._W2 + self._b2
-        self._cache = {"x": x, "h": h}
+        z1 = x @ self._W1 + self._b1
+        h1 = np.maximum(z1, 0.0)
+        out = h1 @ self._W2 + self._b2
+        self._cache = {"x": x, "z1": z1, "h1": h1}
         return out
+
+    def backward(self, dout: np.ndarray) -> dict[str, np.ndarray]:
+        """解析反向传播，返回各参数梯度。
+
+        Args:
+            dout: 上游梯度 dL/dout，shape (output_dim,)
+
+        Returns:
+            {"W1": dW1, "b1": db1, "W2": dW2, "b2": db2}
+        """
+        dout = np.asarray(dout, dtype=np.float64).ravel()
+        x = self._cache["x"]
+        z1 = self._cache["z1"]
+        h1 = self._cache["h1"]
+
+        dW2 = np.outer(h1, dout)
+        db2 = dout.copy()
+        dh1 = dout @ self._W2.T
+        dz1 = dh1 * (z1 > 0.0)  # ReLU 梯度
+        dW1 = np.outer(x, dz1)
+        db1 = dz1.copy()
+        return {"W1": dW1, "b1": db1, "W2": dW2, "b2": db2}
+
+    def apply_grads(self, grads: dict[str, np.ndarray], lr: float) -> None:
+        """沿负梯度方向更新参数。"""
+        self._W1 -= lr * grads["W1"]
+        self._b1 -= lr * grads["b1"]
+        self._W2 -= lr * grads["W2"]
+        self._b2 -= lr * grads["b2"]
 
     def get_params(self) -> dict[str, np.ndarray]:
         return {"W1": self._W1.copy(), "b1": self._b1.copy(), "W2": self._W2.copy(), "b2": self._b2.copy()}
@@ -196,6 +236,7 @@ class TrueJEPAEncoder:
         # 训练统计
         self._train_steps: int = 0
         self._loss_history: list[float] = []
+        self._batch_rng = np.random.RandomState(seed + 3000)
 
     # -----------------------------------------------------------------
     # 属性
@@ -237,7 +278,21 @@ class TrueJEPAEncoder:
 
         Returns:
             潜向量 (latent_dim,) 或 (batch, latent_dim)
+
+        Raises:
+            ValueError: 观测维度与配置 obs_dim 不匹配
         """
+        observations = np.asarray(observations, dtype=np.float64)
+        if observations.ndim == 1:
+            if observations.shape[0] != self._config.obs_dim:
+                raise ValueError(
+                    f"观测维度 {observations.shape[0]} 与配置 obs_dim={self._config.obs_dim} 不匹配"
+                )
+        elif observations.ndim == 2:
+            if observations.shape[1] != self._config.obs_dim:
+                raise ValueError(
+                    f"观测维度 {observations.shape[1]} 与配置 obs_dim={self._config.obs_dim} 不匹配"
+                )
         return self._online_encoder.forward(observations)
 
     def encode_target(self, observations: np.ndarray) -> np.ndarray:
@@ -250,6 +305,15 @@ class TrueJEPAEncoder:
             潜向量 (latent_dim,)
         """
         return self._target_encoder.forward(observations)
+
+    def forward(self, observations: np.ndarray) -> np.ndarray:
+        """forward 别名 — 与 NeurosymbolicWorldModel 的 jepa_encoder 接口兼容。
+
+        NeurosymbolicWorldModel.encode_triple 调用 jepa_encoder.forward(state_vec)。
+        本方法使 TrueJEPAEncoder 可直接作为 jepa_encoder 传入, 实现 JEPA 路径
+        使用真正的潜空间编码 (而非旧 CausalWorldModelState 编码)。
+        """
+        return self.encode(observations)
 
     def predict_next(self, z_t: np.ndarray, action: np.ndarray | None = None) -> np.ndarray:
         """潜空间预测: z_t + action → z_{t+1}。
@@ -285,9 +349,16 @@ class TrueJEPAEncoder:
         obs_t1: np.ndarray,
         action: np.ndarray | None = None,
     ) -> float:
-        """单步训练。
+        """单步训练 — 解析反向传播 (链式法则)。
 
-        L = ||predictor(online(x_t), a) - target(x_{t+1})||² + VICReg
+        L = ||predictor(online(x_t), a) - stopgrad(target(x_{t+1}))||² + VICReg
+
+        反向传播路径 (L 对各参数的解析梯度):
+            dL/dz_pred = 2/D * (z_pred - z_target)        # D = latent_dim
+            predictor.backward(dL/dz_pred)  → predictor grads
+            dz_online_from_pred = predictor 输入端梯度
+            dL/dz_online = dz_online_from_pred + VICReg 梯度
+            online_encoder.backward(dL/dz_online) → online grads
 
         Args:
             obs_t: 当前观测 (obs_dim,)
@@ -302,19 +373,38 @@ class TrueJEPAEncoder:
 
         # ── 前向 ──
         z_online = self._online_encoder.forward(obs_t)
-        z_target = self._target_encoder.forward(obs_t1)  # stop-gradient (不传梯度)
+        z_target = self._target_encoder.forward(obs_t1)  # stop-gradient
         z_pred = self.predict_next(z_online, action)
 
-        # ── 预测损失 ──
-        pred_loss = float(np.mean((z_pred - z_target) ** 2))
+        # ── 预测损失 (MSE) ──
+        diff = z_pred - z_target
+        D = self._config.latent_dim
+        pred_loss = float(np.mean(diff ** 2))
+        dz_pred = (2.0 / D) * diff  # MSE 对 z_pred 的梯度
 
         # ── VICReg 正则化 ──
-        vicreg_loss = self._compute_vicreg(z_online)
+        vicreg_loss, dz_vicreg = self._compute_vicreg_with_grad(z_online)
 
         total_loss = pred_loss + self._config.vicreg_var_weight * vicreg_loss
 
-        # ── 反向传播 (仅更新 online encoder + predictor) ──
-        self._update_params(z_online, z_target, z_pred, obs_t, action, total_loss)
+        # ── 反向传播 ──
+        lr = self._config.lr
+
+        # Predictor 反向传播: dz_pred → predictor 参数梯度 + 输入梯度
+        pred_grads = self._predictor.backward(dz_pred)
+        # predictor 输入 = [z_online, action], 取前 latent_dim 维作为对 z_online 的梯度
+        dz_online_from_pred = pred_grads["W1"]  # 不对; 需通过 W1 的输入梯度
+        # 正确: 对 predictor 输入 x_pred 的梯度 = dz1_pred @ W1_pred.T (经 ReLU)
+        # 但 backward 只返回参数梯度, 我们需要在 predictor 上算输入梯度
+        dz_online_from_pred = self._predictor_input_grad(dz_pred)
+
+        # online encoder 反向传播
+        dz_online = dz_online_from_pred + self._config.vicreg_var_weight * dz_vicreg
+        online_grads = self._online_encoder.backward(dz_online)
+
+        # 应用梯度
+        self._predictor.apply_grads(pred_grads, lr)
+        self._online_encoder.apply_grads(online_grads, lr)
 
         # ── EMA 更新 target encoder ──
         self._ema_update_target()
@@ -353,12 +443,24 @@ class TrueJEPAEncoder:
         n_pairs = n - 1
         self._loss_history.clear()
 
+        batch_size = min(32, n_pairs)
         for epoch in range(n_epochs):
             epoch_loss = 0.0
-            for i in range(n_pairs):
-                action = actions[i] if actions is not None else None
-                loss = self.train_step(observations[i], observations[i + 1], action)
-                epoch_loss += loss
+            # D5 修复: mini-batch 训练, batch 标准差正则化嵌入计算图。
+            # 每个梯度步编码一个 batch, 联合优化:
+            #   L = Σ预测损失 + λ·batch_stddev_loss
+            # batch_stddev_loss 直接惩罚跨样本坍塌 (所有样本输出相同时 loss 最大)
+            perm = self._batch_rng.permutation(n_pairs)
+            n_batches = max(1, n_pairs // batch_size)
+            for b in range(n_batches):
+                idx = perm[b * batch_size : (b + 1) * batch_size]
+                if len(idx) < 2:
+                    continue
+                batch_obs_t = observations[idx]
+                batch_obs_t1 = observations[idx + 1]
+                batch_actions = actions[idx] if actions is not None else None
+                loss = self.train_batch_step(batch_obs_t, batch_obs_t1, batch_actions)
+                epoch_loss += loss * len(idx)
             avg_loss = epoch_loss / n_pairs
             logger.debug("TrueJEPA Epoch %d/%d | Loss: %.6f", epoch + 1, n_epochs, avg_loss)
 
@@ -370,73 +472,186 @@ class TrueJEPAEncoder:
             "n_params": self.n_params,
         }
 
+    def train_batch_step(
+        self,
+        obs_batch_t: np.ndarray,
+        obs_batch_t1: np.ndarray,
+        actions_batch: np.ndarray | None = None,
+    ) -> float:
+        """Mini-batch 训练步 — 预测损失 + batch 标准差正则化 (D5 核心修复)。
+
+        关键创新: batch 标准差正则化直接嵌入计算图, 每步梯度更新都包含
+        跨样本变异性约束。这从第一性原理阻止坍塌:
+
+        坍塌 = 所有样本编码到相同向量 z*。
+        batch_stddev_loss = mean_d(max(0, γ - std_d(Z[:,d])))
+        当所有样本相同时 std_d=0, loss=max(0,γ)=γ (最大)。
+        梯度推动 encoder 增加跨样本方差, 破坏坍塌解。
+
+        Args:
+            obs_batch_t: batch 观测 (B, obs_dim)
+            obs_batch_t1: batch 下一观测 (B, obs_dim)
+            actions_batch: batch 动作 (B, action_dim)
+
+        Returns:
+            batch 平均总损失
+        """
+        B = len(obs_batch_t)
+        D = self._config.latent_dim
+        lr = self._config.lr
+        gamma = 1.0  # 目标 batch 标准差
+
+        total_loss = 0.0
+        # 累积 batch 标准差正则化梯度
+        online_grads_accum = {k: np.zeros_like(getattr(self._online_encoder, k))
+                              for k in ["_W1", "_b1", "_W2", "_b2"]}
+        predictor_grads_accum = {k: np.zeros_like(getattr(self._predictor, k))
+                                 for k in ["_W1", "_b1", "_W2", "_b2"]}
+
+        # ── 编码整个 batch ──
+        z_batch = np.zeros((B, D))
+        z_target_batch = np.zeros((B, D))
+        z_pred_batch = np.zeros((B, D))
+        for t in range(B):
+            z_batch[t] = self._online_encoder.forward(obs_batch_t[t])
+            z_target_batch[t] = self._target_encoder.forward(obs_batch_t1[t])
+            act = actions_batch[t] if actions_batch is not None else None
+            z_pred_batch[t] = self.predict_next(z_batch[t], act)
+
+        # ── 预测损失 (每样本 MSE) ──
+        diff_batch = z_pred_batch - z_target_batch  # (B, D)
+        pred_loss = float(np.mean(diff_batch ** 2))
+
+        # ── batch 标准差正则化 ──
+        z_mean = z_batch.mean(axis=0)  # (D,)
+        z_centered = z_batch - z_mean  # (B, D)
+        std_d = np.sqrt(np.mean(z_centered ** 2, axis=0) + 1e-8)  # (D,)
+        below = np.maximum(0.0, gamma - std_d)  # (D,)
+        batch_std_loss = float(np.mean(below))
+
+        total_loss = pred_loss + self._config.vicreg_var_weight * batch_std_loss
+
+        # ── 反向传播 ──
+        # 梯度缩放说明:
+        #   pred_loss = (1/B) * Σ_t ||diff_t||² / D  →  每样本 dz_pred = (2/D) * diff_t
+        #   累加 B 个样本的梯度后 /B 得到 batch mean 梯度
+        for t in range(B):
+            # 预测损失梯度 (每样本, 无 1/B 因子)
+            dz_pred = (2.0 / D) * diff_batch[t]
+            pred_grads = self._predictor.backward(dz_pred)
+            dz_online_pred = self._predictor_input_grad(dz_pred)
+
+            # batch 标准差梯度
+            mask = (below > 0).astype(np.float64)
+            dz_std = mask * (-1.0 / D) * z_centered[t] / (B * std_d + 1e-12)
+            dz_std *= self._config.vicreg_var_weight
+
+            dz_online = dz_online_pred + dz_std
+            online_grads = self._online_encoder.backward(dz_online)
+
+            for k_map, attr in [("W1","_W1"),("b1","_b1"),("W2","_W2"),("b2","_b2")]:
+                online_grads_accum[attr] += online_grads[k_map]
+                predictor_grads_accum[attr] += pred_grads[k_map]
+
+        # 应用平均梯度 (除 B 得 batch mean)
+        for attr in ["_W1", "_b1", "_W2", "_b2"]:
+            getattr(self._online_encoder, attr).__isub__(lr * online_grads_accum[attr] / B)
+            getattr(self._predictor, attr).__isub__(lr * predictor_grads_accum[attr] / B)
+
+        # EMA 更新
+        self._ema_update_target()
+        self._train_steps += 1
+        self._loss_history.append(total_loss)
+        return total_loss
+
     # -----------------------------------------------------------------
     # 内部方法
     # -----------------------------------------------------------------
 
-    def _compute_vicreg(self, z: np.ndarray) -> float:
-        """VICReg 正则化: 防止潜向量坍塌。
+    def _batch_vicreg_update(self, observations: np.ndarray, actions: np.ndarray | None) -> None:
+        """Batch 级 VICReg 正则化 — 防止表征坍塌 (D5 修复)。
 
-        variance: 鼓励各维度方差 ≥ 1
-        covariance: 惩罚维度间相关性 (协方差矩阵非对角线)
+        单样本 VICReg 无法检测维度间相关性坍塌。batch 级约束编码一批观测后
+        各维度的跨样本标准差, 推动每个维度独立变化。
+
+        对每个维度 d: std_d = sqrt(mean((z[:,d] - mean)^2) + eps)
+        loss = mean(max(0, gamma - std_d))
+        梯度通过解析反向传播更新 online encoder。
         """
-        # 方差项: max(0, γ - std(z))
-        std_z = np.sqrt(np.mean(z**2) + 1e-8)  # 简化: 全局标准差
-        var_loss = float(np.maximum(0, 1.0 - std_z))
-
-        # 协方差项: 惩罚维度间相关性 (简化为自相关)
-        if len(z) > 1:
-            z_centered = z - np.mean(z)
-            cov_loss = float(np.mean(z_centered**2))  # 简化
-        else:
-            cov_loss = 0.0
-
-        return var_loss + self._config.vicreg_cov_weight * cov_loss
-
-    def _update_params(
-        self,
-        z_online: np.ndarray,
-        z_target: np.ndarray,
-        z_pred: np.ndarray,
-        obs_t: np.ndarray,
-        action: np.ndarray | None,
-        total_loss: float,
-    ) -> None:
-        """简化梯度更新 — 数值梯度近似。"""
+        n = min(observations.shape[0], 64)  # 限制 batch 大小
+        idx = np.random.RandomState(self._train_steps).choice(
+            observations.shape[0], n, replace=False
+        )
+        batch = observations[idx]
+        gamma = 2.0  # 目标 batch 标准差
         lr = self._config.lr
-        eps = 1e-4
 
-        # 仅更新 online encoder 和 predictor 的关键参数
-        for mlp, name in [(self._online_encoder, "online"), (self._predictor, "predictor")]:
-            for param_name in ["_W1", "_b1", "_W2", "_b2"]:
-                param = getattr(mlp, param_name)
-                # 采样梯度 (10% 参数, 加速)
-                n_sample = max(1, param.size // 10)
-                rng = np.random.RandomState(self._train_steps)
-                flat_indices = rng.choice(param.size, size=min(n_sample, param.size), replace=False)
+        # 编码 batch
+        z_batch = np.array([self._online_encoder.forward(batch[t]) for t in range(n)])
+        # (n, latent_dim)
+        z_mean = z_batch.mean(axis=0)
+        z_centered = z_batch - z_mean  # (n, D)
+        std_d = np.sqrt(np.mean(z_centered ** 2, axis=0) + 1e-8)  # (D,)
+        below = np.maximum(0.0, gamma - std_d)  # (D,)
+        batch_var_loss = float(np.mean(below))
+        if batch_var_loss < 1e-6:
+            return  # 已满足约束
 
-                for fi in flat_indices:
-                    idx = np.unravel_index(fi, param.shape)
-                    old = param[idx]
-                    param[idx] = old + eps
-                    loss_plus = self._quick_loss(obs_t, action, z_target)
-                    param[idx] = old - eps
-                    loss_minus = self._quick_loss(obs_t, action, z_target)
-                    param[idx] = old
+        # 解析梯度: d(std_d)/d(z_centered) = z_centered / (n * std_d)
+        # d(loss)/d(std_d) = -1/D if below>0 else 0
+        mask = (below > 0).astype(np.float64)  # (D,)
+        # dz_centered = mask * (-1/D) * z_centered / (n * std_d)
+        dz_centered = np.zeros_like(z_batch)
+        for t in range(n):
+            dz_centered[t] = mask * (-1.0 / len(mask)) * z_centered[t] / (n * std_d)
 
-                    grad = (loss_plus - loss_minus) / (2 * eps)
-                    param[idx] -= lr * np.clip(grad, -5, 5)
+        # 对每个样本反向传播
+        for t in range(n):
+            grads = self._online_encoder.backward(dz_centered[t])
+            self._online_encoder.apply_grads(grads, lr)
 
-    def _quick_loss(
-        self,
-        obs_t: np.ndarray,
-        action: np.ndarray | None,
-        z_target: np.ndarray,
-    ) -> float:
-        """快速损失计算 (用于数值梯度)。"""
-        z_online = self._online_encoder.forward(obs_t)
-        z_pred = self.predict_next(z_online, action)
-        return float(np.mean((z_pred - z_target) ** 2))
+    def _compute_vicreg(self, z: np.ndarray) -> float:
+        """VICReg 正则化 (逐维度方差 + 全局协方差)。"""
+        loss, _ = self._compute_vicreg_with_grad(z)
+        return loss
+
+    def _compute_vicreg_with_grad(self, z: np.ndarray) -> tuple[float, np.ndarray]:
+        """VICReg 正则化 — 逐维度方差 + 协方差，返回值与梯度。
+
+        方差项 (per-dimension): 鼓励各维度维持标准差 ≥ γ=1。
+            单样本时用 |z_i| 近似: var_loss = sum(max(0, 1-|z_i|))/D
+        协方差项: 对潜向量维度去相关 (此处单样本退化为 0)。
+        """
+        D = len(z)
+        gamma = 1.0
+        abs_z = np.abs(z)
+        # variance hinge loss
+        below = gamma - abs_z  # >0 表示该维度坍塌
+        mask = (below > 0).astype(np.float64)
+        var_loss = float(np.sum(np.maximum(0.0, below)) / D)
+        # 方差项对 z 的梯度: -sign(z)/D 在 below>0 时
+        dvar_dz = -(np.sign(z) * mask) / D
+
+        # 协方差项: 单样本无意义, 设为 0
+        cov_loss = 0.0
+        dcov_dz = np.zeros_like(z)
+
+        total = var_loss + self._config.vicreg_cov_weight * cov_loss
+        grad = dvar_dz + self._config.vicreg_cov_weight * dcov_dz
+        return total, grad
+
+    def _predictor_input_grad(self, dout: np.ndarray) -> np.ndarray:
+        """计算 predictor 对其输入的梯度, 返回对 z_online 部分。
+
+        predictor 输入 x_pred = [z_online (latent_dim), action (action_dim)]
+        我们只取前 latent_dim 维。
+        """
+        cache = self._predictor._cache
+        z1 = cache["z1"]
+        dh1 = dout @ self._predictor._W2.T
+        dz1 = dh1 * (z1 > 0.0)
+        dx_pred = dz1 @ self._predictor._W1.T
+        return dx_pred[: self._config.latent_dim]
 
     def _sync_target(self) -> None:
         """将 online encoder 参数复制到 target encoder。"""

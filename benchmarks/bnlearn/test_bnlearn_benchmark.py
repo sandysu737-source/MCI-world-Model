@@ -284,7 +284,13 @@ class TestBNLearnAccuracy:
         print(f"\n  PC on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
         assert f1 >= 0.5, f"F1={f1:.3f} below 0.5"
 
-    def test_pc_on_sachs(self):
+    def test_pc_on_sachs_synthetic(self):
+        """PC 在合成线性 SEM Sachs 数据上 (非真实流式数据)。
+
+        注意: 此测试用从 Sachs DAG 拓扑合成的线性 SEM 数据, 验证算法
+        在已知结构上的恢复力。真实 Sachs 流式细胞数据 (非线性/离散)
+        的评估见 benchmarks/real_world/sachs_real_benchmark.py。
+        """
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
         data, nodes, gt_adj, n_edges = _generate_dag_data("sachs")
         algo = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1)
