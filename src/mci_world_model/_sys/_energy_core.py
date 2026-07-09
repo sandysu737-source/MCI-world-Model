@@ -1,4 +1,6 @@
 import numpy as np
+
+from mci_world_model._backend import B
 """
 Five Elements Energy Core Engine
 
@@ -342,6 +344,8 @@ class EnergyCore:
     def stationary_distribution(self) -> np.ndarray:
         """能量系统的平稳分布 — 基于 Flow 动力学矩阵 (I+Flow) 的左特征向量。
 
+        使用计算后端抽象层 B, 支持 GPU 加速 (有 CUDA 时自动切换)。
+
         D3 修复: 旧实现委托 AffinityMatrix (用耦合权重矩阵 A), 但 A 与
         能量流转 Flow 是不同的数学对象。真正描述能量动力学的是 Flow:
             x_{t+1} = (I + Flow) · x_t
@@ -349,15 +353,15 @@ class EnergyCore:
         平稳分布 π 满足 π = (I+Flow)^T · π, 即 (I+Flow)^T 的特征值 1 对应
         的左特征向量。对列和=0 的 Flow, (I+Flow) 列和=1, 故 π = 均匀分布。
         """
-        F = self._flow_matrix
+        F = B.to_numpy(self._flow_matrix)
         n = F.shape[0]
-        M = (np.eye(n) + F).T  # 转置以求左特征向量
+        M = (B.eye(n) + B.array(F)).T
+        M_np = B.to_numpy(M)
         try:
-            eigenvalues, eigvecs = np.linalg.eig(M)
-            # 找最接近 1 的特征值
+            eigenvalues, eigvecs = np.linalg.eig(M_np)
             idx = np.argmin(np.abs(eigenvalues - 1.0))
             pi = np.real(eigvecs[:, idx])
-            pi = np.abs(pi)  # 确保非负
+            pi = np.abs(pi)
             total = pi.sum()
             if total > 0:
                 pi = pi / total

@@ -7,10 +7,13 @@
     from mci_world_model.server.metrics import metrics
     metrics.inc_request("diagnose")
     metrics.observe_latency("diagnose", 0.012)
-    print(metrics.expose())  # Prometheus text format
+    logger.info(metrics.expose())  # Prometheus text format)
 """
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import threading
 import time
 from collections import defaultdict
