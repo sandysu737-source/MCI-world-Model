@@ -342,17 +342,15 @@ class CosmicTrust:
                 try:
                     fed_result = self._fed_trust.assess_federation_trust(dimension, result)
                     return fed_result.get("federation_trust", 0.5)
-                except Exception:
-                    pass
-
+                except Exception as e:
+                    logger.warning("吞异常", exc_info=True)
         if dimension == TrustDimension.CREATIVE.value:
             if self._creative_trust is not None and hasattr(self._creative_trust, "assess_creative_trust"):
                 try:
                     cr_result = self._creative_trust.assess_creative_trust(result)
                     return cr_result.get("creative_trust_score", 0.5)
-                except Exception:
-                    pass
-
+                except Exception as e:
+                    logger.warning("吞异常", exc_info=True)
         # 内置评估: 基于结果质量
         base_trust = self._dimensional_trusts.get(dimension, DimensionalTrust()).trust_score
         result_confidence = result.get("confidence", 0.5)

@@ -743,9 +743,8 @@ class PerceptionPipeline:
                             latest_context = (
                                 temporal_info if isinstance(temporal_info, dict) else {"info": str(temporal_info)}
                             )
-                    except Exception:
-                        pass
-
+                    except Exception as e:
+                        logger.warning("吞异常", exc_info=True)
             return latest_context
         except Exception as e:
             logger.warning("Perception temporal 跳过: %s", e)

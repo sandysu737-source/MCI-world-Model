@@ -394,8 +394,8 @@ class AbsoluteTrust:
             try:
                 result = self._final_theorem.check_consistency()
                 return 1.0 if result.get("overall_consistent", False) else 0.5
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return 0.8
 
     def _measure_ethical_integrity(self) -> float:
@@ -419,8 +419,8 @@ class AbsoluteTrust:
             try:
                 result = self._absolute.check_activation_conditions()
                 return {"valid": result.get("all_met", False)}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return {"valid": False, "note": "Cannot verify activation conditions"}
 
     def _audit_rollback_safety(self) -> dict[str, Any]:

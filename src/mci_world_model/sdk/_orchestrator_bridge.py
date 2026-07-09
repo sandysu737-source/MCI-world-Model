@@ -385,6 +385,7 @@ class OrchestratorBridge:
                 n_mc=n_mc,
             )
         except Exception as e:
+            logger.warning("异常降级: %s", e, exc_info=True)
             return AgentResult.fail("ASSESSMENT", f"Counterfactual query failed: {e}")
 
         return AgentResult.ok(
@@ -427,6 +428,7 @@ class OrchestratorBridge:
             try:
                 state = encoder.encode(memories=memories)
             except Exception as e:
+                logger.warning("异常降级: %s", e, exc_info=True)
                 return AgentResult.fail("PLAN_GENERATION", f"encode failed: {e}")
 
         # 预测

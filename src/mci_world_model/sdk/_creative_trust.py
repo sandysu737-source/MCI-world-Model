@@ -63,6 +63,7 @@ class CreativeTrust:
                 )
                 base_trust_score = result.get("federation_trust", 0.5)
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 base_trust_score = 0.5
 
         # 新颖性
@@ -72,6 +73,7 @@ class CreativeTrust:
                 result = self._novelty.verify(created_theory)
                 novelty_confirmed = 1.0 if result.get("novelty_confirmed") else 0.3
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 novelty_confirmed = 0.5
 
         # 可证伪性
@@ -128,6 +130,7 @@ class CreativeTrust:
                 result = self._novelty.verify(theory)
                 novelty = result.get("novelty_score", 0.5)
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 novelty = 0.5
 
         # 检查与已知理论的区别

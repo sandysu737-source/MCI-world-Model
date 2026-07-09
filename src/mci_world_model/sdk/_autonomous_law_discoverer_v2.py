@@ -832,6 +832,7 @@ class GESDiscoverer:
                             else:
                                 adj[j,i] = 0
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 pass  # Fall back to empty start if PC fails
 
 
@@ -1371,6 +1372,7 @@ class NOTEARSDiscoverer:
                     W_init[si, di] = 0.05
                     W_init[di, si] = 0.0  # suppress reverse direction
         except Exception:
+            logger.warning("异常降级", exc_info=True)
             W_init = None
 
         # Optimize W via GOLEM (log-det) or NOTEARS (aug-Lagrangian)

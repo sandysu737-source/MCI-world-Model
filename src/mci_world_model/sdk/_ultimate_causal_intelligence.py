@@ -351,8 +351,8 @@ class UltimateCausalIntelligence:
         if self._consciousness is not None and hasattr(self._consciousness, "unify_consciousness"):
             try:
                 return self._consciousness.unify_consciousness()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return {"perceived": True, "environment_keys": list(env.keys())}
 
     def _decide_strategy(self, perception: dict[str, Any], env: dict[str, Any]) -> dict[str, Any]:
@@ -382,8 +382,8 @@ class UltimateCausalIntelligence:
                 domain = env.get("domain", "meta")
                 theory = self._creation.create_causal_theory(domain)
                 return {"created": theory is not None, "domain": domain}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return {"created": False}
 
     def _heritage_knowledge(self, env: dict[str, Any]) -> dict[str, Any]:
@@ -393,8 +393,8 @@ class UltimateCausalIntelligence:
                 domain = env.get("domain", "meta")
                 result = self._civilization.knowledge_generation_cycle(domain)
                 return {"heritage": True, "result": result}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return {"heritage": False}
 
     def _trade_knowledge(self, env: dict[str, Any]) -> dict[str, Any]:
@@ -403,8 +403,8 @@ class UltimateCausalIntelligence:
             try:
                 result = self._economy.trade_knowledge("seller", "buyer", "knowledge_unit")
                 return {"traded": True, "result": result}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return {"traded": False}
 
     def _reflect(self) -> dict[str, Any]:

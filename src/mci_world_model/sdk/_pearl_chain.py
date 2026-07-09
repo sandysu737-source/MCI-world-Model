@@ -228,6 +228,7 @@ class PearlChain:
                 result.confidence = 0.6 * result.confidence + 0.4 * kw_conf
                 result.edge_weight = result.confidence
         except Exception:
+            logger.warning("异常降级", exc_info=True)
             pass  # 关键词检测是增强, 失败不影响基线
 
         return result
@@ -316,6 +317,7 @@ class PearlChain:
                 cg = CausalGraph(nodes=nodes, edges=edges)
                 engine = CounterfactualEngine.from_causal_graph(cg)
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 # 降级: 使用简单因果图
                 cg = CausalGraph(nodes=[cause, effect], edges=[(cause, effect)])
                 engine = CounterfactualEngine.from_causal_graph(cg)

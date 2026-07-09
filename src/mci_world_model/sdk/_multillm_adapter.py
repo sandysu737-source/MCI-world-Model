@@ -93,6 +93,7 @@ class OllamaProvider:
             with urllib.request.urlopen(req, timeout=3) as resp:
                 return resp.status == 200
         except Exception:
+            logger.warning("异常降级", exc_info=True)
             return False
 
     def generate(self, prompt: str, system: str = "", **kwargs: Any) -> str:
@@ -388,6 +389,7 @@ class MultiLLMAdapter:
                 try:
                     providers_status[name] = inst._is_available()
                 except Exception:
+                    logger.warning("异常降级", exc_info=True)
                     providers_status[name] = False
             else:
                 providers_status[name] = True  # 无检测方法 = 假定可用

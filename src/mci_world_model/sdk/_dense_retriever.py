@@ -202,5 +202,5 @@ class DenseRetriever:
         try:
             if hasattr(self, "_col") and self._col:
                 self._col.destroy()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("吞异常", exc_info=True)

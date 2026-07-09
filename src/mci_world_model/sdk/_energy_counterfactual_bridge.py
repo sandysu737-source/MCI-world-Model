@@ -125,9 +125,8 @@ class EnergyCounterfactualBridge:
                     seen.add(src)
             if len(categories) >= 5:
                 return categories[:5]
-        except Exception:
-            pass
-
+        except Exception as e:
+            logger.warning("吞异常", exc_info=True)
         # 回退到默认五维
         return ["semantic", "causal", "spacetime", "generative", "trust"]
 
@@ -383,6 +382,6 @@ class EnergyCounterfactualBridge:
             is_suppress = self._energy_core.get_suppress_relation(src, dst)
             if is_suppress:
                 return "相克"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("吞异常", exc_info=True)
         return "间接"

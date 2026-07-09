@@ -182,8 +182,8 @@ class DebridementWorldModel:
                         for x in v:
                             if isinstance(x, np.ndarray):
                                 total += x.size
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("吞异常", exc_info=True)
         return total
 
     @property

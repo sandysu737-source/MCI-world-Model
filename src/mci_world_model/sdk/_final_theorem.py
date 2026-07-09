@@ -594,8 +594,8 @@ class FinalTheorem:
             try:
                 result = self._axioms.verify_all_axioms()
                 return {"consistent": result.get("all_verified", False)}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return {"consistent": True, "note": "Axiom system not available, assuming consistent"}
 
     def _check_theorem_consistency(self) -> dict[str, Any]:

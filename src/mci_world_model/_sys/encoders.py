@@ -8,6 +8,9 @@ Exposed: SemanticEncoder, EncoderCore
 Internal: Fully encapsulated, not exposed externally
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 import hashlib
 import math
 import os
@@ -455,8 +458,8 @@ def _get_st_model():
         urllib.request.urlopen(req, timeout=5)
         _st_model = _OllamaEncoder()
         return _st_model
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("吞异常", exc_info=True)
     # Fallback: 尝试 HuggingFace paraphrase-multilingual-MiniLM-L12-v2
     try:
         from huggingface_hub import try_to_load_from_cache
@@ -469,6 +472,7 @@ def _get_st_model():
         _st_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
         return _st_model
     except Exception:
+        logger.warning("异常降级", exc_info=True)
         _st_model = None
         return None
 

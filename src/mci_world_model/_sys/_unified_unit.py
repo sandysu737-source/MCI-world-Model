@@ -18,6 +18,9 @@ Usage:
     >>> print(unit.human_layer)
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 import sys
 import time
 import uuid
@@ -670,6 +673,7 @@ def run_tests():
         print(f"  PASS: stem={unit.temporal_stem}, branch={unit.temporal_branch}, cyclic={unit.cyclic_code}")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 
@@ -688,6 +692,7 @@ def run_tests():
         print(f"  PASS: direction={unit.direction}, colors={unit.colors}, organs={unit.organs}")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 
@@ -704,6 +709,7 @@ def run_tests():
         print(f"  PASS: heaven={heaven}, earth={earth}, human={human}")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 
@@ -719,6 +725,7 @@ def run_tests():
         print(f"  PASS: Original ID={original.id[:8]}, Restored ID={restored.id[:8]}")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 
@@ -731,6 +738,7 @@ def run_tests():
         print(f"  PASS: trigram={unit.trigram}, hexagram={unit.hexagram_index}")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 
@@ -746,6 +754,7 @@ def run_tests():
         print(f"        hexagram={unit.hexagram_index}, energy={unit.energy_type}")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 
@@ -765,6 +774,7 @@ def run_tests():
         print("  PASS: All energy types have extended attributes")
         tests_passed += 1
     except Exception as e:
+        logger.warning("异常降级: %s", e, exc_info=True)
         print(f"  FAIL: {e}")
         tests_failed += 1
 

@@ -218,6 +218,7 @@ class HierarchicalJEPAEncoder:
             try:
                 return self._wm.discover(memories)
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 return CausalWorldModelState.empty()
 
     def _encode_level_2(self, s_l1: CausalWorldModelState) -> CausalWorldModelState:

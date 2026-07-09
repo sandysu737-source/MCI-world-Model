@@ -14,6 +14,9 @@ Usage::
 """
 
 
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -140,6 +143,7 @@ class P6CognitiveLoop:
                     p.pattern_name for p in diag_result.matched_patterns
                 ] if hasattr(diag_result, "matched_patterns") else []
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 diagnosis["root_cause"] = "diagnoser_unavailable"
 
         # 4. 修复 (如有异常)

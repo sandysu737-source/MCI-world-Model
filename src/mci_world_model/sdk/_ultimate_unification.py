@@ -342,6 +342,7 @@ class UltimateUnification:
             try:
                 self._field_tensor.einstein_tensor = self._unified_field.get_einstein_tensor()
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 self._field_tensor.einstein_tensor = np.eye(4) * 0.1
         else:
             self._field_tensor.einstein_tensor = np.eye(4) * 0.1
@@ -351,6 +352,7 @@ class UltimateUnification:
             try:
                 self._field_tensor.causal_tensor = self._unified_field.get_causal_tensor()
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 self._field_tensor.causal_tensor = np.eye(4) * 0.05
         else:
             self._field_tensor.causal_tensor = np.eye(4) * 0.05
@@ -360,6 +362,7 @@ class UltimateUnification:
             try:
                 self._field_tensor.meta_causal_tensor = self._meta_reasoning.get_meta_causal_tensor()
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 self._field_tensor.meta_causal_tensor = np.eye(4) * 0.03
         else:
             self._field_tensor.meta_causal_tensor = np.eye(4) * 0.03
@@ -377,6 +380,7 @@ class UltimateUnification:
             min_idx = int(np.argmin(np.abs(eigenvalues)))
             return np.array([eigenvalues[min_idx]])
         except Exception:
+            logger.warning("异常降级", exc_info=True)
             return np.array([0.0])
 
     def _find_absolute_invariant(self) -> np.ndarray | None:
@@ -393,6 +397,7 @@ class UltimateUnification:
             trace = np.trace(unified)
             return np.array([trace])
         except Exception:
+            logger.warning("异常降级", exc_info=True)
             return np.array([0.0])
 
     def _measure_stability(self, value: Any) -> float:
@@ -411,6 +416,7 @@ class UltimateUnification:
             cv = std / mean
             return max(0.0, min(1.0 - cv, 1.0))
         except Exception:
+            logger.warning("异常降级", exc_info=True)
             return 0.5
 
     def _measure_meta_transcendence(self) -> float:

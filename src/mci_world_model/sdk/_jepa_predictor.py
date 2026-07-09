@@ -290,6 +290,7 @@ class BeliefPropagationPredictor(JEPAPredictor):
                         if hasattr(belief, "bayes_factor"):
                             new_edge["bayes_factor"] = round(float(belief.bayes_factor), 4)
                 except Exception:
+                    logger.warning("异常降级", exc_info=True)
                     pass  # 默认保持原值
 
             # 弱边抑制

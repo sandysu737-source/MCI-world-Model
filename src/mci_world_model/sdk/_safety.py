@@ -146,9 +146,8 @@ class ForceLimitConstraint(SafetyConstraint):
                         reason=f"动作幅值超限: {abs(float(vec[0])):.2f} > {self._max_force:.2f}",
                         severity="violation",
                     )
-            except Exception:
-                pass
-
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return SafetyCheckResult(passed=True, constraint_name=self.name)
 
 

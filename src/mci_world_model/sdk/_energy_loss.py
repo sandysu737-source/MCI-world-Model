@@ -557,6 +557,7 @@ def build_energy_matrix_from_energy_bus(energy_bus: Any) -> TopologicalEnergyMat
                     val = float(getattr(node, "intensity", 0.5))
                     intensities[state] = val
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 intensities[state] = 0.5
 
         # 与标准矩阵加权融合（70% 标准 + 30% 运行时）

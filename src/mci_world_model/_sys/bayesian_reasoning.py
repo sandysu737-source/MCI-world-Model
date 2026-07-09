@@ -7,6 +7,9 @@
 对外暴露：BayesianReasoningSystem
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 import json
 import math
 import time
@@ -579,6 +582,7 @@ class BayesianReasoningSystem:
                                         source=f"network_propagation_from_{belief_id}",
                                     )
                 except Exception:
+                    logger.warning("异常降级", exc_info=True)
                     pass  # 网络推断失败时静默回退
 
         belief = self.engine.get_belief(belief_id)

@@ -961,6 +961,7 @@ class MCIWorldModel:
                     self._jepa_encoder = JEPAEncoder(self)
                     report["jepa_encoder"] = "initialized"
                 except Exception as e:
+                    logger.warning("异常降级: %s", e, exc_info=True)
                     report["warnings"].append(f"JEPA 编码器初始化失败: {e}")
 
             # ── v3.1.0: 初始化 JEPA 预测器（默认为 BeliefPropagation 基线） ──
@@ -973,6 +974,7 @@ class MCIWorldModel:
                     self._jepa_predictor = BeliefPropagationPredictor()
                     report["jepa_predictor"] = "initialized"
                 except Exception as e:
+                    logger.warning("异常降级: %s", e, exc_info=True)
                     report["warnings"].append(f"JEPA 预测器初始化失败: {e}")
 
             report["ready"] = report["modules"]["causal_pipeline"] == "available"
@@ -3629,9 +3631,8 @@ class MCIWorldModel:
         if hasattr(state, "causal_edges") and callable(state.causal_edges):
             try:
                 return state.causal_edges()
-            except Exception:
-                pass
-
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         # 兼容回退：非 WorldState 对象基于 to_vector() 维度推断
         edges: list[tuple[str, str]] = []
         if hasattr(state, "to_vector"):

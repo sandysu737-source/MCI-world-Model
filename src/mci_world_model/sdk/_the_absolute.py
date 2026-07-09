@@ -133,6 +133,7 @@ class TheAbsolute:
                 try:
                     realization = self._consciousness.get_realization_confidence() >= 0.95
                 except Exception:
+                    logger.warning("异常降级", exc_info=True)
                     realization = False
 
         # 条件4: 公理完备

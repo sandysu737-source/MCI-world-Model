@@ -441,6 +441,7 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
             try:
                 return template_state.from_vector(vec)
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 return vec.copy()
         return vec.copy()
 

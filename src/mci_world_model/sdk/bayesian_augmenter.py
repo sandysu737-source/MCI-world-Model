@@ -401,6 +401,7 @@ class BayesianAugmenter:
         try:
             original = self._client.predict(query=query, top_k=top_k, **kwargs)
         except Exception as e:
+            logger.warning("异常降级: %s", e, exc_info=True)
             original = {"error": str(e)}
 
         # ── 路径2: 贝叶斯预测 ──
@@ -525,6 +526,7 @@ class BayesianAugmenter:
         try:
             original = self._client.reason(query, max_hops=max_hops, **kwargs)
         except Exception as e:
+            logger.warning("异常降级: %s", e, exc_info=True)
             original = {"error": str(e)}
 
         # ── 路径2: 贝叶斯推理 ──

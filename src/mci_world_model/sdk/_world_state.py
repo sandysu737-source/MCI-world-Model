@@ -27,6 +27,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 
 if TYPE_CHECKING:
@@ -777,9 +780,8 @@ class MultimodalWorldState(WorldState):
         if cls._last_layout and len(vec) >= sum(end - start for start, end in cls._last_layout.values()):
             try:
                 return cls.from_vector_with_layout(vec, cls._last_layout)
-            except Exception:
-                pass
-
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return cls(fused=vec)
 
     @classmethod

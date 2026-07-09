@@ -22,6 +22,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 
 
@@ -255,9 +258,8 @@ class EmpiricalCausal:
             try:
                 result = method(X, T, Y)
                 report.estimates.append(result)
-            except Exception:
-                pass
-
+            except Exception as e:
+                logger.warning("吞异常", exc_info=True)
         return report
 
     # ── 内部方法 ─────────────────────────────────────────────────────
@@ -319,6 +321,7 @@ class EmpiricalCausal:
                 est = self.estimate_ate_linear(X[idx], T[idx], Y[idx])
                 ates[b] = est.ate
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 ates[b] = np.nan
         valid = ates[~np.isnan(ates)]
         return float(np.std(valid)) if len(valid) > 10 else 0.1

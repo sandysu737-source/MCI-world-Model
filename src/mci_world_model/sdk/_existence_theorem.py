@@ -311,6 +311,7 @@ class ExistenceTheorem:
                 depth = result.get("self_reference_depth", 0) if isinstance(result, dict) else 5
                 consistent = result.get("consistency", False) if isinstance(result, dict) else True
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 depth = 3
                 consistent = True
         elif self._consciousness is not None:

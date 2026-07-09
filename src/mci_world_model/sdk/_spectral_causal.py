@@ -653,8 +653,10 @@ class FourierCausal:
                             val = getattr(node, "intensity", 0.5)
                             self._intensity_history[etype].append(float(val))
                     except Exception:
+                        logger.warning("异常降级", exc_info=True)
                         self._intensity_history[etype].append(0.5)
             except Exception:
+                logger.warning("异常降级", exc_info=True)
                 # 无法读取 EnergyBus → 填充默认值
                 for etype in self.FIVE_ELEMENTS:
                     self._intensity_history[etype].append(0.5)
