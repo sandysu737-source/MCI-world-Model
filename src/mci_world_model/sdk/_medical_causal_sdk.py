@@ -196,7 +196,10 @@ class MedicalCausalSDK:
         causal_strength *= evidence_weight
 
         # Step 4: 综合置信度
-        confidence = causal_strength * evidence_confidence
+        # 修复: evidence_confidence 已在 Step 3 以 0.6 权重参与 causal_strength 计算,
+        # 此处不再重复相乘 (双重相乘导致 confidence 被不当压低:
+        # 即使 ev_conf=0.9, confidence=0.666 < 0.7, 几乎永远 inconclusive)。
+        confidence = causal_strength
 
         # Step 5: 确定性判定
         is_conclusive = confidence >= self.MIN_CONFIDENCE_FOR_CONCLUSIVE and causal_strength >= self.MIN_CAUSAL_STRENGTH
