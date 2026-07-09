@@ -60,3 +60,43 @@ class TestMedicalCausalConfidence:
         # cs = 0.5*0.3 + 0.6*0.7 = 0.57
         assert diag.confidence < 0.7
         assert diag.is_conclusive is False
+
+
+class TestInputValidationRound4:
+    """第四轮: 输入范围校验 (医疗安全关键)。"""
+
+    def test_confidence_out_of_range_rejected(self):
+        """confidence < 0 或 > 1 应报错。"""
+        from mci_world_model.sdk._medical_causal_sdk import ClinicalEvidence
+        with pytest.raises(ValueError, match="confidence"):
+            ClinicalEvidence(evidence_id="E1", confidence=-0.1)
+        with pytest.raises(ValueError, match="confidence"):
+            ClinicalEvidence(evidence_id="E1", confidence=1.1)
+
+    def test_confidence_boundary_accepted(self):
+        """confidence = 0.0 和 1.0 应被接受。"""
+        from mci_world_model.sdk._medical_causal_sdk import ClinicalEvidence
+        e0 = ClinicalEvidence(evidence_id="E1", confidence=0.0)
+        e1 = ClinicalEvidence(evidence_id="E2", confidence=1.0)
+        assert e0.confidence == 0.0
+        assert e1.confidence == 1.0
+
+    def test_prior_strength_out_of_range_rejected(self):
+        """prior_strength 不在 [0,1] 应报错。"""
+        from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK, ClinicalEvidence
+        sdk = MedicalCausalSDK()
+        for i in range(5):
+            sdk.add_evidence(ClinicalEvidence(evidence_id=f"E{i}", confidence=0.8))
+        with pytest.raises(ValueError, match="prior_strength"):
+            sdk.diagnose("A", "B", prior_strength=1.5)
+        with pytest.raises(ValueError, match="prior_strength"):
+            sdk.diagnose("A", "B", prior_strength=-0.1)
+
+    def test_evidence_count_cap(self):
+        """证据超过 MAX_EVIDENCE_COUNT 应报错。"""
+        from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK, ClinicalEvidence
+        sdk = MedicalCausalSDK()
+        for i in range(sdk.MAX_EVIDENCE_COUNT):
+            sdk.add_evidence(ClinicalEvidence(evidence_id=f"E{i}", confidence=0.5))
+        with pytest.raises(ValueError, match="超过上限"):
+            sdk.add_evidence(ClinicalEvidence(evidence_id="overflow", confidence=0.5))

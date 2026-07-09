@@ -63,10 +63,15 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    MAX_BODY_SIZE = 10 * 1024 * 1024  # 10MB
+
     def _read_body(self) -> dict:
         length = int(self.headers.get("Content-Length", 0))
         if length == 0:
             return {}
+        # D12 修复: 限制请求体大小, 防止 DoS
+        if length > self.MAX_BODY_SIZE:
+            raise ValueError(f"请求体过大: {length} > {self.MAX_BODY_SIZE}")
         raw = self.rfile.read(length)
         return json.loads(raw)
 
@@ -139,16 +144,20 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             ClinicalEvidence,
         )
 
+        # D15 修复: cause/effect 非空校验
+        cause = body.get("cause", "").strip()
+        effect = body.get("effect", "").strip()
+        if not cause or not effect:
+            raise ValueError("cause 和 effect 不能为空")
+
         sdk = MedicalCausalSDK(patient_id=body.get("patient_id", ""))
-        for ev in body.get("evidence", []):
+        for ev in body.get("evidence", [])[:MedicalCausalSDK.MAX_EVIDENCE_COUNT]:
             sdk.add_evidence(ClinicalEvidence(
                 evidence_id=ev.get("id", ""),
                 evidence_type=ev.get("type", "observation"),
                 description=ev.get("description", ""),
                 confidence=ev.get("confidence", 0.5),
             ))
-        cause = body.get("cause", "")
-        effect = body.get("effect", "")
         prior = body.get("prior_strength", 0.5)
         diag = sdk.diagnose(cause, effect, prior)
         return {

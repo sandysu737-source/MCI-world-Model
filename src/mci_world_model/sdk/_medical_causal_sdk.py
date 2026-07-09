@@ -54,6 +54,13 @@ class ClinicalEvidence:
     source: str = ""
     timestamp: float = field(default_factory=time.time)
 
+    def __post_init__(self) -> None:
+        # D10 修复: confidence 必须在 [0, 1], 医疗安全关键校验
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError(
+                f"confidence 必须在 [0, 1], 当前 {self.confidence}"
+            )
+
 
 # =============================================================================
 # CausalDiagnosis — 因果诊断结果
@@ -124,13 +131,22 @@ class MedicalCausalSDK:
     def diagnosis_count(self) -> int:
         return len(self._diagnoses)
 
+    MAX_EVIDENCE_COUNT = 1000
+
     def add_evidence(self, evidence: ClinicalEvidence) -> None:
         """添加临床证据。
 
         Args:
             evidence: 临床证据
+
+        Raises:
+            ValueError: 超过证据数量上限 (D14 DoS 防护)
         """
         with self._lock:
+            if len(self._evidence) >= self.MAX_EVIDENCE_COUNT:
+                raise ValueError(
+                    f"证据数量超过上限 {self.MAX_EVIDENCE_COUNT}"
+                )
             self._evidence.append(evidence)
         self._audit_log.append(
             {
@@ -139,7 +155,7 @@ class MedicalCausalSDK:
                 "timestamp": time.time(),
             }
         )
-        logger.info(
+        logger.debug(
             "医疗SDK: 添加证据 %s (类型=%s, 置信度=%.2f)",
             evidence.evidence_id,
             evidence.evidence_type,
@@ -157,11 +173,19 @@ class MedicalCausalSDK:
         Args:
             cause: 假设原因
             effect: 观测结果
-            prior_strength: 先验因果强度
+            prior_strength: 先验因果强度 [0, 1]
 
         Returns:
             CausalDiagnosis 因果诊断结果
+
+        Raises:
+            ValueError: prior_strength 不在 [0, 1]
         """
+        # D11 修复: prior_strength 范围校验
+        if not 0.0 <= prior_strength <= 1.0:
+            raise ValueError(
+                f"prior_strength 必须在 [0, 1], 当前 {prior_strength}"
+            )
         warnings = []
         audit_trail = []
 
