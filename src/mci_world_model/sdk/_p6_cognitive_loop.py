@@ -10,7 +10,7 @@ Usage::
 
     loop = P6CognitiveLoop()
     result = loop.run(prediction=pred, actual=actual)
-    print(f"Self-repair rate: {loop.repair_rate:.1%}")
+    logger.info(f"Self-repair rate: {loop.repair_rate:.1%}")
 """
 
 

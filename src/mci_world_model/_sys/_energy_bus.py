@@ -31,6 +31,9 @@ Core Features:
 - Multi-path concurrent flow
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 import math
 import sys
 import time
@@ -902,9 +905,9 @@ def create_complete_energy_network() -> EnergyBus:
 
 def test_energy_bus():
     """Test Energy Bus functionality"""
-    print("=" * 60)
-    print("Energy Bus Test Suite")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Energy Bus Test Suite")
+    logger.info("=" * 60)
 
     bus = EnergyBus()
     passed = 0
@@ -913,15 +916,15 @@ def test_energy_bus():
     def test(name: str, condition: bool, details: str = ""):
         nonlocal passed, failed
         if condition:
-            print(f"  ✓ {name}")
+            logger.info(f"  ✓ {name}")
             passed += 1
         else:
-            print(f"  ✗ {name} - FAILED{details}")
+            logger.error(f"  ✗ {name} - FAILED{details}")
             failed += 1
 
     # Test 1: Node Management
-    print("\n[Test 1] Node Management")
-    print("-" * 40)
+    logger.info("\n[Test 1] Node Management")
+    logger.info("-" * 40)
 
     node1 = EnergyNode("node1", "wood", EnergyLayer.FIVE_ELEMENTS)
     node2 = EnergyNode("node2", "fire", EnergyLayer.FIVE_ELEMENTS)
@@ -935,8 +938,8 @@ def test_energy_bus():
     test("Get nodes by energy", len(bus.get_nodes_by_energy("wood")) == 1)
 
     # Test 2: Channel Management
-    print("\n[Test 2] Channel Management")
-    print("-" * 40)
+    logger.info("\n[Test 2] Channel Management")
+    logger.info("-" * 40)
 
     channel_id = bus.connect("node1", "node2", RelationType.ENHANCE, base_weight=1.0)
     test("Create channel", channel_id is not None)
@@ -945,8 +948,8 @@ def test_energy_bus():
     test("Incoming channels", len(bus.get_incoming_channels("node2")) == 1)
 
     # Test 3: Energy Propagation
-    print("\n[Test 3] Energy Propagation")
-    print("-" * 40)
+    logger.info("\n[Test 3] Energy Propagation")
+    logger.info("-" * 40)
 
     initial_intensity = bus.get_node("node1").intensity
     signals = bus.propagate_energy("node1", 0.5)
@@ -956,8 +959,8 @@ def test_energy_bus():
     test("Source intensity increased", node1_new.intensity > initial_intensity)
 
     # Test 4: Five Elements Network
-    print("\n[Test 4] Five Elements Network")
-    print("-" * 40)
+    logger.info("\n[Test 4] Five Elements Network")
+    logger.info("-" * 40)
 
     bus2 = EnergyBus()
     bus2.create_five_elements_nodes()
@@ -976,8 +979,8 @@ def test_energy_bus():
     test("Fire intensity increased via propagation", fire_intensity > 1.0)
 
     # Test 5: Trigrams Network
-    print("\n[Test 5] Trigrams Network")
-    print("-" * 40)
+    logger.info("\n[Test 5] Trigrams Network")
+    logger.info("-" * 40)
 
     bus3 = EnergyBus()
     bus3.create_trigram_nodes()
@@ -989,8 +992,8 @@ def test_energy_bus():
     test("QIAN energy is generative", qian.energy_type == "generative")
 
     # Test 6: Bus State
-    print("\n[Test 6] Bus State")
-    print("-" * 40)
+    logger.info("\n[Test 6] Bus State")
+    logger.info("-" * 40)
 
     state = bus2.get_bus_state()
     test("State has total nodes", state["total_nodes"] == 5)
@@ -998,8 +1001,8 @@ def test_energy_bus():
     test("State has layer stats", "layer_stats" in state)
 
     # Test 7: Balance Calculation
-    print("\n[Test 7] Energy Balance Calculation")
-    print("-" * 40)
+    logger.info("\n[Test 7] Energy Balance Calculation")
+    logger.info("-" * 40)
 
     balance = bus2._calculate_energy_balance()
     test("Balance has ratios", "ratios" in balance)
@@ -1007,8 +1010,8 @@ def test_energy_bus():
     test("Balance has weakest", "weakest" in balance)
 
     # Test 8: Node State
-    print("\n[Test 8] Node State Query")
-    print("-" * 40)
+    logger.info("\n[Test 8] Node State Query")
+    logger.info("-" * 40)
 
     node_state = bus2.get_node_state("element_wood")
     test("Node state has intensity", "intensity" in node_state)
@@ -1016,8 +1019,8 @@ def test_energy_bus():
     test("Node state has connections", "connections" in node_state)
 
     # Test 9: Cross-Layer Flow
-    print("\n[Test 9] Cross-Layer Energy Flow")
-    print("-" * 40)
+    logger.info("\n[Test 9] Cross-Layer Energy Flow")
+    logger.info("-" * 40)
 
     bus4 = EnergyBus()
     bus4.create_five_elements_nodes()
@@ -1028,8 +1031,8 @@ def test_energy_bus():
     test("Cross-layer flow produces results", len(results) >= 0)
 
     # Test 10: Channel Relation Types
-    print("\n[Test 10] Channel Relation Types")
-    print("-" * 40)
+    logger.info("\n[Test 10] Channel Relation Types")
+    logger.info("-" * 40)
 
     bus5 = EnergyBus()
     wood = EnergyNode("w", "wood", EnergyLayer.FIVE_ELEMENTS)
@@ -1042,9 +1045,9 @@ def test_energy_bus():
     test("Channel has correct relation", channel.relation_type == RelationType.SUPPRESS)
     test("Suppress effective weight", abs(channel.effective_weight - 0.8) < 0.01)
 
-    print("\n" + "=" * 60)
-    print(f"Test Results: {passed} passed, {failed} failed")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.error(f"Test Results: {passed} passed, {failed} failed")
+    logger.info("=" * 60)
 
     return failed == 0
 

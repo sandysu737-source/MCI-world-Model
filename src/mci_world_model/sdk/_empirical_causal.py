@@ -14,7 +14,7 @@
 
     ec = EmpiricalCausal()
     result = ec.estimate_ate(X=covariates, T=treatment, Y=outcome, Z=confounders)
-    print(f"ATE = {result.ate:.4f} ± {result.se:.4f}")
+    logger.info(f"ATE = {result.ate:.4f} ± {result.se:.4f}")
 """
 
 from __future__ import annotations

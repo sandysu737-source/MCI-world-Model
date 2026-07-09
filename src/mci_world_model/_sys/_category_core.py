@@ -16,6 +16,9 @@ Dependencies:
 - Reuses encoders.HEXAGRAM_NAMES for hexagram names
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 
 from ._enums import TrigramRelation, TrigramType
@@ -807,43 +810,43 @@ def test_trigram_core():
     - Hexagram transformations
     - Hexagram number calculation
     """
-    print("=" * 60)
-    print("TrigramCore Test Suite")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("TrigramCore Test Suite")
+    logger.info("=" * 60)
 
     tc = TrigramCore()
 
     # Test 1: Trigram info
-    print("\n[Test 1] Trigram Info Retrieval")
+    logger.info("\n[Test 1] Trigram Info Retrieval")
     info = tc.get_trigram_info(TrigramType.QIAN)
     assert info.name == "乾", f"Expected '乾', got '{info.name}'"
     assert info.energy_type == "generative", f"Expected 'generative', got '{info.energy_type}'"
-    print(f"  QIAN: name={info.name}, energy={info.energy_type}")
+    logger.info(f"  QIAN: name={info.name}, energy={info.energy_type}")
 
     info_kun = tc.get_trigram_info(TrigramType.KUN)
     assert info_kun.name == "坤"
     assert info_kun.energy_type == "spacetime"
-    print(f"  KUN: name={info_kun.name}, energy={info_kun.energy_type}")
-    print("  ✓ PASSED")
+    logger.info(f"  KUN: name={info_kun.name}, energy={info_kun.energy_type}")
+    logger.info("  ✓ PASSED")
 
     # Test 2: Binary conversion
-    print("\n[Test 2] Binary Conversion")
+    logger.info("\n[Test 2] Binary Conversion")
     bits = tc.trigram_to_binary(TrigramType.QIAN)
     assert bits == (1, 1, 1), f"Expected (1,1,1), got {bits}"
-    print(f"  QIAN -> {bits}")
+    logger.info(f"  QIAN -> {bits}")
 
     bits_kun = tc.trigram_to_binary(TrigramType.KUN)
     assert bits_kun == (0, 0, 0), f"Expected (0,0,0), got {bits_kun}"
-    print(f"  KUN -> {bits_kun}")
+    logger.info(f"  KUN -> {bits_kun}")
 
     # Round trip test
     recovered = tc.binary_to_trigram(bits)
     assert recovered == TrigramType.QIAN
-    print(f"  Round trip: {bits} -> {recovered.name}")
-    print("  ✓ PASSED")
+    logger.info(f"  Round trip: {bits} -> {recovered.name}")
+    logger.info("  ✓ PASSED")
 
     # Test 3: Prior order
-    print("\n[Test 3] Prior Order (伏羲Trigram Order)")
+    logger.info("\n[Test 3] Prior Order (伏羲Trigram Order)")
     assert tc.get_prior_order(TrigramType.QIAN) == 0
     assert tc.get_prior_order(TrigramType.DUI) == 1
     assert tc.get_prior_order(TrigramType.LI) == 2
@@ -852,11 +855,11 @@ def test_trigram_core():
     assert tc.get_prior_order(TrigramType.KAN) == 5
     assert tc.get_prior_order(TrigramType.GEN) == 6
     assert tc.get_prior_order(TrigramType.KUN) == 7
-    print("  Prior order: QIAN=0, DUI=1, LI=2, ZHEN=3, XUN=4, KAN=5, GEN=6, KUN=7")
-    print("  ✓ PASSED")
+    logger.info("  Prior order: QIAN=0, DUI=1, LI=2, ZHEN=3, XUN=4, KAN=5, GEN=6, KUN=7")
+    logger.info("  ✓ PASSED")
 
     # Test 4: Post order
-    print("\n[Test 4] Post Order (文王Trigram Order)")
+    logger.info("\n[Test 4] Post Order (文王Trigram Order)")
     assert tc.get_post_order(TrigramType.KAN) == 0
     assert tc.get_post_order(TrigramType.KUN) == 1
     assert tc.get_post_order(TrigramType.ZHEN) == 2
@@ -865,14 +868,14 @@ def test_trigram_core():
     assert tc.get_post_order(TrigramType.DUI) == 5
     assert tc.get_post_order(TrigramType.GEN) == 6
     assert tc.get_post_order(TrigramType.LI) == 7
-    print("  Post order: KAN=0, KUN=1, ZHEN=2, XUN=3, QIAN=4, DUI=5, GEN=6, LI=7")
-    print("  ✓ PASSED")
+    logger.info("  Post order: KAN=0, KUN=1, ZHEN=2, XUN=3, QIAN=4, DUI=5, GEN=6, LI=7")
+    logger.info("  ✓ PASSED")
 
     # Test 5: Cuo (错卦) transformation
-    print("\n[Test 5] Cuo (错卦) Transformation")
+    logger.info("\n[Test 5] Cuo (错卦) Transformation")
     cuo = tc.get_cuo_hexagram(TrigramType.QIAN, TrigramType.QIAN)
     assert cuo == (TrigramType.KUN, TrigramType.KUN), f"Expected (KUN,KUN), got {cuo}"
-    print(f"  Cuo(QIAN, QIAN) = {cuo[0].name}, {cuo[1].name}")
+    logger.info(f"  Cuo(QIAN, QIAN) = {cuo[0].name}, {cuo[1].name}")
 
     # Verify all cuo pairs
     for upper in TrigramType:
@@ -884,74 +887,74 @@ def test_trigram_core():
             expected_lower = tuple(1 - b for b in lower_bits)
             assert BINARY_TO_TRIGRAM[expected_upper] == cuo_upper
             assert BINARY_TO_TRIGRAM[expected_lower] == cuo_lower
-    print("  All 64 hexagrams verified")
-    print("  ✓ PASSED")
+    logger.info("  All 64 hexagrams verified")
+    logger.info("  ✓ PASSED")
 
     # Test 6: Hu (互卦) transformation
-    print("\n[Test 6] Hu (互卦) Transformation")
+    logger.info("\n[Test 6] Hu (互卦) Transformation")
     hu = tc.get_hu_hexagram(TrigramType.QIAN, TrigramType.KUN)
     assert hu == (TrigramType.KUN, TrigramType.QIAN), f"Expected (KUN,QIAN), got {hu}"
-    print(f"  Hu(QIAN, KUN) = {hu[0].name}, {hu[1].name}")
-    print("  ✓ PASSED")
+    logger.info(f"  Hu(QIAN, KUN) = {hu[0].name}, {hu[1].name}")
+    logger.info("  ✓ PASSED")
 
     # Test 7: Zong (综卦) transformation
-    print("\n[Test 7] Zong (综卦) Transformation")
+    logger.info("\n[Test 7] Zong (综卦) Transformation")
     zong = tc.get_zong_hexagram(TrigramType.QIAN, TrigramType.KUN)
     assert zong == (TrigramType.KUN, TrigramType.QIAN), f"Expected (KUN,QIAN), got {zong}"
-    print(f"  Zong(QIAN, KUN) = {zong[0].name}, {zong[1].name}")
-    print("  ✓ PASSED")
+    logger.info(f"  Zong(QIAN, KUN) = {zong[0].name}, {zong[1].name}")
+    logger.info("  ✓ PASSED")
 
     # Test 8: Hexagram number calculation
-    print("\n[Test 8] Hexagram Number Calculation")
+    logger.info("\n[Test 8] Hexagram Number Calculation")
     num = tc.get_hexagram_number(TrigramType.QIAN, TrigramType.KUN)
     assert num == 1, f"Expected 1, got {num}"
-    print(f"  HexagramNumber(QIAN, KUN) = {num}")
+    logger.info(f"  HexagramNumber(QIAN, KUN) = {num}")
 
     num_00 = tc.get_hexagram_number(TrigramType.QIAN, TrigramType.QIAN)
     assert num_00 == 0, f"Expected 0, got {num_00}"
-    print(f"  HexagramNumber(QIAN, QIAN) = {num_00}")
+    logger.info(f"  HexagramNumber(QIAN, QIAN) = {num_00}")
 
     num_09 = tc.get_hexagram_number(TrigramType.KUN, TrigramType.KUN)
     assert num_09 == 9, f"Expected 9, got {num_09}"
-    print(f"  HexagramNumber(KUN, KUN) = {num_09}")
+    logger.info(f"  HexagramNumber(KUN, KUN) = {num_09}")
 
     num_63 = tc.get_hexagram_number(TrigramType.DUI, TrigramType.DUI)
     assert num_63 == 63, f"Expected 63, got {num_63}"
-    print(f"  HexagramNumber(DUI, DUI) = {num_63}")
-    print("  ✓ PASSED")
+    logger.info(f"  HexagramNumber(DUI, DUI) = {num_63}")
+    logger.info("  ✓ PASSED")
 
     # Test 9: Hexagram lookup
-    print("\n[Test 9] Hexagram Lookup")
+    logger.info("\n[Test 9] Hexagram Lookup")
     upper, lower = tc.get_hexagram(1)
     assert upper == TrigramType.QIAN and lower == TrigramType.KUN
-    print(f"  Hexagram(1) = ({upper.name}, {lower.name})")
+    logger.info(f"  Hexagram(1) = ({upper.name}, {lower.name})")
 
     upper, lower = tc.get_hexagram(0)
     assert upper == TrigramType.QIAN and lower == TrigramType.QIAN
-    print(f"  Hexagram(0) = ({upper.name}, {lower.name})")
-    print("  ✓ PASSED")
+    logger.info(f"  Hexagram(0) = ({upper.name}, {lower.name})")
+    logger.info("  ✓ PASSED")
 
     # Test 10: Hexagram info
-    print("\n[Test 10] Hexagram Info")
+    logger.info("\n[Test 10] Hexagram Info")
     info = tc.get_hexagram_info(0)
     assert info.name == "乾"
     assert info.upper == TrigramType.QIAN
     assert info.lower == TrigramType.QIAN
-    print(f"  HexagramInfo(0): name={info.name}")
+    logger.info(f"  HexagramInfo(0): name={info.name}")
 
     info_1 = tc.get_hexagram_info(1)
     assert info_1.name == "坤"  # Kun/坤 (index 1 in standard sequence)
-    print(f"  HexagramInfo(1): name={info_1.name}")
+    logger.info(f"  HexagramInfo(1): name={info_1.name}")
 
     info_63 = tc.get_hexagram_info(63)
     assert info_63.name == "未济"
     assert info_63.upper == TrigramType.DUI
     assert info_63.lower == TrigramType.DUI
-    print(f"  HexagramInfo(63): name={info_63.name}")
-    print("  ✓ PASSED")
+    logger.info(f"  HexagramInfo(63): name={info_63.name}")
+    logger.info("  ✓ PASSED")
 
     # Test 11: Trigram energy type (CEWM cognitive energy mapping)
-    print("\n[Test 11] Trigram Energy Type")
+    logger.info("\n[Test 11] Trigram Energy Type")
     assert tc.get_trigram_energy_type(TrigramType.QIAN) == "generative"
     assert tc.get_trigram_energy_type(TrigramType.DUI) == "generative"
     assert tc.get_trigram_energy_type(TrigramType.LI) == "causal"
@@ -960,41 +963,41 @@ def test_trigram_core():
     assert tc.get_trigram_energy_type(TrigramType.KAN) == "trust"
     assert tc.get_trigram_energy_type(TrigramType.GEN) == "spacetime"
     assert tc.get_trigram_energy_type(TrigramType.KUN) == "spacetime"
-    print("  CEWM energy types verified for all 8 trigrams")
-    print("  ✓ PASSED")
+    logger.info("  CEWM energy types verified for all 8 trigrams")
+    logger.info("  ✓ PASSED")
 
     # Test 12: Get trigrams by energy
-    print("\n[Test 12] Get Trigrams By Energy")
+    logger.info("\n[Test 12] Get Trigrams By Energy")
     generative_trigrams = tc.get_trigrams_by_energy("generative")
     assert len(generative_trigrams) == 2
     assert TrigramType.QIAN in generative_trigrams
     assert TrigramType.DUI in generative_trigrams
-    print(f"  Generative trigrams: {[t.name for t in generative_trigrams]}")
+    logger.info(f"  Generative trigrams: {[t.name for t in generative_trigrams]}")
 
     semantic_trigrams = tc.get_trigrams_by_energy("semantic")
     assert len(semantic_trigrams) == 2
     assert TrigramType.ZHEN in semantic_trigrams
     assert TrigramType.XUN in semantic_trigrams
-    print(f"  Semantic trigrams: {[t.name for t in semantic_trigrams]}")
-    print("  ✓ PASSED")
+    logger.info(f"  Semantic trigrams: {[t.name for t in semantic_trigrams]}")
+    logger.info("  ✓ PASSED")
 
     # Test 13: Trigram relation analysis
-    print("\n[Test 13] Trigram Relation Analysis")
+    logger.info("\n[Test 13] Trigram Relation Analysis")
     relations = tc.analyze_trigram_relation(TrigramType.QIAN, TrigramType.KUN)
     assert TrigramRelation.CUO in relations
-    print(f"  QIAN-KUN relations: {[r.name for r in relations]}")
-    print("  ✓ PASSED")
+    logger.info(f"  QIAN-KUN relations: {[r.name for r in relations]}")
+    logger.info("  ✓ PASSED")
 
     # Test 14: All 64 hexagrams
-    print("\n[Test 14] All 64 Hexagrams")
+    logger.info("\n[Test 14] All 64 Hexagrams")
     all_hex = tc.get_all_hexagrams()
     assert len(all_hex) == 64
-    print(f"  Total hexagrams: {len(all_hex)}")
-    print("  ✓ PASSED")
+    logger.info(f"  Total hexagrams: {len(all_hex)}")
+    logger.info("  ✓ PASSED")
 
-    print("\n" + "=" * 60)
-    print("All tests PASSED!")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("All tests PASSED!")
+    logger.info("=" * 60)
 
     return True
 

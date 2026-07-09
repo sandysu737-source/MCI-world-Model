@@ -55,8 +55,8 @@ class CausalGraphResult:
             import matplotlib.pyplot as plt
             import networkx as nx
         except ImportError:
-            print("Visualization requires: pip install mci-world-model[full]")
-            print("  (installs matplotlib + networkx)")
+            logger.info("Visualization requires: pip install mci-world-model[full]")
+            logger.info("  (installs matplotlib + networkx)")
             return
 
         G = nx.DiGraph()

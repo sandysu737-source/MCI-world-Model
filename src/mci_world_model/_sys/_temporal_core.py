@@ -18,6 +18,9 @@ providing comprehensive functionality for:
 Architecture: Sky Layer (Tian) - Temporal System
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 
 from ._enums import BranchRelation, TimeBranch, TimeStem
@@ -715,9 +718,9 @@ def get_cycle_name(index: int) -> str:
 
 def _run_tests():
     """Run built-in test cases."""
-    print("=" * 60)
-    print("TemporalCore Test Suite")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("TemporalCore Test Suite")
+    logger.info("=" * 60)
 
     tc = TemporalCore()
     passed = 0
@@ -726,14 +729,14 @@ def _run_tests():
     def test(name: str, condition: bool, details: str = ""):
         nonlocal passed, failed
         if condition:
-            print(f"  ✓ {name}")
+            logger.info(f"  ✓ {name}")
             passed += 1
         else:
-            print(f"  ✗ {name} - FAILED{details}")
+            logger.error(f"  ✗ {name} - FAILED{details}")
             failed += 1
 
-    print("\n[1] StemBranchCode Creation Tests")
-    print("-" * 40)
+    logger.info("\n[1] StemBranchCode Creation Tests")
+    logger.info("-" * 40)
 
     # Test 甲子 creation
     code = tc.create_code(0, 0)  # 甲子
@@ -747,8 +750,8 @@ def _run_tests():
     test("癸亥 cycle_index is 59", code.cycle_index == 59)
     test("癸亥 polarity is yin", code.polarity == "yin")
 
-    print("\n[2] Cycle Navigation Tests")
-    print("-" * 40)
+    logger.info("\n[2] Cycle Navigation Tests")
+    logger.info("-" * 40)
 
     test("get_cycle_name(0) returns 甲子", tc.get_cycle_name(0) == "甲子")
     test("get_cycle_name(59) returns 癸亥", tc.get_cycle_name(59) == "癸亥")
@@ -760,8 +763,8 @@ def _run_tests():
     idx = tc.get_cycle_index(TimeStem.GUI, TimeBranch.HAI)
     test("get_cycle_index(GUI, HAI) returns 59", idx == 59)
 
-    print("\n[3] Heavenly Stem Relation Tests")
-    print("-" * 40)
+    logger.info("\n[3] Heavenly Stem Relation Tests")
+    logger.info("-" * 40)
 
     # Wu He (五合) - Five Combinations
     rel = tc.analyze_stem_relation(TimeStem.JIA, TimeStem.JI)
@@ -796,8 +799,8 @@ def _run_tests():
     rel = tc.analyze_stem_relation(TimeStem.JIA, TimeStem.YI)
     test("甲乙无合冲关系", rel is None)
 
-    print("\n[4] Earthly Branch Relation Tests")
-    print("-" * 40)
+    logger.info("\n[4] Earthly Branch Relation Tests")
+    logger.info("-" * 40)
 
     # Liu He (六合)
     rels = tc.analyze_branch_relation(TimeBranch.ZI, TimeBranch.CHOU)
@@ -837,8 +840,8 @@ def _run_tests():
     rels = tc.analyze_branch_relation(TimeBranch.SI, TimeBranch.HAI)
     test("巳亥冲 (SI-HAI)", BranchRelation.LIU_CHONG in rels)
 
-    print("\n[5] Hidden Stems Tests")
-    print("-" * 40)
+    logger.info("\n[5] Hidden Stems Tests")
+    logger.info("-" * 40)
 
     # 子藏癸 (index 8 = REN)
     stems = tc.get_hidden_stems(TimeBranch.ZI)
@@ -864,8 +867,8 @@ def _run_tests():
         len(code.hidden_stems) == 1 and code.hidden_stems[0] == TimeStem.REN,
     )
 
-    print("\n[6] San He (三合局) Trigram Tests")
-    print("-" * 40)
+    logger.info("\n[6] San He (三合局) Trigram Tests")
+    logger.info("-" * 40)
 
     # 申子辰 - 水局
     code_sh = tc.create_code(6, 8)  # 庚申
@@ -903,16 +906,16 @@ def _run_tests():
     is_tri, energy = tc.is_same_trigram(code_s, code_y, code_c)
     test("巳酉丑合金局 (SI-YOU-CHOU)", is_tri and energy == "metal")
 
-    print("\n[7] Cycle Distance Tests")
-    print("-" * 40)
+    logger.info("\n[7] Cycle Distance Tests")
+    logger.info("-" * 40)
 
     test("get_cycle_distance(0, 59) wraps to 1", tc.get_cycle_distance(0, 59) == 1)
     test("get_cycle_distance(0, 30) is 30", tc.get_cycle_distance(0, 30) == 30)
     test("get_cycle_distance(10, 20) is 10", tc.get_cycle_distance(10, 20) == 10)
     test("get_cycle_distance(30, 0) is 30", tc.get_cycle_distance(30, 0) == 30)
 
-    print("\n[8] Energy Type Tests")
-    print("-" * 40)
+    logger.info("\n[8] Energy Type Tests")
+    logger.info("-" * 40)
 
     test("get_branch_energy(ZI) = water", tc.get_branch_energy(TimeBranch.ZI) == "water")
     test("get_branch_energy(YIN) = wood", tc.get_branch_energy(TimeBranch.YIN) == "wood")
@@ -926,8 +929,8 @@ def _run_tests():
     test("get_stem_energy(GENG) = metal", tc.get_stem_energy(TimeStem.GENG) == "metal")
     test("get_stem_energy(REN) = water", tc.get_stem_energy(TimeStem.REN) == "water")
 
-    print("\n[9] Polarity Tests")
-    print("-" * 40)
+    logger.info("\n[9] Polarity Tests")
+    logger.info("-" * 40)
 
     test("JIA is yang", tc.is_stem_yang(TimeStem.JIA))
     test("YI is yin", not tc.is_stem_yang(TimeStem.YI))
@@ -937,8 +940,8 @@ def _run_tests():
     test("code.polarity for 甲子", tc.create_code(0, 0).polarity == "yang")
     test("code.polarity for 乙丑", tc.create_code(1, 1).polarity == "yin")
 
-    print("\n[10] San He Branch Retrieval")
-    print("-" * 40)
+    logger.info("\n[10] San He Branch Retrieval")
+    logger.info("-" * 40)
 
     branches = tc.get_san_he_branches("water")
     test(
@@ -955,9 +958,9 @@ def _run_tests():
         len(branches) == 3 and TimeBranch.HAI in branches and TimeBranch.MAO in branches and TimeBranch.WEI in branches,
     )
 
-    print("\n" + "=" * 60)
-    print(f"Test Results: {passed} passed, {failed} failed")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.error(f"Test Results: {passed} passed, {failed} failed")
+    logger.info("=" * 60)
 
     return failed == 0
 

@@ -216,9 +216,9 @@ def _self_test() -> None:
     regularized = sigreg.regularize(biased)
     iso_after = sigreg.compute_isotropy_score(regularized)
 
-    print(f"各向同性: {iso_before:.4f} → {iso_after:.4f}")
+    logger.info(f"各向同性: {iso_before:.4f} → {iso_after:.4f}")
     assert iso_after > iso_before, "SIGReg 应提升各向同性"
-    print("✅ SIGReg 自检通过")
+    logger.info("✅ SIGReg 自检通过")
 
 
 if __name__ == "__main__":

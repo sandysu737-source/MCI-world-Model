@@ -20,7 +20,7 @@ LeCun 六模块架构中的 Cost 模块：评估世界状态的"好坏"，
 
     cost_module = EnergyCostModule(alpha_energy=0.5, beta_causal=0.3, gamma_temporal=0.2)
     signal = cost_module.evaluate(state)
-    print(f"Total cost: {signal.total:.4f}")
+    logger.info(f"Total cost: {signal.total:.4f}")
 """
 
 import logging

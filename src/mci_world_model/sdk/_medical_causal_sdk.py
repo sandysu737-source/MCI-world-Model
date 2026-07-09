@@ -19,6 +19,7 @@ from __future__ import annotations
 
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -106,6 +107,7 @@ class MedicalCausalSDK:
     def __init__(self, patient_id: str = "", strict_mode: bool = True) -> None:
         self._patient_id = patient_id
         self._strict_mode = strict_mode
+        self._lock = threading.Lock()
         self._evidence: list[ClinicalEvidence] = []
         self._diagnoses: list[CausalDiagnosis] = []
         self._audit_log: list[dict[str, Any]] = []
@@ -128,7 +130,8 @@ class MedicalCausalSDK:
         Args:
             evidence: 临床证据
         """
-        self._evidence.append(evidence)
+        with self._lock:
+            self._evidence.append(evidence)
         self._audit_log.append(
             {
                 "action": "add_evidence",
@@ -163,8 +166,10 @@ class MedicalCausalSDK:
         audit_trail = []
 
         # Step 1: 证据充分性检查
-        if len(self._evidence) < self.MIN_EVIDENCE_COUNT:
-            warnings.append(f"证据不足: {len(self._evidence)} < {self.MIN_EVIDENCE_COUNT}")
+        with self._lock:
+            evidence_snapshot = list(self._evidence)
+        if len(evidence_snapshot) < self.MIN_EVIDENCE_COUNT:
+            warnings.append(f"证据不足: {len(evidence_snapshot)} < {self.MIN_EVIDENCE_COUNT}")
             if self._strict_mode:
                 audit_trail.append({"step": "evidence_check", "passed": False})
                 return CausalDiagnosis(
@@ -172,7 +177,7 @@ class MedicalCausalSDK:
                     effect=effect,
                     confidence=0.0,
                     is_conclusive=False,
-                    evidence_ids=[e.evidence_id for e in self._evidence],
+                    evidence_ids=[e.evidence_id for e in evidence_snapshot],
                     audit_trail=audit_trail,
                     warnings=warnings,
                 )
@@ -182,11 +187,11 @@ class MedicalCausalSDK:
         # Step 2: 综合证据置信度
         relevant_evidence = [
             e
-            for e in self._evidence
+            for e in evidence_snapshot
             if cause in e.description or effect in e.description or e.evidence_type == "observation"
         ]
         if not relevant_evidence:
-            relevant_evidence = self._evidence  # 降级使用全部证据
+            relevant_evidence = evidence_snapshot  # 降级使用全部证据
 
         evidence_confidence = float(np.mean([e.confidence for e in relevant_evidence]))
 

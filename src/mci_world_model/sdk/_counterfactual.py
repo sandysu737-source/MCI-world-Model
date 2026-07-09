@@ -39,8 +39,8 @@ v3.0.8 新增:
         do_x={"X": 0.0},
         target="Y",
     )
-    print(f"反事实 Y = {result.counterfactual_value:.4f}")
-    print(f"PN={result.pn:.3f}, PS={result.ps:.3f}")
+    logger.info(f"反事实 Y = {result.counterfactual_value:.4f}")
+    logger.info(f"PN={result.pn:.3f}, PS={result.ps:.3f}")
 """
 
 

@@ -13,6 +13,10 @@ providing comprehensive functionality for:
 Architecture: Human Layer (Ren) - Energy System
 """
 
+import logging
+import threading
+
+logger = logging.getLogger(__name__)
 import sys
 from dataclasses import dataclass, field
 
@@ -272,6 +276,7 @@ class EnergyCore:
     REVERSE_RATE = 0.08  # Reverse reaction minor enhancement
 
     def __init__(self):
+        self._lock = threading.Lock()
         """Initialize the Energy Core Engine."""
         # Create reverse mappings for quick lookup
         self._enhance_reverse = {v: k for k, v in ENERGY_ENHANCE.items()}
@@ -837,10 +842,13 @@ class EnergyCore:
     def _calculate_flow_step(self, energies: dict[str, float]) -> dict[str, float]:
         """一步守恒能量流转 (矩阵化): x_{t+1} = clip(x_t + Flow @ x_t)。
 
+        线程安全: 通过 _lock 保护矩阵运算。
+
         等价于 dict 逐对迭代, 但向量化为单次矩阵-向量乘 (O(25))。
         Flow 列和 = 0 保证能量守恒 (生=纯转移, 克=转移非消灭)。
         """
-        v = self._to_vector(energies)
+        with self._lock:
+            v = self._to_vector(energies)
         total_before = float(v.sum())
         nxt = v + self._flow_matrix @ v
         np.maximum(nxt, 0.0, out=nxt)  # 非负守卫 (数值防御)
@@ -975,16 +983,16 @@ class EnergyCore:
 
 def test_energy_core():
     """Run test cases for the Energy Core module."""
-    print("=" * 60)
-    print("Testing Energy Core Module")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Testing Energy Core Module")
+    logger.info("=" * 60)
 
     ec = EnergyCore()
     tests_passed = 0
     tests_failed = 0
 
     # Test 1: Enhancement relations
-    print("\n[TEST 1] Enhancement Relations")
+    logger.info("\n[TEST 1] Enhancement Relations")
     test_cases = [
         ("semantic", "causal", True),
         ("causal", "semantic", False),
@@ -1001,10 +1009,10 @@ def test_energy_core():
             tests_passed += 1
         else:
             tests_failed += 1
-        print(f"  {e1} -> {e2}: {result} (expected {expected}) [{status}]")
+        logger.info(f"  {e1} -> {e2}: {result} (expected {expected}) [{status}]")
 
     # Test 2: Suppression relations (bidirectional per task requirements)
-    print("\n[TEST 2] Suppression Relations")
+    logger.info("\n[TEST 2] Suppression Relations")
     test_cases = [
         ("wood", "earth", True),  # 木克土
         ("earth", "wood", True),  # 土克木 (bidirectional)
@@ -1021,10 +1029,10 @@ def test_energy_core():
             tests_passed += 1
         else:
             tests_failed += 1
-        print(f"  {e1} -> {e2}: {result} (expected {expected}) [{status}]")
+        logger.info(f"  {e1} -> {e2}: {result} (expected {expected}) [{status}]")
 
     # Test 3: Energy states (旺相休囚死)
-    print("\n[TEST 3] Energy States by Month (旺相休囚死)")
+    logger.info("\n[TEST 3] Energy States by Month (旺相休囚死)")
     test_cases = [
         ("wood", 2, StrengthState.WANG),  # 寅月木旺
         ("wood", 3, StrengthState.WANG),  # 卯月木旺
@@ -1044,10 +1052,10 @@ def test_energy_core():
             tests_passed += 1
         else:
             tests_failed += 1
-        print(f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]")
+        logger.info(f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]")
 
     # Test 4: Intensity calculation
-    print("\n[TEST 4] Intensity Calculation")
+    logger.info("\n[TEST 4] Intensity Calculation")
     state = ec.get_energy_state("wood", 2)  # 寅月
     expected_intensity = ec.STRENGTH_MULTIPLIER[StrengthState.WANG]
     status = "PASS" if abs(state.intensity - expected_intensity) < 0.01 else "FAIL"
@@ -1055,60 +1063,60 @@ def test_energy_core():
         tests_passed += 1
     else:
         tests_failed += 1
-    print(f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]")
+    logger.info(f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]")
 
     # Test 5: Balance analysis
-    print("\n[TEST 5] Balance Analysis")
+    logger.info("\n[TEST 5] Balance Analysis")
     energies = {"wood": 0.3, "fire": 0.2, "earth": 0.2, "metal": 0.15, "water": 0.15}
     result = ec.analyze_balance(energies)
-    print(f"  Status: {result.status}")
-    print(f"  Pattern: {result.pattern.name}")
-    print(f"  Dominant: {result.dominant}")
-    print(f"  Ratios: {result.ratios}")
-    print(f"  Suggestions: {result.suggestions}")
+    logger.info(f"  Status: {result.status}")
+    logger.info(f"  Pattern: {result.pattern.name}")
+    logger.info(f"  Dominant: {result.dominant}")
+    logger.info(f"  Ratios: {result.ratios}")
+    logger.info(f"  Suggestions: {result.suggestions}")
 
     # Test 6: Energy attributes
-    print("\n[TEST 6] Energy Attributes")
+    logger.info("\n[TEST 6] Energy Attributes")
     attrs = ec.get_energy_attributes("wood")
-    print("  Wood attributes:")
+    logger.info("  Wood attributes:")
     for k, v in attrs.items():
-        print(f"    {k}: {v}")
+        logger.info(f"    {k}: {v}")
 
     # Test 7: Compatibility calculation
-    print("\n[TEST 7] Compatibility Calculation")
+    logger.info("\n[TEST 7] Compatibility Calculation")
     e1 = {"wood": 0.4, "fire": 0.2, "earth": 0.2, "metal": 0.1, "water": 0.1}
     e2 = {"wood": 0.3, "fire": 0.3, "earth": 0.2, "metal": 0.1, "water": 0.1}
     compat = ec.calculate_compatibility(e1, e2)
-    print(f"  Compatibility score: {compat:.4f}")
+    logger.info(f"  Compatibility score: {compat:.4f}")
 
     # Test 8: Interaction analysis
-    print("\n[TEST 8] Interaction Analysis")
+    logger.info("\n[TEST 8] Interaction Analysis")
     interactions = ec.analyze_interaction("wood", "fire")
-    print(f"  wood <-> fire: {[r.name for r in interactions]}")
+    logger.info(f"  wood <-> fire: {[r.name for r in interactions]}")
     interactions = ec.analyze_interaction("wood", "earth")
-    print(f"  wood <-> earth: {[r.name for r in interactions]}")
+    logger.info(f"  wood <-> earth: {[r.name for r in interactions]}")
 
     # Test 9: Energy flow simulation
-    print("\n[TEST 9] Energy Flow Simulation")
+    logger.info("\n[TEST 9] Energy Flow Simulation")
     initial = {"wood": 0.3, "fire": 0.2, "earth": 0.2, "metal": 0.15, "water": 0.15}
     history = ec.simulate_energy_flow(initial, steps=3)
-    print(f"  Initial: {initial}")
+    logger.info(f"  Initial: {initial}")
     for i, state in enumerate(history[1:], 1):
-        print(f"  Step {i}: {state}")
+        logger.info(f"  Step {i}: {state}")
 
     # Test 10: Strength from branch
-    print("\n[TEST 10] Strength from Branch")
+    logger.info("\n[TEST 10] Strength from Branch")
     strengths = ec.get_strength_from_branch(2)  # 寅月
-    print("  Branch 2 (寅月) strengths:")
+    logger.info("  Branch 2 (寅月) strengths:")
     for energy, strength in strengths.items():
-        print(f"    {energy}: {strength.name}")
+        logger.info(f"    {energy}: {strength.name}")
 
     # Summary
-    print("\n" + "=" * 60)
-    print(f"Tests Passed: {tests_passed}")
-    print(f"Tests Failed: {tests_failed}")
-    print(f"Total: {tests_passed + tests_failed}")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info(f"Tests Passed: {tests_passed}")
+    logger.error(f"Tests Failed: {tests_failed}")
+    logger.error(f"Total: {tests_passed + tests_failed}")
+    logger.info("=" * 60)
 
     return tests_failed == 0
 

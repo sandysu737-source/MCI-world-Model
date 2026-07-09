@@ -28,7 +28,7 @@ MCI World Model v3.0.7 — Pearl Do-Calculus 干预引擎 (M1)
     )
     dc = DoCalculus(cg)
     result = dc.estimate_ate("X", "Y")
-    print(f"ATE: {result.ate:.4f} [{result.confidence_interval}]")
+    logger.info(f"ATE: {result.ate:.4f} [{result.confidence_interval}]")
 """
 
 

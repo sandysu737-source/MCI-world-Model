@@ -22,6 +22,9 @@ Usage::
 
 from dataclasses import dataclass, field
 
+import logging
+
+logger = logging.getLogger(__name__)
 import numpy as np
 
 
@@ -223,7 +226,7 @@ class SimpleMAML:
             self._n_meta_steps += 1
 
             if verbose and epoch % max(1, n_epochs // 10) == 0:
-                print(f"  Epoch {epoch:4d}/{n_epochs}  loss={avg_loss:.6f}")
+                logger.info(f"  Epoch {epoch:4d}/{n_epochs}  loss={avg_loss:.6f}")
 
         return self._meta_losses
 
