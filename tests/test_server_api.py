@@ -50,8 +50,11 @@ class TestHealthEndpoints:
         assert r["ready"] is True
 
     def test_metrics(self):
-        r = _get("/metrics")
-        assert "requests_total" in r
+        _ensure_server()
+        import urllib.request
+        raw = urllib.request.urlopen(f"http://127.0.0.1:{_SERVER_PORT}/metrics").read().decode()
+        assert "requests_total" in raw or "request_duration" in raw
+        assert "mci_uptime" in raw
 
 
 class TestDiagnoseEndpoint:

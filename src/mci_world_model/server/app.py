@@ -20,7 +20,10 @@ import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
 
+import signal as signal_module
+
 from mci_world_model._logging import setup_logging
+from mci_world_model.server.metrics import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -68,35 +71,40 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         return json.loads(raw)
 
     def do_GET(self) -> None:
-        with self._request_count_lock:
-            self._request_count += 1
+        t0 = time.time()
+        endpoint = self.path
 
         if self.path == "/health":
             self._send_json(200, {"status": "alive", "timestamp": time.time()})
         elif self.path == "/ready":
             self._send_json(200, {"ready": _ready})
         elif self.path == "/metrics":
-            with self._request_count_lock:
-                count = self._request_count
-            self._send_json(200, {
-                "requests_total": count,
-                "ready": _ready,
-                "metrics_format": "simple",
-            })
+            # Prometheus text exposition format
+            body = metrics.expose().encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self._send_json(404, {"error": "not found", "path": self.path})
 
+        metrics.inc_request(endpoint)
+        metrics.observe_latency(endpoint, time.time() - t0)
+
     def do_POST(self) -> None:
-        with self._request_count_lock:
-            self._request_count += 1
+        t0 = time.time()
+        endpoint = self.path
 
         if not _ready:
+            metrics.inc_error(endpoint)
             self._send_json(503, {"error": "not ready"})
             return
 
         try:
             body = self._read_body()
         except json.JSONDecodeError as e:
+            metrics.inc_error(endpoint)
             self._send_json(400, {"error": "invalid JSON", "detail": str(e)})
             return
 
@@ -114,7 +122,11 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
                 self._send_json(404, {"error": "not found", "path": self.path})
         except Exception as e:
             logger.error("API 错误 %s: %s", self.path, e, exc_info=True)
+            metrics.inc_error(endpoint)
             self._send_json(500, {"error": "internal error", "detail": str(e)})
+
+        metrics.inc_request(endpoint)
+        metrics.observe_latency(endpoint, time.time() - t0)
 
     # ── 端点处理 ──
 
@@ -207,13 +219,24 @@ def create_server(host: str = "0.0.0.0", port: int = 8080) -> HTTPServer:
 
 
 def run(host: str = "0.0.0.0", port: int = 8080) -> None:
-    """启动服务 (阻塞)。"""
+    """启动服务 (阻塞), 支持 SIGTERM 优雅关闭。"""
     server = create_server(host, port)
+
+    def _graceful_shutdown(signum, frame):
+        sig_name = signal_module.Signals(signum).name
+        logger.info("收到 %s 信号, 开始优雅关闭...", sig_name)
+        server.shutdown()
+
+    signal_module.signal(signal_module.SIGTERM, _graceful_shutdown)
+    signal_module.signal(signal_module.SIGINT, _graceful_shutdown)
+
+    metrics.set_gauge("mci_ready", 1.0 if _ready else 0.0)
+    logger.info("MCI API 服务就绪: %s:%d (SIGTERM 优雅关闭已启用)", host, port)
     try:
         server.serve_forever()
-    except KeyboardInterrupt:
-        logger.info("收到中断信号, 关闭服务")
-        server.shutdown()
+    finally:
+        metrics.set_gauge("mci_ready", 0.0)
+        logger.info("MCI API 服务已关闭")
 
 
 if __name__ == "__main__":
