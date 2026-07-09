@@ -112,6 +112,9 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             if self.path == "/api/v1/diagnose":
                 result = self._handle_diagnose(body)
                 self._send_json(200, result)
+            elif self.path == "/api/v1/diagnose/batch":
+                result = self._handle_batch_diagnose(body)
+                self._send_json(200, result)
             elif self.path == "/api/v1/backdoor":
                 result = self._handle_backdoor(body)
                 self._send_json(200, result)
@@ -154,6 +157,26 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             "confidence": diag.confidence,
             "is_conclusive": diag.is_conclusive,
             "warnings": diag.warnings,
+        }
+
+    def _handle_batch_diagnose(self, body: dict) -> dict:
+        """批量诊断端点。"""
+        from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK
+
+        sdk = MedicalCausalSDK(patient_id=body.get("patient_id", ""))
+        queries = body.get("queries", [])
+        results = sdk.batch_diagnose(queries)
+        return {
+            "count": len(results),
+            "diagnoses": [
+                {
+                    "cause": r.cause,
+                    "effect": r.effect,
+                    "confidence": r.confidence,
+                    "is_conclusive": r.is_conclusive,
+                }
+                for r in results
+            ],
         }
 
     def _handle_backdoor(self, body: dict) -> dict:

@@ -182,6 +182,7 @@ class MedicalCausalSDK:
                     warnings=warnings,
                 )
 
+
         audit_trail.append({"step": "evidence_check", "passed": True})
 
         # Step 2: 综合证据置信度
@@ -257,6 +258,42 @@ class MedicalCausalSDK:
 
         return diagnosis
 
+    def batch_diagnose(
+        self,
+        queries: list[dict[str, Any]],
+    ) -> list[CausalDiagnosis]:
+        """批量因果诊断 — 一次调用处理多个诊断查询。
+
+        生产场景: 单次网络请求处理多个诊断, 减少往返开销。
+
+        Args:
+            queries: [{"cause": str, "effect": str, "prior_strength": float,
+                       "evidence": [{"id":..., "type":..., "description":...,
+                                     "confidence": float}, ...]}, ...]
+
+        Returns:
+            CausalDiagnosis 列表, 与 queries 一一对应
+        """
+        results: list[CausalDiagnosis] = []
+        for q in queries:
+            sdk = MedicalCausalSDK(
+                patient_id=q.get("patient_id", self._patient_id),
+                strict_mode=q.get("strict_mode", self._strict_mode),
+            )
+            for ev in q.get("evidence", []):
+                sdk.add_evidence(ClinicalEvidence(
+                    evidence_id=ev.get("id", ""),
+                    evidence_type=ev.get("type", "observation"),
+                    description=ev.get("description", ""),
+                    confidence=ev.get("confidence", 0.5),
+                ))
+            diag = sdk.diagnose(
+                q.get("cause", ""),
+                q.get("effect", ""),
+                q.get("prior_strength", 0.5),
+            )
+            results.append(diag)
+        return results
     def get_audit_log(self) -> list[dict[str, Any]]:
         """获取审计日志。"""
         return list(self._audit_log)

@@ -81,3 +81,22 @@ class TestEnergyEndpoint:
         })
         assert "results" in r
         assert len(r["results"]) > 0
+
+
+class TestBatchEndpoints:
+    def test_batch_diagnose(self):
+        r = _post("/api/v1/diagnose/batch", {
+            "queries": [
+                {
+                    "cause": "A", "effect": "B", "prior_strength": 0.5,
+                    "evidence": [{"id": f"E{i}", "description": "A B", "confidence": 0.85} for i in range(5)],
+                },
+                {
+                    "cause": "C", "effect": "D", "prior_strength": 0.6,
+                    "evidence": [{"id": f"E{i}", "description": "C D", "confidence": 0.9} for i in range(5)],
+                },
+            ],
+        })
+        assert r["count"] == 2
+        assert all("confidence" in d for d in r["diagnoses"])
+        assert r["diagnoses"][0]["is_conclusive"] is True
