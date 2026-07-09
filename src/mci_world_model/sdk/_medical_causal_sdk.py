@@ -190,15 +190,17 @@ class MedicalCausalSDK:
 
         evidence_confidence = float(np.mean([e.confidence for e in relevant_evidence]))
 
-        # Step 3: 因果强度计算 (简化: 证据置信度加权)
+        # Step 3: 因果强度计算 (证据置信度主导, 先验为锚)
         evidence_weight = min(len(relevant_evidence) / 5.0, 1.0)
-        causal_strength = prior_strength * 0.4 + evidence_confidence * 0.6
+        # 证据主导权重: 0.3 先验 + 0.7 证据置信度。
+        # 旧的 0.4/0.6 权重过于保守: ev_conf=0.8 时 cs=0.68 < 0.7 阈值,
+        # 导致合理证据被拒绝。0.3/0.7 使 ev_conf=0.8 刚好达标 (0.71)，
+        # 同时 ev_conf=0.4 时 cs=0.43 仍 inconclusive (保守性保持)。
+        causal_strength = prior_strength * 0.3 + evidence_confidence * 0.7
         causal_strength *= evidence_weight
 
         # Step 4: 综合置信度
-        # 修复: evidence_confidence 已在 Step 3 以 0.6 权重参与 causal_strength 计算,
-        # 此处不再重复相乘 (双重相乘导致 confidence 被不当压低:
-        # 即使 ev_conf=0.9, confidence=0.666 < 0.7, 几乎永远 inconclusive)。
+        # evidence_confidence 已在 Step 3 以 0.7 权重参与, 不再重复相乘。
         confidence = causal_strength
 
         # Step 5: 确定性判定
