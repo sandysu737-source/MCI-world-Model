@@ -84,6 +84,9 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
 
     def _read_body(self) -> dict:
         length = int(self.headers.get("Content-Length", 0))
+        # H4 修复: 负数 Content-Length 防护
+        if length < 0:
+            raise ValueError(f"非法 Content-Length: {length}")
         if length == 0:
             return {}
         # D12 修复: 限制请求体大小, 防止 DoS
@@ -92,25 +95,47 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length)
         return json.loads(raw)
 
+    def _validate_params(self, path: str, body: dict) -> None:
+        """H9: 请求参数范围校验 — 在路由前执行, 返回 400。"""
+        if path in ("/api/v1/diagnose", "/api/v1/diagnose/batch"):
+            prior = body.get("prior_strength", 0.5)
+            if not isinstance(prior, (int, float)) or not 0.0 <= float(prior) <= 1.0:
+                raise ValueError("prior_strength 必须在 [0, 1]")
+        elif path == "/api/v1/energy/what_if":
+            boost = body.get("boost", 1.0)
+            if not isinstance(boost, (int, float)) or not 0.1 <= float(boost) <= 10.0:
+                raise ValueError("boost 必须在 [0.1, 10.0]")
+
     # 健康检查端点不需要认证
     _PUBLIC_ENDPOINTS = {"/health", "/ready", "/metrics"}
 
     def _check_security(self) -> bool:
         """认证 + 限流 + 断路器检查。返回 True 表示通过。"""
-        # 公开端点跳过认证 (但仍限流)
-        if self.path not in self._PUBLIC_ENDPOINTS:
-            from mci_world_model.server.security import AuthConfig
+        # H2/H7 修复: 去掉查询串后再判断公开端点
+        base_path = self.path.split("?")[0]
+        is_public = base_path in self._PUBLIC_ENDPOINTS
 
-            auth_cfg = AuthConfig.from_env()
+        if not is_public:
+            # H10 修复: 用缓存的 get_auth_config() 而非每请求 from_env()
+            from mci_world_model.server.security import get_auth_config
+
+            auth_cfg = get_auth_config()
             hdrs = dict(self.headers)
-            logger.debug("AUTH CHECK: keys=%s, headers=%s, path=%s", auth_cfg.api_keys, list(hdrs.keys()), self.path)
             if not verify_auth(hdrs, auth_cfg):
-                logger.warning("AUTH FAILED: headers=%s, configured_keys=%s", list(hdrs.keys()), auth_cfg.api_keys)
+                logger.warning("AUTH FAILED: path=%s", base_path)
                 self._send_json(401, {"error": "unauthorized"})
                 return False
 
         # 限流
-        client_ip = self.client_address[0] if self.client_address else "unknown"
+        # H12 修复: K8s/LB 后面用 X-Forwarded-For 取真实 IP
+        fwd = dict(self.headers).get("x-forwarded-for", "")
+        real_ip = dict(self.headers).get("x-real-ip", "")
+        if fwd:
+            client_ip = fwd.split(",")[0].strip()
+        elif real_ip:
+            client_ip = real_ip.strip()
+        else:
+            client_ip = self.client_address[0] if self.client_address else "unknown"
         if not get_rate_limiter().allow(client_ip):
             self._send_json(429, {"error": "rate limit exceeded"})
             return False
@@ -125,9 +150,12 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         trace_id = uuid.uuid4().hex[:12]
         logger.debug("GET %s [trace=%s]", endpoint, trace_id)
 
-        if self.path == "/health":
+        # 路由用去掉查询串后的 path
+        route = self.path.split("?")[0]
+
+        if route == "/health":
             self._send_json(200, {"status": "alive", "timestamp": time.time()})
-        elif self.path == "/ready":
+        elif route == "/ready":
             # 增强就绪探针: 检查引擎真正可用 (不只是 import 成功)
             ready = _ready
             checks = {"engine_loaded": ready}
@@ -141,7 +169,7 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
                     checks["sdk_instantiable"] = False
                     ready = False
             self._send_json(200 if ready else 503, {"ready": ready, "checks": checks})
-        elif self.path == "/metrics":
+        elif route == "/metrics":
             # Prometheus text exposition format
             body = metrics.expose().encode("utf-8")
             self.send_response(200)
@@ -171,8 +199,10 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         else:
             self._send_json(404, {"error": "not found", "path": self.path})
 
-        metrics.inc_request(endpoint)
-        metrics.observe_latency(endpoint, time.time() - t0)
+        # H6 修复: 净化 endpoint 防.指标标签注入
+        safe_endpoint = endpoint.split("?")[0][:128]
+        metrics.inc_request(safe_endpoint)
+        metrics.observe_latency(safe_endpoint, time.time() - t0)
 
     def do_POST(self) -> None:
         if not self._check_security():
@@ -221,17 +251,26 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "bad request", "detail": str(e), "trace_id": trace_id})
                 return
 
+            # H9 修复: 参数范围校验 (在路由前, 返回 400 而非 500)
+            route = self.path.split("?")[0]
             try:
-                if self.path == "/api/v1/diagnose":
+                self._validate_params(route, body)
+            except ValueError as e:
+                metrics.inc_error(endpoint)
+                self._send_json(400, {"error": "invalid parameter", "detail": str(e), "trace_id": trace_id})
+                return
+
+            try:
+                if route == "/api/v1/diagnose":
                     result = self._handle_diagnose(body)
                     self._send_json(200, result)
-                elif self.path == "/api/v1/diagnose/batch":
+                elif route == "/api/v1/diagnose/batch":
                     result = self._handle_batch_diagnose(body)
                     self._send_json(200, result)
-                elif self.path == "/api/v1/backdoor":
+                elif route == "/api/v1/backdoor":
                     result = self._handle_backdoor(body)
                     self._send_json(200, result)
-                elif self.path == "/api/v1/energy/what_if":
+                elif route == "/api/v1/energy/what_if":
                     result = self._handle_energy_whatif(body)
                     self._send_json(200, result)
                 else:
@@ -244,8 +283,9 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             else:
                 cb.record_success()
 
-            metrics.inc_request(endpoint)
-            metrics.observe_latency(endpoint, time.time() - t0)
+            safe_endpoint = endpoint.split("?")[0][:128]
+            metrics.inc_request(safe_endpoint)
+            metrics.observe_latency(safe_endpoint, time.time() - t0)
         finally:
             _concurrent_semaphore.release()
             with _active_requests_lock:

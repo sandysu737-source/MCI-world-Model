@@ -220,26 +220,39 @@ class CircuitBreaker:
 _auth_config: AuthConfig | None = None
 _rate_limiter: RateLimiter | None = None
 _circuit_breaker: CircuitBreaker | None = None
+_singleton_lock = threading.Lock()
 
 
 def get_auth_config() -> AuthConfig:
+    """线程安全的认证配置单例。"""
     global _auth_config
-    if _auth_config is None:
-        _auth_config = AuthConfig.from_env()
+    if _auth_config is not None:
+        return _auth_config
+    with _singleton_lock:
+        if _auth_config is None:  # double-check
+            _auth_config = AuthConfig.from_env()
     return _auth_config
 
 
 def get_rate_limiter() -> RateLimiter:
+    """线程安全的限流器单例。"""
     global _rate_limiter
-    if _rate_limiter is None:
-        rate = float(os.environ.get("MCI_RATE_LIMIT", "10"))
-        burst = int(os.environ.get("MCI_RATE_BURST", "20"))
-        _rate_limiter = RateLimiter(rate=rate, burst=burst)
+    if _rate_limiter is not None:
+        return _rate_limiter
+    with _singleton_lock:
+        if _rate_limiter is None:
+            rate = float(os.environ.get("MCI_RATE_LIMIT", "10"))
+            burst = int(os.environ.get("MCI_RATE_BURST", "20"))
+            _rate_limiter = RateLimiter(rate=rate, burst=burst)
     return _rate_limiter
 
 
 def get_circuit_breaker() -> CircuitBreaker:
+    """线程安全的断路器单例。"""
     global _circuit_breaker
-    if _circuit_breaker is None:
-        _circuit_breaker = CircuitBreaker()
+    if _circuit_breaker is not None:
+        return _circuit_breaker
+    with _singleton_lock:
+        if _circuit_breaker is None:
+            _circuit_breaker = CircuitBreaker()
     return _circuit_breaker

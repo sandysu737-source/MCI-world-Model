@@ -76,7 +76,22 @@ spec:
               mountPath: /app/data
       volumes:
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: mci-data
+
+---
+# H11 修复: 用 PVC 替代 emptyDir, 确保诊断数据持久化
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mci-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # storageClassName: fast-ssd  # 按集群配置调整
 ---
 apiVersion: v1
 kind: Service

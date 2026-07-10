@@ -42,19 +42,37 @@ class StorageBackend(ABC):
 class FileStorage(StorageBackend):
     """JSON 文件持久化 (零依赖, 默认)。"""
 
+    # key 允许的字符: 字母、数字、冒号、下划线、短横线
+    import re as _re
+
+    _SAFE_KEY = _re.compile(r"[^a-zA-Z0-9:_-]")
+
     def __init__(self, base_path: str) -> None:
-        self._base = Path(base_path)
+        self._base = Path(base_path).resolve()
         self._base.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
 
+    def _safe_path(self, key: str) -> Path:
+        """H1 修复: 防.路径遍历 — key 净化 + 解析后必须在 base 内。"""
+        # 净化 key: 只保留安全字符
+        safe_key = self._SAFE_KEY.sub("_", key)
+        path = (self._base / f"{safe_key}.json").resolve()
+        # 二次校验: 解析后路径必须在 base 目录内
+        if not str(path).startswith(str(self._base)):
+            raise ValueError(f"非法存储 key: {key!r}")
+        return path
+
     def save(self, key: str, value: dict[str, Any]) -> None:
         with self._lock:
-            path = self._base / f"{key}.json"
-            with open(path, "w") as f:
+            path = self._safe_path(key)
+            # H8 修复: 原子写入 — 先写临时文件再 rename
+            tmp = path.with_suffix(".tmp")
+            with open(tmp, "w") as f:
                 json.dump(value, f, ensure_ascii=False)
+            tmp.rename(path)
 
     def load(self, key: str) -> dict[str, Any] | None:
-        path = self._base / f"{key}.json"
+        path = self._safe_path(key)
         if not path.exists():
             return None
         with open(path) as f:
@@ -96,13 +114,18 @@ class RedisStorage(StorageBackend):
 _storage: StorageBackend | None = None
 
 
+_storage_lock = threading.Lock()
+
+
 def get_storage() -> StorageBackend:
-    """获取全局存储实例 (单例)。"""
+    """获取全局存储实例 (线程安全单例)。"""
     global _storage
     if _storage is not None:
         return _storage
-
-    backend = os.environ.get("MCI_STORAGE_BACKEND", "file")
+    with _storage_lock:
+        if _storage is not None:  # double-check
+            return _storage
+        backend = os.environ.get("MCI_STORAGE_BACKEND", "file")
     if backend == "redis":
         redis_url = os.environ.get("MCI_REDIS_URL", "redis://localhost:6379")
         _storage = RedisStorage(redis_url)
@@ -114,7 +137,11 @@ def get_storage() -> StorageBackend:
 
 def save_diagnosis(patient_id: str, diagnosis: dict[str, Any]) -> str:
     """保存诊断结果, 返回记录 ID。"""
-    record_id = f"diagnosis:{patient_id}:{int(time.time() * 1000)}"
+    import secrets
+
+    # H3 修复: 加随机后缀防碰撞 + patient_id 净化
+    safe_pid = "".join(c if c.isalnum() or c in "-_" else "_" for c in str(patient_id))
+    record_id = f"diagnosis:{safe_pid}:{int(time.time() * 1000)}:{secrets.token_hex(4)}"
     get_storage().save(
         record_id,
         {
