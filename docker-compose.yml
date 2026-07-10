@@ -10,16 +10,21 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - MCI_LOG_LEVEL=INFO
+      - MCI_LOG_LEVEL=${MCI_LOG_LEVEL:-INFO}
       - MCI_LOG_FORMAT=json
+      - MCI_API_KEY=${MCI_API_KEY:-}
+      - MCI_RATE_LIMIT=${MCI_RATE_LIMIT:-10}
+      - MCI_RATE_BURST=${MCI_RATE_BURST:-20}
+      - MCI_STORAGE_BACKEND=file
+      - MCI_STORAGE_PATH=/app/data
     volumes:
       - ./data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import mci_world_model; exit(0)"]
-      interval: 30s
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 5s
     deploy:
       resources:
         limits:
@@ -28,3 +33,8 @@ services:
         reservations:
           memory: 512M
           cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"

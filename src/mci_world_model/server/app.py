@@ -16,10 +16,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import signal as signal_module
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from mci_world_model._logging import setup_logging
@@ -35,6 +37,14 @@ logger = logging.getLogger(__name__)
 
 # 全局引擎实例 (线程安全)
 _ready = False
+
+# ── 背压控制 ──
+# 限制并发请求数, 防止高并发下内存/线程耗尽
+_MAX_CONCURRENT = int(os.environ.get("MCI_MAX_CONCURRENT", "50"))
+_concurrent_semaphore = threading.BoundedSemaphore(_MAX_CONCURRENT)
+# 请求计数 (用于背压指标)
+_active_requests = 0
+_active_requests_lock = threading.Lock()
 
 
 def _init_engines():
@@ -112,6 +122,8 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             return
         t0 = time.time()
         endpoint = self.path
+        trace_id = uuid.uuid4().hex[:12]
+        logger.debug("GET %s [trace=%s]", endpoint, trace_id)
 
         if self.path == "/health":
             self._send_json(200, {"status": "alive", "timestamp": time.time()})
@@ -167,52 +179,78 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             return
         t0 = time.time()
         endpoint = self.path
+        trace_id = uuid.uuid4().hex[:12]
 
-        # 断路器
-        cb = get_circuit_breaker()
-        if not cb.allow():
-            self._send_json(503, {"error": "circuit breaker open"})
-            return
-
-        if not _ready:
+        # 背压: 并发数超限时拒绝 (503 backlog full)
+        global _active_requests
+        if not _concurrent_semaphore.acquire(blocking=False):
             metrics.inc_error(endpoint)
-            self._send_json(503, {"error": "not ready"})
+            self._send_json(
+                503,
+                {
+                    "error": "server busy",
+                    "detail": "concurrent request limit reached, retry later",
+                    "trace_id": trace_id,
+                },
+            )
             return
+
+        with _active_requests_lock:
+            _active_requests += 1
+            metrics.set_gauge("mci_active_requests", float(_active_requests))
 
         try:
-            body = self._read_body()
-        except json.JSONDecodeError as e:
-            metrics.inc_error(endpoint)
-            self._send_json(400, {"error": "invalid JSON", "detail": str(e)})
-            return
+            cb = get_circuit_breaker()
+            if not cb.allow():
+                self._send_json(503, {"error": "circuit breaker open", "trace_id": trace_id})
+                return
 
-        try:
-            if self.path == "/api/v1/diagnose":
-                result = self._handle_diagnose(body)
-                self._send_json(200, result)
-            elif self.path == "/api/v1/diagnose/batch":
-                result = self._handle_batch_diagnose(body)
-                self._send_json(200, result)
-            elif self.path == "/api/v1/backdoor":
-                result = self._handle_backdoor(body)
-                self._send_json(200, result)
-            elif self.path == "/api/v1/energy/what_if":
-                result = self._handle_energy_whatif(body)
-                self._send_json(200, result)
+            if not _ready:
+                metrics.inc_error(endpoint)
+                self._send_json(503, {"error": "not ready", "trace_id": trace_id})
+                return
+
+            try:
+                body = self._read_body()
+            except json.JSONDecodeError as e:
+                metrics.inc_error(endpoint)
+                self._send_json(400, {"error": "invalid JSON", "detail": str(e), "trace_id": trace_id})
+                return
+            except ValueError as e:
+                metrics.inc_error(endpoint)
+                self._send_json(400, {"error": "bad request", "detail": str(e), "trace_id": trace_id})
+                return
+
+            try:
+                if self.path == "/api/v1/diagnose":
+                    result = self._handle_diagnose(body)
+                    self._send_json(200, result)
+                elif self.path == "/api/v1/diagnose/batch":
+                    result = self._handle_batch_diagnose(body)
+                    self._send_json(200, result)
+                elif self.path == "/api/v1/backdoor":
+                    result = self._handle_backdoor(body)
+                    self._send_json(200, result)
+                elif self.path == "/api/v1/energy/what_if":
+                    result = self._handle_energy_whatif(body)
+                    self._send_json(200, result)
+                else:
+                    self._send_json(404, {"error": "not found", "path": self.path})
+            except Exception as e:
+                logger.error("API 错误 %s [trace=%s]: %s", self.path, trace_id, e, exc_info=True)
+                metrics.inc_error(endpoint)
+                cb.record_failure()
+                self._send_json(500, {"error": "internal error", "detail": str(e), "trace_id": trace_id})
             else:
-                self._send_json(404, {"error": "not found", "path": self.path})
-        except Exception as e:
-            logger.error("API 错误 %s: %s", self.path, e, exc_info=True)
-            metrics.inc_error(endpoint)
-            cb.record_failure()
-            self._send_json(500, {"error": "internal error", "detail": str(e)})
-        else:
-            cb.record_success()
+                cb.record_success()
 
-        metrics.inc_request(endpoint)
-        metrics.observe_latency(endpoint, time.time() - t0)
-
-    # ── 端点处理 ──
+            metrics.inc_request(endpoint)
+            metrics.observe_latency(endpoint, time.time() - t0)
+        finally:
+            _concurrent_semaphore.release()
+            with _active_requests_lock:
+                _active_requests -= 1
+                metrics.set_gauge("mci_active_requests", float(_active_requests))
 
     def _handle_diagnose(self, body: dict) -> dict:
         from mci_world_model.sdk._medical_causal_sdk import (
@@ -327,12 +365,13 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         }
 
 
-def create_server(host: str = "0.0.0.0", port: int = 8080) -> HTTPServer:
+def create_server(host: str = "0.0.0.0", port: int = 8080) -> ThreadingHTTPServer:
     """创建 HTTP 服务器。"""
     setup_logging()
     _init_engines()
-    server = HTTPServer((host, port), MCIAPIHandler)
+    server = ThreadingHTTPServer((host, port), MCIAPIHandler)
     server.timeout = 1
+    server.daemon_threads = True
     logger.info("MCI API 服务启动: %s:%d", host, port)
     return server
 
@@ -350,6 +389,7 @@ def run(host: str = "0.0.0.0", port: int = 8080) -> None:
     signal_module.signal(signal_module.SIGINT, _graceful_shutdown)
 
     metrics.set_gauge("mci_ready", 1.0 if _ready else 0.0)
+    metrics.set_gauge("mci_active_requests", 0.0)
     logger.info("MCI API 服务就绪: %s:%d (SIGTERM 优雅关闭已启用)", host, port)
     try:
         server.serve_forever()
@@ -360,9 +400,10 @@ def run(host: str = "0.0.0.0", port: int = 8080) -> None:
 
 if __name__ == "__main__":
     import argparse
+    import os
 
     parser = argparse.ArgumentParser(description="MCI World Model API Server")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--host", default=os.environ.get("MCI_HOST", "0.0.0.0"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MCI_PORT", "8080")))
     args = parser.parse_args()
     run(args.host, args.port)

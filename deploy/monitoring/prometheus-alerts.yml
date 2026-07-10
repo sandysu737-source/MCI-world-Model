@@ -1,0 +1,84 @@
+# MCI World Model — Prometheus 告警规则
+#
+# 生产部署: Prometheus 加载此规则文件, Alertmanager 负责通知路由
+
+groups:
+  - name: mci-world-model.rules
+    rules:
+      # ── CRITICAL: 服务不可用 ──
+      - alert: MCIServiceDown
+        expr: up{job="mci-world-model"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: mci-platform
+        annotations:
+          summary: "MCI 服务实例不可达"
+          description: "实例 {{ $labels.instance }} 已离线超过 1 分钟"
+
+      # ── CRITICAL: 断路器熔断 ──
+      - alert: MCICircuitBreakerOpen
+        expr: mci_circuit_breaker_state == 1
+        for: 30s
+        labels:
+          severity: critical
+          team: mci-platform
+        annotations:
+          summary: "断路器处于 OPEN 状态"
+          description: "连续失败超过阈值, 请求被直接拒绝, 需立即排查下游异常"
+
+      # ── WARNING: 高错误率 ──
+      - alert: MCIHighErrorRate
+        expr: |
+          sum(rate(mci_requests_total{status="error"}[5m]))
+          /
+          sum(rate(mci_requests_total[5m]))
+          > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          team: mci-platform
+        annotations:
+          summary: "错误率超过 5%"
+          description: "最近 5 分钟错误率 {{ $value | humanizePercentage }}"
+
+      # ── WARNING: 高延迟 (P99 > 2s) ──
+      - alert: MCIHighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(mci_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: mci-platform
+        annotations:
+          summary: "P99 延迟超过 2 秒"
+          description: "当前 P99: {{ $value }}s"
+
+      # ── WARNING: Pod 就绪探针失败 ──
+      - alert: MCIPodNotReady
+        expr: kube_deployment_status_replicas_available{deployment="mci-world-model"}
+          < kube_deployment_spec_replicas{deployment="mci-world-model"}
+        for: 3m
+        labels:
+          severity: warning
+          team: mci-platform
+        annotations:
+          summary: "可用副本数低于期望值"
+          description: "{{ $value }} 个副本可用, 期望 {{ $labels.spec_replicas }}"
+
+      # ── WARNING: 内存接近上限 ──
+      - alert: MCIMemoryHigh
+        expr: |
+          container_memory_working_set_bytes{pod=~"mci-world-model-.*"}
+          /
+          container_spec_memory_limit_bytes{pod=~"mci-world-model-.*"}
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: mci-platform
+        annotations:
+          summary: "Pod 内存使用超过 85%"
+          description: "实例 {{ $labels.instance }} 内存: {{ $value | humanizePercentage }}"

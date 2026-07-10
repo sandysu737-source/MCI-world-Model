@@ -1,0 +1,59 @@
+# MCI World Model — Alertmanager 路由配置
+#
+# 告警通知策略:
+#   critical → 即时通知 (邮件 + 钉钉/Slack webhook)
+#   warning  → 聚合通知 (5 分钟窗口)
+
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ["alertname", "severity"]
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 1h
+  receiver: "default"
+
+  routes:
+    # CRITICAL: 立即发送
+    - match:
+        severity: critical
+      receiver: "critical-notify"
+      group_wait: 0s
+      repeat_interval: 10m
+
+    # WARNING: 聚合后发送
+    - match:
+        severity: warning
+      receiver: "warning-notify"
+      group_wait: 2m
+
+receivers:
+  - name: "default"
+    webhook_configs:
+      - url: "http://alert-router:9094/webhook"
+        send_resolved: true
+
+  - name: "critical-notify"
+    webhook_configs:
+      # 替换为实际钉钉/Slack/企业微信 webhook
+      - url: "http://alert-router:9094/critical"
+        send_resolved: true
+    # 邮件通知 (取消注释并配置 SMTP)
+    # email_configs:
+    #   - to: "oncall@mci-team.com"
+    #     from: "alertmanager@mci-team.com"
+    #     smarthost: "smtp.mci-team.com:587"
+
+  - name: "warning-notify"
+    webhook_configs:
+      - url: "http://alert-router:9094/warning"
+        send_resolved: true
+
+inhibit_rules:
+  # 服务下线时抑制该实例的其他告警
+  - source_match:
+      alertname: MCIServiceDown
+    target_match_re:
+      severity: warning|info
+    equal: ["instance"]

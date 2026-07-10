@@ -36,7 +36,11 @@ COPY pyproject.toml /app/
 # 安装为可编辑包
 RUN pip install --no-cache-dir -e .
 
-# 非_root 用户运行
+# 安装 curl 用于健康检查
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# 非 root 用户运行
 RUN useradd -m -u 1000 mci && chown -R mci:mci /app
 USER mci
 
@@ -45,10 +49,15 @@ ENV MCI_LOG_LEVEL=INFO
 ENV MCI_LOG_FORMAT=json
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV MCI_HOST=0.0.0.0
+ENV MCI_PORT=8080
 
-# 健康检查 (需要 server 启动后生效)
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
-    CMD python -c "import mci_world_model; exit(0)"
+# 暴露 API 端口
+EXPOSE 8080
 
-# 默认入口: import 验证
-CMD ["python", "-c", "import mci_world_model; print('MCI World Model ready')"]
+# 健康检查 — 打 API /health 端点
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=5s \
+    CMD curl -sf http://localhost:8080/health || exit 1
+
+# 启动 API server
+CMD ["python", "-m", "mci_world_model.server.app"]
