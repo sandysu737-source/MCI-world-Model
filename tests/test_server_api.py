@@ -17,6 +17,10 @@ _SERVER_PORT = 18099
 def _ensure_server():
     global _SERVER_STARTED
     if not _SERVER_STARTED:
+        import os
+        os.environ["MCI_API_KEY"] = "test-key"
+        os.environ["MCI_RATE_LIMIT"] = "1000"
+        os.environ["MCI_RATE_BURST"] = "1000"
         from mci_world_model.server.app import create_server
         server = create_server(port=_SERVER_PORT)
         t = threading.Thread(target=server.serve_forever, daemon=True)
@@ -35,7 +39,7 @@ def _post(path, data):
     req = urllib.request.Request(
         f"http://127.0.0.1:{_SERVER_PORT}{path}",
         data=json.dumps(data).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-API-Key": "test-key"},
     )
     return json.loads(urllib.request.urlopen(req).read())
 

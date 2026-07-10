@@ -11,19 +11,25 @@
     POST /api/v1/counterfactual   — 反事实推断
     POST /api/v1/energy/what_if   — 能量干预预测
 """
+
 from __future__ import annotations
 
 import json
 import logging
+import signal as signal_module
 import threading
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
-
-import signal as signal_module
 
 from mci_world_model._logging import setup_logging
 from mci_world_model.server.metrics import metrics
+from mci_world_model.server.security import (
+    get_circuit_breaker,
+    get_rate_limiter,
+    verify_auth,
+)
+from mci_world_model.server.storage import list_diagnoses, load_diagnosis, save_diagnosis
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +43,7 @@ def _init_engines():
     try:
         # 验证核心模块可导入
         import mci_world_model  # noqa: F401
+
         _ready = True
         logger.info("MCI 引擎初始化完成")
     except Exception as e:
@@ -75,14 +82,53 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length)
         return json.loads(raw)
 
+    # 健康检查端点不需要认证
+    _PUBLIC_ENDPOINTS = {"/health", "/ready", "/metrics"}
+
+    def _check_security(self) -> bool:
+        """认证 + 限流 + 断路器检查。返回 True 表示通过。"""
+        # 公开端点跳过认证 (但仍限流)
+        if self.path not in self._PUBLIC_ENDPOINTS:
+            from mci_world_model.server.security import AuthConfig
+
+            auth_cfg = AuthConfig.from_env()
+            hdrs = dict(self.headers)
+            logger.debug("AUTH CHECK: keys=%s, headers=%s, path=%s", auth_cfg.api_keys, list(hdrs.keys()), self.path)
+            if not verify_auth(hdrs, auth_cfg):
+                logger.warning("AUTH FAILED: headers=%s, configured_keys=%s", list(hdrs.keys()), auth_cfg.api_keys)
+                self._send_json(401, {"error": "unauthorized"})
+                return False
+
+        # 限流
+        client_ip = self.client_address[0] if self.client_address else "unknown"
+        if not get_rate_limiter().allow(client_ip):
+            self._send_json(429, {"error": "rate limit exceeded"})
+            return False
+
+        return True
+
     def do_GET(self) -> None:
+        if not self._check_security():
+            return
         t0 = time.time()
         endpoint = self.path
 
         if self.path == "/health":
             self._send_json(200, {"status": "alive", "timestamp": time.time()})
         elif self.path == "/ready":
-            self._send_json(200, {"ready": _ready})
+            # 增强就绪探针: 检查引擎真正可用 (不只是 import 成功)
+            ready = _ready
+            checks = {"engine_loaded": ready}
+            if ready:
+                try:
+                    from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK
+
+                    MedicalCausalSDK()
+                    checks["sdk_instantiable"] = True
+                except Exception:
+                    checks["sdk_instantiable"] = False
+                    ready = False
+            self._send_json(200 if ready else 503, {"ready": ready, "checks": checks})
         elif self.path == "/metrics":
             # Prometheus text exposition format
             body = metrics.expose().encode("utf-8")
@@ -91,6 +137,25 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif self.path.startswith("/api/v1/diagnosis/"):
+            # GET /api/v1/diagnosis/{record_id} — 查询已保存的诊断
+            record_id = self.path.split("/api/v1/diagnosis/", 1)[1].split("?")[0]
+            if not record_id:
+                self._send_json(400, {"error": "missing record_id"})
+            else:
+                record = load_diagnosis(record_id)
+                if record is not None:
+                    self._send_json(200, record)
+                else:
+                    self._send_json(404, {"error": "diagnosis not found", "record_id": record_id})
+        elif self.path.startswith("/api/v1/diagnoses"):
+            # GET /api/v1/diagnoses?patient_id=P001 — 列出诊断记录
+            from urllib.parse import parse_qs, urlparse
+
+            query = parse_qs(urlparse(self.path).query)
+            patient_id = query.get("patient_id", [""])[0]
+            keys = list_diagnoses(patient_id)
+            self._send_json(200, {"count": len(keys), "record_ids": keys})
         else:
             self._send_json(404, {"error": "not found", "path": self.path})
 
@@ -98,8 +163,16 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         metrics.observe_latency(endpoint, time.time() - t0)
 
     def do_POST(self) -> None:
+        if not self._check_security():
+            return
         t0 = time.time()
         endpoint = self.path
+
+        # 断路器
+        cb = get_circuit_breaker()
+        if not cb.allow():
+            self._send_json(503, {"error": "circuit breaker open"})
+            return
 
         if not _ready:
             metrics.inc_error(endpoint)
@@ -131,7 +204,10 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         except Exception as e:
             logger.error("API 错误 %s: %s", self.path, e, exc_info=True)
             metrics.inc_error(endpoint)
+            cb.record_failure()
             self._send_json(500, {"error": "internal error", "detail": str(e)})
+        else:
+            cb.record_success()
 
         metrics.inc_request(endpoint)
         metrics.observe_latency(endpoint, time.time() - t0)
@@ -140,8 +216,8 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
 
     def _handle_diagnose(self, body: dict) -> dict:
         from mci_world_model.sdk._medical_causal_sdk import (
-            MedicalCausalSDK,
             ClinicalEvidence,
+            MedicalCausalSDK,
         )
 
         # D15 修复: cause/effect 非空校验
@@ -151,22 +227,32 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             raise ValueError("cause 和 effect 不能为空")
 
         sdk = MedicalCausalSDK(patient_id=body.get("patient_id", ""))
-        for ev in body.get("evidence", [])[:MedicalCausalSDK.MAX_EVIDENCE_COUNT]:
-            sdk.add_evidence(ClinicalEvidence(
-                evidence_id=ev.get("id", ""),
-                evidence_type=ev.get("type", "observation"),
-                description=ev.get("description", ""),
-                confidence=ev.get("confidence", 0.5),
-            ))
+        for ev in body.get("evidence", [])[: MedicalCausalSDK.MAX_EVIDENCE_COUNT]:
+            sdk.add_evidence(
+                ClinicalEvidence(
+                    evidence_id=ev.get("id", ""),
+                    evidence_type=ev.get("type", "observation"),
+                    description=ev.get("description", ""),
+                    confidence=ev.get("confidence", 0.5),
+                )
+            )
         prior = body.get("prior_strength", 0.5)
         diag = sdk.diagnose(cause, effect, prior)
-        return {
+        result = {
             "cause": diag.cause,
             "effect": diag.effect,
             "confidence": diag.confidence,
             "is_conclusive": diag.is_conclusive,
             "warnings": diag.warnings,
         }
+        # 持久化诊断结果 (状态外置化, 支持多副本共享)
+        patient_id = body.get("patient_id", "unknown")
+        try:
+            record_id = save_diagnosis(patient_id, result)
+            result["record_id"] = record_id
+        except Exception:
+            logger.warning("诊断结果持久化失败, 不影响响应", exc_info=True)
+        return result
 
     def _handle_batch_diagnose(self, body: dict) -> dict:
         """批量诊断端点。"""
@@ -189,8 +275,9 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         }
 
     def _handle_backdoor(self, body: dict) -> dict:
-        from mci_world_model.sdk._do_calculus import DoCalculus, CausalGraph
         import numpy as np
+
+        from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
         cg = CausalGraph()
         for src, dst in body.get("edges", []):

@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mci-world-model
+  labels:
+    app: mci-world-model
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mci-world-model
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: mci-world-model
+    spec:
+      # 多可用区打散 — 确保副本分布在至少 2 个 AZ, 避免单 AZ 故障导致全不可用
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: mci-world-model
+      containers:
+        - name: mci
+          image: mci-world-model:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MCI_LOG_LEVEL
+              value: "INFO"
+            - name: MCI_LOG_FORMAT
+              value: "json"
+            - name: MCI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mci-secrets
+                  key: api-key
+            - name: MCI_RATE_LIMIT
+              value: "10"
+            - name: MCI_RATE_BURST
+              value: "20"
+            - name: MCI_STORAGE_BACKEND
+              value: "file"
+            - name: MCI_STORAGE_PATH
+              value: "/app/data"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            failureThreshold: 2
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mci-world-model
+spec:
+  selector:
+    app: mci-world-model
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mci-world-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mci-world-model
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+# PodDisruptionBudget — 确保滚动更新/节点维护时至少保持 2 个副本可用
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mci-world-model
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: mci-world-model
