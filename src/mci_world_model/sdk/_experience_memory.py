@@ -30,6 +30,7 @@ CEWM v3.5.0 新增组件 (N2)：
 
 
 import math
+import random
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -634,6 +635,86 @@ class ExperienceDB:
     def all_experiences(self) -> list[Experience]:
         """所有经验列表。"""
         return list(self._experiences.values())
+
+    # ── 回放采样 (Adapt-EPA 借鉴) ──
+
+    def sample_replay_buffer(
+        self,
+        batch_size: int = 32,
+        strategy: str = "pred_error",
+        seed: int | None = None,
+    ) -> list[Experience]:
+        """从经验库中按策略采样, 用于 JEPA 增量训练。
+
+        Adapt-EPA 借鉴: 优先回放高预测误差经验, 加速模型从错误中学习。
+
+        Args:
+            batch_size: 采样数量
+            strategy: 采样策略
+                "pred_error" — 按预测误差优先级采样 (高误差 → 高概率)
+                "uniform"    — 均匀随机
+                "recent"     — 最近优先
+            seed: 随机种子 (可复现性)
+
+        Returns:
+            采样到的 Experience 列表, 长度 ≤ batch_size
+        """
+        all_exps = list(self._experiences.values())
+        if not all_exps:
+            return []
+
+        n = min(batch_size, len(all_exps))
+        rng = random.Random(seed) if seed is not None else random.Random()
+
+        if strategy == "uniform":
+            return rng.sample(all_exps, n)
+
+        if strategy == "recent":
+            sorted_exps = sorted(all_exps, key=lambda e: e.timestamp, reverse=True)
+            return sorted_exps[:n]
+
+        # pred_error: 优先采样高预测误差经验 (Adapt-EPA 风格)
+        # 采样概率 ∝ prediction_error (无误差的用 0.01 基线)
+        weights = []
+        for exp in all_exps:
+            pe = exp.prediction_error
+            if pe is None:
+                pe = 0.01
+            weights.append(max(pe, 0.01))
+
+        total = sum(weights)
+        if total == 0:
+            return rng.sample(all_exps, n)
+
+        probs = [w / total for w in weights]
+
+        # 加权随机采样 (无放回)
+        selected = []
+        pool = list(range(len(all_exps)))
+        pool_weights = list(probs)
+
+        for _ in range(n):
+            if not pool:
+                break
+            # 归一化剩余权重
+            w_sum = sum(pool_weights)
+            if w_sum == 0:
+                idx = rng.randrange(len(pool))
+            else:
+                r = rng.random() * w_sum
+                cum = 0.0
+                idx = 0
+                for j, w in enumerate(pool_weights):
+                    cum += w
+                    if cum >= r:
+                        idx = j
+                        break
+
+            selected.append(all_exps[pool[idx]])
+            pool.pop(idx)
+            pool_weights.pop(idx)
+
+        return selected
 
     # ── 统计 ──
 

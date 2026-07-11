@@ -26,6 +26,8 @@ from typing import Any
 
 import numpy as np
 
+from mci_world_model.sdk._confidence_calibrator import ConfidenceCalibrator
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,9 +59,7 @@ class ClinicalEvidence:
     def __post_init__(self) -> None:
         # D10 修复: confidence 必须在 [0, 1], 医疗安全关键校验
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(
-                f"confidence 必须在 [0, 1], 当前 {self.confidence}"
-            )
+            raise ValueError(f"confidence 必须在 [0, 1], 当前 {self.confidence}")
 
 
 # =============================================================================
@@ -118,6 +118,7 @@ class MedicalCausalSDK:
         self._evidence: list[ClinicalEvidence] = []
         self._diagnoses: list[CausalDiagnosis] = []
         self._audit_log: list[dict[str, Any]] = []
+        self._calibrator: ConfidenceCalibrator | None = None
 
     @property
     def patient_id(self) -> str:
@@ -133,6 +134,31 @@ class MedicalCausalSDK:
 
     MAX_EVIDENCE_COUNT = 1000
 
+    def set_calibrator(self, calibrator: ConfidenceCalibrator) -> None:
+        """设置置信度校准器 (可选)。
+
+        Adapt-EPA 借鉴: 轻量校准可显著提升诊断准确率。
+        设置后, diagnose() 的 confidence 输出会被校准映射。
+
+        Args:
+            calibrator: ConfidenceCalibrator 实例
+        """
+        self._calibrator = calibrator
+
+    def record_outcome(self, diagnosis_index: int, is_correct: bool) -> None:
+        """记录诊断结果是否正确, 用于校准器在线学习。
+
+        生产环境由医生标注后调用此方法。
+
+        Args:
+            diagnosis_index: diagnose() 返回的诊断在内部列表中的索引
+            is_correct: 诊断是否正确
+        """
+        if 0 <= diagnosis_index < len(self._diagnoses):
+            diag = self._diagnoses[diagnosis_index]
+            if self._calibrator is not None:
+                self._calibrator.update(diag.confidence, is_correct)
+
     def add_evidence(self, evidence: ClinicalEvidence) -> None:
         """添加临床证据。
 
@@ -144,9 +170,7 @@ class MedicalCausalSDK:
         """
         with self._lock:
             if len(self._evidence) >= self.MAX_EVIDENCE_COUNT:
-                raise ValueError(
-                    f"证据数量超过上限 {self.MAX_EVIDENCE_COUNT}"
-                )
+                raise ValueError(f"证据数量超过上限 {self.MAX_EVIDENCE_COUNT}")
             self._evidence.append(evidence)
         self._audit_log.append(
             {
@@ -183,9 +207,7 @@ class MedicalCausalSDK:
         """
         # D11 修复: prior_strength 范围校验
         if not 0.0 <= prior_strength <= 1.0:
-            raise ValueError(
-                f"prior_strength 必须在 [0, 1], 当前 {prior_strength}"
-            )
+            raise ValueError(f"prior_strength 必须在 [0, 1], 当前 {prior_strength}")
         warnings = []
         audit_trail = []
 
@@ -205,7 +227,6 @@ class MedicalCausalSDK:
                     audit_trail=audit_trail,
                     warnings=warnings,
                 )
-
 
         audit_trail.append({"step": "evidence_check", "passed": True})
 
@@ -232,6 +253,11 @@ class MedicalCausalSDK:
         # Step 4: 综合置信度
         # evidence_confidence 已在 Step 3 以 0.7 权重参与, 不再重复相乘。
         confidence = causal_strength
+
+        # Step 4.5: 置信度校准 (Adapt-EPA 借鉴, 可选)
+        # 轻量后验映射, 不改变模型本体。保守原则: 校准只能降低 confidence。
+        if self._calibrator is not None:
+            confidence = self._calibrator.calibrate(confidence, cause, effect)
 
         # Step 5: 确定性判定
         is_conclusive = confidence >= self.MIN_CONFIDENCE_FOR_CONCLUSIVE and causal_strength >= self.MIN_CAUSAL_STRENGTH
@@ -305,12 +331,14 @@ class MedicalCausalSDK:
                 strict_mode=q.get("strict_mode", self._strict_mode),
             )
             for ev in q.get("evidence", []):
-                sdk.add_evidence(ClinicalEvidence(
-                    evidence_id=ev.get("id", ""),
-                    evidence_type=ev.get("type", "observation"),
-                    description=ev.get("description", ""),
-                    confidence=ev.get("confidence", 0.5),
-                ))
+                sdk.add_evidence(
+                    ClinicalEvidence(
+                        evidence_id=ev.get("id", ""),
+                        evidence_type=ev.get("type", "observation"),
+                        description=ev.get("description", ""),
+                        confidence=ev.get("confidence", 0.5),
+                    )
+                )
             diag = sdk.diagnose(
                 q.get("cause", ""),
                 q.get("effect", ""),
@@ -318,6 +346,7 @@ class MedicalCausalSDK:
             )
             results.append(diag)
         return results
+
     def get_audit_log(self) -> list[dict[str, Any]]:
         """获取审计日志。"""
         return list(self._audit_log)

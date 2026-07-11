@@ -792,6 +792,12 @@ class MCIWorldModel:
         self._safety_monitor: Any | None = None  # SafetyMonitor
         self._cf_oracle: Any | None = None  # CounterfactualOracle
 
+        # Adapt-EPA: replay buffer (optional, off by default)
+        self._replay_enabled: bool = self._config.get("replay_enabled", False)
+        self._replay_threshold: float = float(self._config.get("replay_threshold", 0.3))
+        self._replay_interval: int = int(self._config.get("replay_interval", 50))
+        self._step_count: int = 0
+
         # ── P6-P8 v6.0~v8.0: 新增模块 (懒加载) ──
         self._law_discoverer_v2: Any | None = None  # P6: AutonomousLawDiscovererV2
         self._social_cognition: Any | None = None  # P6: SocialCognition
@@ -999,7 +1005,6 @@ class MCIWorldModel:
             self._energy_core = EnergyCore()  # type: ignore[no-untyped-call]
         return self._energy_core
 
-
     def _get_temporal_core(self) -> Any:
         """惰性初始化并返回 TemporalCore 实例。"""
         if self._temporal_core is None:
@@ -1032,6 +1037,7 @@ class MCIWorldModel:
         """P7: 惰性初始化 PluginManager（插件注册与调度）。"""
         if self._plugin_manager is None:
             from mci_world_model.sdk._plugin_interface import PluginManager
+
             self._plugin_manager = PluginManager()
         return self._plugin_manager
 
@@ -1039,6 +1045,7 @@ class MCIWorldModel:
         """P7: 惰性初始化 MedicalCausalSDK。"""
         if self._medical_sdk is None:
             from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK
+
             self._medical_sdk = MedicalCausalSDK()
         return self._medical_sdk
 
@@ -1046,6 +1053,7 @@ class MCIWorldModel:
         """P7: 惰性初始化 LegalComplianceSDK。"""
         if self._legal_sdk is None:
             from mci_world_model.sdk._legal_compliance_sdk import LegalComplianceSDK
+
             self._legal_sdk = LegalComplianceSDK()
         return self._legal_sdk
 
@@ -1053,6 +1061,7 @@ class MCIWorldModel:
         """P7: 惰性初始化 EngineeringSafetySDK。"""
         if self._engineering_sdk is None:
             from mci_world_model.sdk._engineering_safety_sdk import EngineeringSafetySDK
+
             self._engineering_sdk = EngineeringSafetySDK()
         return self._engineering_sdk
 
@@ -1060,6 +1069,7 @@ class MCIWorldModel:
         """P7: 惰性初始化 ScientificDiscovery。"""
         if self._scientific_discovery is None:
             from mci_world_model.sdk._scientific_discovery import ScientificDiscoveryPipeline
+
             self._scientific_discovery = ScientificDiscoveryPipeline()
         return self._scientific_discovery
 
@@ -1067,6 +1077,7 @@ class MCIWorldModel:
         """P7: 惰性初始化 EdgeCloudHybrid。"""
         if self._edge_cloud is None:
             from mci_world_model.sdk._edge_cloud_hybrid import EdgeCloudHybrid
+
             self._edge_cloud = EdgeCloudHybrid()
         return self._edge_cloud
 
@@ -1074,6 +1085,7 @@ class MCIWorldModel:
         """P8: 惰性初始化 NeuralSymbolicFusionV2。"""
         if self._neural_symbolic is None:
             from mci_world_model.sdk._neural_symbolic_fusion_v2 import NeuralSymbolicFusionV2
+
             self._neural_symbolic = NeuralSymbolicFusionV2()
         return self._neural_symbolic
 
@@ -1081,6 +1093,7 @@ class MCIWorldModel:
         """P8: 惰性初始化 CausalGradient。"""
         if self._causal_gradient is None:
             from mci_world_model.sdk._causal_gradient import CausalGradient
+
             self._causal_gradient = CausalGradient(source="world_model", target="causal_graph")
         return self._causal_gradient
 
@@ -1088,6 +1101,7 @@ class MCIWorldModel:
         """P8: 惰性初始化 SymbolGrounding。"""
         if self._symbol_grounding is None:
             from mci_world_model.sdk._symbol_grounding import SymbolGroundingLearning
+
             self._symbol_grounding = SymbolGroundingLearning()
         return self._symbol_grounding
 
@@ -1095,6 +1109,7 @@ class MCIWorldModel:
         """P8: 惰性初始化 AGIProtocol。"""
         if self._agi_protocol is None:
             from mci_world_model.sdk._agi_protocol import AGIIntegrationProtocol
+
             self._agi_protocol = AGIIntegrationProtocol()
         return self._agi_protocol
 
@@ -1177,7 +1192,7 @@ class MCIWorldModel:
     # v3.0.6: 因果边标准化
     # ────────────────────────────────────────────────
 
-    def normalize_edge(self, edge: dict[str, Any], energy_core: Any=None, month_branch: int = 0) -> dict[str, Any]:
+    def normalize_edge(self, edge: dict[str, Any], energy_core: Any = None, month_branch: int = 0) -> dict[str, Any]:
         """
         v3.0.6: 标准化因果边，自动补全能量属性。
 
@@ -2827,9 +2842,7 @@ class MCIWorldModel:
             if current_state is not None and goal_state is not None:
                 state_change = self._cewm_state_change(current_state)
                 if state_change:
-                    records = self._causal_updater.update(
-                        {"edges": state_change, "confidence": 0.6}
-                    )
+                    records = self._causal_updater.update({"edges": state_change, "confidence": 0.6})
                     causal_updates = len(records)
 
             if hasattr(self, "_experience_db") and self._experience_db is not None:
@@ -2841,9 +2854,7 @@ class MCIWorldModel:
 
         return causal_updates, experience_hints
 
-    def _cewm_evaluate_action(
-        self, current_state: Any, goal_state: Any
-    ) -> tuple[float, float]:
+    def _cewm_evaluate_action(self, current_state: Any, goal_state: Any) -> tuple[float, float]:
         """FIX-C4: 行动层 — 距离评估。"""
         if not hasattr(self, "_action_gap_metric") or self._action_gap_metric is None:
             from mci_world_model.sdk._action_gap import ActionGapMetric
@@ -2865,11 +2876,7 @@ class MCIWorldModel:
         try:
             if self._jepa_predictor is not None and current_state is not None:
                 # FIX-C2: 使用 causal_query() 替代 str(state)，修正参数名 cause
-                cause = (
-                    current_state.causal_query()
-                    if hasattr(current_state, "causal_query")
-                    else "state"
-                )
+                cause = current_state.causal_query() if hasattr(current_state, "causal_query") else "state"
                 prediction = self.jepa_predict(cause=cause)
         except Exception as e:
             logger.warning("JEPA 预测跳过: %s", e)
@@ -2967,7 +2974,47 @@ class MCIWorldModel:
         # 5. 反馈层
         result["attention_weights"] = self._cewm_feedback(pred_error)
 
+        # 5.1 Adapt-EPA: replay buffer (high-error experience -> incremental training)
+        if self._replay_enabled:
+            self._step_count += 1
+            try:
+                if pred_error > self._replay_threshold:
+                    self._store_replay_experience(current_state, pred_error)
+                if self._step_count % self._replay_interval == 0:
+                    self._replay_train()
+            except Exception:
+                logger.warning("replay buffer op failed, non-blocking", exc_info=True)
+
         return result
+
+    def _store_replay_experience(self, state: Any, pred_error: float) -> None:
+        """Store high-prediction-error experience into ExperienceDB."""
+        if not hasattr(self, "_experience_db") or self._experience_db is None:
+            return
+        from mci_world_model.sdk._experience_memory import ExperienceType
+
+        self._experience_db.store(
+            experience_type=ExperienceType.FAILURE,
+            tags=["replay", "high_error"],
+            causal_edges=[],
+            outcome=f"pred_error={pred_error:.4f}",
+            importance=min(1.0, pred_error),
+            prediction_error=pred_error,
+            state_snapshot=state,
+        )
+
+    def _replay_train(self) -> None:
+        """Sample from replay buffer, trigger JEPA incremental training."""
+        if not hasattr(self, "_experience_db") or self._experience_db is None:
+            return
+        if self._jepa_predictor is None:
+            return
+
+        batch = self._experience_db.sample_replay_buffer(batch_size=32, strategy="pred_error")
+        if not batch:
+            return
+
+        logger.debug("replay train: sampled %d experiences", len(batch))
 
     def cewm_step_fast(
         self,
@@ -3042,11 +3089,7 @@ class MCIWorldModel:
         try:
             if self._jepa_predictor is not None and current_state is not None:
                 # FIX-C2: 使用 causal_query() 替代 str(state)，修正参数名 cause
-                cause = (
-                    current_state.causal_query()
-                    if hasattr(current_state, "causal_query")
-                    else "state"
-                )
+                cause = current_state.causal_query() if hasattr(current_state, "causal_query") else "state"
                 predictions = self.jepa_predict(cause=cause)
                 result["prediction"] = predictions
         except Exception as e:
@@ -3631,7 +3674,7 @@ class MCIWorldModel:
         if hasattr(state, "causal_edges") and callable(state.causal_edges):
             try:
                 return state.causal_edges()
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         # 兼容回退：非 WorldState 对象基于 to_vector() 维度推断
         edges: list[tuple[str, str]] = []
