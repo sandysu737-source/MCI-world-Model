@@ -55,10 +55,12 @@ class ConfidenceCalibrator:
         method: str = "platt",
         max_history: int = 10000,
         n_bins: int = 10,
+        conclusive_threshold: float = 0.7,
     ) -> None:
         self._method = method
         self._max_history = max_history
         self._n_bins = n_bins
+        self._conclusive_threshold = conclusive_threshold
         self._lock = threading.Lock()
 
         # Platt 参数
@@ -108,6 +110,8 @@ class ConfidenceCalibrator:
                 calibrated = _sigmoid(self._platt_a * raw_confidence + self._platt_b)
             elif self._method == "isotonic":
                 calibrated = self._isotonic_lookup(raw_confidence)
+            elif self._method == "threshold_aware":
+                calibrated = self._threshold_aware_calibrate(raw_confidence)
             else:
                 return raw_confidence
 
@@ -164,7 +168,7 @@ class ConfidenceCalibrator:
         raws = np.array([r.raw_confidence for r in self._history])
         outcomes = np.array([1.0 if r.actual_outcome else 0.0 for r in self._history])
 
-        if self._method == "platt":
+        if self._method in ("platt", "threshold_aware"):
             self._fit_platt(raws, outcomes)
         elif self._method == "isotonic":
             self._fit_isotonic(raws, outcomes)
@@ -176,6 +180,34 @@ class ConfidenceCalibrator:
             len(self._history),
             self.expected_calibration_error(),
         )
+
+    def _threshold_aware_calibrate(self, raw: float) -> float:
+        """阈值感知分段校准 — 医疗场景优化。
+
+        策略:
+        - raw < conclusive_threshold: 不校准 (低区间不影响判定)
+        - conclusive_threshold <= raw < 0.85: 轻微校准 (最多降 0.02)
+        - raw >= 0.85: 正常 Platt 校准 (高 confidence 才需大幅修正)
+
+        这避免了 Platt 一刀切把 0.7 压到 0.65 的问题。
+        """
+        if raw < self._conclusive_threshold:
+            return raw
+
+        # 对阈值附近区间: Platt 校准结果取插值, 限制最大降幅
+        platt_val = _sigmoid(self._platt_a * raw + self._platt_b)
+
+        if raw < 0.85:
+            # 线性插值: threshold 处不降, 0.85 处用 Platt
+            t = (raw - self._conclusive_threshold) / (0.85 - self._conclusive_threshold)
+            t = max(0.0, min(1.0, t))
+            calibrated = raw * (1 - t) + platt_val * t
+            # 限制最大降幅 2%
+            calibrated = max(calibrated, raw - 0.02)
+        else:
+            calibrated = platt_val
+
+        return min(calibrated, raw)
 
     def _fit_platt(self, raws: np.ndarray, outcomes: np.ndarray) -> None:
         """Platt Scaling: 拟合 σ(a·raw + b)。

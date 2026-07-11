@@ -118,17 +118,19 @@ def _run_diagnosis(
     *,
     use_calibrator: bool = False,
     calibrator_history: list[tuple[float, bool]] | None = None,
+    calibrator_method: str = "platt",
 ) -> tuple[list[dict], float]:
     """执行诊断, 返回 (结果列表, 总耗时秒)。
 
     Args:
         use_calibrator: 是否启用校准器
         calibrator_history: 校准器训练数据
+        calibrator_method: 校准方法 (platt/isotonic/threshold_aware)
     """
     results = []
     calibrator = None
     if use_calibrator:
-        calibrator = ConfidenceCalibrator(method="platt")
+        calibrator = ConfidenceCalibrator(method=calibrator_method)
         if calibrator_history:
             calibrator.fit(calibrator_history)
 
@@ -228,15 +230,29 @@ class TestFrozenVsAdaptive:
         )
 
     def test_c_full_adaptive(self):
-        """C: 全自适应 — 启用 Platt 校准器。"""
+        """C: 全自适应 — 启用 threshold_aware 校准器。"""
         global _METRICS_C
-        # 用前 50 个 case 的 ground truth 构造校准训练数据
-        cal_history = [(0.75, c["is_correct"]) for c in _CASES[:50]]
-        # 加噪声模拟真实场景
-        rng = np.random.RandomState(99)
-        cal_history = [(min(1.0, max(0.0, raw + rng.normal(0, 0.05))), outcome) for raw, outcome in cal_history]
+        # 用前 50 个 case 构造校准训练数据: 先诊断拿到 raw confidence, 再用 ground truth 标注
+        cal_history = []
+        for c in _CASES[:50]:
+            sdk = MedicalCausalSDK()
+            for ev in c["evidence"]:
+                sdk.add_evidence(
+                    ClinicalEvidence(
+                        evidence_id=ev["id"],
+                        description=ev["description"],
+                        confidence=ev["confidence"],
+                    )
+                )
+            diag = sdk.diagnose(c["cause"], c["effect"], c["prior_strength"])
+            cal_history.append((diag.confidence, c["is_correct"]))
 
-        results, elapsed = _run_diagnosis(_CASES, use_calibrator=True, calibrator_history=cal_history)
+        results, elapsed = _run_diagnosis(
+            _CASES,
+            use_calibrator=True,
+            calibrator_history=cal_history,
+            calibrator_method="threshold_aware",
+        )
         _METRICS_C = _compute_metrics(results)
         _METRICS_C["latency_ms"] = round(elapsed / len(_CASES) * 1000, 2)
         _METRICS_C["total_latency_s"] = round(elapsed, 3)

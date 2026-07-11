@@ -232,3 +232,68 @@ class TestSDKIntegration:
         sdk.diagnose("A", "B", 0.5)
         sdk.record_outcome(0, True)
         assert cal.sample_count == 1
+
+
+class TestThresholdAware:
+    """threshold_aware 分段校准测试。"""
+
+    def test_below_threshold_no_change(self):
+        """低于阈值的不校准。"""
+        cal = ConfidenceCalibrator(method="threshold_aware")
+        cal._platt_a = 2.0
+        cal._platt_b = -0.5
+        cal._fitted = True
+        assert cal.calibrate(0.3) == 0.3
+        assert cal.calibrate(0.5) == 0.5
+        assert cal.calibrate(0.69) == 0.69
+
+    def test_at_threshold_no_drop(self):
+        """阈值处不降 (0.70 → 0.70)。"""
+        cal = ConfidenceCalibrator(method="threshold_aware")
+        cal._platt_a = 1.5
+        cal._platt_b = -0.3
+        cal._fitted = True
+        assert cal.calibrate(0.70) == 0.70
+
+    def test_near_threshold_minimal_drop(self):
+        """阈值附近最多降 2%。"""
+        cal = ConfidenceCalibrator(method="threshold_aware")
+        cal._platt_a = 1.5
+        cal._platt_b = -0.3
+        cal._fitted = True
+        calibrated = cal.calibrate(0.75)
+        assert calibrated >= 0.73, f"降幅过大: 0.75 → {calibrated}"
+        assert calibrated <= 0.75
+
+    def test_high_confidence_full_platt(self):
+        """高 confidence (>0.85) 用完整 Platt 校准。"""
+        cal = ConfidenceCalibrator(method="threshold_aware")
+        cal._platt_a = 1.0
+        cal._platt_b = -0.2
+        cal._fitted = True
+        calibrated = cal.calibrate(0.95)
+        # Platt: sigmoid(1.0*0.95 - 0.2) = sigmoid(0.75) ≈ 0.679
+        assert calibrated < 0.95  # 明显降低
+        assert calibrated <= 0.95  # 保守原则
+
+    def test_conservative_principle(self):
+        """threshold_aware 也遵守保守原则。"""
+        cal = ConfidenceCalibrator(method="threshold_aware")
+        cal._platt_a = 0.5
+        cal._platt_b = 0.3
+        cal._fitted = True
+        for raw in [0.1, 0.3, 0.5, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
+            calibrated = cal.calibrate(raw)
+            assert calibrated <= raw + 1e-9, f"raw={raw}: {calibrated} > raw"
+
+    def test_fit_with_threshold_aware(self):
+        """threshold_aware 可以 fit + calibrate。"""
+        rng = np.random.RandomState(42)
+        history = [(0.8, rng.random() < 0.5) for _ in range(100)]
+        cal = ConfidenceCalibrator(method="threshold_aware")
+        cal.fit(history)
+        assert cal.is_fitted
+        # 0.70 应该不降
+        assert cal.calibrate(0.70) == 0.70
+        # 0.90 应该降
+        assert cal.calibrate(0.90) < 0.90
