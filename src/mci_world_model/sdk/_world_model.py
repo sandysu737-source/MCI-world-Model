@@ -392,7 +392,7 @@ class CausalWorldModelState:
                 self_et = getattr(self.temporal_info, "energy_type", "")
                 other_et = getattr(other.temporal_info, "energy_type", "")
                 dist_temporal = 0.0 if self_et == other_et else 1.0
-            except Exception:
+            except (AttributeError, TypeError):
                 logger.warning("temporal distance calc failed", exc_info=True)
 
         # ── 5. v3.1.0: 信念距离 (置信度轨迹差异) ──
@@ -419,7 +419,7 @@ class CausalWorldModelState:
                         )
                         diffs.append(abs(sc - oc))
                     dist_belief = sum(diffs) / len(diffs) if diffs else 0.0
-            except Exception:
+            except (AttributeError, TypeError, ZeroDivisionError):
                 logger.warning("belief distance calc failed", exc_info=True)
 
         # ── 加权求和 ──
@@ -966,7 +966,7 @@ class MCIWorldModel:
 
                     self._jepa_encoder = JEPAEncoder(self)
                     report["jepa_encoder"] = "initialized"
-                except Exception as e:
+                except (ImportError, TypeError, ValueError) as e:
                     logger.warning("异常降级: %s", e, exc_info=True)
                     report["warnings"].append(f"JEPA 编码器初始化失败: {e}")
 
@@ -979,7 +979,7 @@ class MCIWorldModel:
 
                     self._jepa_predictor = BeliefPropagationPredictor()
                     report["jepa_predictor"] = "initialized"
-                except Exception as e:
+                except (ImportError, TypeError, ValueError) as e:
                     logger.warning("异常降级: %s", e, exc_info=True)
                     report["warnings"].append(f"JEPA 预测器初始化失败: {e}")
 
@@ -1361,7 +1361,7 @@ class MCIWorldModel:
 
             except ImportError as e:
                 logger.error("因果发现失败 — 缺少依赖: %s", e)
-            except Exception as e:
+            except (RuntimeError, ValueError, KeyError) as e:
                 logger.error("因果发现失败: %s", e)
 
         return self._state
@@ -1402,7 +1402,7 @@ class MCIWorldModel:
             engine = CausalEngine(min_confidence=0.4)
             effects = engine.predict_effects(cause, memories, top_k=top_k)
             return effects
-        except Exception as e:
+        except (KeyError, ValueError, RuntimeError) as e:
             logger.error("检索预测失败: %s", e)
             return []
 
@@ -1497,12 +1497,12 @@ class MCIWorldModel:
                                 "JEPA 预测能量不守恒 (max_deviation=%.3f)，置信度降权",
                                 max_deviation,
                             )
-                except Exception as e:
+                except (ValueError, AttributeError) as e:
                     logger.warning("能量守恒验证跳过: %s", e)
 
             return predictions[:top_k] if predictions else self.predict_effect(cause, top_k=top_k)
 
-        except Exception as e:
+        except (RuntimeError, ValueError, KeyError) as e:
             logger.error("JEPA 预测失败: %s，回退到检索路径", e)
             return self.predict_effect(cause, top_k=top_k)
 
@@ -1584,7 +1584,7 @@ class MCIWorldModel:
             predictions.sort(key=lambda x: abs(x["rho"]), reverse=True)
             return predictions[:top_k]
 
-        except Exception as e:
+        except (RuntimeError, ValueError, AttributeError) as e:
             logger.error("M3 预测失败: %s", e)
             return []
 
@@ -1731,7 +1731,7 @@ class MCIWorldModel:
                     nodes=[*list(do_x.keys()), target],
                     edges=[],
                 )
-        except Exception:
+        except (ValueError, KeyError, TypeError):
             logger.warning("CausalGraph 构建失败，回退到默认空图", exc_info=True)
             cg = CausalGraph(
                 nodes=[*list(do_x.keys()), target],
@@ -1759,7 +1759,7 @@ class MCIWorldModel:
                 x_baseline=0.0,
                 method=method,
             )
-        except Exception as e:
+        except (ValueError, KeyError, RuntimeError) as e:
             logger.error("干预分析失败: %s", e)
             return {
                 "status": "error",
@@ -1791,7 +1791,7 @@ class MCIWorldModel:
                         "cf_adjacency": cf_adj.tolist(),
                         "intervention": do_x,
                     }
-        except Exception:
+        except (ValueError, KeyError, TypeError):
             logger.warning("反事实图构建失败，跳过", exc_info=True)
 
         # ── 返回结果 ──
@@ -1855,7 +1855,7 @@ class MCIWorldModel:
                         mediator = mediators[0] if mediators else None
                     else:
                         mediator = None
-                except Exception:
+                except (ValueError, KeyError):
                     logger.warning("中介变量识别失败，回退为无中介", exc_info=True)
                     mediator = None
 
@@ -1890,7 +1890,7 @@ class MCIWorldModel:
                 method="direct",
             )
             nie = cause_to_med.get("ate", 0.0) * med_to_eff.get("ate", 0.0)
-        except Exception as e:
+        except (ValueError, KeyError, RuntimeError) as e:
             logger.error("因果分解失败: %s", e)
             nde = 0.0
             nie = 0.0
@@ -1984,7 +1984,7 @@ class MCIWorldModel:
                 target=target,
                 compute_pns=compute_pns,
             )
-        except Exception as e:
+        except (ValueError, KeyError, RuntimeError) as e:
             logger.error("反事实查询失败: %s", e, exc_info=True)
             return {
                 "status": "error",
@@ -2204,7 +2204,7 @@ class MCIWorldModel:
             }
         except ImportError as e:
             return {"error": f"jepa_trainer_unavailable: {e}"}
-        except Exception as e:
+        except (RuntimeError, ValueError, KeyError) as e:
             logger.error("JEPA 训练失败: %s", e)
             return {"error": str(e)}
 
@@ -2372,7 +2372,7 @@ class MCIWorldModel:
 
                 self._causal_actor = CausalActor(self, self._cost_module)
                 logger.info("v3.0.2 CausalActor 初始化完成")
-            except Exception as e:
+            except (TypeError, ValueError, ImportError) as e:
                 logger.error("CausalActor 初始化失败: %s", e)
                 return {"error": str(e), "n_actions": 0}
 
@@ -2438,7 +2438,7 @@ class MCIWorldModel:
                 # 执行并链式传递状态
                 for c in candidates:
                     current_state = actor.apply(current_state, c)  # type: ignore
-            except Exception as e:
+            except (ValueError, TypeError, RuntimeError) as e:
                 logger.warning("auto_regulate 迭代 %d 异常: %s", i, e)
                 break
 
@@ -2513,7 +2513,7 @@ class MCIWorldModel:
                 "has_temporal": bool(features.temporal_context),
                 "evidence_count": features.evidence_count,
             }
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             report["perception"] = {"error": str(e)}
             logger.warning("Perception 跳过: %s", e)
 
@@ -2525,7 +2525,7 @@ class MCIWorldModel:
                 "n_confirmed": self._state.n_confirmed,
                 "n_novel": self._state.n_novel,
             }
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             report["world_model"] = {"error": str(e)}
             logger.warning("WorldModel 跳过: %s", e)
 
@@ -2540,7 +2540,7 @@ class MCIWorldModel:
                 memory_list=[{"id": e.get("cause", ""), "type": "fact"} for e in self._state.causal_edges[:50]],
             )
             report["configurator"] = {"n_gaps": len(gaps)}
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             report["configurator"] = {"error": str(e)}
             logger.warning("Configurator 跳过: %s", e)
 
@@ -2555,7 +2555,7 @@ class MCIWorldModel:
 
             signal = cost_module.evaluate(self._state)
             report["cost"] = signal.to_dict()
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             report["cost"] = {"error": str(e)}
             logger.warning("Cost 跳过: %s", e)
 
@@ -2566,7 +2566,7 @@ class MCIWorldModel:
                 "n_actions": actor_result.get("n_actions", 0),
                 "cost_reduction": actor_result.get("cost_reduction", 0),
             }
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             report["actor"] = {"error": str(e)}
             logger.warning("Actor 跳过: %s", e)
 
@@ -2585,7 +2585,7 @@ class MCIWorldModel:
             )
             self._state.working_memory.push(step)  # type: ignore
             report["stm"] = self._state.working_memory.to_dict()  # type: ignore
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             report["stm"] = {"error": str(e)}
             logger.warning("STM 跳过: %s", e)
 
@@ -2689,7 +2689,7 @@ class MCIWorldModel:
                 self._jepa_encoder = encoder
                 report["encoder"] = "gat_encoder_initialized"
                 logger.info("M3 GAT 编码器已安装 (key_dim=%d)", encoder_key_dim)
-            except Exception as e:
+            except (TypeError, ValueError, ImportError) as e:
                 report["encoder"] = f"failed: {e}"
                 logger.warning("M3 GAT 编码器失败: %s", e)
 
@@ -2700,7 +2700,7 @@ class MCIWorldModel:
             self._jepa_predictor = GNNPredictor(hidden_dim=predictor_hidden_dim)
             report["predictor"] = "gnn_predictor_installed"
             logger.info("M3 GNN 预测器已安装 (hidden_dim=%d)", predictor_hidden_dim)
-        except Exception as e:
+        except (TypeError, ValueError, ImportError) as e:
             report["predictor"] = f"failed: {e}"
             logger.warning("M3 GNN 预测器失败: %s", e)
 
@@ -2724,7 +2724,7 @@ class MCIWorldModel:
             if hasattr(self._lite_pro, "query"):
                 results = self._lite_pro.query("*", top_k=100)
                 return [{"id": r.get("id", str(i)), "content": r.get("content", "")} for i, r in enumerate(results)]
-        except Exception as e:
+        except (AttributeError, KeyError, RuntimeError) as e:
             logger.warning("从 lite_pro 获取记忆失败: %s", e)
         return []
 
@@ -2849,7 +2849,7 @@ class MCIWorldModel:
                 try:
                     hints = self._experience_db.retrieve(top_k=3)
                     experience_hints = len(hints)
-                except Exception as e:
+                except (KeyError, ValueError, RuntimeError) as e:
                     logger.warning("经验检索跳过: %s", e)
 
         return causal_updates, experience_hints
@@ -2878,7 +2878,7 @@ class MCIWorldModel:
                 # FIX-C2: 使用 causal_query() 替代 str(state)，修正参数名 cause
                 cause = current_state.causal_query() if hasattr(current_state, "causal_query") else "state"
                 prediction = self.jepa_predict(cause=cause)
-        except Exception as e:
+        except (RuntimeError, ValueError, AttributeError) as e:
             logger.warning("JEPA 预测跳过: %s", e)
 
         if action is not None and current_state is not None and goal_state is not None:
@@ -2979,16 +2979,22 @@ class MCIWorldModel:
             self._step_count += 1
             try:
                 if pred_error > self._replay_threshold:
-                    self._store_replay_experience(current_state, pred_error)
+                    self._store_replay_experience(current_state, pred_error, action=action, prediction=prediction)
                 if self._step_count % self._replay_interval == 0:
                     self._replay_train()
-            except Exception:
+            except (KeyError, ValueError, TypeError):
                 logger.warning("replay buffer op failed, non-blocking", exc_info=True)
 
         return result
 
-    def _store_replay_experience(self, state: Any, pred_error: float) -> None:
-        """Store high-prediction-error experience into ExperienceDB."""
+    def _store_replay_experience(
+        self, state: Any, pred_error: float, action: Any = None, prediction: Any = None
+    ) -> None:
+        """Store high-prediction-error experience into ExperienceDB.
+
+        Stores state + action + predicted-next-state so that _replay_train
+        can reconstruct (state_vec, action_vec, target_vec) for JEPA train_step.
+        """
         if not hasattr(self, "_experience_db") or self._experience_db is None:
             return
         from mci_world_model.sdk._experience_memory import ExperienceType
@@ -3001,6 +3007,10 @@ class MCIWorldModel:
             importance=min(1.0, pred_error),
             prediction_error=pred_error,
             state_snapshot=state,
+            metadata={
+                "action": action,
+                "predicted_next_state": prediction,
+            },
         )
 
     def _replay_train(self) -> None:
@@ -3092,7 +3102,7 @@ class MCIWorldModel:
                 cause = current_state.causal_query() if hasattr(current_state, "causal_query") else "state"
                 predictions = self.jepa_predict(cause=cause)
                 result["prediction"] = predictions
-        except Exception as e:
+        except (RuntimeError, ValueError, AttributeError) as e:
             # GEN-01 (W-1): 保留可追溯性，使用 debug 级别避免性能影响
             logger.debug("cewm_step_fast() JEPA 预测跳过: %s", e)
 
@@ -3674,8 +3684,8 @@ class MCIWorldModel:
         if hasattr(state, "causal_edges") and callable(state.causal_edges):
             try:
                 return state.causal_edges()
-            except Exception:
-                logger.warning("吞异常", exc_info=True)
+            except (AttributeError, TypeError):
+                logger.warning("causal_edges 获取失败", exc_info=True)
         # 兼容回退：非 WorldState 对象基于 to_vector() 维度推断
         edges: list[tuple[str, str]] = []
         if hasattr(state, "to_vector"):
