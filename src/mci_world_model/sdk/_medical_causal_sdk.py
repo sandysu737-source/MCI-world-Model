@@ -243,11 +243,12 @@ class MedicalCausalSDK:
 
         # Step 3: 因果强度计算 (证据置信度主导, 先验为锚)
         evidence_weight = min(len(relevant_evidence) / 5.0, 1.0)
-        # 证据主导权重: 0.3 先验 + 0.7 证据置信度。
-        # 旧的 0.4/0.6 权重过于保守: ev_conf=0.8 时 cs=0.68 < 0.7 阈值,
-        # 导致合理证据被拒绝。0.3/0.7 使 ev_conf=0.8 刚好达标 (0.71)，
-        # 同时 ev_conf=0.4 时 cs=0.43 仍 inconclusive (保守性保持)。
-        causal_strength = prior_strength * 0.3 + evidence_confidence * 0.7
+        # evidence-dominated: prior 仅作 0.1 锚定, evidence 主导 (0.9)。
+        # Sachs 真实数据验证: 旧 0.3/0.7 给虚假边 0.15 prior 地板,
+        # 导致 [0.3-0.4] 桶 confidence 高估 (0.314 vs 0.05 accuracy)。
+        # 0.1/0.9 使虚假边 ev_conf=0.2 → cs=0.23 (更低, 更准确),
+        # 真实边 ev_conf=0.85 → cs=0.82 (不被 evidence_weight 过度压低)。
+        causal_strength = prior_strength * 0.1 + evidence_confidence * 0.9
         causal_strength *= evidence_weight
 
         # Step 4: 综合置信度
