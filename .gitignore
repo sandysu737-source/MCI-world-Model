@@ -81,3 +81,6 @@ tests/test_debridement_phase_a.py
 tests/test_debridement_phase_a.py.bak
 tests/test_debridement_phase_b.py
 checkpoints/
+patent/
+scripts/patent_*.py
+scripts/*patent*.py
