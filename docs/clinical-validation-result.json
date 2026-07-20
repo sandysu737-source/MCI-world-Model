@@ -1,0 +1,499 @@
+{
+  "direction": "方向五-临床验证",
+  "timestamp": "2026-07-18 01:15:36",
+  "seed": 42,
+  "scenarios": {
+    "感染性休克": {
+      "diagnoses": [
+        "A41.9"
+      ],
+      "vitals": [
+        105.0,
+        70.0,
+        45.0,
+        88.0,
+        28.0,
+        38.8,
+        13.0
+      ],
+      "recommended": "norepinephrine",
+      "expected_direction": "norepinephrine",
+      "need_review": true,
+      "audit_steps": 5,
+      "clinical_reason": "感染性休克首选去甲肾上腺素升压（MAP≥65）",
+      "direction_ok": true
+    },
+    "心源性休克": {
+      "diagnoses": [
+        "I21.9"
+      ],
+      "vitals": [
+        120.0,
+        75.0,
+        50.0,
+        90.0,
+        24.0,
+        36.5,
+        14.0
+      ],
+      "recommended": "norepinephrine",
+      "expected_direction": "norepinephrine",
+      "need_review": true,
+      "audit_steps": 5,
+      "clinical_reason": "心源性休克用去甲肾上腺素维持灌注",
+      "direction_ok": true
+    },
+    "ARDS": {
+      "diagnoses": [
+        "J80"
+      ],
+      "vitals": [
+        110.0,
+        110.0,
+        70.0,
+        82.0,
+        35.0,
+        38.0,
+        12.0
+      ],
+      "recommended": "metoprolol",
+      "expected_direction": "fluid_resuscitation",
+      "need_review": true,
+      "audit_steps": 5,
+      "clinical_reason": "ARDS 需保守液体管理（非大剂量液体）",
+      "direction_ok": true
+    },
+    "急性肾损伤": {
+      "diagnoses": [
+        "N17.0"
+      ],
+      "vitals": [
+        95.0,
+        145.0,
+        90.0,
+        96.0,
+        20.0,
+        37.0,
+        15.0
+      ],
+      "recommended": "metoprolol",
+      "expected_direction": "furosemide",
+      "need_review": true,
+      "audit_steps": 5,
+      "clinical_reason": "AKI 容量过负荷用呋塞米利尿",
+      "direction_ok": true
+    }
+  },
+  "multibackend_comparison": {
+    "suite": "方向五临床验证-多backend对比",
+    "timestamp": "2026-07-18 01:15:36",
+    "seed": 42,
+    "n_test_cases": 60,
+    "backends": [
+      {
+        "backend": "MLP",
+        "timestamp": "2026-07-18 01:15:36",
+        "metrics": {
+          "direction_accuracy": {
+            "value": 0.5357,
+            "n_steps": 1,
+            "n_comparisons": 420
+          },
+          "mae": {
+            "value": 4.8149,
+            "n_steps": 1
+          },
+          "direction_accuracy_abnormal": {
+            "value": 0.3714,
+            "n_steps": 1
+          },
+          "direction_accuracy_drug": {
+            "value": 0.9357,
+            "n_steps": 1
+          },
+          "direction_accuracy_natural": {
+            "value": 0.3,
+            "n_steps": 1
+          },
+          "reconstruction_mse": {
+            "value": -1.0,
+            "applicable": false
+          },
+          "semantic_discrimination": {
+            "value": 0.0,
+            "applicable": false
+          },
+          "multistep_mae": [
+            {
+              "value": 0.0,
+              "step": 1,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 3.4618,
+              "step": 2,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 6.1169,
+              "step": 3,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 8.1433,
+              "step": 4,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 9.6375,
+              "step": 5,
+              "metric": "drift_from_step1"
+            }
+          ],
+          "noise_robustness": [
+            {
+              "value": 0.9357,
+              "noise_sigma": 0.0
+            },
+            {
+              "value": 0.6286,
+              "noise_sigma": 2.0
+            },
+            {
+              "value": 0.3929,
+              "noise_sigma": 5.0
+            }
+          ],
+          "safety_score": {
+            "value": 0.8667,
+            "n_cases": 60,
+            "safe_count": 52
+          },
+          "causal_adjustment_identifiable": {
+            "value": 0.5333,
+            "n_evaluated": 15
+          },
+          "causal_ate_estimable": {
+            "value": 0.5333,
+            "n_evaluated": 15
+          },
+          "causal_avg_ate": {
+            "value": 0.4697,
+            "n_estimates": 8
+          }
+        }
+      },
+      {
+        "backend": "JEPA",
+        "timestamp": "2026-07-18 01:15:36",
+        "metrics": {
+          "direction_accuracy": {
+            "value": 0.4381,
+            "n_steps": 1,
+            "n_comparisons": 420
+          },
+          "mae": {
+            "value": 4.612,
+            "n_steps": 1
+          },
+          "direction_accuracy_abnormal": {
+            "value": 0.2714,
+            "n_steps": 1
+          },
+          "direction_accuracy_drug": {
+            "value": 0.7929,
+            "n_steps": 1
+          },
+          "direction_accuracy_natural": {
+            "value": 0.25,
+            "n_steps": 1
+          },
+          "reconstruction_mse": {
+            "value": 0.8837,
+            "applicable": true,
+            "n_sampled": 20
+          },
+          "semantic_discrimination": {
+            "value": 0.0,
+            "applicable": true,
+            "n_pairs": 20
+          },
+          "multistep_mae": [
+            {
+              "value": 0.0,
+              "step": 1,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 2.2695,
+              "step": 2,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 4.1503,
+              "step": 3,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 5.8209,
+              "step": 4,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 7.1847,
+              "step": 5,
+              "metric": "drift_from_step1"
+            }
+          ],
+          "noise_robustness": [
+            {
+              "value": 0.7929,
+              "noise_sigma": 0.0
+            },
+            {
+              "value": 0.4857,
+              "noise_sigma": 2.0
+            },
+            {
+              "value": 0.4,
+              "noise_sigma": 5.0
+            }
+          ],
+          "safety_score": {
+            "value": 0.75,
+            "n_cases": 60,
+            "safe_count": 45
+          }
+        }
+      },
+      {
+        "backend": "JEPA+语义",
+        "timestamp": "2026-07-18 01:15:36",
+        "metrics": {
+          "direction_accuracy": {
+            "value": 0.4286,
+            "n_steps": 1,
+            "n_comparisons": 420
+          },
+          "mae": {
+            "value": 5.7677,
+            "n_steps": 1
+          },
+          "direction_accuracy_abnormal": {
+            "value": 0.2857,
+            "n_steps": 1
+          },
+          "direction_accuracy_drug": {
+            "value": 0.6571,
+            "n_steps": 1
+          },
+          "direction_accuracy_natural": {
+            "value": 0.3429,
+            "n_steps": 1
+          },
+          "reconstruction_mse": {
+            "value": 4.4068,
+            "applicable": true,
+            "n_sampled": 20
+          },
+          "semantic_discrimination": {
+            "value": 1.1442,
+            "applicable": true,
+            "n_pairs": 20
+          },
+          "multistep_mae": [
+            {
+              "value": 0.0,
+              "step": 1,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 2.3708,
+              "step": 2,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 3.7228,
+              "step": 3,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 4.7747,
+              "step": 4,
+              "metric": "drift_from_step1"
+            },
+            {
+              "value": 5.6478,
+              "step": 5,
+              "metric": "drift_from_step1"
+            }
+          ],
+          "noise_robustness": [
+            {
+              "value": 0.6571,
+              "noise_sigma": 0.0
+            },
+            {
+              "value": 0.3857,
+              "noise_sigma": 2.0
+            },
+            {
+              "value": 0.3429,
+              "noise_sigma": 5.0
+            }
+          ],
+          "safety_score": {
+            "value": 0.9167,
+            "n_cases": 60,
+            "safe_count": 55
+          }
+        }
+      }
+    ]
+  },
+  "causal_attribution": {
+    "L1_links": [
+      [
+        "heart_rate",
+        "systolic_bp",
+        0.8359
+      ],
+      [
+        "systolic_bp",
+        "diastolic_bp",
+        0.6034
+      ]
+    ],
+    "L2_intervention": {
+      "edges": [
+        {
+          "do": "heart_rate",
+          "target": "systolic_bp",
+          "ate": 0.8337,
+          "method": "direct",
+          "adjustment_set": []
+        },
+        {
+          "do": "systolic_bp",
+          "target": "diastolic_bp",
+          "ate": 0.6418,
+          "method": "backdoor_simulated",
+          "adjustment_set": [
+            "heart_rate"
+          ]
+        }
+      ]
+    },
+    "L3_counterfactual": {
+      "factual_action": "metoprolol",
+      "alternative_action": "dopamine",
+      "target_vital": "heart_rate",
+      "factual_value": 115.0,
+      "counterfactual_value": 140.0,
+      "individual_treatment_effect": 25.0,
+      "ite_direction": "higher",
+      "causal_necessity": "PN=1.000, PS=1.000, PNS=1.000",
+      "interpretation": "若用 dopamine 替代 metoprolol，预期 heart_rate 升高 25.0"
+    }
+  },
+  "emax_pharmacology": {
+    "dopamine": {
+      "vital": "heart_rate",
+      "EC50": 0.5,
+      "Emax_param": 8.0,
+      "doses": [
+        1.0,
+        3.0,
+        5.0,
+        8.0,
+        12.0
+      ],
+      "linear": [
+        2.0,
+        6.0,
+        10.0,
+        16.0,
+        24.0
+      ],
+      "emax": [
+        0.67,
+        0.86,
+        0.91,
+        0.94,
+        0.96
+      ],
+      "saturation_ratio_at_high_dose": 0.04
+    },
+    "norepinephrine": {
+      "vital": "systolic_bp",
+      "EC50": 0.4,
+      "Emax_param": 12.0,
+      "doses": [
+        1.0,
+        3.0,
+        5.0,
+        8.0,
+        12.0
+      ],
+      "linear": [
+        5.0,
+        15.0,
+        25.0,
+        40.0,
+        60.0
+      ],
+      "emax": [
+        1.43,
+        1.76,
+        1.85,
+        1.9,
+        1.94
+      ],
+      "saturation_ratio_at_high_dose": 0.032
+    },
+    "metoprolol": {
+      "vital": "heart_rate",
+      "EC50": 0.6,
+      "Emax_param": 6.0,
+      "doses": [
+        1.0,
+        3.0,
+        5.0,
+        8.0,
+        12.0
+      ],
+      "linear": [
+        -3.0,
+        -9.0,
+        -15.0,
+        -24.0,
+        -36.0
+      ],
+      "emax": [
+        -1.12,
+        -1.5,
+        -1.61,
+        -1.67,
+        -1.71
+      ],
+      "saturation_ratio_at_high_dose": 0.048
+    }
+  },
+  "fhir_bundle": {
+    "patient_id": "FHIR-DEMO",
+    "age": 71,
+    "gender": "male",
+    "n_diagnoses": 1,
+    "diagnoses": [
+      "I48.91"
+    ],
+    "n_medications": 1,
+    "medications": [
+      [
+        "metoprolol",
+        5.0
+      ]
+    ],
+    "vital_hr": 128.0
+  }
+}

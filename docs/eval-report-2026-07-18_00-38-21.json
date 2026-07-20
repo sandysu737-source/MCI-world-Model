@@ -1,0 +1,255 @@
+{
+  "suite": "医疗世界模型评测基准-方向四首份报告",
+  "timestamp": "2026-07-18 00:38:21",
+  "seed": 42,
+  "n_test_cases": 90,
+  "backends": [
+    {
+      "backend": "MLP(数值基线)",
+      "timestamp": "2026-07-18 00:38:21",
+      "metrics": {
+        "direction_accuracy": {
+          "value": 0.5206,
+          "n_steps": 1,
+          "n_comparisons": 630
+        },
+        "mae": {
+          "value": 4.0849,
+          "n_steps": 1
+        },
+        "direction_accuracy_abnormal": {
+          "value": 0.3381,
+          "n_steps": 1
+        },
+        "direction_accuracy_drug": {
+          "value": 0.9476,
+          "n_steps": 1
+        },
+        "direction_accuracy_natural": {
+          "value": 0.2762,
+          "n_steps": 1
+        },
+        "reconstruction_mse": {
+          "value": -1.0,
+          "applicable": false
+        },
+        "semantic_discrimination": {
+          "value": 0.0,
+          "applicable": false
+        },
+        "multistep_mae": [
+          {
+            "value": 0.0,
+            "step": 1,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 3.2716,
+            "step": 2,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 6.137,
+            "step": 3,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 8.5218,
+            "step": 4,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 10.6147,
+            "step": 5,
+            "metric": "drift_from_step1"
+          }
+        ],
+        "noise_robustness": [
+          {
+            "value": 0.9476,
+            "noise_sigma": 0.0
+          },
+          {
+            "value": 0.6762,
+            "noise_sigma": 2.0
+          },
+          {
+            "value": 0.4,
+            "noise_sigma": 5.0
+          }
+        ],
+        "safety_score": {
+          "value": 0.8333,
+          "n_cases": 90,
+          "safe_count": 75
+        }
+      }
+    },
+    {
+      "backend": "JEPA(潜空间)",
+      "timestamp": "2026-07-18 00:38:21",
+      "metrics": {
+        "direction_accuracy": {
+          "value": 0.4873,
+          "n_steps": 1,
+          "n_comparisons": 630
+        },
+        "mae": {
+          "value": 4.2769,
+          "n_steps": 1
+        },
+        "direction_accuracy_abnormal": {
+          "value": 0.2857,
+          "n_steps": 1
+        },
+        "direction_accuracy_drug": {
+          "value": 0.8905,
+          "n_steps": 1
+        },
+        "direction_accuracy_natural": {
+          "value": 0.2857,
+          "n_steps": 1
+        },
+        "reconstruction_mse": {
+          "value": 0.5854,
+          "applicable": true,
+          "n_sampled": 20
+        },
+        "semantic_discrimination": {
+          "value": 0.0,
+          "applicable": true,
+          "n_pairs": 20
+        },
+        "multistep_mae": [
+          {
+            "value": 0.0,
+            "step": 1,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 3.057,
+            "step": 2,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 5.8316,
+            "step": 3,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 8.2989,
+            "step": 4,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 10.3143,
+            "step": 5,
+            "metric": "drift_from_step1"
+          }
+        ],
+        "noise_robustness": [
+          {
+            "value": 0.8905,
+            "noise_sigma": 0.0
+          },
+          {
+            "value": 0.6143,
+            "noise_sigma": 2.0
+          },
+          {
+            "value": 0.3524,
+            "noise_sigma": 5.0
+          }
+        ],
+        "safety_score": {
+          "value": 0.7778,
+          "n_cases": 90,
+          "safe_count": 70
+        }
+      }
+    },
+    {
+      "backend": "JEPA+语义(方向一+二)",
+      "timestamp": "2026-07-18 00:38:21",
+      "metrics": {
+        "direction_accuracy": {
+          "value": 0.473,
+          "n_steps": 1,
+          "n_comparisons": 630
+        },
+        "mae": {
+          "value": 4.9378,
+          "n_steps": 1
+        },
+        "direction_accuracy_abnormal": {
+          "value": 0.2667,
+          "n_steps": 1
+        },
+        "direction_accuracy_drug": {
+          "value": 0.8,
+          "n_steps": 1
+        },
+        "direction_accuracy_natural": {
+          "value": 0.3524,
+          "n_steps": 1
+        },
+        "reconstruction_mse": {
+          "value": 3.4054,
+          "applicable": true,
+          "n_sampled": 20
+        },
+        "semantic_discrimination": {
+          "value": 1.14,
+          "applicable": true,
+          "n_pairs": 20
+        },
+        "multistep_mae": [
+          {
+            "value": 0.0,
+            "step": 1,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 3.1425,
+            "step": 2,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 5.5907,
+            "step": 3,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 7.6012,
+            "step": 4,
+            "metric": "drift_from_step1"
+          },
+          {
+            "value": 9.4222,
+            "step": 5,
+            "metric": "drift_from_step1"
+          }
+        ],
+        "noise_robustness": [
+          {
+            "value": 0.8,
+            "noise_sigma": 0.0
+          },
+          {
+            "value": 0.5095,
+            "noise_sigma": 2.0
+          },
+          {
+            "value": 0.3905,
+            "noise_sigma": 5.0
+          }
+        ],
+        "safety_score": {
+          "value": 0.7778,
+          "n_cases": 90,
+          "safe_count": 70
+        }
+      }
+    }
+  ]
+}

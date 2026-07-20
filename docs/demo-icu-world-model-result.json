@@ -1,0 +1,348 @@
+[
+  {
+    "scenario": "心动过速（HR=130）",
+    "decision": {
+      "patient_state": {
+        "type": "PatientState",
+        "patient_id": "ICU-001",
+        "age": 0,
+        "gender": "",
+        "vital_signs_latest": {
+          "heart_rate": 130.0,
+          "systolic_bp": 140.0,
+          "diastolic_bp": 95.0,
+          "oxygen_saturation": 96.0,
+          "respiratory_rate": 20.0,
+          "temperature": 37.0,
+          "gcs": 15.0
+        },
+        "lab_values": {},
+        "medications": [],
+        "diagnoses": [],
+        "is_safe": false,
+        "sofa_score": 0.0,
+        "timestamp": 1784294476.3736808
+      },
+      "route": {
+        "type": "causal",
+        "confidence": 0.85,
+        "safety": "trusted",
+        "need_review": false
+      },
+      "recommended_action": {
+        "type": "MedicalAction",
+        "action_type": "drug",
+        "target": "metoprolol",
+        "magnitude": 8.0,
+        "unit": "",
+        "route": "IV"
+      },
+      "knowledge_answer": null,
+      "treatment_plan": {
+        "best_action": {
+          "type": "MedicalAction",
+          "action_type": "drug",
+          "target": "metoprolol",
+          "magnitude": 8.0,
+          "unit": "",
+          "route": "IV"
+        },
+        "current_reward": 0.7362,
+        "best_predicted_reward": 0.812,
+        "reward_improvement": 0.0758,
+        "n_candidates": 18,
+        "top_3_actions": [
+          {
+            "action": "metoprolol 8.0",
+            "predicted_reward": 0.812,
+            "reward_delta": 0.0758,
+            "is_safe": true
+          },
+          {
+            "action": "furosemide 8.0",
+            "predicted_reward": 0.7853,
+            "reward_delta": 0.0491,
+            "is_safe": true
+          },
+          {
+            "action": "metoprolol 5.0",
+            "predicted_reward": 0.7688,
+            "reward_delta": 0.0326,
+            "is_safe": true
+          }
+        ],
+        "reasoning": "选择 metoprolol 8.0：预期 reward 0.812 > 当前 0.736"
+      },
+      "evaluation": {
+        "current_reward": 0.7362,
+        "predicted_reward": 0.812,
+        "improvement": 0.0758,
+        "uncertainty_score": 0.0982
+      },
+      "reasoning": "选择 metoprolol 8.0：预期 reward 0.812 > 当前 0.736；不确定性 0.098 < 阈值 0.3",
+      "audit_steps": 4,
+      "timestamp": "2026-07-17T21:21:16"
+    }
+  },
+  {
+    "scenario": "低血压休克（SBP=75）",
+    "decision": {
+      "patient_state": {
+        "type": "PatientState",
+        "patient_id": "ICU-002",
+        "age": 0,
+        "gender": "",
+        "vital_signs_latest": {
+          "heart_rate": 110.0,
+          "systolic_bp": 75.0,
+          "diastolic_bp": 45.0,
+          "oxygen_saturation": 92.0,
+          "respiratory_rate": 22.0,
+          "temperature": 36.5,
+          "gcs": 14.0
+        },
+        "lab_values": {},
+        "medications": [],
+        "diagnoses": [],
+        "is_safe": false,
+        "sofa_score": 4.0,
+        "timestamp": 1784294476.3763242
+      },
+      "route": {
+        "type": "causal",
+        "confidence": 0.85,
+        "safety": "trusted",
+        "need_review": false
+      },
+      "recommended_action": {
+        "type": "MedicalAction",
+        "action_type": "drug",
+        "target": "norepinephrine",
+        "magnitude": 3.0,
+        "unit": "",
+        "route": "IV"
+      },
+      "knowledge_answer": null,
+      "treatment_plan": {
+        "best_action": {
+          "type": "MedicalAction",
+          "action_type": "drug",
+          "target": "norepinephrine",
+          "magnitude": 3.0,
+          "unit": "",
+          "route": "IV"
+        },
+        "current_reward": 0.5441,
+        "best_predicted_reward": 0.6948,
+        "reward_improvement": 0.1507,
+        "n_candidates": 18,
+        "top_3_actions": [
+          {
+            "action": "norepinephrine 3.0",
+            "predicted_reward": 0.6948,
+            "reward_delta": 0.1507,
+            "is_safe": true
+          },
+          {
+            "action": "dopamine 8.0",
+            "predicted_reward": 0.6892,
+            "reward_delta": 0.1451,
+            "is_safe": true
+          },
+          {
+            "action": "norepinephrine 5.0",
+            "predicted_reward": 0.6879,
+            "reward_delta": 0.1438,
+            "is_safe": true
+          }
+        ],
+        "reasoning": "选择 norepinephrine 3.0：预期 reward 0.695 > 当前 0.544"
+      },
+      "evaluation": {
+        "current_reward": 0.5441,
+        "predicted_reward": 0.6948,
+        "improvement": 0.1507,
+        "uncertainty_score": 0.0854
+      },
+      "reasoning": "选择 norepinephrine 3.0：预期 reward 0.695 > 当前 0.544；不确定性 0.085 < 阈值 0.3",
+      "audit_steps": 4,
+      "timestamp": "2026-07-17T21:21:16"
+    }
+  },
+  {
+    "scenario": "正常体征（对照组）",
+    "decision": {
+      "patient_state": {
+        "type": "PatientState",
+        "patient_id": "ICU-003",
+        "age": 0,
+        "gender": "",
+        "vital_signs_latest": {
+          "heart_rate": 75.0,
+          "systolic_bp": 120.0,
+          "diastolic_bp": 80.0,
+          "oxygen_saturation": 98.0,
+          "respiratory_rate": 16.0,
+          "temperature": 36.8,
+          "gcs": 15.0
+        },
+        "lab_values": {},
+        "medications": [],
+        "diagnoses": [],
+        "is_safe": true,
+        "sofa_score": 0.0,
+        "timestamp": 1784294476.378586
+      },
+      "route": {
+        "type": "fused",
+        "confidence": 0.6,
+        "safety": "needs_review",
+        "need_review": true
+      },
+      "recommended_action": {
+        "type": "MedicalAction",
+        "action_type": "drug",
+        "target": "furosemide",
+        "magnitude": 5.0,
+        "unit": "",
+        "route": "IV"
+      },
+      "knowledge_answer": null,
+      "treatment_plan": {
+        "best_action": {
+          "type": "MedicalAction",
+          "action_type": "drug",
+          "target": "furosemide",
+          "magnitude": 5.0,
+          "unit": "",
+          "route": "IV"
+        },
+        "current_reward": 0.9577,
+        "best_predicted_reward": 0.9257,
+        "reward_improvement": -0.032,
+        "n_candidates": 18,
+        "top_3_actions": [
+          {
+            "action": "furosemide 5.0",
+            "predicted_reward": 0.9257,
+            "reward_delta": -0.032,
+            "is_safe": false
+          },
+          {
+            "action": "furosemide 3.0",
+            "predicted_reward": 0.9154,
+            "reward_delta": -0.0423,
+            "is_safe": false
+          },
+          {
+            "action": "furosemide 8.0",
+            "predicted_reward": 0.9063,
+            "reward_delta": -0.0514,
+            "is_safe": false
+          }
+        ],
+        "reasoning": "选择 furosemide 5.0：预期 reward 0.926 > 当前 0.958"
+      },
+      "evaluation": {
+        "current_reward": 0.9577,
+        "predicted_reward": 0.9257,
+        "improvement": -0.032,
+        "uncertainty_score": 0.1027
+      },
+      "reasoning": "需复核：reward 下降(-0.032)",
+      "audit_steps": 4,
+      "timestamp": "2026-07-17T21:21:16"
+    }
+  },
+  {
+    "scenario": "知识问答（去甲肾上腺素）",
+    "decision": {
+      "patient_state": {
+        "type": "PatientState",
+        "patient_id": "ICU-004",
+        "age": 0,
+        "gender": "",
+        "vital_signs_latest": {
+          "heart_rate": 85.0,
+          "systolic_bp": 105.0,
+          "diastolic_bp": 65.0,
+          "oxygen_saturation": 97.0,
+          "respiratory_rate": 18.0,
+          "temperature": 36.6,
+          "gcs": 15.0
+        },
+        "lab_values": {},
+        "medications": [],
+        "diagnoses": [],
+        "is_safe": true,
+        "sofa_score": 0.0,
+        "timestamp": 1784294476.3809438
+      },
+      "route": {
+        "type": "semantic",
+        "confidence": 0.8,
+        "safety": "trusted",
+        "need_review": false
+      },
+      "recommended_action": {
+        "type": "MedicalAction",
+        "action_type": "drug",
+        "target": "norepinephrine",
+        "magnitude": 3.0,
+        "unit": "",
+        "route": "IV"
+      },
+      "knowledge_answer": {
+        "term": "去甲肾上腺素",
+        "definition": "强效α受体激动剂，一线升压药，收缩外周血管升高血压",
+        "guideline": "感染性休克首选升压药，目标 MAP≥65mmHg，中心静脉给药",
+        "retrieval_score": 1.0,
+        "retrieval_method": "keyword"
+      },
+      "treatment_plan": {
+        "best_action": {
+          "type": "MedicalAction",
+          "action_type": "drug",
+          "target": "norepinephrine",
+          "magnitude": 3.0,
+          "unit": "",
+          "route": "IV"
+        },
+        "current_reward": 0.9268,
+        "best_predicted_reward": 0.9316,
+        "reward_improvement": 0.0048,
+        "n_candidates": 18,
+        "top_3_actions": [
+          {
+            "action": "norepinephrine 3.0",
+            "predicted_reward": 0.9316,
+            "reward_delta": 0.0049,
+            "is_safe": true
+          },
+          {
+            "action": "norepinephrine 5.0",
+            "predicted_reward": 0.9165,
+            "reward_delta": -0.0103,
+            "is_safe": true
+          },
+          {
+            "action": "fluid_resuscitation 3.0",
+            "predicted_reward": 0.9152,
+            "reward_delta": -0.0116,
+            "is_safe": true
+          }
+        ],
+        "reasoning": "选择 norepinephrine 3.0：预期 reward 0.932 > 当前 0.927"
+      },
+      "evaluation": {
+        "current_reward": 0.9268,
+        "predicted_reward": 0.9316,
+        "improvement": 0.0048,
+        "uncertainty_score": 0.108
+      },
+      "reasoning": "选择 norepinephrine 3.0：预期 reward 0.932 > 当前 0.927；不确定性 0.108 < 阈值 0.3",
+      "audit_steps": 5,
+      "timestamp": "2026-07-17T21:21:16"
+    }
+  }
+]
