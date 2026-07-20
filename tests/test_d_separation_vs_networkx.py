@@ -8,7 +8,6 @@ from __future__ import annotations
 import itertools
 
 import networkx as nx
-import numpy as np
 import pytest
 
 pytestmark = [pytest.mark.oracle, pytest.mark.reference]
@@ -21,7 +20,7 @@ def _to_networkx(dag: CausalDAG) -> nx.DiGraph:
     g = nx.DiGraph()
     g.add_nodes_from(dag.nodes)
     for p in dag.edges:
-        for c, _ in dag.edges[p]:
+        for c, _, _ in dag.edges[p]:
             g.add_edge(p, c)
     return g
 
@@ -31,7 +30,6 @@ def _assert_dsep_consistent(dag: CausalDAG, pairs, all_nodes):
 
     条件集 Z 必须排除 X 和 Y 自身 (networkx 要求三者不相交)。
     """
-    import itertools
     g = _to_networkx(dag)
     mismatches = []
     checked = 0
