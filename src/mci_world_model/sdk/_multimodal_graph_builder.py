@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.3.0 — MultimodalGraphBuilder 多模态图构建器
+MCI World Model v4.6.0 — MultimodalGraphBuilder 多模态图构建器
 ================================================================
 
 将多模态特征时序数据构建为跨模态因果图。

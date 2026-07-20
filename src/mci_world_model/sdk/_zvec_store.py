@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v4.4.0 — Zvec Embedding Store
+MCI World Model v4.6.0 — Zvec Embedding Store
 ===============================================
 
 基于阿里 Zvec 的进程内向量嵌入存储，

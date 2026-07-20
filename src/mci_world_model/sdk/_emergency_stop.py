@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v4.5.0 — EmergencyStop 紧急停止
+"""MCI World Model v4.6.0 — EmergencyStop 紧急停止
 ====================================================
 
 安全关键系统的紧急停止机制——独立线程监听停止信号，

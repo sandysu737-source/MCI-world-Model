@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v7.0.0 — AutoScaler 推理服务自动伸缩
+"""MCI World Model v4.6.0 — AutoScaler 推理服务自动伸缩
 ========================================================
 
 QPS 驱动的推理服务自动伸缩 — 根据负载动态调整服务副本数。

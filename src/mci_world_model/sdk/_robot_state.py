@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-"""MCI World Model v4.5.0 — RobotWorldState + RobotAction
+"""MCI World Model v4.6.0 — RobotWorldState + RobotAction
 ========================================================
 
 手术机器人桥接预研——6-DOF 机械臂状态空间和动作空间，

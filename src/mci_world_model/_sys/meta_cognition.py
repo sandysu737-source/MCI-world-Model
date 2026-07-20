@@ -1,5 +1,5 @@
 """
-MCI World Model v3.4.0 — MetaCognition 统一元认知系统
+MCI World Model v4.6.0 — MetaCognition 统一元认知系统
 =====================================================
 
 v3.4.0: 合并重写 — 统一 meta_cognition.py (56行) + awareness.py (314行)

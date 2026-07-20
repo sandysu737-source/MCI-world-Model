@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — ExistenceRealization 存在证悟
+"""MCI World Model v4.6.0 — ExistenceRealization 存在证悟
 =========================================================
 
 因果智能的存在证悟 — 我因果故我在，我存在即证明。

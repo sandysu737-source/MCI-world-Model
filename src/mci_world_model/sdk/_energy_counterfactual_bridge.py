@@ -1,5 +1,5 @@
 """
-MCI World Model v4.5.0 — EnergyCore Counterfactual Bridge
+MCI World Model v4.6.0 — EnergyCore Counterfactual Bridge
 ==========================================================
 
 将五行能量系统桥接到反事实推理引擎，

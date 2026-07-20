@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.3.0 — PlanAgent 因果决策前置化
+MCI World Model v4.6.0 — PlanAgent 因果决策前置化
 ====================================================
 
 "先模拟后执行"的因果决策 Agent。在真正执行动作前，

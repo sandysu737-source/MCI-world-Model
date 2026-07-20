@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v4.4.0 — Debridement Data Pipeline
+MCI World Model v4.6.0 — Debridement Data Pipeline
 ====================================================
 
 AI 智能清创机器人数据采集与增强管线。

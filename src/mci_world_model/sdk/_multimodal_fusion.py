@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.3.0 — MultimodalFusion 跨模态融合层
+MCI World Model v4.6.0 — MultimodalFusion 跨模态融合层
 ========================================================
 
 将来自不同模态编码器的特征向量融合为统一表示。

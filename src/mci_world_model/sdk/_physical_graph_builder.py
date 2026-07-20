@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.0 — PhysicalGraphBuilder 物理量→因果边转换器
+MCI World Model v4.6.0 — PhysicalGraphBuilder 物理量→因果边转换器
 ================================================================
 
 将数值时序物理量数据转换为 CausalWorldModelState.causal_edges 格式，

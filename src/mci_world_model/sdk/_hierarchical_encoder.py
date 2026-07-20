@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.0.2 — Hierarchical JEPA Encoder
+MCI World Model v4.6.0 — Hierarchical JEPA Encoder
 ====================================================
 
 LeCun H-JEPA (Hierarchical Joint Embedding Predictive Architecture)

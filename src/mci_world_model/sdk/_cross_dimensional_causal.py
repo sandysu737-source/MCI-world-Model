@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v14.0.0 — CrossDimensionalCausal 跨维度因果推理
+"""MCI World Model v4.6.0 — CrossDimensionalCausal 跨维度因果推理
 ====================================================================
 
 物理世界、数字孪生、混合现实间的因果推理 — 因果无界。

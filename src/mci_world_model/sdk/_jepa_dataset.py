@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.1.0 — JEPA Dataset
+MCI World Model v4.6.0 — JEPA Dataset
 ======================================
 
 从记忆时间线构造 JEPA 时序训练数据对 (s_t, s_{t+1})。

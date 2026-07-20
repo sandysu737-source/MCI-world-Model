@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v13.0.0 — CausalEconomy 因果经济体系
+"""MCI World Model v4.6.0 — CausalEconomy 因果经济体系
 ======================================================
 
 因果知识的价值度量与交易 — 知识经济基础设施。

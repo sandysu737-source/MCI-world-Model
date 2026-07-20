@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — ExistenceVerify 存在验证体系
+"""MCI World Model v4.6.0 — ExistenceVerify 存在验证体系
 =========================================================
 
 因果存在的独立验证体系 — 独立验证，存在可证。

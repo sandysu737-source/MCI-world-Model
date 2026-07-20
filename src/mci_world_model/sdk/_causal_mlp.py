@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.0.7 — CausalMLP
+MCI World Model v4.6.0 — CausalMLP
 ====================================
 
 小型因果推断 MLP — MLX Native 实现。
@@ -435,7 +435,7 @@ class CausalMLP:
 
             # 保存元信息 JSON
             meta = {
-                "version": "3.0.7",
+                "version": "4.6.0",
                 "model_type": "CausalMLP",
                 "input_dim": self._input_dim,
                 "hidden_dims": list(self._hidden_dims),

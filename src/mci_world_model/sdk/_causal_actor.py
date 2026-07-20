@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.0.2 — Causal Actor
+MCI World Model v4.6.0 — Causal Actor
 ======================================
 
 LeCun 六模块架构中的 Actor 模块：基于 Cost 梯度搜索最优干预动作。

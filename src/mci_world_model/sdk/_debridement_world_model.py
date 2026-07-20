@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v4.4.0 — DebridementWorldModel
+MCI World Model v4.6.0 — DebridementWorldModel
 =================================================
 
 AI 智能清创机器人 — 多模态因果世界模型。
@@ -182,7 +182,7 @@ class DebridementWorldModel:
                         for x in v:
                             if isinstance(x, np.ndarray):
                                 total += x.size
-                except Exception as e:
+                except Exception:
                     logger.warning("吞异常", exc_info=True)
         return total
 
@@ -414,7 +414,7 @@ class DebridementWorldModel:
                             save_dict[f"{attr}_{i}"] = arr
             save_dict["_config_d_model"] = np.array(self._d_model, dtype=np.int32)
             np.savez_compressed(path, **save_dict)  # type: ignore
-            meta = {"version": "4.4.0", "model_type": "DebridementWorldModel", "trained": self._trained}
+            meta = {"version": "4.6.0", "model_type": "DebridementWorldModel", "trained": self._trained}
             with open(path + ".json", "w") as f:
                 json.dump(meta, f, indent=2)
             return True

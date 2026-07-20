@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v13.0.0 — AutonomousKnowledgeCivilization 自主知识文明
+"""MCI World Model v4.6.0 — AutonomousKnowledgeCivilization 自主知识文明
 ========================================================================
 
 因果知识的自主产生、传承与演化 — 知识的世代循环。

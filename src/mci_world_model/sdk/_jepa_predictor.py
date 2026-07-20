@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.1.0 — JEPA Predictor
+MCI World Model v4.6.0 — JEPA Predictor
 =========================================
 
 JEPA 潜空间预测器接口 + 三个不可参基线实现。

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.0.7 — Pearl Do-Calculus 干预引擎 (M1)
+MCI World Model v4.6.0 — Pearl Do-Calculus 干预引擎 (M1)
 ====================================================
 
 基于 Pearl (2009) do-calculus 的因果干预推理，

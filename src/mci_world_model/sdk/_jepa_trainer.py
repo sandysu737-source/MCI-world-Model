@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.0 — JEPA Trainer
+MCI World Model v4.6.0 — JEPA Trainer
 ========================================
 
 JEPA 端到端训练循环，支持三类训练模式:

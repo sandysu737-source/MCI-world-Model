@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — QuantumClassicalBridge 量子经典桥接层
+"""MCI World Model v4.6.0 — QuantumClassicalBridge 量子经典桥接层
 ==================================================================
 
 量子计算与经典计算之间的桥接层 — 量子因果推理的基础设施。

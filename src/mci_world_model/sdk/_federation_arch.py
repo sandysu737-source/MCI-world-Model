@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — CausalFederationArchitecture 因果联邦架构
+"""MCI World Model v4.6.0 — CausalFederationArchitecture 因果联邦架构
 ======================================================================
 
 多节点因果推理的分布式架构 — 因果知识分片、副本复制、联邦因果发现。

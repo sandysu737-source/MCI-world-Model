@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.3.0 — MultiBranchPredictor 多分支未来推演引擎
+MCI World Model v4.6.0 — MultiBranchPredictor 多分支未来推演引擎
 ==================================================================
 
 从单个当前状态出发，并行推演多条候选动作轨迹，

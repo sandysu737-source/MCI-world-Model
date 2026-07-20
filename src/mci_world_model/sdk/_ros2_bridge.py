@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v4.5.0 — ROS2Bridge 原型
+"""MCI World Model v4.6.0 — ROS2Bridge 原型
 ============================================
 
 手术机器人桥接预研——ROS2 节点收发 JointState ↔ RobotWorldState，

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.0.7 — Parametric Memory Engine
+MCI World Model v4.6.0 — Parametric Memory Engine
 ===================================================
 
 基于 CausalMLP 的参数化记忆训练引擎（MLX Native）。
@@ -96,7 +96,7 @@ class ParametricMemoryConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "version": "3.0.7",
+            "version": "4.6.0",
             "model_type": "CausalMLP",
             "input_dim": self.input_dim,
             "hidden_dims": list(self.hidden_dims),

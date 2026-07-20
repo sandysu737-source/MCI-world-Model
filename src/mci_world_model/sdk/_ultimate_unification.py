@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — UltimateUnification 终极统一引擎
+"""MCI World Model v4.6.0 — UltimateUnification 终极统一引擎
 ================================================================
 
 因果-物理-元因果三重统一 — 万法归一，因果即是存在。

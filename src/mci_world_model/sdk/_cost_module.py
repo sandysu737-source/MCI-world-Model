@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.0.1 — Energy Cost Module
+MCI World Model v4.6.0 — Energy Cost Module
 ============================================
 
 LeCun 六模块架构中的 Cost 模块：评估世界状态的"好坏"，

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.0 M2 — GNN Predictor
+MCI World Model v4.6.0 M2 — GNN Predictor
 ===========================================
 
 可微 GNN 因果图预测器，用 numpy 手写梯度实现。

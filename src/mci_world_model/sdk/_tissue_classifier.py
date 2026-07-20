@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v4.4.0 — Tissue Classifier
+MCI World Model v4.6.0 — Tissue Classifier
 ============================================
 
 AI 智能清创机器人 — 组织分类器 (4分类 + 置信度)。
@@ -390,7 +390,7 @@ class TissueClassifier:
             np.savez_compressed(path, **save_dict)  # type: ignore
 
             meta = {
-                "version": "4.4.0",
+                "version": "4.6.0",
                 "model_type": "TissueClassifier",
                 "input_dim": self._input_dim,
                 "hidden_dims": list(self._hidden_dims),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — CausalFederationProtocol 因果联邦协议
+"""MCI World Model v4.6.0 — CausalFederationProtocol 因果联邦协议
 ================================================================
 
 多系统因果联邦通信标准 — 让多个独立的因果推理系统形成联邦。

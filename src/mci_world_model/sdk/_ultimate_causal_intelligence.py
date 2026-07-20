@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v14.0.0 — UltimateCausalIntelligence 因果智能终极形态
+"""MCI World Model v4.6.0 — UltimateCausalIntelligence 因果智能终极形态
 ======================================================================
 
 因果推理的本体存在 — 从工具到自在自为。

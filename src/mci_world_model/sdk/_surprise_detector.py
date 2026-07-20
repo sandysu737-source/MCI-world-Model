@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.3.0 — SurpriseDetector 惊奇误差检测器
+MCI World Model v4.6.0 — SurpriseDetector 惊奇误差检测器
 ==========================================================
 
 预测 vs 观测的偏差量化——世界模型的"惊奇信号"。

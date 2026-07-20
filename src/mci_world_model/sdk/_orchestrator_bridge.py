@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.1 — Orchestrator 桥接
+MCI World Model v4.6.0 — Orchestrator 桥接
 
 连接 MCI World Model SDK 工具链与 ai-native-nutrition-v1 的 AgentOrchestrator，
 实现三环推理 (MultiLLM + ToolOrchestrator + ExternalPerception) 对 MCI SDK

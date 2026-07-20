@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.0.8 — Lightweight Causal Engine
+MCI World Model v4.6.0 — Lightweight Causal Engine
 
 基于中文关键词模式的因果关系检测和推理。
 双路径因果发现: 关键词匹配 (语法层) + 偏相关统计 (数值层)

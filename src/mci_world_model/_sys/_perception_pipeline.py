@@ -1,5 +1,5 @@
 """
-MCI World Model v3.0.3 — Perception Pipeline
+MCI World Model v4.6.0 — Perception Pipeline
 ==============================================
 
 LeCun 六模块架构中的 Perception 模块：将原始观测（文本/记忆/物理信号）转换为

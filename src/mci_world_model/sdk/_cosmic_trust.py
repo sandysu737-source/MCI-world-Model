@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v14.0.0 — CosmicTrust 宇宙级可信框架
+"""MCI World Model v4.6.0 — CosmicTrust 宇宙级可信框架
 ========================================================
 
 跨维度、跨尺度的统一信任体系 — 信任的终极统一。

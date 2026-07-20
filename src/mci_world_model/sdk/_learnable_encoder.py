@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v5.0.0 — Learnable State Encoder
+MCI World Model v4.6.0 — Learnable State Encoder
 ====================================================
 
 可学习状态编码器：将 WorldState 向量压缩为低维潜空间表示。

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v19.0.0 — P19 元因果超越桥接模块
+"""MCI World Model v4.6.0 — P19 元因果超越桥接模块
 =====================================================
 
 ⚠️  BRIDGE MODULE — 桥接模式

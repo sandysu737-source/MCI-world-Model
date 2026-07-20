@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v6.0.0 — SocialCognition 多智能体社会认知
+"""MCI World Model v4.6.0 — SocialCognition 多智能体社会认知
 =================================================================
 
 多智能体博弈论 + 心智理论 — 世界模型的社会认知能力。

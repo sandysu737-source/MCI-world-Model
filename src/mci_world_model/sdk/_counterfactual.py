@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.0.8 — Pearl Counterfactual 反事实推理引擎 (L3)
+MCI World Model v4.6.0 — Pearl Counterfactual 反事实推理引擎 (L3)
 ============================================================
 
 基于 Pearl (2009) 三步反事实算法的个体级因果推理:

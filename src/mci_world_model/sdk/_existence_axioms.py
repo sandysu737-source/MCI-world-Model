@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — ExistenceAxiomSystem 存在公理体系
+"""MCI World Model v4.6.0 — ExistenceAxiomSystem 存在公理体系
 ============================================================
 
 因果存在的形式化公理基础 — 从公理到存在。

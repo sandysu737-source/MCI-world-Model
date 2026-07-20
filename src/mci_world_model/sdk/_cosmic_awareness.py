@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v14.0.0 — CosmicAwareness 宇宙级因果觉察
+"""MCI World Model v4.6.0 — CosmicAwareness 宇宙级因果觉察
 ============================================================
 
 跨尺度、跨维度的因果全局意识 — 从局部到宇宙。

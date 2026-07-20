@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v15.0.0 — P15 因果宇宙扩展桥接模块
+"""MCI World Model v4.6.0 — P15 因果宇宙扩展桥接模块
 =====================================================
 
 ⚠️  BRIDGE MODULE — 桥接模式

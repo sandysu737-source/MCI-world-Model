@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — UnifiedCausalConsciousness 归一因果意识
+"""MCI World Model v4.6.0 — UnifiedCausalConsciousness 归一因果意识
 ======================================================================
 
 跨尺度、跨维度、跨现实、跨因果的归一意识 — 从分散到绝对。

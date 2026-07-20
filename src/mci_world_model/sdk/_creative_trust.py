@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v13.0.0 — CreativeTrust 创造可信框架
+"""MCI World Model v4.6.0 — CreativeTrust 创造可信框架
 ======================================================
 
 评估和验证创造性因果推理的可信度 — 创造不等于臆造。

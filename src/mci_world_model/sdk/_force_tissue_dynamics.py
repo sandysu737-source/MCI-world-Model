@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v4.4.0 — Force-Tissue Dynamics
+MCI World Model v4.6.0 — Force-Tissue Dynamics
 ================================================
 
 清创机器人 — 力-组织响应动力学模型。

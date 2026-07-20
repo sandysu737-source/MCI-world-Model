@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v4.4.2 — CounterfactualOracle
+"""MCI World Model v4.6.0 — CounterfactualOracle
 ===============================================
 
 LLM↔CEWM 反馈闭环的核心组件——让 LLM 可以查询 CEWM 的反事实推演结果，

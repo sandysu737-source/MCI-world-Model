@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v4.3.3 — CEWM 认知增强世界模型
+MCI World Model v4.6.0 — CEWM 认知增强世界模型
 =====================================================
 
 神经-符号因果推理系统的统一接口，
@@ -686,7 +686,7 @@ class WorkingMemory:
 
 class MCIWorldModel:
     """
-    MCI World Model v4.3.3 — CEWM 认知增强世界模型。
+    MCI World Model v4.6.0 — CEWM 认知增强世界模型。
 
     v4.3.3: 参数化记忆觉醒 + 能量流闭环。
     统一了检索增强 + JEPA 编码器-预测器两种路径，
@@ -2215,8 +2215,8 @@ class MCIWorldModel:
     def health_check(self) -> dict[str, Any]:
         """全系统健康诊断。"""
         check = {
-            "version": "4.3.3",
-            "code_name": "MCI World Model v4.3.3 CEWM 认知增强",
+            "version": "4.6.0",
+            "code_name": "MCI World Model v4.6.0 CEWM 认知增强",
             "initialized": self._initialized,
             "causal_pipeline": {
                 "edges_discovered": len(self._state.causal_edges),

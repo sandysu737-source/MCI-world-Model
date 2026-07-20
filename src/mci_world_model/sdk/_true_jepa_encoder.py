@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v5.1.0 — TrueJEPA Encoder
+"""MCI World Model v4.6.0 — TrueJEPA Encoder
 ================================================
 
 真正的 Joint Embedding Predictive Architecture 编码器。

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.1.0 — Spectral Causal Engine
+MCI World Model v4.6.0 — Spectral Causal Engine
 
 能量中心为核 · 四层量化为翼 · 从语法因果到数学可验证因果的质变
 

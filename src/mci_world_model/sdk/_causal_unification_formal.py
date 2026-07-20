@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v14.0.0 — CausalUnificationFormal 因果统一形式化
+"""MCI World Model v4.6.0 — CausalUnificationFormal 因果统一形式化
 ==================================================================
 
 统一理论的数学形式化证明 — 从公理到定理。

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.2.0 — WorldState 抽象基类
+MCI World Model v4.6.0 — WorldState 抽象基类
 ==============================================
 
 WorldState 是 MCI 世界模型"认知环"的核心数据结构——被建模世界的内在表征。

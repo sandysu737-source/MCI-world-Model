@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v5.0.0 — Persistent Experience Memory
+MCI World Model v4.6.0 — Persistent Experience Memory
 ======================================================
 
 持久化经验记忆：从进程内存 → 磁盘持久化 + 向量检索。

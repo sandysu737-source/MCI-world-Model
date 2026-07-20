@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-"""MCI World Model v10.0.0 — CrossDomainCausalTransfer 跨域因果迁移
+"""MCI World Model v4.6.0 — CrossDomainCausalTransfer 跨域因果迁移
 =================================================================
 
 P10 "融通" 波次核心交付物: 跨域融通与涌现智能。

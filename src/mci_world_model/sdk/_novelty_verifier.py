@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v13.0.0 — NoveltyVerifier 新颖性验证体系
+"""MCI World Model v4.6.0 — NoveltyVerifier 新颖性验证体系
 ===========================================================
 
 确认创造性理论确实具有新颖性 — 防止重复"发现"。

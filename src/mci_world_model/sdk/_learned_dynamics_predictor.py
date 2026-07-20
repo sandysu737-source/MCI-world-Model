@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v5.0.0 — Learned Dynamics Predictor
+MCI World Model v4.6.0 — Learned Dynamics Predictor
 =====================================================
 
 可学习动力学预测器：从 (state, action) → next_state 的观测数据中学习动力学映射。
@@ -225,8 +225,9 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
         diff = pred - target
         D = self._state_dim
 
-        # MSE
-        mse = float(np.mean(diff**2))
+        # MSE（数值健壮：用浮点安全方式计算，避免极大值平方溢出）
+        # diff 已是 float64；用 np.dot(dot)/D 比 mean(diff**2) 更不易溢出
+        mse = float(np.dot(diff, diff) / D)
 
         # L2
         l2 = 0.0
@@ -278,14 +279,40 @@ class LearnedDynamicsPredictor(ActionConditionedPredictor):
         return {"loss": loss, "mse": mse, "l2": l2, "grads": grads}
 
     def apply_gradients(self, grads: dict[str, np.ndarray], lr: float = 0.01) -> None:
-        """应用梯度更新参数 (SGD)。"""
+        """应用梯度更新参数 (SGD)，含数值健壮性防护。
+
+        - 全局梯度范数裁剪（max_norm=10.0）防止训练发散/数值溢出
+        - NaN/Inf 梯度检测，异常时跳过该步更新而非污染权重
+        """
+        # 收集所有权重梯度做全局范数裁剪
+        grad_norm_sq = 0.0
+        has_bad = False
+        for name in ["W1", "b1", "W2", "b2", "W3", "b3"]:
+            if name in grads:
+                g = np.asarray(grads[name], dtype=np.float64)
+                if not np.all(np.isfinite(g)):
+                    has_bad = True
+                    break
+                grad_norm_sq += float(np.sum(g * g))
+        if has_bad:
+            # 非有限梯度：跳过本步更新，避免权重被 NaN 污染
+            self._train_steps += 1
+            return
+
+        max_norm = 10.0
+        grad_norm = grad_norm_sq**0.5
+        if grad_norm > max_norm and grad_norm > 0:
+            scale = max_norm / grad_norm
+        else:
+            scale = 1.0
+
         for name in ["W1", "b1", "W2", "b2", "W3", "b3"]:
             if name in grads:
                 param = getattr(self, name)
                 grad = np.asarray(grads[name], dtype=np.float64)
                 if param.shape != grad.shape:
                     raise ValueError(f"Shape mismatch for {name}: {param.shape} vs {grad.shape}")
-                setattr(self, name, param - lr * grad)
+                setattr(self, name, param - lr * scale * grad)
         self._train_steps += 1
 
     # =====================================================================

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v14.0.0 — CausalUniverseTheory 因果宇宙统一理论
+"""MCI World Model v4.6.0 — CausalUniverseTheory 因果宇宙统一理论
 ==================================================================
 
 统一微观/宏观/经典/量子/线性/非线性因果 — 万法归一。

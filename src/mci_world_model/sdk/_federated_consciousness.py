@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — FederatedCausalConsciousness 联邦因果意识
+"""MCI World Model v4.6.0 — FederatedCausalConsciousness 联邦因果意识
 ======================================================================
 
 跨节点的共享因果意识 — 从单系统意识扩展为联邦意识。

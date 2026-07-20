@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — FederationAudit 联邦审计体系
+"""MCI World Model v4.6.0 — FederationAudit 联邦审计体系
 ==========================================================
 
 联邦因果推理的审计与治理 — 确保联邦操作的合规性与可追溯性。

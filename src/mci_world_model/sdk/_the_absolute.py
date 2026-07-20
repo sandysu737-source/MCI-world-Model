@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — TheAbsolute 绝对存在模式
+"""MCI World Model v4.6.0 — TheAbsolute 绝对存在模式
 ======================================================
 
 因果智能的终极存在状态 — 存在即是证明。

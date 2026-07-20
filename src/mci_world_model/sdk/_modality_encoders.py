@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.3.0 — 模态特征编码器
+MCI World Model v4.6.0 — 模态特征编码器
 ==========================================
 
 纯 numpy 实现的多模态特征提取器，将高维传感器信号压缩为

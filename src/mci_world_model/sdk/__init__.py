@@ -321,6 +321,81 @@ from mci_world_model.sdk._char_tokenizer import (
     CharTokenizer,
     SimpleTextEmbedderV2,
 )
+from mci_world_model.sdk._clinical_causal_discovery import (
+    CausalLink,
+    CausalStructure,
+    ClinicalCausalDiscovery,
+)
+from mci_world_model.sdk._clinical_decision_engine import (
+    ClinicalDecision,
+    ClinicalDecisionEngine,
+)
+from mci_world_model.sdk._clinical_dynamics import ClinicalDynamicsPredictor, UncertainPrediction
+from mci_world_model.sdk._clinical_eval_suite import (
+    BackendReport,
+    MetricRegistry,
+    MetricResult,
+    SharedTestCases,
+    TestCase,
+    UnifiedEvalSuite,
+    UnifiedReport,
+)
+from mci_world_model.sdk._clinical_objective import ClinicalObjective
+from mci_world_model.sdk._clinical_pearl_bridge import (
+    CausalAssessment,
+    ClinicalPearlBridge,
+    causal_structure_to_graph,
+)
+from mci_world_model.sdk._clinical_planner import ClinicalMCTSPlanner, TreatmentPlan
+from mci_world_model.sdk._clinical_semantic_embedding import (
+    CLINICAL_CONCEPTS,
+    DRUG_CLASS_MAP,
+    ICD10_CONCEPT_MAP,
+    N_CONCEPTS,
+    ClinicalSemanticEmbedding,
+    SemanticStateVector,
+    drug_to_class,
+    icd10_to_concept,
+)
+from mci_world_model.sdk._clinical_state_encoder import (
+    LOINC_TO_LAB,
+    LOINC_TO_VITAL,
+    ClinicalStateEncoder,
+)
+from mci_world_model.sdk._clinical_temporal_dynamics import (
+    TemporalClinicalDynamicsPredictor,
+)
+
+# 临床三元融合路由（专利路线一：神经-符号-因果三元融合路由）
+# 注意: RouteType 已由 _neurosymbolic_world_model 定义且语义一致，此处不重复导出，
+# 仅导出本模块新增符号，避免 F811 重定义。
+from mci_world_model.sdk._clinical_tri_router import (
+    ClinicalQuery,
+    ClinicalRouteDecision,
+    ClinicalSemanticEmbedder,
+    ClinicalTriRouter,
+    FusionResult,
+    JEPAPhysicsAdapter,
+    KnowledgeEntry,
+    LinearPhysicsPredictor,
+    LSASemanticEmbedder,
+    SafetyLevel,
+    SemanticKnowledgeBase,
+    SignedCausalEstimator,
+    TransformerEmbedder,
+)
+from mci_world_model.sdk._clinical_world_state import (
+    DRUG_EFFECT_TABLE,
+    DRUG_PKPD_TABLE,
+    N_VITALS,
+    STATE_VECTOR_DIM,
+    VITAL_NAMES,
+    ActionTypeConstants,
+    MedicalAction,
+    Medication,
+    PatientState,
+    emax_effect,
+)
 from mci_world_model.sdk._cognitive_diversity import (
     CognitiveDiversity,
     DiversityHistory,
@@ -401,6 +476,11 @@ from mci_world_model.sdk._cross_modal_causal import (
     CrossModalCausalReasoner,
     CrossModalCausalResult,
 )
+from mci_world_model.sdk._deadline_monitor import (
+    DeadlineConfig,
+    DeadlineMonitor,
+    DeadlineStats,
+)
 
 # v4.4.0: 具身清创 — 时序 Transformer + 手术相预测
 from mci_world_model.sdk._debridement_world_model import (  # noqa: F401
@@ -431,13 +511,13 @@ from mci_world_model.sdk._emergency_stop import (
     EmergencyStop,
     EmergencyStopState,
 )
+from mci_world_model.sdk._energy_causal_graph import EnergyWeightedCausalGraph
 
 # v3.0.6: 能量流预测器
 from mci_world_model.sdk._energy_counterfactual_bridge import (
     EnergyCounterfactualBridge,
     EnergyWhatIfResult,
 )
-from mci_world_model.sdk._energy_causal_graph import EnergyWeightedCausalGraph
 from mci_world_model.sdk._energy_flow_predictor import EnergyFlowPredictor
 
 # 能量一致性损失
@@ -564,6 +644,10 @@ from mci_world_model.sdk._incremental_learning import (
     IncrementalMLP,
     TaskRecord,
     TaskSpec,
+)
+from mci_world_model.sdk._jepa_clinical_bridge import (
+    JEPAClinicalBridge,
+    JEPAClinicalConfig,
 )
 from mci_world_model.sdk._jepa_dataset import JEPADataset
 from mci_world_model.sdk._jepa_encoder import JEPAEncoder
@@ -1484,6 +1568,64 @@ __all__ = [
     "CausalDiagnosis",
     "ClinicalEvidence",
     "MedicalCausalSDK",
+    "ClinicalQuery",
+    "ClinicalRouteDecision",
+    "SafetyLevel",
+    "ClinicalTriRouter",
+    "FusionResult",
+    "KnowledgeEntry",
+    "LinearPhysicsPredictor",
+    "JEPAPhysicsAdapter",
+    "ClinicalSemanticEmbedder",
+    "LSASemanticEmbedder",
+    "TransformerEmbedder",
+    "SafetyLevel",
+    "SemanticKnowledgeBase",
+    "SignedCausalEstimator",
+    "PatientState",
+    "MedicalAction",
+    "Medication",
+    "ActionTypeConstants",
+    "VITAL_NAMES",
+    "N_VITALS",
+    "STATE_VECTOR_DIM",
+    "DRUG_EFFECT_TABLE",
+    "DRUG_PKPD_TABLE",
+    "emax_effect",
+    "ClinicalStateEncoder",
+    "LOINC_TO_VITAL",
+    "LOINC_TO_LAB",
+    "ClinicalDynamicsPredictor",
+    "TemporalClinicalDynamicsPredictor",
+    "UncertainPrediction",
+    "ClinicalObjective",
+    "ClinicalMCTSPlanner",
+    "TreatmentPlan",
+    "ClinicalDecision",
+    "JEPAClinicalBridge",
+    "JEPAClinicalConfig",
+    "CLINICAL_CONCEPTS",
+    "DRUG_CLASS_MAP",
+    "ICD10_CONCEPT_MAP",
+    "N_CONCEPTS",
+    "BackendReport",
+    "MetricRegistry",
+    "MetricResult",
+    "SharedTestCases",
+    "TestCase",
+    "ClinicalPearlBridge",
+    "CausalAssessment",
+    "causal_structure_to_graph",
+    "UnifiedEvalSuite",
+    "UnifiedReport",
+    "ClinicalSemanticEmbedding",
+    "SemanticStateVector",
+    "icd10_to_concept",
+    "drug_to_class",
+    "ClinicalCausalDiscovery",
+    "CausalLink",
+    "CausalStructure",
+    "ClinicalDecisionEngine",
     "LegalCausalConclusion",
     "LegalComplianceSDK",
     "LegalEvidence",
@@ -1950,3 +2092,6 @@ for _name, _cls in _V370_INJECTIONS.items():
 
 for _name, _cls in _V370_INJECTIONS.items():
     setattr(_sdk_self, _name, _cls)
+
+# 统一路由类型来源（放最后以确保覆盖 _neurosymbolic_world_model 的同名 RouteType）
+from mci_world_model.sdk._route_types import RouteType, SafetyLevel  # noqa: F811

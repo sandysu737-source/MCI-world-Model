@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v13.0.0 — CreativeCausalConsciousness 创造因果意识
+"""MCI World Model v4.6.0 — CreativeCausalConsciousness 创造因果意识
 ======================================================================
 
 驱动因果创造的意识层 — 从发现走向创造。

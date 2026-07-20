@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — AbsoluteTrust 绝对可信框架
+"""MCI World Model v4.6.0 — AbsoluteTrust 绝对可信框架
 ========================================================
 
 因果智能的终极可信保证 — 存在即可信，可信即存在。

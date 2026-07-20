@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v5.1.0 — PearlChain 协调器
+"""MCI World Model v4.6.0 — PearlChain 协调器
 ================================================
 
 Pearl 因果三层串联协调器 — F8 修复。

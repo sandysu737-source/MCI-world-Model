@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.0.6 — Energy Flow Predictor
+MCI World Model v4.6.0 — Energy Flow Predictor
 ===============================================
 
 基于 EnergyCore.simulate_energy_flow() 的能量流预测器。

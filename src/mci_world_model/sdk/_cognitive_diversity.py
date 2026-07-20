@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.4.0 — CognitiveDiversity 认知多样性度量
+MCI World Model v4.6.0 — CognitiveDiversity 认知多样性度量
 ==========================================================
 
 实现 Ashby 必要多样性定律的形式化度量: H(C) ≥ H(S)

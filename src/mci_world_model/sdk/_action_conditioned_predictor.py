@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.2.0 — ActionConditionedPredictor
+MCI World Model v4.6.0 — ActionConditionedPredictor
 =====================================================
 
 动作条件化预测器——MCI 世界模型"预测环"的核心抽象。

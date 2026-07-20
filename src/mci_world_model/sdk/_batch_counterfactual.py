@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.0.8 — BatchCounterfactualEngine 批量反事实引擎
+MCI World Model v4.6.0 — BatchCounterfactualEngine 批量反事实引擎
 ================================================================
 
 矩阵化批量反事实查询引擎。替代 CounterfactualEngine.batch_query() 的

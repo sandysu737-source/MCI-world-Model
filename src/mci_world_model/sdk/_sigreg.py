@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.0 — SIGReg Embedding Regularizer
+MCI World Model v4.6.0 — SIGReg Embedding Regularizer
 =======================================================
 基于 LeJEPA (2511.08544v2) 的 Sketched Isotropic Gaussian Regularization。
 

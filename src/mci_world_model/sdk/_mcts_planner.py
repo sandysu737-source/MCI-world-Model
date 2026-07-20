@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v5.1.0 — MCTS 规划器
+"""MCI World Model v4.6.0 — MCTS 规划器
 ==========================================
 
 P1-F11 修复: 用 Monte Carlo Tree Search 替换穷举前瞻搜索。

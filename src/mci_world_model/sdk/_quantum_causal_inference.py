@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — QuantumCausalInference 量子因果推理
+"""MCI World Model v4.6.0 — QuantumCausalInference 量子因果推理
 ================================================================
 
 基于量子计算的因果推理 — 从经典因果推理扩展到量子因果推理。

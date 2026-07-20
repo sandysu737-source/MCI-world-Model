@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.1.0 M3 — GAT Encoder
+MCI World Model v4.6.0 M3 — GAT Encoder
 =========================================
 
 可微图注意力编码器，替代 discover() 中的统计因果推断层。

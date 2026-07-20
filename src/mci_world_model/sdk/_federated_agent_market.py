@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — FederatedAgentMarket 联邦因果智能体市场
+"""MCI World Model v4.6.0 — FederatedAgentMarket 联邦因果智能体市场
 ====================================================================
 
 联邦因果智能体的交易与发现平台 — 因果智能体的"应用商店"。

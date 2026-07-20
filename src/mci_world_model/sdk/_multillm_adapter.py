@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.1 — MultiLLM 适配器
+MCI World Model v4.6.0 — MultiLLM 适配器
 
 零硬依赖 MultiLLM 接口 — 桥接 ai-native-nutrition-v1 的三环推理能力。
 Provider 链: Ollama(qwen3.5) → OpenAI(gpt-4o-mini) → graceful 降级。

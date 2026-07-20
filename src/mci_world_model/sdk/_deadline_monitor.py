@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v4.5.0 — DeadlineMonitor 超时检测 + 降级策略
+"""MCI World Model v4.6.0 — DeadlineMonitor 超时检测 + 降级策略
 ================================================================
 
 硬实时保证的监控组件——检测 CEWM 步骤是否在 deadline 内完成，

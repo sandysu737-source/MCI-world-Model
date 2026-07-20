@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v12.0.0 — FederatedTrust 联邦信任框架
+"""MCI World Model v4.6.0 — FederatedTrust 联邦信任框架
 ============================================================
 
 跨节点信任传递与联邦信任评估 — 可信因果联邦的基础。

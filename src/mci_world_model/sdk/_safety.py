@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v4.5.0 — SafetyConstraint 安全约束层
+"""MCI World Model v4.6.0 — SafetyConstraint 安全约束层
 =========================================================
 
 安全关键系统的基础约束能力——在动作执行前进行安全检查，

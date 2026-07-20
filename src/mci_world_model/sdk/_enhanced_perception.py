@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.1 — 增强感知管道
+MCI World Model v4.6.0 — 增强感知管道
 
 在 PerceptionPipeline 基础上添加 MultiLLM 语义增强：
 - 自由文本 → 结构化信号提取

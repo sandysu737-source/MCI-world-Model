@@ -73,6 +73,10 @@ class CausalDAG:
                     elif len(item) == 3:
                         parent, child, weight = item
                         self.add_edge(parent, child, weight=float(weight))
+                    elif len(item) == 4:
+                        # 便捷构造支持 (parent, child, weight, sign)
+                        parent, child, weight, sign = item
+                        self.add_edge(parent, child, weight=float(weight), sign=int(sign))
         elif isinstance(self.edges, dict):
             self.edges = defaultdict(list, self.edges)
         else:
@@ -86,43 +90,74 @@ class CausalDAG:
         self.nodes.add(node)
         _ = self.edges[node]  # ensure key exists
 
-    def add_edge(self, parent, child, weight: float = 1.0) -> None:
-        """Add a directed edge parent -> child with transmission weight.
+    def add_edge(self, parent, child, weight: float = 1.0, sign: int = 1) -> None:
+        """Add a directed edge parent -> child with transmission weight and sign.
 
-        ``weight`` is a positive transmission coefficient: >1 amplifies the
-        cause along this edge (an "enhancing" relationship), =1 passes it
-        through unchanged, <1 attenuates it (an "inhibiting" relationship).
+        Parameters
+        ----------
+        weight : float
+            正的传输系数: >1 放大效应（增强）, =1 不变, <1 衰减效应。
+        sign : int
+            效应符号, 仅允许 {+1, -1}。+1 表示增强效应 (默认),
+            -1 表示抑制效应（使下游效应值取负）。不传时默认 +1, 保持向后兼容。
         """
         if not weight > 0.0:
             raise ValueError(f"edge weight must be positive, got {weight}")
+        if sign not in (1, -1):
+            raise ValueError(f"sign must be +1 or -1, got {sign}")
         self.add_node(parent)
         self.add_node(child)
-        self.edges[parent].append((child, float(weight)))
+        # 边存储为三元组 (child, weight, sign), 向后兼容旧的二元组遍历
+        self.edges[parent].append((child, float(weight), int(sign)))
 
     def remove_node(self, node) -> None:
         """Remove a node and all edges incident to it."""
         self.nodes.discard(node)
         self.edges.pop(node, None)
         for p in list(self.edges):
-            self.edges[p] = [(c, w) for (c, w) in self.edges[p] if c != node]
+            # 适配新边格式 (child, weight, sign); e[0] 取 child
+            self.edges[p] = [e for e in self.edges[p] if e[0] != node]
 
     # ------------------------------------------------------------------
     # Graph queries
     # ------------------------------------------------------------------
     def parents(self, child) -> list:
         """Direct parents of ``child``."""
-        return [p for p in self.edges if any(c == child for c, _ in self.edges[p])]
+        # e[0] 取 child, 兼容 (child, weight) 与 (child, weight, sign)
+        return [p for p in self.edges if any(e[0] == child for e in self.edges[p])]
 
     def children(self, parent) -> list:
         """Direct children of ``parent``."""
-        return [c for c, _ in self.edges.get(parent, [])]
+        return [e[0] for e in self.edges.get(parent, [])]
 
     def edge_weight(self, parent, child) -> float:
         """Transmission weight of edge parent -> child (0 if no edge)."""
-        for c, w in self.edges.get(parent, []):
-            if c == child:
-                return w
+        # 返回纯权重 float, 保持向后兼容; e[1] 为 weight
+        for e in self.edges.get(parent, []):
+            if e[0] == child:
+                return e[1]
         return 0.0
+
+    def edge_sign(self, parent: str, child: str) -> int:
+        """效应符号 of edge parent -> child (默认 +1, 无边时返回 +1)。
+
+        +1 表示增强效应, -1 表示抑制效应。
+        """
+        for e in self.edges.get(parent, []):
+            if e[0] == child:
+                # 兼容旧二元组 (缺 sign 时视为 +1)
+                return e[2] if len(e) >= 3 else 1
+        return 1
+
+    def edge_signed_weight(self, parent: str, child: str) -> tuple[float, int]:
+        """返回 (weight, sign) 元组 of edge parent -> child。
+
+        无边时返回 (0.0, 1)。
+        """
+        for e in self.edges.get(parent, []):
+            if e[0] == child:
+                return (e[1], e[2] if len(e) >= 3 else 1)
+        return (0.0, 1)
 
     def reach(self, source) -> set:
         """Set of nodes reachable from ``source`` along directed edges."""
@@ -131,7 +166,8 @@ class CausalDAG:
         seen, dq = set(), deque([source])
         while dq:
             cur = dq.popleft()
-            for c, _ in self.edges.get(cur, []):
+            for e in self.edges.get(cur, []):
+                c = e[0]
                 if c not in seen:
                     seen.add(c)
                     dq.append(c)
@@ -148,7 +184,8 @@ class CausalDAG:
         """
         indeg = {n: 0 for n in self.nodes}
         for p in self.edges:
-            for c, _ in self.edges[p]:
+            for e in self.edges[p]:
+                c = e[0]
                 indeg[c] = indeg.get(c, 0) + 1
         dq = deque([n for n, d in indeg.items() if d == 0])
         order = []
@@ -156,7 +193,8 @@ class CausalDAG:
         while dq:
             cur = dq.popleft()
             order.append(cur)
-            for c, _ in self.edges.get(cur, []):
+            for e in self.edges.get(cur, []):
+                c = e[0]
                 local_indeg[c] -= 1
                 if local_indeg[c] == 0:
                     dq.append(c)
@@ -207,10 +245,53 @@ class CausalDAG:
             cur_effect = effect[cur]
             if cur_effect <= 0:
                 continue
-            for child, w in self.edges.get(cur, []):
+            # 仅使用权重 w, 忽略 sign — 保持原无符号行为向后兼容
+            for e in self.edges.get(cur, []):
+                child, w = e[0], e[1]
                 if child not in visited:
                     visited.add(child)
                     effect[child] = cur_effect * w
+                    dq.append(child)
+        return effect
+
+    def propagate_signed(self, source: str, delta: float = 1.0) -> dict[str, float]:
+        """符号化 BFS 因果传播: 效应值 = 父效应 × 边权重 × 边符号。
+
+        与 ``propagate`` 的区别: 每经过一条边, 效应值额外乘以边符号 sign
+        (+1 增强 / -1 抑制), 因此效应值可正可负。每个节点仅访问一次
+        (最短路径 / 首次到达语义)。
+
+        Parameters
+        ----------
+        source : node key
+            干预（注入）节点。
+        delta : float
+            源节点注入的初始效应值（可正可负）。
+
+        Returns
+        -------
+        dict
+            node -> 接收效应值（可正可负）。``source`` 自身值为 ``delta``。
+            不可达节点不出现在结果中。
+        """
+        if source not in self.nodes:
+            return {}
+        effect: dict = {source: float(delta)}
+        visited = {source}
+        dq = deque([source])
+        while dq:
+            cur = dq.popleft()
+            cur_effect = effect[cur]
+            if cur_effect == 0:
+                continue
+            # e = (child, weight, sign); 兼容旧二元组 (缺 sign 视为 +1)
+            for e in self.edges.get(cur, []):
+                child, w = e[0], e[1]
+                s = e[2] if len(e) >= 3 else 1
+                if child not in visited:
+                    visited.add(child)
+                    # 效应 = 父效应 × 权重 × 符号
+                    effect[child] = cur_effect * w * s
                     dq.append(child)
         return effect
 
@@ -253,7 +334,8 @@ class CausalDAG:
         n = len(order)
         W = np.zeros((n, n), dtype=np.float64)
         for p in order:
-            for c, w in self.edges.get(p, []):
+            for e in self.edges.get(p, []):
+                c, w = e[0], e[1]
                 W[idx[p], idx[c]] = w
         return W, order
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v6.0.0 — SelfRepairCognition 自修复认知
+"""MCI World Model v4.6.0 — SelfRepairCognition 自修复认知
 ============================================================
 
 推理链异常检测 + 自动修复 — 世界模型的自我修复能力。

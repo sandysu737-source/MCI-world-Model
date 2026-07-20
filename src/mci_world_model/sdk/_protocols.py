@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v4.4.0 — 协议定义层
+"""MCI World Model v4.6.0 — 协议定义层
 =========================================
 
 CEWM 架构泛化的基石——用 Protocol 定义预测器和状态解析器的接口契约，

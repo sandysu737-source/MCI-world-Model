@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-"""MCI World Model v9.0.0 — CausalTrust 可信因果增强框架
+"""MCI World Model v4.6.0 — CausalTrust 可信因果增强框架
 =====================================================
 
 P9 "归真" 波次核心交付物: 因果推理的可信增强层。

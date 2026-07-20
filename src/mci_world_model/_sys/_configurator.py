@@ -1,5 +1,5 @@
 """
-MCI World Model v3.0.3 — Meta Configurator + HierarchicalConfigurator
+MCI World Model v4.6.0 — Meta Configurator + HierarchicalConfigurator
 ============================================
 
 LeCun 六模块架构中的 Configurator 模块：根据认知空洞检测结果，

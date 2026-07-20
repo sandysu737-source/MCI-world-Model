@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v5.1.0 — GeneralizedPhysicsPredictor 通用物理预测器
+"""MCI World Model v4.6.0 — GeneralizedPhysicsPredictor 通用物理预测器
 ========================================================================
 
 CEWM 架构泛化的核心引擎——通过注册动力学函数支持任意维度的物理系统。

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v6.0.0 — AutonomousLawDiscovererV2 自主因果发现 2.0
+"""MCI World Model v4.6.0 — AutonomousLawDiscovererV2 自主因果发现 2.0
 ========================================================================
 
 从 V1 单方程发现升级到完整因果结构 (DAG) + PC 算法骨架发现。

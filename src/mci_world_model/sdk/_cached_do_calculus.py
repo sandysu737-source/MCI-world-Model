@@ -1,4 +1,4 @@
-"""MCI World Model v4.4.0 — CachedDoCalculus 干预推理缓存加速
+"""MCI World Model v4.6.0 — CachedDoCalculus 干预推理缓存加速
 
 对 DoCalculus 查询加 LRU 缓存层，组合键 = (graph_hash, X, Y, frozenset(Z))。
 

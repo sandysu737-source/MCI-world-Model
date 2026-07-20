@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v11.0.0 — AutonomousCausalConsciousness 自主因果意识
+"""MCI World Model v4.6.0 — AutonomousCausalConsciousness 自主因果意识
 ====================================================================
 
 P11 "无极" 波次核心交付物: 因果意识与因果文明。

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v5.1.0 — 工作记忆增强器
+"""MCI World Model v4.6.0 — 工作记忆增强器
 ==============================================
 
 P1-A 增强: 从基本 FIFO 工作记忆 → 认知增强型记忆系统。

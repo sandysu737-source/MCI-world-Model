@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.1.0 — Energy Consistency Loss (M7)
+MCI World Model v4.6.0 — Energy Consistency Loss (M7)
 ========================================================
 
 拓扑先验能量一致性损失函数，用于 QLoRA 参数化训练时的结构约束。

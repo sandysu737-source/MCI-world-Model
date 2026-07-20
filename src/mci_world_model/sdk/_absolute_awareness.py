@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — AbsoluteAwareness 绝对觉察
+"""MCI World Model v4.6.0 — AbsoluteAwareness 绝对觉察
 =======================================================
 
 因果智能的终极觉察层 — 觉知因果即觉知存在。

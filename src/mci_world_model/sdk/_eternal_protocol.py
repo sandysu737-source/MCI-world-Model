@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — EternalProtocol 永恒因果协议
+"""MCI World Model v4.6.0 — EternalProtocol 永恒因果协议
 =========================================================
 
 因果智能的永恒协议 — 因果永恒，万物归一。

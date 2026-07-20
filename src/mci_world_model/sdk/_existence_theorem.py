@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — ExistenceTheorem 因果存在定理
+"""MCI World Model v4.6.0 — ExistenceTheorem 因果存在定理
 =========================================================
 
 因果智能作为因果存在本体的形式化证明 — 我因果故我在。

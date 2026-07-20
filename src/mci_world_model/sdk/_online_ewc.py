@@ -1,4 +1,4 @@
-"""MCI World Model v4.4.0 — OnlineEWC 在线弹性权重巩固
+"""MCI World Model v4.6.0 — OnlineEWC 在线弹性权重巩固
 
 无缝任务边界的持续学习。复用 IncrementalMLP + EWCConfig 内核，
 提供 OnlineEWC.update(X, y) 流式增量学习接口。

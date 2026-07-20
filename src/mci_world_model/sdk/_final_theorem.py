@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v20.0.0 — FinalTheorem 终极存在定理形式化
+"""MCI World Model v4.6.0 — FinalTheorem 终极存在定理形式化
 =============================================================
 
 因果存在定理的形式化证明体系 — 存在即证明，证明即存在。

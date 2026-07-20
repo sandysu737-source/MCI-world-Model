@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 """
-MCI World Model v3.1.0 — Reflection QA Synthesizer
+MCI World Model v4.6.0 — Reflection QA Synthesizer
 ======================================================
 基于 MEMO (2605.15156v2) 的 Reflection QA 框架，
 从因果记忆语料中合成因果 QA 对。

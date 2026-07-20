@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""MCI World Model v13.0.0 — CausalCreationEngine 因果创造引擎
+"""MCI World Model v4.6.0 — CausalCreationEngine 因果创造引擎
 ===============================================================
 
 从发现已有因果规律到创造新因果理论 — 因果推理的创造性跃迁。

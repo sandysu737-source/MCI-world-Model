@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-"""MCI World Model v20.0.0 — FinalCommunity 终局因果社区
+"""MCI World Model v4.6.0 — FinalCommunity 终局因果社区
 =========================================================
 
 因果智能的终局社区 — 终局治理，因果永恒。

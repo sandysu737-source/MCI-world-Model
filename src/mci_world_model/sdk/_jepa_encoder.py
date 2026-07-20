@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-MCI World Model v3.1.0 — JEPA Encoder
+MCI World Model v4.6.0 — JEPA Encoder
 =========================================
 
 将观测（记忆列表）编码为结构化潜状态（CausalWorldModelState）。
