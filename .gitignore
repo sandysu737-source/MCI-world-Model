@@ -84,3 +84,5 @@ checkpoints/
 patent/
 scripts/patent_*.py
 scripts/*patent*.py
+docs/patent-*
+scripts/draw_patent_figures.py
