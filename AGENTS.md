@@ -66,3 +66,55 @@ scripts/ai-verify/ AI 工程化守卫
 ```
 
 详细规范见 `.ai-rules.md`。
+
+---
+
+## Git 工作流与收尾纪律（硬性约束）
+
+> 本节由全项目 Git 治理统一制定，适用于所有 AI 代理与人类开发者。
+
+### 分支规范
+
+- **主分支**：`main`（唯一长期分支，保持可发布状态）。
+- **功能分支**：`feat/<简述>`、`fix/<简述>`、`refactor/<简述>`。
+- **AI 代理分支**：`codex/<任务简述>`，**任务结束即删，不得长期留存**。
+- 禁止在 `main` 上直接提交大段改动；禁止推 `-temp`、`-backup`、`-test` 等无意义分支名。
+
+### 提交规范（Conventional Commits）
+
+- 格式：`<type>(<scope>): <简述>`，type ∈ `feat | fix | chore | docs | refactor | test | style | perf | ci`。
+- 中文简述即可，一行 ≤72 字；一个逻辑变更一次 commit，禁止「大杂烩」提交。
+- 提交前确认 `user.name` / `user.email` 为真实身份（本仓库已统一为 `sandysu737-source` / `sandysu737@gmail.com`）。
+
+### 严禁入库的内容（体积/安全红线）
+
+以下内容**绝对禁止** `git add`，违反将导致 `.git` 膨胀或密钥泄露：
+
+| 类别 | 示例 | 处置 |
+|------|------|------|
+| 模型权重 | `*.safetensors` `*.gguf` `*.bin` `*.pt` `*.pth` `*.onnx` | 用对象存储 / 模型仓库托管 |
+| 虚拟环境 | `.venv/` `node_modules/` `venv/` | 本地生成，不入库 |
+| 数据库 | `*.db` `*.sqlite3` `data_persist/` | 备份目录单独管理 |
+| 构建产物 | `dist/` `build/` `__pycache__/` `.mypy_cache/` | gitignore 兜底 |
+| 密钥凭据 | `.env` `*.pem` `*.key` `secrets/` | 仅提交 `*.example` 模板 |
+| 大二进制 | `*.whl` `ollama-models/` `vendor/models/` | 外部依赖管理 |
+
+> 已由全局 `~/.gitignore_global` 兜底排除；若误提交，须 `git rm --cached` 后从历史清除。
+
+### AI 代理任务收尾清单（每次任务结束必须执行）
+
+任何 AI 代理（含 Codex/Claude/Qoder）在完成任务、准备返回前，**必须**依次完成：
+
+1. **切回主分支**：`git checkout main`（不得把 HEAD 遗留在 `codex/*` 分支上）。
+2. **合并或删除工作分支**：有价值的工作合并进 `main`（优先 `git merge --ff-only` 或 `--rebase`）；无价值的 `codex/*` 分支立即 `git branch -D` 删除。
+3. **清理工作树**：`git status` 必须为 clean；临时文件、调试产物、`.DS_Store` 全部移除。
+4. **确认无大文件误提交**：提交前自查 `git status` 中无模型/数据库/环境目录。
+5. **留下可读提交**：最后一次 commit 信息须能说明本次任务成果，不得用 `wip` / `tmp` / `update`。
+
+> **违规判定**：若发现 `codex/*` 残留分支、HEAD 停在非 main 分支、工作树脏、或大文件入库，视为任务未完成，触发 ai-guard 拒绝合入。
+
+### 同步与历史卫生
+
+- 开工先 `git pull --rebase`；收工前 push。
+- 历史保持线性（已全局配置 `pull.rebase=true`）。
+- 每月一次 `git gc --prune=now` 回收对象（项目维护者执行）。
