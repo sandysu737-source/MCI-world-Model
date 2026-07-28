@@ -86,3 +86,7 @@ scripts/patent_*.py
 scripts/*patent*.py
 docs/patent-*
 scripts/draw_patent_figures.py
+
+# governance 运行时报告(不入库)
+.ai-governance/reports/
+*.legacy.*
