@@ -61,7 +61,6 @@ from mci_world_model.sdk._clinical_world_state import (
     PatientState,
 )
 from mci_world_model.sdk._true_jepa_encoder import _MLP, TrueJEPAConfig, TrueJEPAEncoder
-from mci_world_model.sdk._world_state import WorldState
 
 # =============================================================================
 # 配置
@@ -329,7 +328,7 @@ class JEPAClinicalBridge:
         state: PatientState,
         action: MedicalAction | None,
         n_steps: int = 1,
-    ) -> list[WorldState]:
+    ) -> list[PatientState]:
         """JEPA 潜空间多步预测。
 
         流程：
@@ -355,7 +354,7 @@ class JEPAClinicalBridge:
             else np.zeros(self._config.action_dim, dtype=np.float64)
         )
 
-        results: list[WorldState] = []
+        results: list[PatientState] = []
         for _ in range(n_steps):
             z = self._jepa.predict_next(z, a_vec)
             ps = self.reconstruct(z)
@@ -599,10 +598,10 @@ class JEPAClinicalBridge:
                 ci_upper_steps.append(point_preds[step].vital_signs[-1].copy())
                 std_steps.append(np.zeros(N_VITALS))
                 continue
-            step_preds = np.array([bp[step] for bp in boot_preds if step < len(bp)])
-            ci_lower_steps.append(np.percentile(step_preds, 2.5, axis=0))
-            ci_upper_steps.append(np.percentile(step_preds, 97.5, axis=0))
-            std_steps.append(np.std(step_preds, axis=0))
+            step_preds_arr = np.array([bp[step] for bp in boot_preds if step < len(bp)])
+            ci_lower_steps.append(np.percentile(step_preds_arr, 2.5, axis=0))
+            ci_upper_steps.append(np.percentile(step_preds_arr, 97.5, axis=0))
+            std_steps.append(np.std(step_preds_arr, axis=0))
 
         return UncertainPrediction(
             point_estimates=point_preds,

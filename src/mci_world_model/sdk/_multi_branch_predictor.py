@@ -122,7 +122,7 @@ class MultiBranchPredictor:
                 trajectory = self._predictor.predict(state.copy(), None, n_steps=1)
             else:
                 trajectory = self._predictor.rollout(state.copy(), actions)
-            branches.append(trajectory)
+            branches.append(list(trajectory))
         return branches
 
     # -----------------------------------------------------------------

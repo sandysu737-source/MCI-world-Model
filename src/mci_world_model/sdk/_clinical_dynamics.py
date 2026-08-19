@@ -30,7 +30,7 @@ Phase 1 核心模块：医疗世界模型的转移模型 T(s, a) → s'。
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 
@@ -109,6 +109,40 @@ class UncertainPrediction:
         }
 
 
+class ClinicalTransferPredictor(Protocol):
+    """临床转移模型最小接口（供 MCTS 规划器 / 决策引擎消费）。
+
+    由 ClinicalDynamicsPredictor（原始空间 MLP）与 JEPAClinicalBridge（潜空间 JEPA）共同实现：
+        predict()                  → 多步状态预测
+        predict_with_uncertainty() → 贝叶斯 bootstrap 不确定性量化
+    """
+
+    @property
+    def is_fitted(self) -> bool:
+        """是否已完成训练。"""
+        ...
+
+    def predict(
+        self,
+        state: PatientState,
+        action: MedicalAction | None,
+        n_steps: int = 1,
+    ) -> list[PatientState]:
+        """动作条件化多步预测。"""
+        ...
+
+    def predict_with_uncertainty(
+        self,
+        state: PatientState,
+        action: MedicalAction | None = None,
+        n_steps: int = 1,
+        n_bootstrap: int = 50,
+        seed: int = 42,
+    ) -> UncertainPrediction:
+        """带不确定性量化的预测。"""
+        ...
+
+
 class ClinicalDynamicsPredictor(ActionConditionedPredictor):
     """临床动态学预测器 — 医疗世界模型的转移模型 T。
 
@@ -180,7 +214,7 @@ class ClinicalDynamicsPredictor(ActionConditionedPredictor):
         state: WorldState,
         action: Action | None,
         n_steps: int = 1,
-    ) -> list[WorldState]:
+    ) -> list[PatientState]:
         """动作条件化多步预测。
 
         Args:
@@ -205,7 +239,7 @@ class ClinicalDynamicsPredictor(ActionConditionedPredictor):
         trajectory_vecs = self._learner.predict(s_vec, a_vec, n_steps=n_steps)
 
         # 向量 → PatientState 重建
-        results: list[WorldState] = []
+        results: list[PatientState] = []
         for vec in trajectory_vecs:
             vec = np.asarray(vec, dtype=np.float64).ravel()
             # 反标准化：潜空间输出 → 原始量纲

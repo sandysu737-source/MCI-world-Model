@@ -28,7 +28,7 @@ from typing import Any
 import numpy as np
 
 from mci_world_model.sdk._clinical_causal_discovery import ClinicalCausalDiscovery
-from mci_world_model.sdk._clinical_dynamics import ClinicalDynamicsPredictor
+from mci_world_model.sdk._clinical_dynamics import ClinicalDynamicsPredictor, ClinicalTransferPredictor
 from mci_world_model.sdk._clinical_objective import ClinicalObjective
 from mci_world_model.sdk._clinical_pearl_bridge import ClinicalPearlBridge
 from mci_world_model.sdk._clinical_planner import ClinicalMCTSPlanner, TreatmentPlan
@@ -37,8 +37,6 @@ from mci_world_model.sdk._clinical_tri_router import (
     ClinicalQuery,
     ClinicalTriRouter,
     KnowledgeEntry,
-    RouteType,
-    SafetyLevel,
     SemanticKnowledgeBase,
 )
 from mci_world_model.sdk._clinical_world_state import (
@@ -49,6 +47,7 @@ from mci_world_model.sdk._clinical_world_state import (
 from mci_world_model.sdk._compliance_engine import ComplianceRuleEngine
 from mci_world_model.sdk._jepa_clinical_bridge import JEPAClinicalBridge, JEPAClinicalConfig
 from mci_world_model.sdk._medical_causal_sdk import ClinicalEvidence, MedicalCausalSDK
+from mci_world_model.sdk._route_types import RouteType, SafetyLevel
 
 # =============================================================================
 # ClinicalDecision — 统一临床决策输出
@@ -163,7 +162,7 @@ class ClinicalDecisionEngine:
 
     def __init__(
         self,
-        predictor: ClinicalDynamicsPredictor | None = None,
+        predictor: ClinicalTransferPredictor | None = None,
         objective: ClinicalObjective | None = None,
         router: ClinicalTriRouter | None = None,
         knowledge_base: SemanticKnowledgeBase | None = None,
@@ -181,7 +180,7 @@ class ClinicalDecisionEngine:
             confidence_threshold: 置信度阈值，低于此值标记需复核。
             uncertainty_threshold: 不确定性分数阈值，高于此值标记需复核。
         """
-        self._predictor = predictor
+        self._predictor: ClinicalTransferPredictor | None = predictor
         self._objective = objective or ClinicalObjective()
         self._router = router or ClinicalTriRouter(seed=42)
         self._confidence_threshold = confidence_threshold
@@ -221,8 +220,17 @@ class ClinicalDecisionEngine:
             训练信息。
         """
         if self._predictor is None:
-            self._predictor = ClinicalDynamicsPredictor(seed=seed)
-        info = self._predictor.fit_from_effect_table(n_samples=n_samples, n_epochs=n_epochs, lr=lr)
+            new_predictor = ClinicalDynamicsPredictor(seed=seed)
+            info = new_predictor.fit_from_effect_table(n_samples=n_samples, n_epochs=n_epochs, lr=lr)
+            self._predictor = new_predictor
+        else:
+            existing = self._predictor
+            if isinstance(existing, ClinicalDynamicsPredictor):
+                info = existing.fit_from_effect_table(n_samples=n_samples, n_epochs=n_epochs, lr=lr)
+            elif isinstance(existing, JEPAClinicalBridge):
+                info = existing.fit_from_effect_table(n_samples=n_samples, n_epochs=n_epochs)
+            else:
+                raise TypeError(f"不支持的转移模型类型: {type(existing).__name__}")
         self._planner = ClinicalMCTSPlanner(predictor=self._predictor, objective=self._objective)
         self._fitted = True
         return info
@@ -449,9 +457,10 @@ class ClinicalDecisionEngine:
 
             # Step 5b: 不确定性量化（贝叶斯 bootstrap CI）
             t0 = time.time()
-            if decision.recommended_action is not None:
+            predictor = self._predictor
+            if decision.recommended_action is not None and predictor is not None:
                 try:
-                    uq = self._predictor.predict_with_uncertainty(
+                    uq = predictor.predict_with_uncertainty(
                         state,
                         decision.recommended_action,
                         n_steps=1,
@@ -473,16 +482,16 @@ class ClinicalDecisionEngine:
             reward_worse = decision.predicted_reward < decision.current_reward
             low_confidence = route_confidence < self._confidence_threshold
             high_uncertainty = decision.uncertainty_score > self._uncertainty_threshold
-            non_compliant = decision.compliance_report is not None and not decision.compliance_report.get(
-                "is_compliant", True
-            )
+            compliance_report = decision.compliance_report
+            non_compliant = compliance_report is not None and not compliance_report.get("is_compliant", True)
 
             if non_compliant or (low_confidence and high_uncertainty):
                 # 低置信 + 高不确定 → 拒绝输出
                 decision.safety_level = SafetyLevel.REFUSED
                 decision.need_review = True
                 if non_compliant:
-                    decision.reasoning = f"拒绝输出：合规校验失败 ({decision.compliance_report.get('summary', '')})"
+                    assert compliance_report is not None
+                    decision.reasoning = f"拒绝输出：合规校验失败 ({compliance_report.get('summary', '')})"
                 else:
                     decision.reasoning = (
                         f"拒绝输出：路由置信度低({route_confidence:.2f}) + 不确定性高({decision.uncertainty_score:.3f})"

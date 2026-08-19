@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mci_world_model.sdk._clinical_dynamics import ClinicalDynamicsPredictor
+from mci_world_model.sdk._clinical_dynamics import ClinicalTransferPredictor
 from mci_world_model.sdk._clinical_objective import ClinicalObjective
 from mci_world_model.sdk._clinical_world_state import (
     DRUG_EFFECT_TABLE,
@@ -66,7 +66,7 @@ class ClinicalMCTSPlanner:
 
     def __init__(
         self,
-        predictor: ClinicalDynamicsPredictor,
+        predictor: ClinicalTransferPredictor,
         objective: ClinicalObjective | None = None,
         config: MCTSConfig | None = None,
         default_doses: list[float] | None = None,
@@ -136,14 +136,12 @@ class ClinicalMCTSPlanner:
 
         return TreatmentPlan(
             best_action=best_action,
-            all_evaluations=sorted(
-                comparisons, key=lambda c: c["predicted_reward"], reverse=True
-           ),
+            all_evaluations=sorted(comparisons, key=lambda c: c["predicted_reward"], reverse=True),
             predicted_trajectory=trajectory,
             current_reward=comparisons[0]["current_reward"] if comparisons else 0.0,
             best_predicted_reward=best["predicted_reward"],
             reasoning=f"选择 {best_action.target} {best_action.magnitude}{best_action.unit}："
-           f"预期 reward {best['predicted_reward']:.3f} > 当前 {comparisons[0]['current_reward']:.3f}",
+            f"预期 reward {best['predicted_reward']:.3f} > 当前 {comparisons[0]['current_reward']:.3f}",
         )
 
     def compare_actions(
@@ -174,15 +172,17 @@ class ClinicalMCTSPlanner:
                 is_safe = self._objective.is_safe(predicted_state)
                 predicted_reward = self._objective.reward(predicted_state)
 
-                results.append({
-                    "action": action,
-                    "action_desc": f"{action.target} {action.magnitude}{action.unit}",
-                    "predicted_reward": round(predicted_reward, 4),
-                    "reward_delta": round(predicted_reward - current_reward, 4),
-                    "is_safe": is_safe,
-                    "current_reward": round(current_reward, 4),
-                    "predicted_detail": self._objective.detail(predicted_state),
-                })
+                results.append(
+                    {
+                        "action": action,
+                        "action_desc": f"{action.target} {action.magnitude}{action.unit}",
+                        "predicted_reward": round(predicted_reward, 4),
+                        "reward_delta": round(predicted_reward - current_reward, 4),
+                        "is_safe": is_safe,
+                        "current_reward": round(current_reward, 4),
+                        "predicted_detail": self._objective.detail(predicted_state),
+                    }
+                )
             except (ValueError, RuntimeError):
                 continue
 
@@ -280,9 +280,7 @@ class ClinicalMCTSPlanner:
             if node["visit_count"] == 0:
                 return float("inf")
             exploit = node["value_sum"] / node["visit_count"]
-            explore = exploration_weight * math.sqrt(
-                math.log(max(parent_visits, 1)) / node["visit_count"]
-            )
+            explore = exploration_weight * math.sqrt(math.log(max(parent_visits, 1)) / node["visit_count"])
             return exploit + explore
 
         def _select(node: dict[str, Any]) -> dict[str, Any]:
@@ -308,17 +306,19 @@ class ClinicalMCTSPlanner:
                     child_state = preds[0]
                     child_safe = self._objective.is_safe(child_state)
                     child_reward = self._objective.reward(child_state)
-                    node["children"].append({
-                        "state": child_state,
-                        "action": action,
-                        "children": [],
-                        "visit_count": 0,
-                        "value_sum": 0.0,
-                        "reward": child_reward,
-                        "is_safe": child_safe,
-                        "expanded": False,
-                        "depth": node["depth"] + 1,
-                    })
+                    node["children"].append(
+                        {
+                            "state": child_state,
+                            "action": action,
+                            "children": [],
+                            "visit_count": 0,
+                            "value_sum": 0.0,
+                            "reward": child_reward,
+                            "is_safe": child_safe,
+                            "expanded": False,
+                            "depth": node["depth"] + 1,
+                        }
+                    )
                 except (ValueError, RuntimeError):
                     continue
             node["expanded"] = True
@@ -358,11 +358,7 @@ class ClinicalMCTSPlanner:
                 node = _select(node)
                 path.append(node)
             # Expansion（根节点首次或已访问的叶子才展开，避免重复展开）
-            if (
-                not node["expanded"]
-                and node["depth"] < depth
-                and (node["visit_count"] > 0 or node is root)
-            ):
+            if not node["expanded"] and node["depth"] < depth and (node["visit_count"] > 0 or node is root):
                 _expand(node)
                 if node["children"]:
                     node = rng.choice(node["children"])
@@ -380,28 +376,28 @@ class ClinicalMCTSPlanner:
         # 选 value 最高的子节点（利用阶段）
         best_child = max(
             root["children"],
-            key=lambda c: (c["value_sum"] / max(c["visit_count"], 1)),
+            key=lambda c: c["value_sum"] / max(c["visit_count"], 1),
         )
 
         # 收集所有根子节点的评估（用于审计）
         all_evals: list[dict[str, Any]] = []
         for child in root["children"]:
-            all_evals.append({
-                "action": child["action"],
-                "action_desc": (
-                    f"{child['action'].target} {child['action'].magnitude}{child['action'].unit}"
-                    if child["action"]
-                    else "none"
-                ),
-                "predicted_reward": round(child["reward"], 4),
-                "reward_delta": round(child["reward"] - root_reward, 4),
-                "is_safe": True,  # 已在 expand 剪枝
-                "current_reward": round(root_reward, 4),
-                "mcts_visits": child["visit_count"],
-                "mcts_avg_value": round(
-                    child["value_sum"] / max(child["visit_count"], 1), 4
-                ),
-            })
+            all_evals.append(
+                {
+                    "action": child["action"],
+                    "action_desc": (
+                        f"{child['action'].target} {child['action'].magnitude}{child['action'].unit}"
+                        if child["action"]
+                        else "none"
+                    ),
+                    "predicted_reward": round(child["reward"], 4),
+                    "reward_delta": round(child["reward"] - root_reward, 4),
+                    "is_safe": True,  # 已在 expand 剪枝
+                    "current_reward": round(root_reward, 4),
+                    "mcts_visits": child["visit_count"],
+                    "mcts_avg_value": round(child["value_sum"] / max(child["visit_count"], 1), 4),
+                }
+            )
 
         # 提取最优路径的预测轨迹（沿访问最多的子节点）
         trajectory: list[PatientState] = []
@@ -420,7 +416,7 @@ class ClinicalMCTSPlanner:
                 f"MCTS搜索: sims={n_sims}, depth={depth}, "
                 f"tree_nodes={self._count_tree_nodes(root)}, "
                 f"选择 {best_child['action'].target if best_child['action'] else 'none'} "
-                f"(访问{best_child['visit_count']}次, 均值{best_child['value_sum']/max(best_child['visit_count'],1):.3f})"
+                f"(访问{best_child['visit_count']}次, 均值{best_child['value_sum'] / max(best_child['visit_count'], 1):.3f})"
             ),
         )
 

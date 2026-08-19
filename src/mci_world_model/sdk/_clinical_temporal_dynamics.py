@@ -312,7 +312,7 @@ class TemporalClinicalDynamicsPredictor(ActionConditionedPredictor):
         state: WorldState,
         action: Action | None,
         n_steps: int = 1,
-    ) -> list[WorldState]:
+    ) -> list[PatientState]:
         """动作条件化多步预测（RNN 隐状态跨步传递）。"""
         if not isinstance(state, PatientState):
             raise TypeError(f"需要 PatientState，收到 {type(state)}")
@@ -326,7 +326,7 @@ class TemporalClinicalDynamicsPredictor(ActionConditionedPredictor):
         x0 = np.concatenate([s_vec, a_vec])
         y_seq, _ = self._rnn.predict_seq(x0, n_steps=n_steps)
 
-        results: list[WorldState] = []
+        results: list[PatientState] = []
         for vec in y_seq:
             vec = np.asarray(vec, dtype=np.float64).ravel()
             vec = self._denormalize_state(vec)

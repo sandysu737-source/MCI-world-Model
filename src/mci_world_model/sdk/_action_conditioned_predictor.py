@@ -28,6 +28,7 @@ MCI World Model v4.6.0 — ActionConditionedPredictor
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -69,7 +70,7 @@ class ActionConditionedPredictor(ABC):
         state: WorldState,
         action: Action | None,
         n_steps: int = 1,
-    ) -> list[WorldState]:
+    ) -> Sequence[WorldState]:
         """动作条件化多步预测。
 
         Args:
