@@ -45,10 +45,7 @@ and message passing. No I/O, no SDK coupling.
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from dataclasses import dataclass, field
-
-import numpy as np
 
 __all__ = [
     "BetaDistribution",
@@ -125,7 +122,7 @@ class BetaDistribution:
         return max(0.0, m - z * s), min(1.0, m + z * s)
 
     # --- conjugate update ---
-    def update(self, successes: float, failures: float) -> "BetaDistribution":
+    def update(self, successes: float, failures: float) -> BetaDistribution:
         """Bayesian conjugate update: observe successes/failures.
 
         Returns a *new* Beta(α + successes, β + failures). The counts may be
@@ -141,19 +138,17 @@ class BetaDistribution:
 
     # --- factories ---
     @classmethod
-    def uniform(cls) -> "BetaDistribution":
+    def uniform(cls) -> BetaDistribution:
         """Non-informative prior Beta(1, 1) = Uniform[0,1]."""
         return cls(1.0, 1.0)
 
     @classmethod
-    def jeffreys(cls) -> "BetaDistribution":
+    def jeffreys(cls) -> BetaDistribution:
         """Jeffreys non-informative prior Beta(0.5, 0.5)."""
         return cls(0.5, 0.5)
 
     @classmethod
-    def weak_informative(
-        cls, prior_belief: float = 0.5, strength: float = 2.0
-    ) -> "BetaDistribution":
+    def weak_informative(cls, prior_belief: float = 0.5, strength: float = 2.0) -> BetaDistribution:
         """Weak informative prior centred at ``prior_belief``."""
         if not 0.0 < prior_belief < 1.0:
             raise ValueError("prior_belief must be in (0,1)")
@@ -217,9 +212,7 @@ class ConditionalEdge:
         """
         p_pos = parent_belief.mean
         p_neg = 1.0 - p_pos
-        mean_child = (
-            self.pos_given_pos.mean * p_pos + self.pos_given_neg.mean * p_neg
-        )
+        mean_child = self.pos_given_pos.mean * p_pos + self.pos_given_neg.mean * p_neg
         mean_child = min(max(mean_child, 1e-6), 1 - 1e-6)
         strength = max(
             self.pos_given_pos.effective_sample_size,
@@ -312,11 +305,8 @@ class BeliefNetwork:
 
     def is_tree(self) -> bool:
         """True iff the undirected skeleton is acyclic (exact BP applies)."""
-        seen, stack = set(), []
-        # Pick an arbitrary start to detect any cycle.
         if not self.nodes:
             return True
-        start = next(iter(self.nodes))
         # Union-Find over the undirected skeleton.
         parent_uf = {n: n for n in self.nodes}
 
@@ -326,7 +316,7 @@ class BeliefNetwork:
                 x = parent_uf[x]
             return x
 
-        for (p, c) in self.edges:
+        for p, c in self.edges:
             rp, rc = find(p), find(c)
             if rp == rc:
                 return False
@@ -402,12 +392,8 @@ class BeliefPropagator:
                 if node_id in evidence:
                     continue
                 for neighbor in network.neighbors(node_id):
-                    incoming = self._collect_incoming(
-                        network, node_id, neighbor, messages, evidence
-                    )
-                    new_msg = self._compute_message(
-                        network, node_id, neighbor, incoming, evidence
-                    )
+                    incoming = self._collect_incoming(network, node_id, neighbor, messages, evidence)
+                    new_msg = self._compute_message(network, node_id, neighbor, incoming, evidence)
                     key = (node_id, neighbor)
                     if key in old_messages:
                         old = old_messages[key]
@@ -420,10 +406,7 @@ class BeliefPropagator:
             if max_delta < self.tolerance:
                 break
 
-        return {
-            nid: self._compute_marginal(network, nid, messages, evidence)
-            for nid in query_nodes
-        }
+        return {nid: self._compute_marginal(network, nid, messages, evidence) for nid in query_nodes}
 
     # ------------------------------------------------------------------
     # message passing internals

@@ -182,7 +182,7 @@ class CausalDAG:
         Returns a valid ordering of all nodes. Raises ValueError if the graph
         contains a directed cycle (i.e. is not a DAG).
         """
-        indeg = {n: 0 for n in self.nodes}
+        indeg = dict.fromkeys(self.nodes, 0)
         for p in self.edges:
             for e in self.edges[p]:
                 c = e[0]
@@ -315,8 +315,8 @@ class CausalDAG:
             for node, eff in self.propagate(src, dlt).items():
                 total[node] += eff
         if normalize:
-            for n in total:
-                if total[n] < 0:
+            for n, eff in total.items():
+                if eff < 0:
                     total[n] = 0.0
         return dict(total)
 
@@ -348,13 +348,12 @@ class CausalDAG:
         eff = self.propagate(source)
         return np.array([eff.get(n, 0.0) for n in order], dtype=np.float64), order
 
-
-# ============================================================
-# d-separation and backdoor adjustment (Pearl causal graph theory)
-# ============================================================
-# Extended on top of su-memory-sdk's CausalDAG to provide the graph-theoretic
-# foundation that do-calculus requires: d-separation, backdoor path discovery,
-# and valid-adjustment-set verification per Pearl (2009) Causality §3.3.
+    # ============================================================
+    # d-separation and backdoor adjustment (Pearl causal graph theory)
+    # ============================================================
+    # Extended on top of su-memory-sdk's CausalDAG to provide the graph-theoretic
+    # foundation that do-calculus requires: d-separation, backdoor path discovery,
+    # and valid-adjustment-set verification per Pearl (2009) Causality §3.3.
 
     # ------------------------------------------------------------------
     # Ancestry helpers
@@ -498,18 +497,17 @@ class CausalDAG:
             return False  # direct edge cannot be blocked
         for i in range(1, len(path) - 1):
             prev, mid, nxt = path[i - 1], path[i], path[i + 1]
-            into_mid_from_prev = mid in self.children(prev)      # prev → mid
-            into_mid_from_next = mid in self.children(nxt)        # nxt → mid
+            into_mid_from_prev = mid in self.children(prev)  # prev → mid
+            into_mid_from_next = mid in self.children(nxt)  # nxt → mid
             is_collider = into_mid_from_prev and into_mid_from_next
             if is_collider:
                 # collider blocks unless it or a descendant is in Z
                 desc = self.descendants(mid) | {mid}
                 if not (z & desc):
                     return False  # open collider → path not blocked
-            else:
-                # chain or fork: blocked iff mid ∈ Z
-                if mid not in z:
-                    return False  # open → path not blocked
+            # chain or fork: blocked iff mid ∈ Z
+            elif mid not in z:
+                return False  # open → path not blocked
         return True
 
     def find_minimal_adjustment_set(self, x, y) -> set | None:
