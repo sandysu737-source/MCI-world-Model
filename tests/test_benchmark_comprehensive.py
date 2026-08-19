@@ -53,7 +53,7 @@ class TestCausalDiscoveryBenchmark:
 
         assert len(skel.nodes) == 5
         self.results["PC"] = t * 1000
-        print(f"\n  PC:    {t*1000:.1f}ms, {len(skel.edges)//2} edges")
+        print(f"\n  PC:    {t * 1000:.1f}ms, {len(skel.edges) // 2} edges")
 
     def test_ges_speed(self):
         """GES 算法速度基准。"""
@@ -67,7 +67,7 @@ class TestCausalDiscoveryBenchmark:
         gc.enable()
 
         self.results["GES"] = t * 1000
-        print(f"  GES:   {t*1000:.1f}ms, {len(skel.edges)//2} edges")
+        print(f"  GES:   {t * 1000:.1f}ms, {len(skel.edges) // 2} edges")
 
     def test_lingam_speed(self):
         """LiNGAM 算法速度基准。"""
@@ -81,7 +81,7 @@ class TestCausalDiscoveryBenchmark:
         gc.enable()
 
         self.results["LiNGAM"] = t * 1000
-        print(f"  LiNGAM: {t*1000:.1f}ms, {len(skel.edges)//2} edges")
+        print(f"  LiNGAM: {t * 1000:.1f}ms, {len(skel.edges) // 2} edges")
 
     def test_fci_speed(self):
         """FCI 算法速度基准。"""
@@ -95,7 +95,7 @@ class TestCausalDiscoveryBenchmark:
         gc.enable()
 
         self.results["FCI"] = t * 1000
-        print(f"  FCI:    {t*1000:.1f}ms, {len(skel.edges)//2} edges")
+        print(f"  FCI:    {t * 1000:.1f}ms, {len(skel.edges) // 2} edges")
 
     def test_notears_speed(self):
         """NOTEARS 算法速度基准。"""
@@ -109,7 +109,7 @@ class TestCausalDiscoveryBenchmark:
         gc.enable()
 
         self.results["NOTEARS"] = t * 1000
-        print(f"  NOTEARS:{t*1000:.1f}ms, {len(skel.edges)//2} edges")
+        print(f"  NOTEARS:{t * 1000:.1f}ms, {len(skel.edges) // 2} edges")
 
     def test_algorithm_ranking(self):
         """算法速度排名报告 (合并测试, 因 pytest 不跨测试共享状态)。"""
@@ -142,7 +142,7 @@ class TestCausalDiscoveryBenchmark:
             algo = cls(**args)
             gc.disable()
             t0 = time.perf_counter()
-            skel = algo.discover(data, names)
+            algo.discover(data, names)
             t = time.perf_counter() - t0
             gc.enable()
             results[name] = t * 1000
@@ -167,7 +167,7 @@ class TestInterventionBenchmark:
         """单次 ATE 延迟。"""
         from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
-        cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("Z","Y"),("X","Y")])
+        cg = CausalGraph(nodes=["Z", "X", "Y"], edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
 
         gc.disable()
@@ -176,18 +176,18 @@ class TestInterventionBenchmark:
             dc.estimate_ate("X", "Y")
         t = (time.perf_counter() - t0) / 1000
         gc.enable()
-        print(f"\n  Single ATE: {t*1e6:.0f}µs avg (1000 iterations)")
+        print(f"\n  Single ATE: {t * 1e6:.0f}µs avg (1000 iterations)")
 
     def test_batch_throughput(self):
         """批量 ATE 吞吐量。"""
         from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
         cg = CausalGraph(
-            nodes=["A","B","C","D","E"],
-            edges=[("A","B"),("B","C"),("C","D"),("D","E")],
+            nodes=["A", "B", "C", "D", "E"],
+            edges=[("A", "B"), ("B", "C"), ("C", "D"), ("D", "E")],
         )
         dc = DoCalculus(graph=cg, seed=42)
-        pairs = [("A","B"),("B","C"),("C","D"),("D","E")]
+        pairs = [("A", "B"), ("B", "C"), ("C", "D"), ("D", "E")]
 
         gc.disable()
         t0 = time.perf_counter()
@@ -196,15 +196,15 @@ class TestInterventionBenchmark:
         t = (time.perf_counter() - t0) / 1000
         gc.enable()
         throughput = 4000 / (t * 1000)  # ATEs per ms
-        print(f"  Batch (4 pairs × 1000): {t*1000:.1f}ms total, {throughput:.0f} ATEs/ms")
+        print(f"  Batch (4 pairs × 1000): {t * 1000:.1f}ms total, {throughput:.0f} ATEs/ms")
 
     def test_batch_query_throughput(self):
         """batch_query 吞吐量。"""
         from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
-        cg = CausalGraph(nodes=["A","B","C"], edges=[("A","B"),("B","C")])
+        cg = CausalGraph(nodes=["A", "B", "C"], edges=[("A", "B"), ("B", "C")])
         dc = DoCalculus(graph=cg, seed=42)
-        queries = [{"X":"A","Y":"B"}, {"X":"B","Y":"C"}]
+        queries = [{"X": "A", "Y": "B"}, {"X": "B", "Y": "C"}]
 
         gc.disable()
         t0 = time.perf_counter()
@@ -212,14 +212,14 @@ class TestInterventionBenchmark:
             dc.batch_query(queries)
         t = (time.perf_counter() - t0) / 500
         gc.enable()
-        print(f"  batch_query (2 queries): {t*1000:.1f}ms/call")
+        print(f"  batch_query (2 queries): {t * 1000:.1f}ms/call")
 
     def test_cached_docalculus(self):
         """CachedDoCalculus 缓存命中延迟。"""
         from mci_world_model.sdk._cached_do_calculus import CachedDoCalculus
         from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
-        cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("Z","Y"),("X","Y")])
+        cg = CausalGraph(nodes=["Z", "X", "Y"], edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
         cached = CachedDoCalculus(do_calculus=dc)
 
@@ -237,7 +237,7 @@ class TestInterventionBenchmark:
         gc.enable()
 
         hit_ratio = t_miss / t_hit if t_hit > 0 else 0
-        print(f"  CachedDoCalculus: miss={t_miss*1000:.1f}ms, hit={t_hit*1e6:.0f}µs ({hit_ratio:.0f}x speedup)")
+        print(f"  CachedDoCalculus: miss={t_miss * 1000:.1f}ms, hit={t_hit * 1e6:.0f}µs ({hit_ratio:.0f}x speedup)")
         stats = cached.cache_info()
         print(f"    hits={stats.hits}, misses={stats.misses}, size={stats.size}")
 
@@ -255,7 +255,7 @@ class TestCounterfactualBenchmark:
         from mci_world_model.sdk._counterfactual import CounterfactualEngine
         from mci_world_model.sdk._do_calculus import CausalGraph
 
-        cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("X","Y")])
+        cg = CausalGraph(nodes=["Z", "X", "Y"], edges=[("Z", "X"), ("X", "Y")])
         engine = CounterfactualEngine.from_causal_graph(cg, seed=42)
 
         gc.disable()
@@ -264,31 +264,33 @@ class TestCounterfactualBenchmark:
             engine.query(evidence={"X": 1.0, "Y": 3.0}, do_x={"X": 0.0}, target="Y")
         t = (time.perf_counter() - t0) / 100
         gc.enable()
-        print(f"\n  Counterfactual (single): {t*1000:.1f}ms avg")
+        print(f"\n  Counterfactual (single): {t * 1000:.1f}ms avg")
 
     def test_batch_counterfactual_throughput(self):
         """批量反事实吞吐量。"""
         from mci_world_model.sdk._batch_counterfactual import BatchCounterfactualEngine
         from mci_world_model.sdk._do_calculus import CausalGraph
 
-        cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("X","Y")])
+        cg = CausalGraph(nodes=["Z", "X", "Y"], edges=[("Z", "X"), ("X", "Y")])
         sem = cg.to_sem(noise_std=0.1, seed=42)
         engine = BatchCounterfactualEngine(sem)
 
         scenarios = []
         for i in range(50):
-            scenarios.append({
-                "evidence": {"X": float(i % 5), "Y": float(i % 3)},
-                "do_x": {"X": 0.0},
-                "target": "Y",
-            })
+            scenarios.append(
+                {
+                    "evidence": {"X": float(i % 5), "Y": float(i % 3)},
+                    "do_x": {"X": 0.0},
+                    "target": "Y",
+                }
+            )
 
         gc.disable()
         t0 = time.perf_counter()
         engine.batch_query(scenarios)
         t = time.perf_counter() - t0
         gc.enable()
-        print(f"  BatchCounterfactual (50 scenarios): {t*1000:.1f}ms ({50/t:.0f} scenarios/s)")
+        print(f"  BatchCounterfactual (50 scenarios): {t * 1000:.1f}ms ({50 / t:.0f} scenarios/s)")
 
     def test_energy_bridge_latency(self):
         """能量桥接延迟。"""
@@ -305,7 +307,7 @@ class TestCounterfactualBenchmark:
             bridge.what_if("semantic", boost=1.5, baseline_energies=baseline)
         t = (time.perf_counter() - t0) / 20
         gc.enable()
-        print(f"  EnergyBridge what_if: {t*1000:.1f}ms avg")
+        print(f"  EnergyBridge what_if: {t * 1000:.1f}ms avg")
 
     def test_cross_modal_pipeline_latency(self):
         """跨模态流水线延迟。"""
@@ -325,16 +327,18 @@ class TestCounterfactualBenchmark:
             vis_vec = vis_enc.encode(img)
             dep_vec = dep_enc.encode(depth)
             fusion = MultimodalFusion(strategy="weighted", output_dim=64)
-            fused = fusion.fuse({"vision": vis_vec, "depth": dep_vec})
+            fusion.fuse({"vision": vis_vec, "depth": dep_vec})
             builder = MultimodalGraphBuilder()
-            builder.build_from_features([
-                {"vision": vis_vec, "depth": dep_vec},
-                {"vision": vis_vec, "depth": dep_vec},
-                {"vision": vis_vec, "depth": dep_vec},
-            ])
+            builder.build_from_features(
+                [
+                    {"vision": vis_vec, "depth": dep_vec},
+                    {"vision": vis_vec, "depth": dep_vec},
+                    {"vision": vis_vec, "depth": dep_vec},
+                ]
+            )
         t = (time.perf_counter() - t0) / 50
         gc.enable()
-        print(f"  CrossModal pipeline: {t*1000:.1f}ms avg (encode+fuse+graph)")
+        print(f"  CrossModal pipeline: {t * 1000:.1f}ms avg (encode+fuse+graph)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -431,16 +435,34 @@ class TestIndustryCapabilityMatrix:
         from mci_world_model.sdk._compliance_engine import ComplianceRuleEngine
 
         engine = ComplianceRuleEngine()
-        stats = engine.statistics()
+        engine.statistics()
 
-        domains = set()
         for history in engine.get_history():
             pass  # empty
 
         # 按领域测试
-        medical = engine.check({"evidence": [1,2], "confidence": 0.9, "intervention": "x", "risk_assessment": {"level": "low"}, "patient_data": {"consent_given": True}}, domains=["medical"])
-        legal = engine.check({"audit_trail": ["s1"], "evidence": [{"reliability": 0.8}], "jurisdiction": "CN", "conclusion": "ok"}, domains=["legal"])
-        eng = engine.check({"system_params": {"t": {"design": 80, "limit": 120}}, "redundancy": {"p": True}, "fmea": [{"rpn": 100, "mitigated": True}]}, domains=["engineering"])
+        medical = engine.check(
+            {
+                "evidence": [1, 2],
+                "confidence": 0.9,
+                "intervention": "x",
+                "risk_assessment": {"level": "low"},
+                "patient_data": {"consent_given": True},
+            },
+            domains=["medical"],
+        )
+        legal = engine.check(
+            {"audit_trail": ["s1"], "evidence": [{"reliability": 0.8}], "jurisdiction": "CN", "conclusion": "ok"},
+            domains=["legal"],
+        )
+        eng = engine.check(
+            {
+                "system_params": {"t": {"design": 80, "limit": 120}},
+                "redundancy": {"p": True},
+                "fmea": [{"rpn": 100, "mitigated": True}],
+            },
+            domains=["engineering"],
+        )
 
         coverage = {
             "medical": medical.is_compliant,
@@ -499,7 +521,7 @@ class TestStressAndSummary:
         skel = pc.discover(data, names)
         t = time.perf_counter() - t0
         gc.enable()
-        print(f"\n  Large data (5000×6) PC: {t*1000:.0f}ms, {len(skel.edges)//2} edges")
+        print(f"\n  Large data (5000×6) PC: {t * 1000:.0f}ms, {len(skel.edges) // 2} edges")
         assert len(skel.nodes) == 6
 
     def test_high_dim_causal_discovery(self):
@@ -518,7 +540,7 @@ class TestStressAndSummary:
         skel = nt.discover(data, names)
         t = time.perf_counter() - t0
         gc.enable()
-        print(f"  High-dim (200×8) NOTEARS: {t*1000:.0f}ms, {len(skel.edges)//2} edges")
+        print(f"  High-dim (200×8) NOTEARS: {t * 1000:.0f}ms, {len(skel.edges) // 2} edges")
 
     def test_edge_case_batch(self):
         """边界压力: 空数据/单样本/零方差。"""
@@ -532,19 +554,19 @@ class TestStressAndSummary:
         # 空数据
         pc = PCSkeletonDiscoverer()
         empty = np.array([]).reshape(0, 3)
-        s = pc.discover(empty, ["A","B","C"])
+        s = pc.discover(empty, ["A", "B", "C"])
         assert len(s.edges) == 0
 
         fci = FCIDiscoverer()
-        sf = fci.discover(empty, ["A","B","C"])
+        sf = fci.discover(empty, ["A", "B", "C"])
         assert len(sf.edges) == 0
 
         nt = NOTEARSDiscoverer(max_iter=20)
-        sn = nt.discover(empty, ["A","B","C"])
+        sn = nt.discover(empty, ["A", "B", "C"])
         assert len(sn.edges) == 0
 
         # 批量空
-        cg = CausalGraph(nodes=["X","Y"], edges=[("X","Y")])
+        cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg)
         assert dc.batch_estimate_ate([]) == []
 
@@ -559,7 +581,7 @@ class TestStressAndSummary:
         from mci_world_model.sdk._neural_symbolic_fusion_v2 import NeuralSymbolicFusionV2
 
         rng = np.random.RandomState(42)
-        cg = CausalGraph(nodes=["X","Y"], edges=[("X","Y")])
+        cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
 
         errors = 0
         for i in range(50):
@@ -590,21 +612,36 @@ class TestStressAndSummary:
         print("=" * 60)
 
         modules = [
-            ("PC", "✅"), ("GES", "✅"), ("LiNGAM", "✅"), ("FCI", "✅"), ("NOTEARS", "✅"),
-            ("DoCalculus", "✅"), ("CachedDoCalculus", "✅"), ("BatchAPI", "✅"),
-            ("Counterfactual", "✅"), ("BatchCF", "✅"),
-            ("EnergyBridge", "✅"), ("NeuralSymbolic", "✅"),
-            ("VisionEnc", "✅"), ("DepthEnc", "✅"), ("ThermalEnc", "✅"), ("ForceEnc", "✅"),
-            ("MultimodalFusion", "✅"), ("ModalGraph", "✅"),
-            ("ComplianceEngine", "✅"), ("MedicalSDK", "✅"), ("LegalSDK", "✅"), ("EngSafetySDK", "✅"),
+            ("PC", "✅"),
+            ("GES", "✅"),
+            ("LiNGAM", "✅"),
+            ("FCI", "✅"),
+            ("NOTEARS", "✅"),
+            ("DoCalculus", "✅"),
+            ("CachedDoCalculus", "✅"),
+            ("BatchAPI", "✅"),
+            ("Counterfactual", "✅"),
+            ("BatchCF", "✅"),
+            ("EnergyBridge", "✅"),
+            ("NeuralSymbolic", "✅"),
+            ("VisionEnc", "✅"),
+            ("DepthEnc", "✅"),
+            ("ThermalEnc", "✅"),
+            ("ForceEnc", "✅"),
+            ("MultimodalFusion", "✅"),
+            ("ModalGraph", "✅"),
+            ("ComplianceEngine", "✅"),
+            ("MedicalSDK", "✅"),
+            ("LegalSDK", "✅"),
+            ("EngSafetySDK", "✅"),
             ("DCI", "✅"),
         ]
         for name, status in modules:
             print(f"  {status} {name}")
 
         # Quick latency check
-        rng = np.random.RandomState(42)
-        cg = CausalGraph(nodes=["X","Y"], edges=[("X","Y")])
+        np.random.RandomState(42)
+        cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg)
         t0 = time.perf_counter()
         dc.estimate_ate("X", "Y")

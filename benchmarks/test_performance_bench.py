@@ -26,10 +26,11 @@ def _bench(fn, *args, rounds=5, **kwargs):
 # T1: JEPAEncoder encode 延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestJEPAEncodeLatency:
 
+class TestJEPAEncodeLatency:
     def test_jepa_encode_30d_patient(self, patient_timeline_30d):
         from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
         encoder = JEPAEncoder(world_model=None)
         ms = _bench(encoder.encode, signals=patient_timeline_30d, rounds=5)
         result = encoder.encode(signals=patient_timeline_30d)
@@ -39,6 +40,7 @@ class TestJEPAEncodeLatency:
 
     def test_jepa_encode_small_window(self, patient_timeline_30d):
         from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
         encoder = JEPAEncoder(world_model=None)
         window = patient_timeline_30d[:10]
         ms = _bench(encoder.encode, signals=window, rounds=5)
@@ -51,16 +53,18 @@ class TestJEPAEncodeLatency:
 # T2: JEPAPredictor predict 延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestJEPAPredictLatency:
 
+class TestJEPAPredictLatency:
     @pytest.fixture(scope="class")
     def encoded_state(self, patient_timeline_30d):
         from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
         encoder = JEPAEncoder(world_model=None)
         return encoder.encode(signals=patient_timeline_30d)
 
     def test_identity_predictor(self, encoded_state):
         from mci_world_model.sdk._jepa_predictor import IdentityPredictor
+
         predictor = IdentityPredictor()
         ms = _bench(predictor.predict, encoded_state, rounds=5)
         result = predictor.predict(encoded_state)
@@ -69,6 +73,7 @@ class TestJEPAPredictLatency:
 
     def test_belief_propagation_predictor(self, encoded_state):
         from mci_world_model.sdk._jepa_predictor import BeliefPropagationPredictor
+
         predictor = BeliefPropagationPredictor()
         ms = _bench(predictor.predict, encoded_state, rounds=5)
         result = predictor.predict(encoded_state)
@@ -80,20 +85,29 @@ class TestJEPAPredictLatency:
 # T3: CounterfactualEngine 单次查询延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestCounterfactualSingleLatency:
 
+class TestCounterfactualSingleLatency:
     def test_cf_single_query(self, counterfactual_engine):
         evidence = {
-            "calorie_intake": 1500.0, "albumin": 35.0, "protein_intake": 65.0,
-            "medication_dose": 200.0, "nrs2002_score": 3.0, "prealbumin": 250.0,
+            "calorie_intake": 1500.0,
+            "albumin": 35.0,
+            "protein_intake": 65.0,
+            "medication_dose": 200.0,
+            "nrs2002_score": 3.0,
+            "prealbumin": 250.0,
             "body_weight": 70.0,
         }
         ms = _bench(
-            counterfactual_engine.query, rounds=10,
-            evidence=evidence, do_x={"calorie_intake": 2000.0}, target="albumin",
+            counterfactual_engine.query,
+            rounds=10,
+            evidence=evidence,
+            do_x={"calorie_intake": 2000.0},
+            target="albumin",
         )
         result = counterfactual_engine.query(
-            evidence=evidence, do_x={"calorie_intake": 2000.0}, target="albumin",
+            evidence=evidence,
+            do_x={"calorie_intake": 2000.0},
+            target="albumin",
         )
         assert result is not None
         assert result.counterfactual_value is not None
@@ -104,29 +118,30 @@ class TestCounterfactualSingleLatency:
 # T4: BatchCounterfactualEngine 批量查询延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestCounterfactualBatchLatency:
 
+class TestCounterfactualBatchLatency:
     @pytest.fixture(scope="class")
     def batch_engine(self):
         from mci_world_model.sdk._batch_counterfactual import BatchCounterfactualEngine, StructuralEquationModel
+
         sem = StructuralEquationModel(
-            coefficients=np.array([
-                [0, 1, 0, 0, 0],
-                [0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0],
-            ], dtype=np.float64),
-            node_names=["calorie_intake", "albumin", "protein",
-                        "nrs2002", "body_weight"])
+            coefficients=np.array(
+                [
+                    [0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+                dtype=np.float64,
+            ),
+            node_names=["calorie_intake", "albumin", "protein", "nrs2002", "body_weight"],
+        )
         return BatchCounterfactualEngine(sem)
 
     @pytest.fixture(scope="class")
     def batch_scenarios(self):
-        return [
-            {"do_x": {"calorie_intake": v}, "target": "albumin"}
-            for v in np.linspace(1200, 2800, 100)
-        ]
+        return [{"do_x": {"calorie_intake": v}, "target": "albumin"} for v in np.linspace(1200, 2800, 100)]
 
     def test_cf_batch_100(self, batch_engine, batch_scenarios):
         ms = _bench(batch_engine.batch_query, batch_scenarios, n_mc=200, rounds=3)
@@ -139,10 +154,11 @@ class TestCounterfactualBatchLatency:
 # T5: PhysicalGraphBuilder 构建延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestPhysicalGraphLatency:
 
+class TestPhysicalGraphLatency:
     def test_build_graph_30d(self, patient_timeline_30d):
         from mci_world_model.sdk._physical_graph_builder import PhysicalGraphBuilder
+
         builder = PhysicalGraphBuilder()
         timeline = patient_timeline_30d
         ms = _bench(builder.build_graph, timeline, rounds=5)
@@ -152,6 +168,7 @@ class TestPhysicalGraphLatency:
 
     def test_build_graph_7d(self, patient_timeline_30d):
         from mci_world_model.sdk._physical_graph_builder import PhysicalGraphBuilder
+
         builder = PhysicalGraphBuilder()
         ms = _bench(builder.build_graph, patient_timeline_30d[:7], rounds=5)
         edges = builder.build_graph(patient_timeline_30d[:7])
@@ -163,10 +180,11 @@ class TestPhysicalGraphLatency:
 # T6: PerceptionPipeline 多模态处理延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestPerceptionPipelineLatency:
 
+class TestPerceptionPipelineLatency:
     def test_process_120_signals(self, multimodal_signals):
         from mci_world_model._sys._perception_pipeline import PerceptionPipeline
+
         pipeline = PerceptionPipeline()
         ms = _bench(pipeline.process_multimodal, multimodal_signals, rounds=3)
         result = pipeline.process_multimodal(multimodal_signals)
@@ -178,14 +196,18 @@ class TestPerceptionPipelineLatency:
 # T7: EnergyCore 能量模拟延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestEnergyCoreLatency:
 
+class TestEnergyCoreLatency:
     def test_analyze_balance_5_elements(self):
         from mci_world_model._sys._energy_core import EnergyCore, EnergyType
+
         core = EnergyCore()
         energies = {
-            EnergyType.WOOD: 1.2, EnergyType.FIRE: 0.8, EnergyType.EARTH: 1.0,
-            EnergyType.METAL: 1.5, EnergyType.WATER: 0.9,
+            EnergyType.WOOD: 1.2,
+            EnergyType.FIRE: 0.8,
+            EnergyType.EARTH: 1.0,
+            EnergyType.METAL: 1.5,
+            EnergyType.WATER: 0.9,
         }
         ms = _bench(core.analyze_balance, energies, rounds=10)
         result = core.analyze_balance(energies)
@@ -194,10 +216,14 @@ class TestEnergyCoreLatency:
 
     def test_simulate_energy_flow_10_steps(self):
         from mci_world_model._sys._energy_core import EnergyCore, EnergyType
+
         core = EnergyCore()
         initial = {
-            EnergyType.WOOD: 1.0, EnergyType.FIRE: 1.0, EnergyType.EARTH: 1.0,
-            EnergyType.METAL: 1.0, EnergyType.WATER: 1.0,
+            EnergyType.WOOD: 1.0,
+            EnergyType.FIRE: 1.0,
+            EnergyType.EARTH: 1.0,
+            EnergyType.METAL: 1.0,
+            EnergyType.WATER: 1.0,
         }
         ms = _bench(core.simulate_energy_flow, initial, steps=10, rounds=10)
         result = core.simulate_energy_flow(initial, steps=10)
@@ -206,6 +232,7 @@ class TestEnergyCoreLatency:
 
     def test_get_energy_state(self):
         from mci_world_model._sys._energy_core import EnergyCore
+
         core = EnergyCore()
         ms = _bench(core.get_energy_state, "WOOD", 1, rounds=10)
         result = core.get_energy_state("WOOD", 1)
@@ -217,11 +244,12 @@ class TestEnergyCoreLatency:
 # T8: CausalChain 因果链传播延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestCausalChainLatency:
 
+class TestCausalChainLatency:
     @pytest.fixture(scope="class")
     def large_causal_chain(self):
         from mci_world_model._sys.causal import CausalChain
+
         cc = CausalChain()
         energy_types = ["wood", "fire", "earth", "metal", "water"]
         for i in range(100):
@@ -254,11 +282,12 @@ class TestCausalChainLatency:
 # T9: EvidenceCollector 证据处理延迟
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestEvidenceCollectorLatency:
 
+class TestEvidenceCollectorLatency:
     @pytest.fixture(scope="class")
     def populated_collector(self):
         from mci_world_model._sys.evidence import EvidenceCollector
+
         ec = EvidenceCollector()
         ec.register_source("lab_report", initial_reliability=0.9)
         ec.register_source("clinical_note", initial_reliability=0.75)
@@ -266,8 +295,10 @@ class TestEvidenceCollectorLatency:
         for i in range(50):
             source = "lab_report" if i % 3 == 0 else ("clinical_note" if i % 3 == 1 else "patient_report")
             ec.collect(
-                belief_id=f"belief_{i % 10}", is_positive=(i % 2 == 0),
-                source=source, weight=0.5 + (i % 50) / 100,
+                belief_id=f"belief_{i % 10}",
+                is_positive=(i % 2 == 0),
+                source=source,
+                weight=0.5 + (i % 50) / 100,
             )
         return ec
 
