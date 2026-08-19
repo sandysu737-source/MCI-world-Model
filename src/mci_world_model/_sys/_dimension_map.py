@@ -1256,7 +1256,7 @@ def _run_tests():
     logger.info("-" * 40)
 
     # Test all stems based on Najia法
-    tests = [
+    stem_tests: list[tuple[TimeStem, TrigramType, str]] = [
         (TimeStem.JIA, TrigramType.QIAN, "甲 -> 乾 (乾Najia)"),
         (TimeStem.WU, TrigramType.QIAN, "戊 -> 乾 (戊归乾)"),
         (TimeStem.BING, TrigramType.LI, "丙 -> 离 (离纳丙)"),
@@ -1269,15 +1269,15 @@ def _run_tests():
         (TimeStem.GUI, TrigramType.KUN, "癸 -> 坤 (癸归坤)"),
     ]
 
-    for stem, expected, desc in tests:
-        result = tm.stem_to_trigram(stem)
-        test(desc, result == expected, f" got {result}")
+    for stem, expected_stem, desc1 in stem_tests:
+        stem_result = tm.stem_to_trigram(stem)
+        test(desc1, stem_result == expected_stem, f" got {stem_result}")
 
     logger.info("\n[2] Trigram to Stems Conversion (Najia法)")
     logger.info("-" * 40)
 
     # Correct mappings based on Najia法
-    tests = [
+    stems_tests: list[tuple[TrigramType, list[TimeStem], str]] = [
         (TrigramType.QIAN, [TimeStem.JIA, TimeStem.WU], "乾 -> [甲, 戊]"),
         (TrigramType.KUN, [TimeStem.YI, TimeStem.GUI], "坤 -> [乙, 癸]"),
         (TrigramType.LI, [TimeStem.BING], "离 -> [丙]"),
@@ -1288,14 +1288,14 @@ def _run_tests():
         (TrigramType.GEN, [TimeStem.JI], "艮 -> [己] (己归艮)"),
     ]
 
-    for trigram, expected, desc in tests:
-        result = tm.trigram_to_stems(trigram)
-        test(desc, set(result) == set(expected), f" got {[s.name for s in result]}")
+    for trigram, expected_stems, desc2 in stems_tests:
+        stems_result = tm.trigram_to_stems(trigram)
+        test(desc2, set(stems_result) == set(expected_stems), f" got {[s.name for s in stems_result]}")
 
     logger.info("\n[3] Branch to Trigram Conversion")
     logger.info("-" * 40)
 
-    tests = [
+    branch_tests: list[tuple[TimeBranch, TrigramType, str]] = [
         (TimeBranch.XU, TrigramType.QIAN, "戌 -> 乾"),
         (TimeBranch.HAI, TrigramType.QIAN, "亥 -> 乾"),
         (TimeBranch.YOU, TrigramType.DUI, "酉 -> 兑"),
@@ -1310,14 +1310,14 @@ def _run_tests():
         (TimeBranch.SHEN, TrigramType.KUN, "申 -> 坤"),
     ]
 
-    for branch, expected, desc in tests:
-        result = tm.branch_to_trigram(branch)
-        test(desc, result == expected, f" got {result}")
+    for branch, expected_trig, desc3 in branch_tests:
+        branch_result = tm.branch_to_trigram(branch)
+        test(desc3, branch_result == expected_trig, f" got {branch_result}")
 
     logger.info("\n[4] Trigram to Branches Conversion")
     logger.info("-" * 40)
 
-    tests = [
+    branches_tests: list[tuple[TrigramType, list[TimeBranch], str]] = [
         (TrigramType.QIAN, [TimeBranch.XU, TimeBranch.HAI], "乾 -> [戌, 亥]"),
         (TrigramType.DUI, [TimeBranch.YOU], "兑 -> [酉]"),
         (TrigramType.LI, [TimeBranch.WU], "离 -> [午]"),
@@ -1328,9 +1328,9 @@ def _run_tests():
         (TrigramType.KUN, [TimeBranch.WEI, TimeBranch.SHEN], "坤 -> [未, 申]"),
     ]
 
-    for trigram, expected, desc in tests:
-        result = tm.trigram_to_branches(trigram)
-        test(desc, set(result) == set(expected), f" got {[b.name for b in result]}")
+    for trigram, expected_branches, desc4 in branches_tests:
+        branches_result = tm.trigram_to_branches(trigram)
+        test(desc4, set(branches_result) == set(expected_branches), f" got {[b.name for b in branches_result]}")
 
     logger.info("\n[5] Trigram Energy Harmony Information")
     logger.info("-" * 40)

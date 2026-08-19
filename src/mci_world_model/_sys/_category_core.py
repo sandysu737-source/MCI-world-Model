@@ -20,6 +20,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 from dataclasses import dataclass
+from typing import cast
 
 from ._enums import TrigramRelation, TrigramType
 from .encoders import HEXAGRAM_NAMES
@@ -505,8 +506,8 @@ class TrigramCore:
         cuo_upper_bits = tuple(1 - b for b in upper_bits)
         cuo_lower_bits = tuple(1 - b for b in lower_bits)
 
-        cuo_upper = BINARY_TO_TRIGRAM[cuo_upper_bits]
-        cuo_lower = BINARY_TO_TRIGRAM[cuo_lower_bits]
+        cuo_upper = BINARY_TO_TRIGRAM[cast(tuple[int, int, int], cuo_upper_bits)]
+        cuo_lower = BINARY_TO_TRIGRAM[cast(tuple[int, int, int], cuo_lower_bits)]
 
         result = (cuo_upper, cuo_lower)
         self._cuo_cache[cache_key] = result
@@ -783,6 +784,9 @@ class TrigramCore:
 # ============================================================
 
 
+_trigram_core_singleton: TrigramCore | None = None
+
+
 def get_trigram_core() -> TrigramCore:
     """
     Get a singleton TrigramCore instance.
@@ -790,9 +794,10 @@ def get_trigram_core() -> TrigramCore:
     Returns:
         TrigramCore instance
     """
-    if not hasattr(get_trigram_core, "_instance"):
-        get_trigram_core._instance = TrigramCore()
-    return get_trigram_core._instance
+    global _trigram_core_singleton
+    if _trigram_core_singleton is None:
+        _trigram_core_singleton = TrigramCore()
+    return _trigram_core_singleton
 
 
 # ============================================================
@@ -885,8 +890,8 @@ def test_trigram_core():
             lower_bits = TRIGRAM_TO_BINARY[lower]
             expected_upper = tuple(1 - b for b in upper_bits)
             expected_lower = tuple(1 - b for b in lower_bits)
-            assert BINARY_TO_TRIGRAM[expected_upper] == cuo_upper
-            assert BINARY_TO_TRIGRAM[expected_lower] == cuo_lower
+            assert BINARY_TO_TRIGRAM[cast(tuple[int, int, int], expected_upper)] == cuo_upper
+            assert BINARY_TO_TRIGRAM[cast(tuple[int, int, int], expected_lower)] == cuo_lower
     logger.info("  All 64 hexagrams verified")
     logger.info("  ✓ PASSED")
 
@@ -936,21 +941,21 @@ def test_trigram_core():
 
     # Test 10: Hexagram info
     logger.info("\n[Test 10] Hexagram Info")
-    info = tc.get_hexagram_info(0)
-    assert info.name == "乾"
-    assert info.upper == TrigramType.QIAN
-    assert info.lower == TrigramType.QIAN
-    logger.info(f"  HexagramInfo(0): name={info.name}")
+    hinfo = tc.get_hexagram_info(0)
+    assert hinfo.name == "乾"
+    assert hinfo.upper == TrigramType.QIAN
+    assert hinfo.lower == TrigramType.QIAN
+    logger.info(f"  HexagramInfo(0): name={hinfo.name}")
 
-    info_1 = tc.get_hexagram_info(1)
-    assert info_1.name == "坤"  # Kun/坤 (index 1 in standard sequence)
-    logger.info(f"  HexagramInfo(1): name={info_1.name}")
+    hinfo_1 = tc.get_hexagram_info(1)
+    assert hinfo_1.name == "坤"  # Kun/坤 (index 1 in standard sequence)
+    logger.info(f"  HexagramInfo(1): name={hinfo_1.name}")
 
-    info_63 = tc.get_hexagram_info(63)
-    assert info_63.name == "未济"
-    assert info_63.upper == TrigramType.DUI
-    assert info_63.lower == TrigramType.DUI
-    logger.info(f"  HexagramInfo(63): name={info_63.name}")
+    hinfo_63 = tc.get_hexagram_info(63)
+    assert hinfo_63.name == "未济"
+    assert hinfo_63.upper == TrigramType.DUI
+    assert hinfo_63.lower == TrigramType.DUI
+    logger.info(f"  HexagramInfo(63): name={hinfo_63.name}")
     logger.info("  ✓ PASSED")
 
     # Test 11: Trigram energy type (CEWM cognitive energy mapping)

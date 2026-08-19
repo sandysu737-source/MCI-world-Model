@@ -12,6 +12,7 @@ Core: Three Principles (constancy / transformation / simplification)
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import cast
 
 # ============================================================
 # Eight Trigram Base Types
@@ -454,7 +455,7 @@ def _bits_to_trigram(bits: list[int]) -> SemanticType:
         (1, 0, 0): SemanticType.CAT_MOUNTAIN,
         (0, 0, 0): SemanticType.CAT_RECEPTIVE,
     }
-    return bits_map.get(tuple(bits), SemanticType.CAT_RECEPTIVE)
+    return bits_map.get(cast(tuple[int, int, int], tuple(bits)), SemanticType.CAT_RECEPTIVE)
 
 
 def _find_pattern_by_trigrams(upper: SemanticType, lower: SemanticType) -> int:
@@ -625,7 +626,7 @@ class PatternInference:
                 }
             )
 
-        results.sort(key=lambda x: x["score"], reverse=True)
+        results.sort(key=lambda x: cast(float, x["score"]), reverse=True)
         return results[:top_k]
 
     def get_trend_analysis(self, memory_pattern: MemoryPattern) -> dict:

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from ._energy_relations import (
     ENERGY_ENHANCE,
@@ -201,7 +201,7 @@ class CategoryCausalEngine:
 
     def link_with_energy_relation(
         self, source_id: str, target_id: str, direction: str = "forward"
-    ) -> tuple[bool, EnergyRelation]:
+    ) -> tuple[bool, EnergyRelation | None]:
         """
         Link two nodes based on their energy relation.
 
@@ -317,7 +317,7 @@ class CategoryCausalEngine:
         if total == 0:
             return []
 
-        max_type = max(energy_counts, key=energy_counts.get)
+        max_type = max(energy_counts, key=energy_counts.__getitem__)
         max_ratio = energy_counts[max_type] / total
 
         if max_ratio > 0.6:
@@ -353,7 +353,7 @@ class CategoryCausalEngine:
         return analyze_relation(energy1, energy2)
 
     def get_neighbors_by_relation(
-        self, node_id: str, relation_type: RelationType = None
+        self, node_id: str, relation_type: RelationType | None = None
     ) -> list[tuple[str, EnergyRelation]]:
         """
         Get neighbors of a node filtered by relation type.
@@ -406,7 +406,7 @@ class CategoryCausalEngine:
             energy_dist[node.energy_type] += 1
 
         # Analyze balance
-        balance_result = analyze_balance(energy_dist)
+        balance_result = analyze_balance({k: float(v) for k, v in energy_dist.items()})
 
         # Count relations
         enhance_count = 0
@@ -490,7 +490,7 @@ class CategoryCausalEngine:
             )
 
         # Sort by boosted score
-        results.sort(key=lambda x: x["boosted_score"], reverse=True)
+        results.sort(key=lambda x: cast(float, x["boosted_score"]), reverse=True)
 
         return results
 
@@ -533,6 +533,7 @@ def test_causal_engine():
     # Test 4: Get relation
     logger.info("\n[Test 4] Get Energy Relation")
     relation = engine.get_relation("node_wood", "node_fire")
+    assert relation is not None
     logger.info(f"  Wood <-> Fire: {relation.relation.value}, strength={relation.strength}")
     assert relation.relation == RelationType.ENHANCE
 
@@ -568,7 +569,7 @@ def test_causal_engine():
         logger.info(
             f"    {r['node_id']} ({r['energy_type']}): base={r['base_score']:.2f}, "
             f"affinity={r['affinity']:.2f}, boosted={r['boosted_score']:.2f}"
-        ) 
+        )
 
     # Verify fire is first (enhance)
     assert results[0]["node_id"] == "node_fire", "Fire should be first (enhance)"
