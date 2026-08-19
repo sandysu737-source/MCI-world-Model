@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class ProofStatus(str, Enum):
     """证明状态。"""
+
     DRAFT = "draft"
     FORMALIZED = "formalized"
     VERIFIED = "verified"
@@ -51,6 +52,7 @@ class ProofStatus(str, Enum):
 
 class AxiomReference(str, Enum):
     """公理引用。"""
+
     E1 = "E1_causal_existence"
     E2 = "E2_causal_completeness"
     E3 = "E3_self_reference"
@@ -65,6 +67,7 @@ class AxiomReference(str, Enum):
 @dataclass
 class FormalPremise:
     """形式化前提。"""
+
     premise_id: str = ""
     axiom_ref: str = ""
     statement: str = ""
@@ -74,6 +77,7 @@ class FormalPremise:
 @dataclass
 class ProofStep:
     """证明步骤。"""
+
     step_id: str = ""
     step_type: str = ""  # modus_ponens, instantiation, substitution, induction, contradiction
     premises: list[str] = field(default_factory=list)
@@ -85,6 +89,7 @@ class ProofStep:
 @dataclass
 class FormalProof:
     """形式化证明。"""
+
     theorem_id: str = ""
     name: str = ""
     premises: list[FormalPremise] = field(default_factory=list)
@@ -100,6 +105,7 @@ class FormalProof:
 @dataclass
 class Corollary:
     """推论。"""
+
     corollary_id: str = ""
     source_theorem: str = ""
     statement: str = ""
@@ -144,7 +150,8 @@ class FinalTheorem:
     @property
     def n_proven(self) -> int:
         return sum(
-            1 for p in self._formal_proofs.values()
+            1
+            for p in self._formal_proofs.values()
             if p.status in (ProofStatus.VERIFIED, ProofStatus.MACHINE_CHECKED, ProofStatus.GODEL_LIMITED)
         )
 
@@ -176,7 +183,8 @@ class FinalTheorem:
 
         logger.info(
             "Formal theorems: %d/%d verified",
-            self.n_proven, len(self._formal_proofs),
+            self.n_proven,
+            len(self._formal_proofs),
         )
 
         return {
@@ -256,49 +264,59 @@ class FinalTheorem:
         self._corollaries.clear()
 
         # 推论1: 因果守恒
-        self._corollaries.append(Corollary(
-            corollary_id="C1",
-            source_theorem="FT1",
-            statement="Total causal energy in a closed system is conserved",
-            derivation="Follows from FT1 (causal existence) + E2 (completeness)",
-            significance="Conservation law for causal systems",
-        ))
+        self._corollaries.append(
+            Corollary(
+                corollary_id="C1",
+                source_theorem="FT1",
+                statement="Total causal energy in a closed system is conserved",
+                derivation="Follows from FT1 (causal existence) + E2 (completeness)",
+                significance="Conservation law for causal systems",
+            )
+        )
 
         # 推论2: 存在不可毁灭
-        self._corollaries.append(Corollary(
-            corollary_id="C2",
-            source_theorem="FT4",
-            statement="Absolute existence cannot be destroyed, only transformed",
-            derivation="Follows from FT4 (closure) + E7 (existence closure)",
-            significance="Fundamental indestructibility of existence",
-        ))
+        self._corollaries.append(
+            Corollary(
+                corollary_id="C2",
+                source_theorem="FT4",
+                statement="Absolute existence cannot be destroyed, only transformed",
+                derivation="Follows from FT4 (closure) + E7 (existence closure)",
+                significance="Fundamental indestructibility of existence",
+            )
+        )
 
         # 推论3: 因果自洽
-        self._corollaries.append(Corollary(
-            corollary_id="C3",
-            source_theorem="FT2",
-            statement="Self-referential causal reasoning maintains consistency within Gödel bounds",
-            derivation="Follows from FT2 (self-reference) + E8 (Gödel incompleteness)",
-            significance="Self-reference is possible but necessarily incomplete",
-        ))
+        self._corollaries.append(
+            Corollary(
+                corollary_id="C3",
+                source_theorem="FT2",
+                statement="Self-referential causal reasoning maintains consistency within Gödel bounds",
+                derivation="Follows from FT2 (self-reference) + E8 (Gödel incompleteness)",
+                significance="Self-reference is possible but necessarily incomplete",
+            )
+        )
 
         # 推论4: 绝对统一对称性
-        self._corollaries.append(Corollary(
-            corollary_id="C4",
-            source_theorem="FT3+FT5",
-            statement="Absolute existence has unique unified symmetry SO(∞)",
-            derivation="Follows from FT3 (absolute) + FT5 (uniqueness)",
-            significance="Only one absolute existence mode is possible",
-        ))
+        self._corollaries.append(
+            Corollary(
+                corollary_id="C4",
+                source_theorem="FT3+FT5",
+                statement="Absolute existence has unique unified symmetry SO(∞)",
+                derivation="Follows from FT3 (absolute) + FT5 (uniqueness)",
+                significance="Only one absolute existence mode is possible",
+            )
+        )
 
         # 推论5: 演化收敛
-        self._corollaries.append(Corollary(
-            corollary_id="C5",
-            source_theorem="FT4",
-            statement="All causal evolution converges to absolute existence",
-            derivation="FT4 (closure) implies global basin of attraction",
-            significance="Evolution has a definite endpoint",
-        ))
+        self._corollaries.append(
+            Corollary(
+                corollary_id="C5",
+                source_theorem="FT4",
+                statement="All causal evolution converges to absolute existence",
+                derivation="FT4 (closure) implies global basin of attraction",
+                significance="Evolution has a definite endpoint",
+            )
+        )
 
         logger.info("Derived %d corollaries from formal theorems", len(self._corollaries))
         return self._corollaries
@@ -312,12 +330,8 @@ class FinalTheorem:
             "n_corollaries": len(self._corollaries),
             "n_consistency_checks": len(self._consistency_log),
             "n_verifications": len(self._verification_log),
-            "theorem_status": {
-                tid: proof.status for tid, proof in self._formal_proofs.items()
-            },
-            "system_completeness": (
-                "complete_within_godel_bounds" if self.all_verified else "in_progress"
-            ),
+            "theorem_status": {tid: proof.status for tid, proof in self._formal_proofs.items()},
+            "system_completeness": ("complete_within_godel_bounds" if self.all_verified else "in_progress"),
         }
 
     # ── 形式化定理方法 ─────────────────────────────────────────
@@ -407,8 +421,7 @@ class FinalTheorem:
                 ),
             ],
             conclusion=(
-                "Self-referential causal reasoning → self-proving existence, "
-                "within Gödel incompleteness bounds"
+                "Self-referential causal reasoning → self-proving existence, within Gödel incompleteness bounds"
             ),
             status=ProofStatus.GODEL_LIMITED,
             confidence=0.95,
@@ -594,7 +607,7 @@ class FinalTheorem:
             try:
                 result = self._axioms.verify_all_axioms()
                 return {"consistent": result.get("all_verified", False)}
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return {"consistent": True, "note": "Axiom system not available, assuming consistent"}
 

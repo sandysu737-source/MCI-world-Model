@@ -46,6 +46,7 @@ class CosmicTrustLevel(str, Enum):
 @dataclass
 class DimensionalTrust:
     """单维度信任。"""
+
     dimension: str = ""
     trust_score: float = 0.0
     evidence_count: int = 0
@@ -56,6 +57,7 @@ class DimensionalTrust:
 @dataclass
 class CosmicCertificate:
     """宇宙信任证书。"""
+
     certificate_id: str = ""
     holder: str = ""
     cosmic_trust: float = 0.0
@@ -69,6 +71,7 @@ class CosmicCertificate:
 @dataclass
 class ConsistencyReport:
     """跨维度一致性报告。"""
+
     dimensions: list[str] = field(default_factory=list)
     pairwise_consistency: list[dict[str, Any]] = field(default_factory=list)
     overall_consistency: float = 0.0
@@ -159,10 +162,7 @@ class CosmicTrust:
         # 宇宙信任 = 加权平均 (木桶原理 + 加权)
         if dim_trust:
             min_trust = min(dim_trust.values())
-            weighted_trust = sum(
-                dim_trust.get(d, 0) * self.DIMENSION_WEIGHTS.get(d, 0.2)
-                for d in dimensions
-            )
+            weighted_trust = sum(dim_trust.get(d, 0) * self.DIMENSION_WEIGHTS.get(d, 0.2) for d in dimensions)
             cosmic_trust = 0.6 * min_trust + 0.4 * weighted_trust
         else:
             cosmic_trust = 0.0
@@ -191,20 +191,25 @@ class CosmicTrust:
         inconsistencies: list[dict[str, Any]] = []
 
         for i, d1 in enumerate(dimensions):
-            for d2 in dimensions[i + 1:]:
+            for d2 in dimensions[i + 1 :]:
                 consistency = self._compute_pairwise_consistency(
-                    results.get(d1, {}), results.get(d2, {}),
+                    results.get(d1, {}),
+                    results.get(d2, {}),
                 )
-                pairwise.append({
-                    "dimensions": (d1, d2),
-                    "consistency": consistency,
-                })
-                if consistency < 0.6:
-                    inconsistencies.append({
+                pairwise.append(
+                    {
                         "dimensions": (d1, d2),
                         "consistency": consistency,
-                        "severity": 1.0 - consistency,
-                    })
+                    }
+                )
+                if consistency < 0.6:
+                    inconsistencies.append(
+                        {
+                            "dimensions": (d1, d2),
+                            "consistency": consistency,
+                            "severity": 1.0 - consistency,
+                        }
+                    )
 
         overall = np.mean([p["consistency"] for p in pairwise]) if pairwise else 1.0
 
@@ -250,9 +255,9 @@ class CosmicTrust:
             mean_error = 0.1
 
         # 重新计算宇宙信任
-        self._cosmic_trust_score = min(
-            dt.trust_score for dt in self._dimensional_trusts.values()
-        ) if self._dimensional_trusts else 0
+        self._cosmic_trust_score = (
+            min(dt.trust_score for dt in self._dimensional_trusts.values()) if self._dimensional_trusts else 0
+        )
 
         result = {
             "calibrated": True,
@@ -270,13 +275,9 @@ class CosmicTrust:
     ) -> CosmicCertificate:
         """颁发宇宙信任证书。"""
         now = time.time()
-        cert_id = hashlib.sha256(
-            f"{holder}:{now}:{self._cosmic_trust_score}".encode()
-        ).hexdigest()[:16]
+        cert_id = hashlib.sha256(f"{holder}:{now}:{self._cosmic_trust_score}".encode()).hexdigest()[:16]
 
-        dim_trusts = {
-            dim: dt.trust_score for dim, dt in self._dimensional_trusts.items()
-        }
+        dim_trusts = {dim: dt.trust_score for dim, dt in self._dimensional_trusts.items()}
 
         cert = CosmicCertificate(
             certificate_id=cert_id,
@@ -337,19 +338,23 @@ class CosmicTrust:
     def _assess_dimensional_trust(self, dimension: str, result: dict[str, Any]) -> float:
         """评估单维度信任。"""
         # 尝试使用外部信任框架
-        if dimension in (TrustDimension.PHYSICAL.value, TrustDimension.DIGITAL_TWIN.value, TrustDimension.MIXED_REALITY.value):
+        if dimension in (
+            TrustDimension.PHYSICAL.value,
+            TrustDimension.DIGITAL_TWIN.value,
+            TrustDimension.MIXED_REALITY.value,
+        ):
             if self._fed_trust is not None and hasattr(self._fed_trust, "assess_federation_trust"):
                 try:
                     fed_result = self._fed_trust.assess_federation_trust(dimension, result)
                     return fed_result.get("federation_trust", 0.5)
-                except Exception as e:
+                except Exception:
                     logger.warning("吞异常", exc_info=True)
         if dimension == TrustDimension.CREATIVE.value:
             if self._creative_trust is not None and hasattr(self._creative_trust, "assess_creative_trust"):
                 try:
                     cr_result = self._creative_trust.assess_creative_trust(result)
                     return cr_result.get("creative_trust_score", 0.5)
-                except Exception as e:
+                except Exception:
                     logger.warning("吞异常", exc_info=True)
         # 内置评估: 基于结果质量
         base_trust = self._dimensional_trusts.get(dimension, DimensionalTrust()).trust_score

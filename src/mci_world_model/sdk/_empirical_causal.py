@@ -19,10 +19,9 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
-
-import logging
 
 logger = logging.getLogger(__name__)
 import numpy as np
@@ -103,14 +102,11 @@ class EmpiricalCausal:
         ate = float(np.mean(y1) - np.mean(y0))
         # Welch's t-test SE
         se = float(np.sqrt(np.var(y1) / len(y1) + np.var(y0) / len(y0)))
-        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se,
-                           ci_upper=ate + 1.96 * se, method="naive")
+        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se, ci_upper=ate + 1.96 * se, method="naive")
 
     # ── 线性回归 ATE ──────────────────────────────────────────────
 
-    def estimate_ate_linear(
-        self, X: np.ndarray, T: np.ndarray, Y: np.ndarray
-    ) -> ATEEstimate:
+    def estimate_ate_linear(self, X: np.ndarray, T: np.ndarray, Y: np.ndarray) -> ATEEstimate:
         """线性回归 ATE: Y = α + τ·T + β·X + ε。
 
         通过 OLS 回归控制协变量 X, τ 即为 ATE。
@@ -142,14 +138,13 @@ class EmpiricalCausal:
         except np.linalg.LinAlgError:
             se = float(np.std(residuals) / np.sqrt(n))
 
-        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se,
-                           ci_upper=ate + 1.96 * se, method="linear_regression")
+        return ATEEstimate(
+            ate=ate, se=se, ci_lower=ate - 1.96 * se, ci_upper=ate + 1.96 * se, method="linear_regression"
+        )
 
     # ── 倾向得分加权 (IPW) ──────────────────────────────────────────
 
-    def estimate_ate_ipw(
-        self, X: np.ndarray, T: np.ndarray, Y: np.ndarray
-    ) -> ATEEstimate:
+    def estimate_ate_ipw(self, X: np.ndarray, T: np.ndarray, Y: np.ndarray) -> ATEEstimate:
         """IPW ATE: 用倾向得分的倒数加权。
 
         e(x) = P(T=1|X=x) 通过 logistic 回归估计
@@ -177,14 +172,11 @@ class EmpiricalCausal:
         # Bootstrap SE
         se = self._bootstrap_se(X, T, Y, n_bootstrap=200)
 
-        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se,
-                           ci_upper=ate + 1.96 * se, method="ipw")
+        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se, ci_upper=ate + 1.96 * se, method="ipw")
 
     # ── Doubly Robust ───────────────────────────────────────────────
 
-    def estimate_ate_doubly_robust(
-        self, X: np.ndarray, T: np.ndarray, Y: np.ndarray
-    ) -> ATEEstimate:
+    def estimate_ate_doubly_robust(self, X: np.ndarray, T: np.ndarray, Y: np.ndarray) -> ATEEstimate:
         """Doubly Robust ATE: 结合 outcome regression 和 IPW。
 
         只要 outcome model 或 propensity model 之一正确即可得到一致估计。
@@ -210,13 +202,15 @@ class EmpiricalCausal:
         ate = float(np.mean(dr))
         se = float(np.std(dr) / np.sqrt(len(Y)))
 
-        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se,
-                           ci_upper=ate + 1.96 * se, method="doubly_robust")
+        return ATEEstimate(ate=ate, se=se, ci_lower=ate - 1.96 * se, ci_upper=ate + 1.96 * se, method="doubly_robust")
 
     # ── 反事实预测 ──────────────────────────────────────────────────
 
     def predict_counterfactual(
-        self, X: np.ndarray, T: np.ndarray, Y: np.ndarray,
+        self,
+        X: np.ndarray,
+        T: np.ndarray,
+        Y: np.ndarray,
         T_counterfactual: np.ndarray,
     ) -> np.ndarray:
         """预测反事实结果: E[Y|do(T=t')]。
@@ -241,9 +235,7 @@ class EmpiricalCausal:
 
     # ── 完整对比报告 ────────────────────────────────────────────────
 
-    def compare_all(
-        self, X: np.ndarray, T: np.ndarray, Y: np.ndarray
-    ) -> CausalEstimateReport:
+    def compare_all(self, X: np.ndarray, T: np.ndarray, Y: np.ndarray) -> CausalEstimateReport:
         """运行所有估计方法并生成对比报告。"""
         report = CausalEstimateReport()
         report.naive_ate = self.naive_ate(T, Y).ate
@@ -258,7 +250,7 @@ class EmpiricalCausal:
             try:
                 result = method(X, T, Y)
                 report.estimates.append(result)
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return report
 
@@ -289,9 +281,7 @@ class EmpiricalCausal:
         logits = w[0] + X_norm @ w[1:]
         return 1.0 / (1.0 + np.exp(-np.clip(logits, -10, 10)))
 
-    def _fit_outcome(
-        self, X: np.ndarray, Y: np.ndarray, mask: np.ndarray
-    ) -> np.ndarray:
+    def _fit_outcome(self, X: np.ndarray, Y: np.ndarray, mask: np.ndarray) -> np.ndarray:
         """Fit E[Y|X] on the subset defined by mask."""
         X_sub = X[mask]
         Y_sub = Y[mask].reshape(-1, 1)
@@ -309,9 +299,7 @@ class EmpiricalCausal:
         full_design = np.column_stack([np.ones((len(X), 1)), X])
         return (full_design @ beta).ravel()
 
-    def _bootstrap_se(
-        self, X: np.ndarray, T: np.ndarray, Y: np.ndarray, n_bootstrap: int = 200
-    ) -> float:
+    def _bootstrap_se(self, X: np.ndarray, T: np.ndarray, Y: np.ndarray, n_bootstrap: int = 200) -> float:
         """Bootstrap 标准误。"""
         n = len(Y)
         ates = np.zeros(n_bootstrap)

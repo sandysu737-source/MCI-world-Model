@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import zvec
+
     HAS_ZVEC = True
 except ImportError:
     HAS_ZVEC = False
@@ -74,9 +75,7 @@ class DenseRetriever:
         if not HAS_ZVEC:
             raise ImportError("zvec required: pip install zvec")
         self._dim = dim
-        self._db_path = db_path or str(
-            Path(tempfile.gettempdir()) / f"mci_dense_{id(self)}"
-        )
+        self._db_path = db_path or str(Path(tempfile.gettempdir()) / f"mci_dense_{id(self)}")
         self._col = self._create_collection()
         self._indexed_count = 0
         atexit.register(self._cleanup)
@@ -97,11 +96,13 @@ class DenseRetriever:
         for exp in experiences:
             text = " ".join(exp.tags) if hasattr(exp, "tags") else str(exp)
             vec = self._text_to_vector(text, rng)
-            docs.append(zvec.Doc(
-                id=exp.experience_id if hasattr(exp, "experience_id") else str(id(exp)),
-                fields={"content": text},
-                vectors={"vec": vec.tolist()},
-            ))
+            docs.append(
+                zvec.Doc(
+                    id=exp.experience_id if hasattr(exp, "experience_id") else str(id(exp)),
+                    fields={"content": text},
+                    vectors={"vec": vec.tolist()},
+                )
+            )
 
         self._col.insert(docs)
         self._col.flush()
@@ -113,11 +114,13 @@ class DenseRetriever:
     def search(self, query_text: str, top_k: int = 5) -> DenseSearchResults:
         """Vector similarity search."""
         import time
+
         t0 = time.perf_counter()
         rng = np.random.RandomState(hash(query_text) % (2**31))
         q_vec = self._text_to_vector(query_text, rng)
         q = zvec.Query(
-            field_name="vec", vector=q_vec.tolist(),
+            field_name="vec",
+            vector=q_vec.tolist(),
             param=zvec.HnswQueryParam(ef=max(100, top_k * 20)),
         )
         results = self._col.query(q, topk=top_k, output_fields=["content"])
@@ -127,6 +130,7 @@ class DenseRetriever:
     def fts_search(self, query_text: str, top_k: int = 5) -> DenseSearchResults:
         """BM25 full-text search."""
         import time
+
         t0 = time.perf_counter()
         q = zvec.Query(field_name="content", fts=zvec.Fts(query_string=query_text))
         results = self._col.query(q, topk=top_k, output_fields=["content"])
@@ -134,18 +138,23 @@ class DenseRetriever:
         return self._to_results(results, query_text, "fts", elapsed)
 
     def hybrid_search(
-        self, query_text: str, keywords: str | None = None,
-        top_k: int = 5, vector_weight: float = 0.6,
+        self,
+        query_text: str,
+        keywords: str | None = None,
+        top_k: int = 5,
+        vector_weight: float = 0.6,
     ) -> DenseSearchResults:
         """Hybrid vector + FTS with weighted re-ranking."""
         import time
+
         t0 = time.perf_counter()
 
         rng = np.random.RandomState(hash(query_text) % (2**31))
         q_vec_vec = self._text_to_vector(query_text, rng)
 
         q_vec = zvec.Query(
-            field_name="vec", vector=q_vec_vec.tolist(),
+            field_name="vec",
+            vector=q_vec_vec.tolist(),
             param=zvec.HnswQueryParam(ef=max(100, top_k * 20)),
         )
         fts_text = keywords if keywords else query_text
@@ -153,7 +162,9 @@ class DenseRetriever:
 
         fw = max(0.01, min(0.99, vector_weight))
         results = self._col.query(
-            [q_vec, q_fts], topk=top_k, output_fields=["content"],
+            [q_vec, q_fts],
+            topk=top_k,
+            output_fields=["content"],
             reranker=zvec.WeightedReRanker(weights=[fw, 1.0 - fw]),
         )
         elapsed = (time.perf_counter() - t0) * 1000
@@ -187,11 +198,19 @@ class DenseRetriever:
             content = ""
             if doc.fields and "content" in doc.fields:
                 content = str(doc.fields["content"])
-            results.append(DenseSearchResult(
-                doc_id=doc.id, score=doc.score, content=content, rank=rank,
-            ))
+            results.append(
+                DenseSearchResult(
+                    doc_id=doc.id,
+                    score=doc.score,
+                    content=content,
+                    rank=rank,
+                )
+            )
         return DenseSearchResults(
-            results=results, query_text=query_text, method=method, latency_ms=elapsed_ms,
+            results=results,
+            query_text=query_text,
+            method=method,
+            latency_ms=elapsed_ms,
         )
 
     @property
@@ -202,5 +221,5 @@ class DenseRetriever:
         try:
             if hasattr(self, "_col") and self._col:
                 self._col.destroy()
-        except Exception as e:
+        except Exception:
             logger.warning("吞异常", exc_info=True)

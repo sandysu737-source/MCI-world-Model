@@ -125,7 +125,7 @@ class EnergyCounterfactualBridge:
                     seen.add(src)
             if len(categories) >= 5:
                 return categories[:5]
-        except Exception as e:
+        except Exception:
             logger.warning("吞异常", exc_info=True)
         # 回退到默认五维
         return ["semantic", "causal", "spacetime", "generative", "trust"]
@@ -166,9 +166,7 @@ class EnergyCounterfactualBridge:
             受影响的所有维度的 WhatIf 结果列表
         """
         if energy not in self._categories:
-            raise ValueError(
-                f"未知能量类型 '{energy}'，已知: {self._categories}"
-            )
+            raise ValueError(f"未知能量类型 '{energy}'，已知: {self._categories}")
         if mode not in ("propagation", "steady_state"):
             raise ValueError(f"mode 必须是 'propagation' 或 'steady_state', got '{mode}'")
 
@@ -179,9 +177,7 @@ class EnergyCounterfactualBridge:
             return self._what_if_propagation(energy, boost, baseline_energies)
         return self._what_if_steady_state(energy, boost, baseline_energies)
 
-    def _what_if_propagation(
-        self, energy: str, boost: float, baseline: dict[str, float]
-    ) -> list[EnergyWhatIfResult]:
+    def _what_if_propagation(self, energy: str, boost: float, baseline: dict[str, float]) -> list[EnergyWhatIfResult]:
         """矩阵传播反事实: 效应 = F·(do向量 - 基线向量)。
 
         这是守恒能量系统中正确的反事实语义。Flow 矩阵的列结构编码了
@@ -205,14 +201,16 @@ class EnergyCounterfactualBridge:
             if cat == energy:
                 continue
             mechanism = self._classify_mechanism(energy, cat)
-            results.append(EnergyWhatIfResult(
-                intervention=f"do({energy}=×{boost:.1f})",
-                target_energy=cat,
-                baseline=float(base_vec[i]),
-                counterfactual=float(base_vec[i] + effect[i]),
-                delta=float(effect[i]),
-                mechanism=mechanism,
-            ))
+            results.append(
+                EnergyWhatIfResult(
+                    intervention=f"do({energy}=×{boost:.1f})",
+                    target_energy=cat,
+                    baseline=float(base_vec[i]),
+                    counterfactual=float(base_vec[i] + effect[i]),
+                    delta=float(effect[i]),
+                    mechanism=mechanism,
+                )
+            )
         return results
 
     def _what_if_steady_state(
@@ -230,14 +228,16 @@ class EnergyCounterfactualBridge:
             b = baseline_stable.get(cat, 0.0)
             c = intervened_stable.get(cat, 0.0)
             mechanism = self._classify_mechanism(energy, cat)
-            results.append(EnergyWhatIfResult(
-                intervention=f"do({energy}=×{boost:.1f})",
-                target_energy=cat,
-                baseline=b,
-                counterfactual=c,
-                delta=c - b,
-                mechanism=mechanism,
-            ))
+            results.append(
+                EnergyWhatIfResult(
+                    intervention=f"do({energy}=×{boost:.1f})",
+                    target_energy=cat,
+                    baseline=b,
+                    counterfactual=c,
+                    delta=c - b,
+                    mechanism=mechanism,
+                )
+            )
         return results
 
     def _to_ordered_vec(self, energies: dict[str, float]) -> np.ndarray:
@@ -257,6 +257,7 @@ class EnergyCounterfactualBridge:
     def _build_flow_matrix_fallback(self) -> np.ndarray:
         """无 flow_matrix 方法时手动构建守恒 Flow 矩阵。"""
         from mci_world_model._sys._terms import ENERGY_ENHANCE, ENERGY_SUPPRESS
+
         n = len(self._categories)
         F = np.zeros((n, n), dtype=np.float64)
         enh = getattr(self._energy_core, "ENHANCE_FLOW_RATE", 0.15)
@@ -355,9 +356,7 @@ class EnergyCounterfactualBridge:
             稳态能量分布
         """
         try:
-            flow = self._energy_core.simulate_energy_flow(
-                energies, steps=self._sim_steps
-            )
+            flow = self._energy_core.simulate_energy_flow(energies, steps=self._sim_steps)
         except Exception:
             logger.warning("EnergyCore 仿真失败，返回初始值", exc_info=True)
             return dict(energies)
@@ -366,7 +365,7 @@ class EnergyCounterfactualBridge:
             return dict(energies)
 
         # 取尾部 min(5, steps) 步的均值作为稳态
-        tail = flow[-min(5, len(flow)):]
+        tail = flow[-min(5, len(flow)) :]
         stable: dict[str, float] = {}
         for k in energies:
             vals = [step.get(k, 0.0) for step in tail]
@@ -382,6 +381,6 @@ class EnergyCounterfactualBridge:
             is_suppress = self._energy_core.get_suppress_relation(src, dst)
             if is_suppress:
                 return "相克"
-        except Exception as e:
+        except Exception:
             logger.warning("吞异常", exc_info=True)
         return "间接"
