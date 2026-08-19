@@ -609,9 +609,7 @@ class MultiViewRetriever:
             RetrievalEvalResult with Recall@k, Precision@k, MRR, NDCG@k
         """
         if len(queries) != len(ground_truth):
-            raise ValueError(
-                f"queries ({len(queries)}) and ground_truth ({len(ground_truth)}) must have same length"
-            )
+            raise ValueError(f"queries ({len(queries)}) and ground_truth ({len(ground_truth)}) must have same length")
         if len(queries) == 0:
             return RetrievalEvalResult(k=k)
 
@@ -655,15 +653,17 @@ class MultiViewRetriever:
             if tp > 0:
                 hits += 1
 
-            per_query.append({
-                "query": str(q.tags or q.causal_edges or "unnamed"),
-                "recall": recall,
-                "precision": precision,
-                "mrr": mrr,
-                "ndcg": ndcg,
-                "tp": tp,
-                "gt_size": len(gt),
-            })
+            per_query.append(
+                {
+                    "query": str(q.tags or q.causal_edges or "unnamed"),
+                    "recall": recall,
+                    "precision": precision,
+                    "mrr": mrr,
+                    "ndcg": ndcg,
+                    "tp": tp,
+                    "gt_size": len(gt),
+                }
+            )
 
         n = len(queries)
         return RetrievalEvalResult(
@@ -719,12 +719,10 @@ class HybridRetriever:
         from off-topic results polluting the LLM context.
     """
 
-    RECALL_K: int = 20     # recall pool size
+    RECALL_K: int = 20  # recall pool size
     AUTO_THRESHOLD: int = 1000  # auto-enable above this N
 
-    def __init__(self, retriever: MultiViewRetriever,
-                 enable_two_stage: bool | None = None,
-                 recall_k: int = 20):
+    def __init__(self, retriever: MultiViewRetriever, enable_two_stage: bool | None = None, recall_k: int = 20):
         self._retriever = retriever
         self._recall_k = recall_k
         self._enable = enable_two_stage  # None = auto
@@ -739,7 +737,10 @@ class HybridRetriever:
           Phase 1: semantic-only scoring → recall_k candidates
           Phase 2: full 5-view Borda fusion → top_k results
         """
-        n = len(self._retriever.experience_db.all_experiences)
+        db = self._retriever.experience_db
+        if db is None:
+            return self._retriever.retrieve(query, top_k=top_k, **kwargs)
+        n = len(db.all_experiences)
 
         use_two_stage = self._enable
         if use_two_stage is None:
@@ -753,13 +754,13 @@ class HybridRetriever:
 
         # Score all experiences by semantic similarity only
         candidates: list[tuple] = []
-        for exp in self._retriever.experience_db.all_experiences:
+        for exp in db.all_experiences:
             sem_score = self._retriever._compute_semantic(query, exp)
             candidates.append((exp, sem_score))
 
         # Top-K recall
         candidates.sort(key=lambda x: x[1], reverse=True)
-        recall_pool = candidates[:self._recall_k]
+        recall_pool = candidates[: self._recall_k]
 
         # ── Phase 2: Full 5-view re-rank ──
         scored: list[tuple] = []
@@ -769,9 +770,11 @@ class HybridRetriever:
                 "causal": self._retriever._compute_causal(query, exp),
                 "temporal": self._retriever._compute_temporal(exp),
                 "contextual": self._retriever._context_index.similarity(
-                    query.context if hasattr(query, 'context') else {}, exp.experience_id),
+                    query.context if hasattr(query, "context") else {}, exp.experience_id
+                ),
                 "structural": self._retriever._structural_index.similarity(
-                    query.state_features if hasattr(query, 'state_features') else [], exp.experience_id),
+                    query.state_features if hasattr(query, "state_features") else [], exp.experience_id
+                ),
             }
             scored.append((exp, view_scores))
 

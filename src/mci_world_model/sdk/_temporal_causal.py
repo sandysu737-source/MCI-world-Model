@@ -61,9 +61,7 @@ class GrangerCausality:
         y = np.asarray(y, dtype=np.float64).ravel()
 
         if len(x) != len(y):
-            raise ValueError(
-                f"x and y must have same length, got {len(x)} and {len(y)}"
-            )
+            raise ValueError(f"x and y must have same length, got {len(x)} and {len(y)}")
 
         n = len(x)
         max_lag = self._max_lag
@@ -88,13 +86,19 @@ class GrangerCausality:
 
         # Full model: Y ~ Y_lagged + X_lagged
         X_full = np.column_stack([np.ones(T), Y_lagged, X_lagged])
-        theta_full, rss_full, _rank_full, _ = np.linalg.lstsq(X_full, Y_target, rcond=None)
-        rss_full = float(rss_full[0]) if rss_full.size > 0 else float(np.sum((Y_target - X_full @ theta_full) ** 2))
+        theta_full, rss_full_raw, _rank_full, _ = np.linalg.lstsq(X_full, Y_target, rcond=None)
+        rss_full = (
+            float(rss_full_raw[0]) if rss_full_raw.size > 0 else float(np.sum((Y_target - X_full @ theta_full) ** 2))
+        )
 
         # Reduced model: Y ~ Y_lagged only
         X_reduced = np.column_stack([np.ones(T), Y_lagged])
-        theta_reduced, rss_reduced, _, _ = np.linalg.lstsq(X_reduced, Y_target, rcond=None)
-        rss_reduced = float(rss_reduced[0]) if rss_reduced.size > 0 else float(np.sum((Y_target - X_reduced @ theta_reduced) ** 2))
+        theta_reduced, rss_reduced_raw, _, _ = np.linalg.lstsq(X_reduced, Y_target, rcond=None)
+        rss_reduced = (
+            float(rss_reduced_raw[0])
+            if rss_reduced_raw.size > 0
+            else float(np.sum((Y_target - X_reduced @ theta_reduced) ** 2))
+        )
 
         # Degrees of freedom
         df1 = max_lag  # Number of restrictions (number of X lags)
@@ -161,9 +165,7 @@ class LaggedCorrelationScanner:
         y = np.asarray(y, dtype=np.float64).ravel()
 
         if len(x) != len(y):
-            raise ValueError(
-                f"x and y must have same length, got {len(x)} and {len(y)}"
-            )
+            raise ValueError(f"x and y must have same length, got {len(x)} and {len(y)}")
 
         n = len(x)
         max_lag = self._max_lag

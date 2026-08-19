@@ -10,7 +10,9 @@ Usage:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -69,16 +71,18 @@ class CausalGraphResult:
         pos = nx.spring_layout(G, seed=42, k=2.0)
 
         _fig, ax = plt.subplots(figsize=(max(8, len(self.nodes) * 1.2), 6))
-        nx.draw_networkx_nodes(G, pos, node_color="lightblue",
-                               node_size=1200, ax=ax)
+        nx.draw_networkx_nodes(G, pos, node_color="lightblue", node_size=1200, ax=ax)
         nx.draw_networkx_labels(G, pos, font_size=10, ax=ax)
 
         # Draw edges with arrowheads
         edge_weights = [G[u][v].get("weight", 0.5) * 3 for u, v in G.edges()]
         nx.draw_networkx_edges(
-            G, pos, edge_color="steelblue",
+            G,
+            pos,
+            edge_color="steelblue",
             width=edge_weights,
-            arrowstyle="->", arrowsize=15,
+            arrowstyle="->",
+            arrowsize=15,
             connectionstyle="arc3,rad=0.1",
             ax=ax,
         )
@@ -91,6 +95,7 @@ class CausalGraphResult:
     def to_networkx(self):
         """Convert to networkx DiGraph."""
         import networkx as nx
+
         G = nx.DiGraph()
         G.add_nodes_from(self.nodes)
         for src, dst in self.edges:
@@ -123,7 +128,7 @@ class _CausalAccessor:
             PCSkeletonDiscoverer,
         )
 
-        discoverers = {
+        discoverers: dict[str, Callable[[], Any]] = {
             "pc": lambda: PCSkeletonDiscoverer(alpha=kwargs.get("alpha", 0.05)),
             "fci": lambda: FCIDiscoverer(alpha=kwargs.get("alpha", 0.05)),
             "notears": lambda: NOTEARSDiscoverer(
@@ -143,10 +148,7 @@ class _CausalAccessor:
         }
 
         if method not in discoverers:
-            raise ValueError(
-                f"Unknown method: {method}. "
-                f"Choose from: {list(discoverers.keys())}"
-            )
+            raise ValueError(f"Unknown method: {method}. Choose from: {list(discoverers.keys())}")
 
         discoverer = discoverers[method]()
         skel = discoverer.discover(self._data, self._columns)
@@ -162,10 +164,8 @@ class _CausalAccessor:
     def summary(self) -> str:
         """Quick data summary."""
         n, p = self._data.shape
-        return (
-            f"CausalDataFrame: {n} samples × {p} variables\n"
-            f"  Variables: {', '.join(self._columns[:10])}"
-            + ("..." if p > 10 else "")
+        return f"CausalDataFrame: {n} samples × {p} variables\n  Variables: {', '.join(self._columns[:10])}" + (
+            "..." if p > 10 else ""
         )
 
 
@@ -190,6 +190,7 @@ class CausalDataFrame:
         # Accept pandas DataFrame
         try:
             import pandas as pd
+
             if isinstance(data, pd.DataFrame):
                 self._columns = list(data.columns)
                 self._data = data.to_numpy(dtype=float)

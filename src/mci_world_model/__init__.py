@@ -84,7 +84,6 @@ from mci_world_model._sys import (
 from mci_world_model.sdk import (
     # v3.6.0: 因果图自适应 + 行动距离
     ActionConditionedPredictor,
-    ActionGapMetric,
     # v3.0.8: BatchCounterfactualEngine
     BatchCounterfactualEngine,
     # 贝叶斯增强
@@ -99,7 +98,6 @@ from mci_world_model.sdk import (
     CausalGraphResult,
     # v3.0.7: CausalMLP
     CausalMLP,
-    CausalUpdater,
     CausalWorldModelState,
     # v3.4.0: 闭环基础设施
     CognitiveDiversity,
@@ -124,11 +122,9 @@ from mci_world_model.sdk import (
     # V3.0.0 核心
     MCIWorldModel,
     # v3.7.0: 认知诊断系统
-    MetaDiagnoser,
     MultiBranchPredictor,
     # v3.5.0: 五维融合检索器
     MultiViewRetriever,
-    NegativeHeuristic,
     # 参数化记忆
     ParametricMemory,
     ParametricMemoryConfig,
@@ -150,6 +146,10 @@ from mci_world_model.sdk import (
     TopologicalEnergyMatrix,
     apply_sigreg_to_index,
 )
+from mci_world_model.sdk._action_gap import ActionGapMetric
+from mci_world_model.sdk._causal_updater import CausalUpdater
+from mci_world_model.sdk._meta_diagnoser import MetaDiagnoser
+from mci_world_model.sdk._negative_heuristic import NegativeHeuristic
 
 __all__ = [
     # sdk — 贝叶斯增强

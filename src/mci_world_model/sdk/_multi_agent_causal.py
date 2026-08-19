@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # ConsensusGraph
 # ═════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class ConsensusGraph:
     """多智能体协商后的一致因果图。
@@ -43,17 +44,19 @@ class ConsensusGraph:
         conflict_edges: 有冲突的边列表
         agent_votes: 每条边的投票详情
     """
+
     nodes: list[str] = field(default_factory=list)
     edges: list[tuple[str, str]] = field(default_factory=list)
     adj_matrix: np.ndarray | None = None
     confidence: float = 0.0
     conflict_edges: list[tuple[str, str]] = field(default_factory=list)
-    agent_votes: dict[str, dict[str, int]] = field(default_factory=dict)
+    agent_votes: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # CausalAgent
 # ═════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class CausalAgent:
@@ -66,6 +69,7 @@ class CausalAgent:
         adj_matrix: 发现的邻接矩阵
         confidence: 发现置信度
     """
+
     agent_id: str
     method: str = "pc"
     discovered_edges: list[tuple[str, str]] = field(default_factory=list)
@@ -106,6 +110,7 @@ class CausalAgent:
 # AgentNegotiation
 # ═════════════════════════════════════════════════════════════════════════════
 
+
 class AgentNegotiation:
     """多智能体因果协商协议。
 
@@ -133,9 +138,7 @@ class AgentNegotiation:
         self._agents.append(agent)
         logger.info("注册智能体: %s (method=%s)", agent.agent_id, agent.method)
 
-    def negotiate(
-        self, data: np.ndarray, var_names: list[str]
-    ) -> ConsensusGraph:
+    def negotiate(self, data: np.ndarray, var_names: list[str]) -> ConsensusGraph:
         """执行多智能体协商。
 
         Args:
@@ -164,7 +167,7 @@ class AgentNegotiation:
 
         # Step 2: 边投票 (置信度加权)
         edge_votes: dict[tuple[int, int], float] = {}
-        agent_votes: dict[str, dict[str, int]] = {}
+        agent_votes: dict[str, dict[str, float]] = {}
 
         for agent in self._agents:
             if agent.adj_matrix is None:
@@ -205,8 +208,7 @@ class AgentNegotiation:
                 elif score > reverse_score:
                     # 当前方向得分更高，移除反向
                     adj[j, i] = 0
-                    edges = [(s, d) for (s, d) in edges
-                             if not (s == var_names[j] and d == var_names[i])]
+                    edges = [(s, d) for (s, d) in edges if not (s == var_names[j] and d == var_names[i])]
                     conflict_edges.append((var_names[i], var_names[j]))
                 else:
                     # 平局 = 冲突
@@ -228,12 +230,14 @@ class AgentNegotiation:
             agent_votes=agent_votes,
         )
 
-        self._negotiation_history.append({
-            "n_agents": len(self._agents),
-            "n_edges": len(edges),
-            "n_conflicts": len(conflict_edges),
-            "consensus_confidence": consensus_conf,
-        })
+        self._negotiation_history.append(
+            {
+                "n_agents": len(self._agents),
+                "n_edges": len(edges),
+                "n_conflicts": len(conflict_edges),
+                "consensus_confidence": consensus_conf,
+            }
+        )
 
         return result
 

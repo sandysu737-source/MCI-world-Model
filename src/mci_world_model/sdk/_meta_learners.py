@@ -53,9 +53,7 @@ class TLearner:
 
         n_0, n_1 = int(np.sum(mask_0)), int(np.sum(mask_1))
         if n_0 < 2 or n_1 < 2:
-            raise ValueError(
-                f"Each treatment group needs >=2 samples, got {n_0} (T=0) and {n_1} (T=1)"
-            )
+            raise ValueError(f"Each treatment group needs >=2 samples, got {n_0} (T=0) and {n_1} (T=1)")
 
         X_aug_0 = np.column_stack([np.ones(n_0), X[mask_0]])
         X_aug_1 = np.column_stack([np.ones(n_1), X[mask_1]])
@@ -163,11 +161,14 @@ class SLearner:
         Since the model is linear in T, CATE(x) = coef_T (last coefficient).
         """
         self._check_fitted()
+        coef = self._coef
+        if coef is None:
+            raise RuntimeError("SLearner not fitted. Call fit() first.")
         X = np.asarray(X, dtype=np.float64)
         if X.ndim == 1:
             X = X.reshape(-1, 1)
         # Treatment coefficient is the last element
-        treatment_coef = float(self._coef[-1])
+        treatment_coef = float(coef[-1])
         return np.full(X.shape[0], treatment_coef, dtype=np.float64)
 
     def predict_outcome(self, X: np.ndarray, T: np.ndarray) -> np.ndarray:
@@ -190,7 +191,10 @@ class SLearner:
 
         For linear S-learner, CATE is constant across X.
         """
-        cate_val = float(self._coef[-1])
+        coef = self._coef
+        if coef is None:
+            raise RuntimeError("SLearner not fitted. Call fit() first.")
+        cate_val = float(coef[-1])
         return {
             "ate": cate_val,
             "cate_mean": cate_val,

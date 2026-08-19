@@ -777,14 +777,8 @@ class MCIWorldModel:
         self._energy_flow_predictor: Any | None = None  # v4.3.3 EnergyFlowPredictor
         self._causal_updater: Any | None = None  # v4.3.3 CausalUpdater (持久化积累)
         # ── P7/P8 能力中心 ──
-        self._medical_sdk: Any | None = None  # P7: MedicalCausalSDK
-        self._legal_sdk: Any | None = None  # P7: LegalComplianceSDK
-        self._engineering_sdk: Any | None = None  # P7: EngineeringSafetySDK
         self._scientific_discovery: Any | None = None  # P7: ScientificDiscovery
-        self._edge_cloud: Any | None = None  # P7: EdgeCloudHybrid
         self._neural_symbolic: Any | None = None  # P8: NeuralSymbolicFusionV2
-        self._symbol_grounding: Any | None = None  # P8: SymbolGrounding
-        self._agi_protocol: Any | None = None  # P8: AGIProtocol
         self._action_gap_metric: Any | None = None  # LOOP-03: ActionGapMetric (懒加载)
         self._state_parser_registry: Any | None = None  # LOOP-03: StateParserRegistry (懒加载)
 
@@ -1307,6 +1301,7 @@ class MCIWorldModel:
                     _, prior_matrix = syn.run_pipeline(memories)
                     dag.with_reflection_prior(prior_matrix)
                 except ImportError:
+                    logger.debug("因果先验模块不可用，跳过 with_reflection_prior")
                     pass
 
                 # ── 发现隐藏因果边 ──

@@ -12,6 +12,7 @@ v3.0.7: 参数化记忆觉醒 (CausalMLP + MLX Native 训练 + 移除 torch/tran
 v3.0.8: 反事实推理增强 (非线性SEM + 批量反事实引擎 + CG↔SEM双向转换)
 v3.1.0: 物理世界应用 (多模态信号感知 + PhysicalGraphBuilder + JEPA物理编码)
 """
+
 # v4.4.0: Debridement modules
 # ── _sys re-export 块移至文件末尾，避免循环导入 ──
 # (v3.5.0: _sys/__init__.py 导入 sdk._multi_view_retriever，需先完成 sdk 内部模块加载)
@@ -379,7 +380,6 @@ from mci_world_model.sdk._clinical_tri_router import (
     KnowledgeEntry,
     LinearPhysicsPredictor,
     LSASemanticEmbedder,
-    SafetyLevel,
     SemanticKnowledgeBase,
     SignedCausalEstimator,
     TransformerEmbedder,
@@ -762,7 +762,6 @@ from mci_world_model.sdk._neurosymbolic_world_model import (
     NeurosymbolicConfig,
     NeurosymbolicWorldModel,
     RouteDecision,
-    RouteType,
     TripleRepresentation,
 )
 from mci_world_model.sdk._novelty_verifier import NoveltyResult, NoveltyVerifier
@@ -1860,7 +1859,8 @@ __all__ = [
     "CausalSelfModel",
     "CivilizationInfra",
     "ConsciousnessLevel",
-    "SelfModelProperty",    "DebridementSample",
+    "SelfModelProperty",
+    "DebridementSample",
     "DepthEncoder",
     "EmbeddingStoreConfig",
     "ForceEncoder",
@@ -1881,7 +1881,6 @@ __all__ = [
     "RemovalPrediction",
     "SafetyVerdict",
     "SimpleTextEmbedderV2",
-
     # v4.6.0: CausalDataFrame (user-friendly API)
     "CausalDataFrame",
     "CausalGraphResult",
@@ -1891,7 +1890,6 @@ __all__ = [
     "DenseSearchResult",
     "DenseSearchResults",
     "HybridRetriever",
-
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1959,7 +1957,6 @@ _V350_INJECTIONS = {
     "RetrievalResult": _exp_RetrievalResult,
     "RetrievalView": _mvr_RetrievalView,
     "RetrievalEvalResult": _mvr_RetrievalEvalResult,
-
 }
 
 # 注入到 _sys 命名空间
@@ -2094,4 +2091,4 @@ for _name, _cls in _V370_INJECTIONS.items():
     setattr(_sdk_self, _name, _cls)
 
 # 统一路由类型来源（放最后以确保覆盖 _neurosymbolic_world_model 的同名 RouteType）
-from mci_world_model.sdk._route_types import RouteType, SafetyLevel  # noqa: F811
+from mci_world_model.sdk._route_types import RouteType, SafetyLevel
