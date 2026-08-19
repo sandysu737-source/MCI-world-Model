@@ -56,8 +56,7 @@ class TestD1ATEBenchmark:
         data = nonlinear_scm(n=500)
         cg = CausalGraph(
             nodes=["X0", "X1", "X2", "X3", "T", "Y"],
-            edges=[("X0", "T"), ("X1", "T"), ("X0", "Y"), ("X1", "Y"),
-                    ("X2", "Y"), ("X3", "Y"), ("T", "Y")],
+            edges=[("X0", "T"), ("X1", "T"), ("X0", "Y"), ("X1", "Y"), ("X2", "Y"), ("X3", "Y"), ("T", "Y")],
         )
         dc = DoCalculus(cg)
         result = dc.backdoor_adjustment(X="T", Y="Y", Z_set=["X0", "X1"])
@@ -97,9 +96,7 @@ class TestD1ATEBenchmark:
         data = high_dim_confounder(n=300, d=50)
         cg = CausalGraph(
             nodes=[f"X{i}" for i in range(5)] + ["T", "Y"],
-            edges=[(f"X{i}", "T") for i in range(5)]
-            + [(f"X{i}", "Y") for i in range(5)]
-            + [("T", "Y")],
+            edges=[(f"X{i}", "T") for i in range(5)] + [(f"X{i}", "Y") for i in range(5)] + [("T", "Y")],
         )
         dc = DoCalculus(cg)
         result = dc.backdoor_adjustment(X="T", Y="Y", Z_set=[f"X{i}" for i in range(5)])
@@ -248,10 +245,12 @@ class TestD3DiscoveryBenchmark:
     def test_discovery_report(self) -> None:
         """Aggregated discovery benchmark report."""
         report = CausalBenchmarkReport()
-        report.disc_results.extend([
-            DiscoveryBenchmarkResult("d1", 10, 10, 9, 1, 1),
-            DiscoveryBenchmarkResult("d2", 8, 7, 7, 0, 1),
-        ])
+        report.disc_results.extend(
+            [
+                DiscoveryBenchmarkResult("d1", 10, 10, 9, 1, 1),
+                DiscoveryBenchmarkResult("d2", 8, 7, 7, 0, 1),
+            ]
+        )
         assert report.mean_discovery_f1 > 0.85
 
 

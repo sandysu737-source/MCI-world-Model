@@ -251,21 +251,25 @@ class TestAutonomousCausalConsciousness:
     def test_build_self_model(self):
         acc = AutonomousCausalConsciousness()
         acc.evolve_consciousness()
-        result = acc.build_self_model({
-            SelfModelProperty.CAUSAL_IDENTITY.value: "medical_causal_agent",
-            SelfModelProperty.REASONING_STYLE.value: "bayesian",
-        })
+        result = acc.build_self_model(
+            {
+                SelfModelProperty.CAUSAL_IDENTITY.value: "medical_causal_agent",
+                SelfModelProperty.REASONING_STYLE.value: "bayesian",
+            }
+        )
         assert result["n_properties"] == 2
         assert result["self_awareness"] > 0
 
     def test_reflect_on_reasoning(self):
         acc = AutonomousCausalConsciousness()
         acc.evolve_consciousness(ConsciousnessLevel.REFLECTIVE)
-        result = acc.reflect_on_reasoning({
-            "evidence": "clinical_trial",
-            "counterfactual": "placebo_comparison",
-            "confidence": 0.85,
-        })
+        result = acc.reflect_on_reasoning(
+            {
+                "evidence": "clinical_trial",
+                "counterfactual": "placebo_comparison",
+                "confidence": 0.85,
+            }
+        )
         assert result["status"] == "reflected"
         assert result["quality_score"] > 0.5
 

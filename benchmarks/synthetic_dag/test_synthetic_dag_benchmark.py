@@ -142,7 +142,6 @@ class TestSyntheticDAGAccuracy:
         assert f1_val >= 0.15, f"GES+PC dense F1={f1_val:.3f} below 0.15"
 
 
-
 class TestSyntheticDAGSpeed:
     """可扩展性速度测试。"""
 
@@ -152,7 +151,7 @@ class TestSyntheticDAGSpeed:
 
         results = {}
         for n_vars in [5, 10, 20, 30]:
-            data, names, gt, n_edges = _generate_er_dag(n_vars, 2, seed=42)
+            data, names, _gt, _n_edges = _generate_er_dag(n_vars, 2, seed=42)
             pc = PCSkeletonDiscoverer(alpha=0.05)
             gc.disable()
             t0 = time.perf_counter()
@@ -173,14 +172,14 @@ class TestSyntheticDAGSpeed:
         """30 节点 NOTEARS 不崩溃。"""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer
 
-        data, names, gt, n_edges = _generate_er_dag(30, 2, seed=42)
+        data, names, _gt, _n_edges = _generate_er_dag(30, 2, seed=42)
         nt = NOTEARSDiscoverer(lambda1=0.05, max_iter=100, threshold=0.3)
         gc.disable()
         t0 = time.perf_counter()
         skel = nt.discover(data, names)
         t = time.perf_counter() - t0
         gc.enable()
-        print(f"\n  ER(30, avg_deg=2) NOTEARS: {t*1000:.0f}ms, {len(skel.edges)//2} edges")
+        print(f"\n  ER(30, avg_deg=2) NOTEARS: {t * 1000:.0f}ms, {len(skel.edges) // 2} edges")
         assert t < 10.0  # 10s 内完成
 
 

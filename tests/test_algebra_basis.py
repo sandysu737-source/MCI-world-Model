@@ -2,10 +2,11 @@
 
 Pure linear-algebra assertions, no SDK coupling. Every claim is reproducible.
 """
+
 import numpy as np
 import pytest
 
-from mci_world_model.algebra.basis import FU_XI_BASIS, LEGACY_LABELS, TrigramSpace
+from mci_world_model.algebra.basis import LEGACY_LABELS, TrigramSpace
 
 
 @pytest.fixture
@@ -23,8 +24,14 @@ class TestSpaceStructure:
         # The 8 rows must be exactly the 8 distinct GF(2)^3 vectors.
         rows = {tuple(int(x) for x in r) for r in ts.basis}
         assert rows == {
-            (0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1),
-            (1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1),
+            (0, 0, 0),
+            (0, 0, 1),
+            (0, 1, 0),
+            (0, 1, 1),
+            (1, 0, 0),
+            (1, 0, 1),
+            (1, 1, 0),
+            (1, 1, 1),
         }
 
     def test_all_entries_binary(self, ts):

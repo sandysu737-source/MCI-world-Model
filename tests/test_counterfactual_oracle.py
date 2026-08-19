@@ -62,10 +62,7 @@ class TestCounterfactualOracle:
         assert isinstance(results[0], CFRanking)
 
     def test_batch_what_if_multiple(self, oracle):
-        scenarios = [
-            CFScenario(name=f"S{i}", intervention={"X": i}, target="Y")
-            for i in range(5)
-        ]
+        scenarios = [CFScenario(name=f"S{i}", intervention={"X": i}, target="Y") for i in range(5)]
         results = oracle.batch_what_if(scenarios)
         assert len(results) == 5
 
@@ -87,10 +84,12 @@ class TestCounterfactualOracle:
         assert len(rankings) == 2
 
     def test_query_returns_structure(self, oracle):
-        result = oracle.query([
-            {"name": "HypA", "intervention": {"X": 1.0}, "target": "Y"},
-            {"name": "HypB", "intervention": {"X": 2.0}, "target": "Y"},
-        ])
+        result = oracle.query(
+            [
+                {"name": "HypA", "intervention": {"X": 1.0}, "target": "Y"},
+                {"name": "HypB", "intervention": {"X": 2.0}, "target": "Y"},
+            ]
+        )
         assert "best_scenario" in result
         assert "rankings" in result
         assert "recommendation" in result
@@ -103,9 +102,11 @@ class TestCounterfactualOracle:
         assert result["best_scenario"] is None
 
     def test_query_single_hypothesis(self, oracle):
-        result = oracle.query([
-            {"name": "Single", "intervention": {"A": 0.5}, "target": "B"},
-        ])
+        result = oracle.query(
+            [
+                {"name": "Single", "intervention": {"A": 0.5}, "target": "B"},
+            ]
+        )
         assert result["n_scenarios"] == 1
         assert result["best_scenario"] == "Single"
 

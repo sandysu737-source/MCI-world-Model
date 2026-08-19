@@ -468,6 +468,7 @@ class MIMICCausalBenchmark:
                 if valid.sum() > 5:
                     data_dict[vname] = col[valid]
             from mci_world_model.sdk._do_calculus import DoCalculus
+
             dc = DoCalculus(graph=graph, data=data_dict)
 
             for cause_name, effect_name in edge_list:
@@ -664,8 +665,11 @@ class MIMICCausalBenchmark:
 
         if not patients:
             return BenchmarkResult(
-                method="cewm", model_name="CEWM-v4.6.0", n_patients=0,
-                metrics=CausalMetrics(), runtime_seconds=0.0,
+                method="cewm",
+                model_name="CEWM-v4.6.0",
+                n_patients=0,
+                metrics=CausalMetrics(),
+                runtime_seconds=0.0,
                 timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"),
             )
 

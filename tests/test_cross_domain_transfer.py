@@ -22,6 +22,7 @@ from mci_world_model.sdk._cross_domain_transfer import (
 # Fixtures
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def engine():
     return CrossDomainCausalTransfer()
@@ -41,6 +42,7 @@ def sample_knowledge():
 # ═══════════════════════════════════════════════════════════════════════════════
 # Data classes
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestCausalKnowledge:
     def test_creation(self):
@@ -82,6 +84,7 @@ class TestTransferResult:
 # ═══════════════════════════════════════════════════════════════════════════════
 # CrossDomainCausalTransfer core
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestCrossDomainTransfer:
     def test_register_knowledge(self, engine, sample_knowledge):

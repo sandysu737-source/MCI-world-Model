@@ -89,8 +89,7 @@ class TestSimpleMAML:
 
     def test_meta_train_converges(self) -> None:
         """Meta-training should reduce loss over epochs."""
-        maml = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=8,
-                          meta_lr=0.01, inner_lr=0.1, inner_steps=3)
+        maml = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=8, meta_lr=0.01, inner_lr=0.1, inner_steps=3)
 
         # Simple sine-wave tasks
         tasks = []
@@ -131,8 +130,7 @@ class TestSimpleMAML:
 
     def test_pendulum_to_cart_transfer(self) -> None:
         """Pendulum → Cart zero-shot transfer: improvement ≥ 60%."""
-        maml = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=16,
-                          meta_lr=0.01, inner_lr=0.05, inner_steps=3)
+        maml = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=16, meta_lr=0.01, inner_lr=0.05, inner_steps=3)
 
         # Source: Pendulum tasks (multiple initial conditions)
         source_tasks = []
@@ -144,19 +142,13 @@ class TestSimpleMAML:
         target_task = make_cart_task(n_samples=150)
 
         result = maml.transfer_score(source_tasks, target_task, n_epochs=40)
-        assert result["transfer_score"] >= 0.60, (
-            f"Transfer score {result['transfer_score']:.2%} < 60%"
-        )
+        assert result["transfer_score"] >= 0.60, f"Transfer score {result['transfer_score']:.2%} < 60%"
 
     def test_first_order_vs_second_order(self) -> None:
         """Both modes should work (FOMAML faster, both converge)."""
-        maml_fo = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=8,
-                             use_first_order=True, meta_lr=0.01)
-        maml_so = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=8,
-                             use_first_order=False, meta_lr=0.01)
-        tasks = [MAMLTask(
-            x_support=np.random.randn(100, 2), y_support=np.random.randn(100, 2)
-        )]
+        maml_fo = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=8, use_first_order=True, meta_lr=0.01)
+        maml_so = SimpleMAML(input_dim=2, output_dim=2, hidden_dim=8, use_first_order=False, meta_lr=0.01)
+        tasks = [MAMLTask(x_support=np.random.randn(100, 2), y_support=np.random.randn(100, 2))]
         losses_fo = maml_fo.meta_train(tasks, n_epochs=10)
         losses_so = maml_so.meta_train(tasks, n_epochs=10)
         assert len(losses_fo) == 10

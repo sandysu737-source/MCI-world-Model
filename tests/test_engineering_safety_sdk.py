@@ -17,6 +17,7 @@ from mci_world_model.sdk._engineering_safety_sdk import (
 # SafetyParameter tests
 # ────────────────────────────────────────────────────────────────────
 
+
 class TestSafetyParameter:
     def test_basic_creation(self):
         p = SafetyParameter("temp", 80.0, 120.0, "°C")
@@ -48,6 +49,7 @@ class TestSafetyParameter:
 # FMEAItem tests
 # ────────────────────────────────────────────────────────────────────
 
+
 class TestFMEAItem:
     def test_basic_creation(self):
         item = FMEAItem("valve_stuck", "loss of control", 8, 3, 2)
@@ -72,6 +74,7 @@ class TestFMEAItem:
 # ────────────────────────────────────────────────────────────────────
 # EngineeringSafetySDK tests
 # ────────────────────────────────────────────────────────────────────
+
 
 class TestEngineeringSafetySDK:
     def test_initialization(self):
@@ -143,9 +146,9 @@ class TestEngineeringSafetySDK:
     def test_multiple_parameters_margin_check(self):
         """Only one parameter below margin still triggers unsafe."""
         sdk = EngineeringSafetySDK()
-        sdk.add_parameter(SafetyParameter("ok1", 80, 120))    # margin=0.33
-        sdk.add_parameter(SafetyParameter("bad1", 98, 100))   # margin=0.02
-        sdk.add_parameter(SafetyParameter("ok2", 50, 200))    # margin=0.75
+        sdk.add_parameter(SafetyParameter("ok1", 80, 120))  # margin=0.33
+        sdk.add_parameter(SafetyParameter("bad1", 98, 100))  # margin=0.02
+        sdk.add_parameter(SafetyParameter("ok2", 50, 200))  # margin=0.75
         sdk.set_redundancy("path", True)
 
         result = sdk.analyze("multi", "cascade")

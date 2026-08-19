@@ -77,7 +77,7 @@ class VariantResult:
 
 def build_hnsw(embs: np.ndarray, m: int = 32, ef_construction: int = 64, ef_search: int = 64):
     """建 FAISS IndexHNSWFlat, 返回索引 + 建索引时间(s)。"""
-    n, d = embs.shape
+    _n, d = embs.shape
     index = faiss.IndexHNSWFlat(d, m, faiss.METRIC_INNER_PRODUCT)
     index.hnsw.efConstruction = ef_construction
     index.hnsw.efSearch = ef_search
@@ -94,14 +94,14 @@ def recall_at_k(index, query_embs: np.ndarray, gold_lists: list[list[int]], k: i
     gold_lists 是 list[list[int]], 元素是 gold passage 的 index。
     granularity: paragraph-level (P1-R7)
     """
-    n, d = query_embs.shape
+    n, _d = query_embs.shape
     t0 = time.perf_counter()
-    _, I = index.search(np.ascontiguousarray(query_embs.astype(np.float32)), k)
+    _, idx = index.search(np.ascontiguousarray(query_embs.astype(np.float32)), k)
     query_time = time.perf_counter() - t0
 
     hits = 0
     for i, golds in enumerate(gold_lists):
-        retrieved = set(I[i].tolist())
+        retrieved = set(idx[i].tolist())
         if any(g in retrieved for g in golds):
             hits += 1
     return hits / n if n else 0.0, query_time
@@ -187,8 +187,8 @@ def main():
     print(f"[LOAD] 读取 {cache} ...")
     passage_embs = np.load(cache / "passage_embs.npy")
     query_embs = np.load(cache / "query_embs.npy")
-    queries = [json.loads(l) for l in (cache / "hotpotqa_queries.jsonl").open()]
-    corpus = [json.loads(l) for l in (cache / "hotpotqa_corpus.jsonl").open()]
+    queries = [json.loads(line) for line in (cache / "hotpotqa_queries.jsonl").open()]
+    corpus = [json.loads(line) for line in (cache / "hotpotqa_corpus.jsonl").open()]
     pid_to_idx = {c["pid"]: i for i, c in enumerate(corpus)}
     gold_lists = make_gold_lists(queries, pid_to_idx)
     print(f"       passage_embs={passage_embs.shape}  query_embs={query_embs.shape}")

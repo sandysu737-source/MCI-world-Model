@@ -31,7 +31,7 @@ try:
 
     _JEPA_AVAILABLE = True
 except (RuntimeError, ImportError):
-    pass
+    print("JEPA SDK 不可用（RuntimeError/ImportError），本 benchmark 将跳过")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # B1: Data Generation & Pairing
@@ -115,8 +115,12 @@ class TestB2PredictionMetrics:
         report = JEPABenchmarkReport()
         report.pred_results.append(
             PredictionBenchmarkResult(
-                dataset="linear", n_samples=400, state_dim=4,
-                mse=0.01, mae=0.08, r2=0.99,
+                dataset="linear",
+                n_samples=400,
+                state_dim=4,
+                mse=0.01,
+                mae=0.08,
+                r2=0.99,
             )
         )
         assert report.mean_prediction_mse == 0.01
@@ -158,10 +162,12 @@ class TestB3TrainingBenchmarks:
 
     def test_training_report(self) -> None:
         report = JEPABenchmarkReport()
-        report.train_results.extend([
-            TrainingBenchmarkResult("d1", 50, 2.0, 0.2, 0.9, 40),
-            TrainingBenchmarkResult("d2", 50, 1.5, 0.3, 0.8, 35),
-        ])
+        report.train_results.extend(
+            [
+                TrainingBenchmarkResult("d1", 50, 2.0, 0.2, 0.9, 40),
+                TrainingBenchmarkResult("d2", 50, 1.5, 0.3, 0.8, 35),
+            ]
+        )
         assert report.mean_loss_reduction > 0.8
 
 

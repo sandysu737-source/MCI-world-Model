@@ -65,16 +65,19 @@ class TestP6P8KPIs:
     """P6-P8 波级 KPI 验证。"""
 
     def test_closed_loop_modules(self):
-        p6_symbols = [s for s in sdk.__all__
-                      if s in ("CognitiveLoopBus", "CognitiveLayer", "CausalGradient", "CausalActor", "MCTSPlanner")]
+        p6_symbols = [
+            s
+            for s in sdk.__all__
+            if s in ("CognitiveLoopBus", "CognitiveLayer", "CausalGradient", "CausalActor", "MCTSPlanner")
+        ]
         assert len(p6_symbols) >= 3
 
     def test_diagnosis_modules(self):
-        p7_symbols = [s for s in sdk.__all__
-                      if s in ("MetaDiagnoser", "NegativeHeuristic", "SelfRepairCognition")]
+        p7_symbols = [s for s in sdk.__all__ if s in ("MetaDiagnoser", "NegativeHeuristic", "SelfRepairCognition")]
         assert len(p7_symbols) >= 2
 
     def test_fusion_modules(self):
-        p8_symbols = [s for s in sdk.__all__
-                      if s in ("NeuralSymbolicFusionV2", "LLMCEWMBridge", "AGIIntegrationProtocol")]
+        p8_symbols = [
+            s for s in sdk.__all__ if s in ("NeuralSymbolicFusionV2", "LLMCEWMBridge", "AGIIntegrationProtocol")
+        ]
         assert len(p8_symbols) >= 2

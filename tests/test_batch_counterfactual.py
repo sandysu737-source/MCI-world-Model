@@ -41,9 +41,11 @@ class TestBatchCounterfactualBasic:
         assert results == []
 
     def test_batch_query_single_scenario(self, engine):
-        results = engine.batch_query([
-            {"evidence": {"X": 1.0}, "do_x": {"X": 0.5}, "target": "Y"},
-        ])
+        results = engine.batch_query(
+            [
+                {"evidence": {"X": 1.0}, "do_x": {"X": 0.5}, "target": "Y"},
+            ]
+        )
         assert len(results) == 1
         assert isinstance(results[0], CounterfactualResult)
 
@@ -57,9 +59,11 @@ class TestBatchCounterfactualBasic:
         assert len(results) == 3
 
     def test_batch_query_invalid_target(self, engine):
-        results = engine.batch_query([
-            {"evidence": {}, "do_x": {}, "target": "Z"},  # nonexistent
-        ])
+        results = engine.batch_query(
+            [
+                {"evidence": {}, "do_x": {}, "target": "Z"},  # nonexistent
+            ]
+        )
         assert len(results) == 1
         assert results[0].counterfactual_value is None or True  # survived
 
@@ -71,9 +75,11 @@ class TestBatchCounterfactualBasic:
         assert len(results) == 1
 
     def test_batch_query_result_structure(self, engine):
-        results = engine.batch_query([
-            {"evidence": {"X": 1.0}, "do_x": {"X": 0.0}, "target": "Y"},
-        ])
+        results = engine.batch_query(
+            [
+                {"evidence": {"X": 1.0}, "do_x": {"X": 0.0}, "target": "Y"},
+            ]
+        )
         r = results[0]
         assert hasattr(r, "counterfactual_value")
         assert hasattr(r, "factual_value")

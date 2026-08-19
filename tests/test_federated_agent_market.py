@@ -19,6 +19,7 @@ from mci_world_model.sdk._federated_agent_market import (
 # Fixtures
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def market():
     return FederatedAgentMarket(min_trust_for_trade=0.5)
@@ -49,6 +50,7 @@ def low_trust_agent():
 # ═══════════════════════════════════════════════════════════════════════════════
 # AgentSpec tests
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestAgentSpec:
     def test_creation_with_id(self):
@@ -89,6 +91,7 @@ class TestTradeRecord:
 # FederatedAgentMarket tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestMarketRegistration:
     def test_register_agent(self, market, sample_agent):
         result = market.register_agent(sample_agent)
@@ -125,8 +128,8 @@ class TestMarketDiscovery:
         assert len(results) == 0
 
     def test_discover_min_trust_filters(self, market, sample_agent, low_trust_agent):
-        market.register_agent(sample_agent)      # trust=0.85
-        market.register_agent(low_trust_agent)   # trust=0.3
+        market.register_agent(sample_agent)  # trust=0.85
+        market.register_agent(low_trust_agent)  # trust=0.3
         results = market.discover_agents({"min_trust": 0.7})
         assert len(results) == 1
         assert results[0].name == "CausalHeart"

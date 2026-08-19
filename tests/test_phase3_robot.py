@@ -196,7 +196,7 @@ class TestEmergencyStop:
 
     def test_on_stop_callback(self):
         reasons = []
-        estop = EmergencyStop(on_stop=lambda r: reasons.append(r))
+        estop = EmergencyStop(on_stop=reasons.append)
         estop.trigger("callback_test")
         assert reasons == ["callback_test"]
 
@@ -350,7 +350,7 @@ class TestROS2BridgeSimulation:
         predictions = []
         bridge = ROS2Bridge(
             simulation_mode=True,
-            on_prediction=lambda s: predictions.append(s),
+            on_prediction=predictions.append,
         )
         bridge.start()
         state = RobotWorldState(n_joints=6)
@@ -376,7 +376,7 @@ class TestROS2BridgeSimulation:
     def test_register_callback(self):
         callbacks = []
         bridge = ROS2Bridge(simulation_mode=True)
-        bridge.register_callback(lambda msg: callbacks.append(msg))
+        bridge.register_callback(callbacks.append)
         bridge.start()
         bridge.on_joint_state(
             {

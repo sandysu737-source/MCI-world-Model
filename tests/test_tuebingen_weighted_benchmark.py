@@ -6,6 +6,7 @@
 这是 L3 层 (真实世界可证伪基准), 回应"循环验证"的批评:
 之前用合成数据测试算法, 现在用 109 对真实世界数据 + 官方加权评分。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,7 +14,6 @@ import pytest
 pytestmark = [pytest.mark.oracle, pytest.mark.realdata]
 
 from benchmarks.real_world.tuebingen_pairs import (
-    evaluate_direction,
     evaluate_direction_weighted,
     load_pairmeta_weights,
     load_tuebingen_pairs,
@@ -48,9 +48,7 @@ class TestTubingenRealBenchmark:
     def test_weighted_accuracy_above_random(self, pairs):
         """加权准确率必须显著优于随机 (50%)。"""
         result = evaluate_direction_weighted(pairs, method="hybrid")
-        assert result["weighted_accuracy"] > 0.55, (
-            f"加权准确率 {result['weighted_accuracy']:.1%} 未显著优于随机 50%"
-        )
+        assert result["weighted_accuracy"] > 0.55, f"加权准确率 {result['weighted_accuracy']:.1%} 未显著优于随机 50%"
 
     def test_weighted_vs_unweighted_reported(self, pairs):
         """应同时报告加权与未加权, 便于与文献对比。"""
@@ -75,8 +73,7 @@ class TestTubingenRealBenchmark:
         result = evaluate_direction_weighted(pairs, method="hybrid")
         acc = result["weighted_accuracy"]
         assert 0.55 <= acc <= 0.80, (
-            f"加权准确率 {acc:.1%} 超出合理 SOTA 区间 [55%, 80%]。"
-            f"未加权={result['accuracy']:.1%}"
+            f"加权准确率 {acc:.1%} 超出合理 SOTA 区间 [55%, 80%]。未加权={result['accuracy']:.1%}"
         )
 
     def test_all_pairs_have_weight(self, pairs, weights):

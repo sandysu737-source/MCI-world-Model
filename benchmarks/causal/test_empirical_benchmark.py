@@ -96,26 +96,21 @@ class TestEmpiricalCounterfactual:
 
         # 反事实: 如果所有人都 T=0, Y 是多少?
         T_cf = np.zeros(len(data.treatment))
-        y_cf = ec.predict_counterfactual(
-            data.covariates, data.treatment, data.outcome, T_cf
-        )
+        y_cf = ec.predict_counterfactual(data.covariates, data.treatment, data.outcome, T_cf)
 
         # T=0 组实际结果应该接近预测
         mask0 = data.treatment < 0.5
         if sum(mask0) > 10:
             actual_y0 = data.outcome[mask0].mean()
             pred_y0 = y_cf[mask0].mean()
-            assert abs(actual_y0 - pred_y0) < 0.5, \
-                f"CF prediction off: actual={actual_y0:.3f}, pred={pred_y0:.3f}"
+            assert abs(actual_y0 - pred_y0) < 0.5, f"CF prediction off: actual={actual_y0:.3f}, pred={pred_y0:.3f}"
 
     def test_counterfactual_shape(self) -> None:
         """反事实预测形状正确。"""
         data = backdoor_graph(n=300)
         ec = EmpiricalCausal()
         T_cf = np.ones(len(data.treatment))
-        y_cf = ec.predict_counterfactual(
-            data.covariates, data.treatment, data.outcome, T_cf
-        )
+        y_cf = ec.predict_counterfactual(data.covariates, data.treatment, data.outcome, T_cf)
         assert len(y_cf) == len(data.treatment)
 
 

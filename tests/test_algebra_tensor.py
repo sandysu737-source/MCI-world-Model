@@ -1,9 +1,10 @@
 """Unit tests for mci_world_model.algebra.tensor — HexagramTensor GF(2)^3 ⊗ GF(2)^3."""
+
 import numpy as np
 import pytest
 
-from mci_world_model.algebra.tensor import HexagramTensor
 from mci_world_model.algebra.basis import TrigramSpace
+from mci_world_model.algebra.tensor import HexagramTensor
 
 
 @pytest.fixture
@@ -49,9 +50,7 @@ class TestComplementMap:
         for i in range(64):
             for j in range(64):
                 if i < j:
-                    assert ht.hamming(i, j) == ht.hamming(
-                        ht.complement(i), ht.complement(j)
-                    )
+                    assert ht.hamming(i, j) == ht.hamming(ht.complement(i), ht.complement(j))
 
 
 class TestSwapFactorsMap:

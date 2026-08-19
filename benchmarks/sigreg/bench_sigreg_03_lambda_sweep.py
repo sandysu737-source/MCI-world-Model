@@ -69,7 +69,7 @@ class LambdaPointResult:
 
 
 def build_hnsw(embs: np.ndarray, m: int = 32, efc: int = 64, efs: int = 64):
-    n, d = embs.shape
+    _n, d = embs.shape
     index = faiss.IndexHNSWFlat(d, m, faiss.METRIC_INNER_PRODUCT)
     index.hnsw.efConstruction = efc
     index.hnsw.efSearch = efs
@@ -81,9 +81,9 @@ def build_hnsw(embs: np.ndarray, m: int = 32, efc: int = 64, efs: int = 64):
 def recall_at_k(index, query_embs: np.ndarray, gold_lists: list[list[int]], k: int):
     n = query_embs.shape[0]
     t0 = time.perf_counter()
-    _, I = index.search(np.ascontiguousarray(query_embs.astype(np.float32)), k)
+    _, idx = index.search(np.ascontiguousarray(query_embs.astype(np.float32)), k)
     qt = time.perf_counter() - t0
-    hits = sum(1 for i, golds in enumerate(gold_lists) if any(g in set(I[i].tolist()) for g in golds))
+    hits = sum(1 for i, golds in enumerate(gold_lists) if any(g in set(idx[i].tolist()) for g in golds))
     return hits / n if n else 0.0, qt
 
 
@@ -117,8 +117,8 @@ def main():
     print(f"[LOAD] 读取 {cache} ...")
     passage_embs = np.load(cache / "passage_embs.npy")
     query_embs = np.load(cache / "query_embs.npy")
-    queries = [json.loads(l) for l in (cache / "hotpotqa_queries.jsonl").open()]
-    corpus = [json.loads(l) for l in (cache / "hotpotqa_corpus.jsonl").open()]
+    queries = [json.loads(line) for line in (cache / "hotpotqa_queries.jsonl").open()]
+    corpus = [json.loads(line) for line in (cache / "hotpotqa_corpus.jsonl").open()]
     pid_to_idx = {c["pid"]: i for i, c in enumerate(corpus)}
     gold_lists = make_gold_lists(queries, pid_to_idx)
     print(f"       passages={passage_embs.shape[0]}  queries={query_embs.shape[0]}  top-k={args.top_k}")
@@ -153,7 +153,7 @@ def main():
                 completed_lambdas[r["lambda_reg"]] = r
             print(f"  ✔ 发现断点文件, 已完成 {len(completed_lambdas)} 个 λ 点, 跳过重跑")
         except Exception:
-            pass
+            print("  ⚠ 断点文件损坏，忽略并从零开始 sweep")
 
     results: list[LambdaPointResult] = []
     sweep_start = time.time()
