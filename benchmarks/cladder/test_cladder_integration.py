@@ -155,7 +155,7 @@ class TestCLADDERIntegration:
         from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
         n_questions = 100
-        cg = CausalGraph(nodes=["Z","X","Y"], edges=[("Z","X"),("Z","Y"),("X","Y")])
+        cg = CausalGraph(nodes=["Z", "X", "Y"], edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")])
         engine = CounterfactualEngine.from_causal_graph(cg, seed=42)
 
         gc.disable()
@@ -169,5 +169,7 @@ class TestCLADDERIntegration:
 
         per_q = t / n_questions * 1000
         throughput = n_questions / t
-        print(f"\n  CLADDER benchmark: {n_questions} questions in {t*1000:.0f}ms ({per_q:.1f}ms/q, {throughput:.0f} q/s)")
+        print(
+            f"\n  CLADDER benchmark: {n_questions} questions in {t * 1000:.0f}ms ({per_q:.1f}ms/q, {throughput:.0f} q/s)"
+        )
         assert per_q < 50  # 每问 < 50ms

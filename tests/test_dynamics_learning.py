@@ -282,5 +282,5 @@ class TestDynamicsDataGenerator:
         gen = DynamicsDataGenerator(state_type="cart", seed=42)
         dataset = gen.generate_dataset(n_trajectories=5, steps_per_trajectory=10)
         assert len(dataset) > 0
-        s, a, ns = dataset[0]
+        s, _a, _ns = dataset[0]
         assert s.shape == (2,)

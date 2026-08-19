@@ -110,7 +110,7 @@ class TestReplayToJepaAdaptation:
             prediction_error=0.8,
             state_snapshot=PendulumState(theta=0.1, omega=0.0),
         )
-        predictor = self._make_predictor()
+        self._make_predictor()
 
         # 模拟 _replay_train 逻辑
         batch = db.sample_replay_buffer(batch_size=1, strategy="pred_error", seed=42)
@@ -138,6 +138,6 @@ class TestReplayToJepaAdaptation:
         batch = db.sample_replay_buffer(batch_size=1, strategy="pred_error", seed=42)
         for exp in batch:
             state = exp.state_snapshot
-            target = exp.metadata["predicted_next_state"]
+            exp.metadata["predicted_next_state"]
             with pytest.raises(TypeError):
                 predictor._to_state_vector(state)

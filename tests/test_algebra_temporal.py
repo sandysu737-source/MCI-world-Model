@@ -1,4 +1,5 @@
 """Unit tests for mci_world_model.algebra.temporal — TemporalRing Z_60."""
+
 import numpy as np
 import pytest
 

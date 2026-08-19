@@ -61,7 +61,16 @@ class TestP4P5KPIs:
         assert len(energy_symbols) >= 4
 
     def test_enhancement_module_count(self):
-        enh_symbols = [s for s in sdk.__all__
-                       if s in ("WorkingMemoryEnhancer", "ParametricMemory",
-                                "IncrementalLearningEngine", "MetaDiagnoser", "AutonomousLawDiscovererV2")]
+        enh_symbols = [
+            s
+            for s in sdk.__all__
+            if s
+            in (
+                "WorkingMemoryEnhancer",
+                "ParametricMemory",
+                "IncrementalLearningEngine",
+                "MetaDiagnoser",
+                "AutonomousLawDiscovererV2",
+            )
+        ]
         assert len(enh_symbols) >= 3

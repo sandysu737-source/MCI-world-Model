@@ -13,7 +13,7 @@ class TestCausalCreationEngine:
         assert self.cce is not None
 
     def test_has_create(self):
-        methods = [m for m in dir(self.cce) if not m.startswith('_')]
+        methods = [m for m in dir(self.cce) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_creation_strategy_enum(self):
@@ -69,7 +69,7 @@ class TestCounterfactualOracle:
         assert self.co is not None
 
     def test_has_query(self):
-        methods = [m for m in dir(self.co) if not m.startswith('_')]
+        methods = [m for m in dir(self.co) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_export_in_all(self):

@@ -3,6 +3,7 @@
 验证 algebra.CausalDAG 的 d-separation 和调整集判定是否符合 Pearl
 (2009) Causality 的定义。这些都是图论的确定性结论, 可作解析 oracle。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,10 +14,10 @@ import pytest
 
 from mci_world_model.algebra.causal_graph import CausalDAG
 
-
 # =============================================================================
 # 经典图结构 — 每个的 d-separation 结论都是教科书确定答案
 # =============================================================================
+
 
 @pytest.fixture
 def chain():

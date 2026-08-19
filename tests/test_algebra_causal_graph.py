@@ -1,4 +1,5 @@
 """Unit tests for mci_world_model.algebra.causal_graph — CausalDAG + BFS propagation."""
+
 import numpy as np
 import pytest
 
@@ -118,6 +119,6 @@ class TestMatrixView:
         assert W[0, 1] == 0.5
 
     def test_propagation_vector(self, chain):
-        v, order = chain.propagation_vector("A")
+        v, _order = chain.propagation_vector("A")
         assert v.shape == (4,)
         assert np.allclose(v, [1.0, 0.5, 0.25, 0.125])

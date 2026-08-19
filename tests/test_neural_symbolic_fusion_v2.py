@@ -90,6 +90,7 @@ class TestStatistics:
 # P8: Bidirectional validation — neural↔symbolic roundtrip
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestBidirectionalRoundtrip:
     """Neural → Symbolic → Neural roundtrip validation."""
 

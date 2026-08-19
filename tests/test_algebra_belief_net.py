@@ -1,12 +1,13 @@
 """Unit tests for mci_world_model.algebra.belief_net — Beta-Bernoulli + loopy BP."""
+
 import math
-import numpy as np
+
 import pytest
 
 from mci_world_model.algebra.belief_net import (
-    BetaDistribution,
     BeliefNetwork,
     BeliefPropagator,
+    BetaDistribution,
     ConditionalEdge,
 )
 

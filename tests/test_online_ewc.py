@@ -18,7 +18,9 @@ def _rand_data(n: int = 50, d_in: int = 4, d_out: int = 2, seed: int = 42) -> tu
     return X, y
 
 
-def _shifted_data(n: int = 50, d_in: int = 4, d_out: int = 2, shift: float = 1.0, seed: int = 42) -> tuple[np.ndarray, np.ndarray]:
+def _shifted_data(
+    n: int = 50, d_in: int = 4, d_out: int = 2, shift: float = 1.0, seed: int = 42
+) -> tuple[np.ndarray, np.ndarray]:
     X, y = _rand_data(n, d_in, d_out, seed)
     return X + shift, y + shift
 

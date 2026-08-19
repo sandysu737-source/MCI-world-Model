@@ -1,4 +1,5 @@
 """Unit tests for mci_world_model.algebra.projector — DimensionProjector R^{k x d}."""
+
 import numpy as np
 import pytest
 
@@ -59,8 +60,7 @@ class TestFit:
         dp = DimensionProjector(k=8, d=64)
         dp.fit(clustered_data)
         P = dp.project_batch(clustered_data)
-        modes = [int(np.bincount(P[i * 100:(i + 1) * 100].argmax(axis=1), minlength=8).argmax())
-                 for i in range(3)]
+        modes = [int(np.bincount(P[i * 100 : (i + 1) * 100].argmax(axis=1), minlength=8).argmax()) for i in range(3)]
         assert len(set(modes)) == 3  # three distinct dominant categories
 
 

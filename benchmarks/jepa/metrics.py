@@ -91,9 +91,7 @@ class JEPABenchmarkReport:
         }
 
 
-def compute_prediction_metrics(
-    y_true: np.ndarray, y_pred: np.ndarray
-) -> dict[str, float]:
+def compute_prediction_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
     """Compute MSE, MAE, R² for state prediction."""
     residuals = y_true - y_pred
     mse = float(np.mean(residuals**2))
@@ -104,9 +102,7 @@ def compute_prediction_metrics(
     return {"mse": mse, "mae": mae, "r2": r2}
 
 
-def compute_latent_consistency(
-    states_a: np.ndarray, states_b: np.ndarray, latent_fn: Any = None
-) -> float:
+def compute_latent_consistency(states_a: np.ndarray, states_b: np.ndarray, latent_fn: Any = None) -> float:
     """Measure how similar the latent representations of close states are.
 
     Computes correlation between pairwise distances in state space vs. latent space.

@@ -56,8 +56,7 @@ class TestGrangerCausality:
         gc = GrangerCausality(max_lag=3, alpha=0.01)
         report = gc.test(X, Y)
         # Should NOT find causation between independent series
-        assert not report.causal, \
-            f"False positive: p={report.p_value:.6f}, F={report.f_statistic:.3f}"
+        assert not report.causal, f"False positive: p={report.p_value:.6f}, F={report.f_statistic:.3f}"
 
     def test_symmetric_not_bidirectional(self, ar1_chain):
         X, Y = ar1_chain
@@ -108,8 +107,9 @@ class TestLaggedCorrelationScanner:
         X, Y = independent_series
         scanner = LaggedCorrelationScanner(max_lag=10)
         report = scanner.scan(X, Y)
-        assert abs(report.peak_correlation) < 0.5, \
+        assert abs(report.peak_correlation) < 0.5, (
             f"Independent series should have low correlation, got {report.peak_correlation:.3f}"
+        )
 
     def test_scan_covers_range(self, ar1_chain):
         X, Y = ar1_chain

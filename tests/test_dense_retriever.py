@@ -28,8 +28,11 @@ class TestDenseRetriever:
             if i < 10:
                 tags.extend(["rare", f"code_{i:03d}"])
             exp = Experience(
-                experience_id=f"exp_{i}", tags=tags, causal_edges=[],
-                experience_type=ExperienceType.PREDICTION, importance=1.0,
+                experience_id=f"exp_{i}",
+                tags=tags,
+                causal_edges=[],
+                experience_type=ExperienceType.PREDICTION,
+                importance=1.0,
                 timestamp=time.time() - i * 3600,
             )
             exps.append(exp)

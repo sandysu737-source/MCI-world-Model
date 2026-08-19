@@ -1,4 +1,5 @@
 """P6 Cognitive Loop — smoke tests for coverage."""
+
 import numpy as np
 
 from mci_world_model.sdk._p6_cognitive_loop import P6CognitiveLoop

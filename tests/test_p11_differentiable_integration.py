@@ -86,7 +86,7 @@ class TestDifferentiableCausal:
 
     def test_treatment_effect_after_optimization(self):
         d, _, _ = _make_dci()
-        result = d.optimize(n_iterations=500)
+        d.optimize(n_iterations=500)
         effect = d.treatment_effect
         assert abs(effect) > 0.5
         assert abs(effect) < 5.0
@@ -137,7 +137,7 @@ class TestNOTEARSIntegration:
         # A causes Y with confounder B
         Y = 2.0 * A + 0.5 * B + 0.2 * rng.randn(n)
         dci.set_data(treatment=A, outcome=Y)
-        result = dci.optimize(n_iterations=200)
+        dci.optimize(n_iterations=200)
         effect = dci.treatment_effect
         assert isinstance(effect, float)
 

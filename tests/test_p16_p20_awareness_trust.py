@@ -13,7 +13,7 @@ class TestCosmicAwareness:
         assert self.ca is not None
 
     def test_has_observe(self):
-        methods = [m for m in dir(self.ca) if not m.startswith('_')]
+        methods = [m for m in dir(self.ca) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_awareness_scope_enum(self):
@@ -34,7 +34,7 @@ class TestAbsoluteTrust:
         assert self.at is not None
 
     def test_has_verify(self):
-        methods = [m for m in dir(self.at) if not m.startswith('_')]
+        methods = [m for m in dir(self.at) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_export_in_all(self):

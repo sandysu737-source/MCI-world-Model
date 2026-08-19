@@ -55,8 +55,7 @@ class TestTLearner:
         cate = learner.predict_cate(X)
         # Higher X0 should generally have higher CATE
         high_x0 = X[:, 0] > np.median(X[:, 0])
-        assert np.mean(cate[high_x0]) > np.mean(cate[~high_x0]), \
-            "CATE should be higher for larger X0"
+        assert np.mean(cate[high_x0]) > np.mean(cate[~high_x0]), "CATE should be higher for larger X0"
 
     def test_summary_keys(self, linear_hte_data):
         X, T, Y = linear_hte_data
@@ -123,8 +122,7 @@ class TestSLearner:
         learner.fit(X, T, Y)
         cate = learner.predict_cate(X)
         # Linear S-learner: CATE is constant (treatment coefficient)
-        assert np.allclose(cate, cate[0]), \
-            f"CATE not constant: std={np.std(cate):.6f}"
+        assert np.allclose(cate, cate[0]), f"CATE not constant: std={np.std(cate):.6f}"
 
     def test_summary_keys(self, linear_hte_data):
         X, T, Y = linear_hte_data

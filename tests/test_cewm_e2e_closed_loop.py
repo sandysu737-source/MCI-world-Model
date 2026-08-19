@@ -180,12 +180,8 @@ class TestCEWMCrossState:
         """DoublePendulumState cewm_step 正常运行。"""
         from mci_world_model.sdk._world_state import DoublePendulumState
 
-        obs = DoublePendulumState(
-            theta1=0.3, omega1=0.0, theta2=0.1, omega2=0.0
-        )
-        goal = DoublePendulumState(
-            theta1=0.0, omega1=0.0, theta2=0.0, omega2=0.0
-        )
+        obs = DoublePendulumState(theta1=0.3, omega1=0.0, theta2=0.1, omega2=0.0)
+        goal = DoublePendulumState(theta1=0.0, omega1=0.0, theta2=0.0, omega2=0.0)
         result = wm.cewm_step(observation=obs, goal=goal)
         assert result["state"] is not None
 

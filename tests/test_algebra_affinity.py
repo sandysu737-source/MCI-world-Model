@@ -1,4 +1,5 @@
 """Unit tests for mci_world_model.algebra.affinity — AffinityMatrix 5x5."""
+
 import numpy as np
 import pytest
 

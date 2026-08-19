@@ -130,8 +130,7 @@ def nonlinear_scm(
         covariates=X,
         true_ate=true_ate,
         true_ite=tau,
-        dag_edges=[("X0", "T"), ("X1", "T"), ("X0", "Y"), ("X1", "Y"),
-                    ("X2", "Y"), ("X3", "Y"), ("T", "Y")],
+        dag_edges=[("X0", "T"), ("X1", "T"), ("X0", "Y"), ("X1", "Y"), ("X2", "Y"), ("X3", "Y"), ("T", "Y")],
         name=f"nonlinear_scm_n{n}_d{d}",
     )
 

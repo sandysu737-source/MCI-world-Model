@@ -131,7 +131,7 @@ class TestGroundTruth:
 
     def test_ground_truth_has_three_tiers(self):
         """ground truth 包含三个 tier。"""
-        tiers = set(v["tier"] for v in GROUND_TRUTH_EDGES.values())
+        tiers = {v["tier"] for v in GROUND_TRUTH_EDGES.values()}
         assert 1 in tiers
         assert 2 in tiers
         assert 3 in tiers

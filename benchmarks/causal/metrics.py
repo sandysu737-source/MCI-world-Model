@@ -141,9 +141,7 @@ def compute_pehe(true_ite: np.ndarray, predicted_ite: np.ndarray) -> float:
     return float(np.sqrt(np.mean((true_ite - predicted_ite) ** 2)))
 
 
-def compute_counterfactual_metrics(
-    y_true: np.ndarray, y_pred: np.ndarray
-) -> dict[str, float]:
+def compute_counterfactual_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
     """Compute RMSE, MAE, R² for counterfactual predictions."""
     residuals = y_true - y_pred
     rmse = float(np.sqrt(np.mean(residuals**2)))

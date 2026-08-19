@@ -13,7 +13,7 @@ class TestEnhancedPerception:
         assert self.ep is not None
 
     def test_has_perceive(self):
-        methods = [m for m in dir(self.ep) if not m.startswith('_')]
+        methods = [m for m in dir(self.ep) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_export_in_all(self):
@@ -30,7 +30,7 @@ class TestNoveltyVerifier:
         assert self.nv is not None
 
     def test_has_verify(self):
-        methods = [m for m in dir(self.nv) if not m.startswith('_')]
+        methods = [m for m in dir(self.nv) if not m.startswith("_")]
         assert len(methods) > 0
 
     def test_novelty_result_creation(self):

@@ -93,8 +93,7 @@ class TestAgentNegotiation:
             for i in range(2):
                 for j in range(2):
                     if i != j and result.adj_matrix[i, j] == 1:
-                        assert result.adj_matrix[j, i] == 0, \
-                            f"Bidirectional edge {i}↔{j}"
+                        assert result.adj_matrix[j, i] == 0, f"Bidirectional edge {i}↔{j}"
 
     def test_statistics(self):
         neg = AgentNegotiation()

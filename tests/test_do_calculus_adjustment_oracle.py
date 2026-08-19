@@ -3,6 +3,7 @@
 验证 identify_adjustment_set 是否根据 Pearl 后门准则正确识别,
 而非盲目返回父节点。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -59,6 +60,7 @@ class TestEstimateAteBackdoor:
         真实 ATE (X对Y的直接效应) = 0.7。
         """
         import numpy as np
+
         rng = np.random.RandomState(42)
         n = 20000
         Z = rng.randn(n)
