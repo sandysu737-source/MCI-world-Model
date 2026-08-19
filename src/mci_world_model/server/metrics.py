@@ -9,6 +9,7 @@
     metrics.observe_latency("diagnose", 0.012)
     logger.info(metrics.expose())  # Prometheus text format)
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,9 +24,8 @@ from dataclasses import dataclass, field
 @dataclass
 class _Histogram:
     """简易直方图: 固定桶 + 分位数近似。"""
-    buckets: list[float] = field(default_factory=lambda: [
-        0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0
-    ])
+
+    buckets: list[float] = field(default_factory=lambda: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0])
     counts: list[int] = field(default_factory=lambda: [0] * 9)
     total: int = 0
     sum_value: float = 0.0
@@ -76,13 +76,13 @@ class MetricsCollector:
             self._histograms[name].observe(value)
 
     def inc_request(self, endpoint: str) -> None:
-        self.inc(f"requests_total{{endpoint=\"{endpoint}\"}}")
+        self.inc(f'requests_total{{endpoint="{endpoint}"}}')
 
     def inc_error(self, endpoint: str) -> None:
-        self.inc(f"errors_total{{endpoint=\"{endpoint}\"}}")
+        self.inc(f'errors_total{{endpoint="{endpoint}"}}')
 
     def observe_latency(self, endpoint: str, seconds: float) -> None:
-        self.observe(f"request_duration{{endpoint=\"{endpoint}\"}}", seconds)
+        self.observe(f'request_duration{{endpoint="{endpoint}"}}', seconds)
 
     def uptime(self) -> float:
         return time.time() - self._start_time
@@ -101,24 +101,24 @@ class MetricsCollector:
                 lines.append(f"{name} {value}")
             # Histograms
             for name, hist in sorted(self._histograms.items()):
-                parts = name.split('{')
+                parts = name.split("{")
                 base = parts[0]
                 lines.append(f"# TYPE {base} histogram")
                 # tag 是完整的标签串如 endpoint="diagnose"
-                tag = parts[1].rstrip('}') if len(parts) > 1 else ''
+                tag = parts[1].rstrip("}") if len(parts) > 1 else ""
                 cumulative = 0
                 for i, b in enumerate(hist.buckets):
                     cumulative += hist.counts[i]
                     label = f'{tag},le="{b}"' if tag else f'le="{b}"'
-                    lines.append(f'{base}_bucket{{{label}}} {cumulative}')
+                    lines.append(f"{base}_bucket{{{label}}} {cumulative}")
                 inf_label = f'{tag},le="+Inf"' if tag else 'le="+Inf"'
-                lines.append(f'{base}_bucket{{{inf_label}}} {hist.total}')
-                lines.append(f'{base}_count{{{tag}}} {hist.total}')
-                lines.append(f'{base}_sum{{{tag}}} {hist.sum_value:.6f}')
+                lines.append(f"{base}_bucket{{{inf_label}}} {hist.total}")
+                lines.append(f"{base}_count{{{tag}}} {hist.total}")
+                lines.append(f"{base}_sum{{{tag}}} {hist.sum_value:.6f}")
             # Uptime
-            lines.append(f"# TYPE mci_uptime gauge")
+            lines.append("# TYPE mci_uptime gauge")
             lines.append(f"mci_uptime {self.uptime():.2f}")
-            return '\n'.join(lines) + '\n'
+            return "\n".join(lines) + "\n"
 
 
 # 全局单例

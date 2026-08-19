@@ -458,7 +458,7 @@ def _get_st_model():
         urllib.request.urlopen(req, timeout=5)
         _st_model = _OllamaEncoder()
         return _st_model
-    except Exception as e:
+    except Exception:
         logger.warning("吞异常", exc_info=True)
     # Fallback: 尝试 HuggingFace paraphrase-multilingual-MiniLM-L12-v2
     try:
