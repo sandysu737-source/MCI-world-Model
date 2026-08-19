@@ -22,14 +22,12 @@ from typing import Any
 
 # ── Probe ──────────────────────────────────────────────────────────────
 _HUAN_AVAILABLE = False
-try:
-    # mci-huan backend is a FastAPI service — bridge via HTTP
-    _HUAN_AVAILABLE = True
-except ImportError:
-    pass
+# mci-huan backend is a FastAPI service — bridge via HTTP
+_HUAN_AVAILABLE = True
 
 
 # ── Enums ──────────────────────────────────────────────────────────────
+
 
 class AnalysisPhase(str, Enum):
     """因果分析阶段 — 对齐 mci-huan LoopPhase。"""
@@ -41,6 +39,7 @@ class AnalysisPhase(str, Enum):
 
 
 # ── Data Classes ────────────────────────────────────────────────────────
+
 
 @dataclass
 class CausalTraceSpan:
@@ -94,6 +93,7 @@ class CausalAgentTrace:
 
 
 # ── Bridge ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class HuanBridge:
@@ -272,9 +272,7 @@ class HuanBridge:
         try:
             import urllib.request
 
-            req = urllib.request.Request(
-                f"{self.huan_api_url}/health", method="GET"
-            )
+            req = urllib.request.Request(f"{self.huan_api_url}/health", method="GET")
             with urllib.request.urlopen(req, timeout=3) as resp:
                 status["huan_api_ok"] = resp.getcode() == 200
         except Exception as e:

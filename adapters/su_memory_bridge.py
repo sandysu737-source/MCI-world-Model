@@ -15,9 +15,12 @@ Usage::
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # ── Probe ──────────────────────────────────────────────────────────────
 _SU_MEMORY_AVAILABLE = False
@@ -28,7 +31,7 @@ try:
     _SuMemory = _SuMemoryClass
     _SU_MEMORY_AVAILABLE = True
 except ImportError:
-    pass
+    logger.debug("su_memory.client 不可用，_SU_MEMORY_AVAILABLE=False")
 
 
 @dataclass
@@ -120,7 +123,7 @@ class SuMemoryBridge:
             try:
                 result_summary["detail"] = causal_result.to_dict()
             except Exception:
-                pass
+                logger.debug("causal_result.to_dict() 失败，detail 保持默认")
 
         # 存储到 su-memory
         client = self._ensure_client()
@@ -138,7 +141,7 @@ class SuMemoryBridge:
                 )
                 self._bm25.add(query_key, doc_text)
             except Exception:
-                pass
+                logger.debug("bm25 添加失败，跳过该条记忆")
 
         # 本地缓存
         record = BridgeRecord(
@@ -151,9 +154,7 @@ class SuMemoryBridge:
 
     # ── Read ────────────────────────────────────────────────────────────
 
-    def query_causal_context(
-        self, query: str, top_k: int = 5
-    ) -> list[dict[str, Any]]:
+    def query_causal_context(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         """从记忆引擎检索因果上下文。
 
         Args:
@@ -172,7 +173,7 @@ class SuMemoryBridge:
                 for doc_id, score in hits:
                     results.append({"source": "bm25", "id": doc_id, "score": float(score)})
             except Exception:
-                pass
+                logger.debug("bm25 检索失败，回退到空结果")
 
         # 本地缓存回退
         if not results:

@@ -36,18 +36,18 @@ SRC_DIR = PROJECT_ROOT / "src" / "mci_world_model"
 # 每个模式对应一种类型的硬编码引用
 PATTERNS: dict[str, str] = {
     "hasattr_theta_omega": r'hasattr\([^)]*["\']theta["\']\).*hasattr\([^)]*["\']omega["\']\)',
-    "direct_theta_attr": r'\.theta\b',
-    "direct_omega_attr": r'\.omega\b',
-    "pendulumstate_import": r'import\s+PendulumState|from.*import.*PendulumState',
-    "pendulumstate_instantiation": r'PendulumState\s*\(',
+    "direct_theta_attr": r"\.theta\b",
+    "direct_omega_attr": r"\.omega\b",
+    "pendulumstate_import": r"import\s+PendulumState|from.*import.*PendulumState",
+    "pendulumstate_instantiation": r"PendulumState\s*\(",
     "pendulum_literal_string": r'["\']pendulum["\']',
 }
 
 # 允许出现 Pendulum 引用的白名单文件（物理引擎、状态定义、解析器）
 ALLOWLIST: set[str] = {
-    "_generalized_physics.py",   # 物理动力学引擎（合法）
-    "_world_state.py",            # PendulumState 定义（合法）
-    "_protocols.py",             # PendulumStateParser（合法）
+    "_generalized_physics.py",  # 物理动力学引擎（合法）
+    "_world_state.py",  # PendulumState 定义（合法）
+    "_protocols.py",  # PendulumStateParser（合法）
 }
 
 # 每个文件的硬编码引用阈值（超出则 CI 失败）
@@ -57,9 +57,11 @@ HARDCODE_THRESHOLD = 2
 
 # ── 数据结构 ──────────────────────────────────────────
 
+
 @dataclass
 class FileReport:
     """单个文件的扫描报告。"""
+
     file: str
     total_refs: int = 0
     by_pattern: dict[str, int] = field(default_factory=dict)
@@ -74,6 +76,7 @@ class FileReport:
 
 
 # ── 核心逻辑 ──────────────────────────────────────────
+
 
 def scan_file(filepath: Path) -> FileReport:
     """扫描单个 Python 文件中的 Pendulum 硬编码引用。"""
@@ -132,12 +135,14 @@ def format_report(reports: list[FileReport]) -> str:
         for pattern, count in sorted(report.by_pattern.items(), key=lambda x: -x[1]):
             lines.append(f"      - {pattern}: {count}")
 
-    lines.extend([
-        "",
-        "-" * 72,
-        f"总计: {total_all} 处引用 ({total_non_allowlisted} 处非白名单)",
-        f"违规文件: {len(violations)}",
-    ])
+    lines.extend(
+        [
+            "",
+            "-" * 72,
+            f"总计: {total_all} 处引用 ({total_non_allowlisted} 处非白名单)",
+            f"违规文件: {len(violations)}",
+        ]
+    )
 
     if violations:
         lines.append("\n⚠️  超过阈值的文件:")
@@ -152,24 +157,29 @@ def format_report(reports: list[FileReport]) -> str:
 
 def format_json(reports: list[FileReport]) -> str:
     """格式化为 JSON 输出。"""
-    return json.dumps({
-        "total_refs": sum(r.total_refs for r in reports),
-        "total_non_allowlisted": sum(r.total_refs for r in reports if not r.is_allowlisted),
-        "violations": [r.file for r in reports if r.exceeds_threshold],
-        "files": [
-            {
-                "file": r.file,
-                "total_refs": r.total_refs,
-                "by_pattern": r.by_pattern,
-                "is_allowlisted": r.is_allowlisted,
-                "exceeds_threshold": r.exceeds_threshold,
-            }
-            for r in reports
-        ],
-    }, indent=2, ensure_ascii=False)
+    return json.dumps(
+        {
+            "total_refs": sum(r.total_refs for r in reports),
+            "total_non_allowlisted": sum(r.total_refs for r in reports if not r.is_allowlisted),
+            "violations": [r.file for r in reports if r.exceeds_threshold],
+            "files": [
+                {
+                    "file": r.file,
+                    "total_refs": r.total_refs,
+                    "by_pattern": r.by_pattern,
+                    "is_allowlisted": r.is_allowlisted,
+                    "exceeds_threshold": r.exceeds_threshold,
+                }
+                for r in reports
+            ],
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
 
 
 # ── 入口 ─────────────────────────────────────────────
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Pendulum 硬编码引用追踪")
@@ -189,7 +199,7 @@ def main() -> int:
         if violations:
             print(f"\n❌ CI 失败: {len(violations)} 个文件超过阈值 {HARDCODE_THRESHOLD}", file=sys.stderr)
             return 1
-        print(f"\n✅ CI 通过: 所有文件在阈值以内", file=sys.stderr)
+        print("\n✅ CI 通过: 所有文件在阈值以内", file=sys.stderr)
 
     return 0
 

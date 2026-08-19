@@ -19,11 +19,14 @@ Usage::
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # ── Probe ──────────────────────────────────────────────────────────────
 _ZVEC_AVAILABLE = False
@@ -34,7 +37,7 @@ try:
     _zvec = _zvec_mod
     _ZVEC_AVAILABLE = True
 except ImportError:
-    pass
+    logger.debug("zvec 不可用，_ZVEC_AVAILABLE=False")
 
 
 @dataclass
@@ -115,7 +118,7 @@ class ZVecBridge:
                     _zvec.HnswIndexParam(metric_type=metric_type, m=16, ef_construction=100),
                 )
             except Exception:
-                pass
+                logger.debug("zvec 建索引失败，继续使用原始向量检索")
 
         # 迁移 fallback 数据
         if self._fallback_vectors:
@@ -157,10 +160,7 @@ class ZVecBridge:
 
         # zvec 写入
         assert _zvec is not None
-        docs = [
-            _zvec.Doc(id=ids[i], vectors={"vec": vecs[i].tolist()})
-            for i in range(n)
-        ]
+        docs = [_zvec.Doc(id=ids[i], vectors={"vec": vecs[i].tolist()}) for i in range(n)]
         self._col.insert(docs)
         self._col.flush()
         return ids
@@ -180,10 +180,7 @@ class ZVecBridge:
             return self.insert(vecs, ids=ids)
 
         assert _zvec is not None
-        docs = [
-            _zvec.Doc(id=ids[i], vectors={"vec": vecs[i].tolist()})
-            for i in range(n)
-        ]
+        docs = [_zvec.Doc(id=ids[i], vectors={"vec": vecs[i].tolist()}) for i in range(n)]
         self._col.upsert(docs)
         self._col.flush()
         return ids
@@ -214,13 +211,15 @@ class ZVecBridge:
 
         try:
             assert _zvec is not None
-            results = self._col.query([
-                _zvec.Query(
-                    field_name="vec",
-                    vector=q.tolist(),
-                    param=_zvec.HnswQueryParam(ef=ef),
-                )
-            ])
+            results = self._col.query(
+                [
+                    _zvec.Query(
+                        field_name="vec",
+                        vector=q.tolist(),
+                        param=_zvec.HnswQueryParam(ef=ef),
+                    )
+                ]
+            )
             hits = []
             for i, doc in enumerate(results[:top_k]):
                 hits.append(SearchHit(id=str(doc.id), score=float(doc.score), rank=i))
@@ -228,9 +227,7 @@ class ZVecBridge:
         except Exception:
             return self._fallback_search(q, top_k)
 
-    def _fallback_search(
-        self, query: np.ndarray, top_k: int
-    ) -> list[SearchHit]:
+    def _fallback_search(self, query: np.ndarray, top_k: int) -> list[SearchHit]:
         """numpy 余弦相似度线性扫描 (降级方案)。"""
         if not self._fallback_vectors:
             return []
@@ -262,7 +259,7 @@ class ZVecBridge:
                 self._col.delete(ids)
                 return len(ids)
             except Exception:
-                pass
+                logger.debug("zvec 删除失败，回退到 fallback 路径")
         # Fallback
         removed = 0
         for vid in ids:
@@ -281,7 +278,7 @@ class ZVecBridge:
             try:
                 return self._col.stats.doc_count
             except Exception:
-                pass
+                logger.debug("zvec count 查询失败，回退到 fallback 计数")
         return len(self._fallback_ids)
 
     def health_check(self) -> dict[str, Any]:
@@ -301,7 +298,7 @@ class ZVecBridge:
             try:
                 self._col.destroy()
             except Exception:
-                pass
+                logger.debug("zvec destroy 失败，重置 _col")
         self._col = None
         self._fallback_vectors.clear()
         self._fallback_ids.clear()
