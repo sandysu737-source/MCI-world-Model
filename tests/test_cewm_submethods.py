@@ -141,7 +141,7 @@ class TestCewmCognize:
 
     def test_none_states_zero_updates(self, wm):
         """None 状态返回零更新。"""
-        updates, hints = wm._cewm_cognize(None, None)
+        updates, _hints = wm._cewm_cognize(None, None)
         assert updates == 0
 
     def test_causal_updater_persistence(self, wm, pendulum_state, pendulum_goal):
@@ -164,9 +164,7 @@ class TestCewmEvaluateAction:
 
     def test_returns_float_tuple(self, wm, pendulum_state, pendulum_goal):
         """返回 (action_distance, physical_distance) 浮点二元组。"""
-        action_dist, phys_dist = wm._cewm_evaluate_action(
-            pendulum_state, pendulum_goal
-        )
+        action_dist, phys_dist = wm._cewm_evaluate_action(pendulum_state, pendulum_goal)
         assert isinstance(action_dist, (int, float))
         assert isinstance(phys_dist, (int, float))
 
@@ -178,9 +176,7 @@ class TestCewmEvaluateAction:
 
     def test_distance_non_negative(self, wm, pendulum_state, pendulum_goal):
         """距离值非负。"""
-        action_dist, phys_dist = wm._cewm_evaluate_action(
-            pendulum_state, pendulum_goal
-        )
+        action_dist, phys_dist = wm._cewm_evaluate_action(pendulum_state, pendulum_goal)
         assert action_dist >= 0
         assert phys_dist >= 0
 
@@ -201,21 +197,17 @@ class TestCewmPredict:
 
     def test_returns_tuple(self, wm, pendulum_state, pendulum_goal):
         """返回 (prediction, pred_error) 二元组。"""
-        prediction, pred_error = wm._cewm_predict(
-            pendulum_state, pendulum_goal, None, 1.0
-        )
+        _prediction, pred_error = wm._cewm_predict(pendulum_state, pendulum_goal, None, 1.0)
         assert isinstance(pred_error, (int, float))
 
     def test_none_state_prediction_is_none(self, wm):
         """None 状态时 prediction 为 None。"""
-        prediction, pred_error = wm._cewm_predict(None, None, None, 0.0)
+        prediction, _pred_error = wm._cewm_predict(None, None, None, 0.0)
         assert prediction is None
 
     def test_pred_error_bounded(self, wm, pendulum_state, pendulum_goal):
         """预测误差被限制在 [0, 1]。"""
-        _, pred_error = wm._cewm_predict(
-            pendulum_state, pendulum_goal, None, 1.0
-        )
+        _, pred_error = wm._cewm_predict(pendulum_state, pendulum_goal, None, 1.0)
         assert 0.0 <= pred_error <= 1.0
 
 

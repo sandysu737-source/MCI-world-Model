@@ -8,6 +8,7 @@ IdentityPredictor 等基线路径在 train() 中真正更新参数。
   train() 的 loss 应恒定 (不下降), 这是设计意图 (下界), 不是 bug。
 - TrueJEPAEncoder: 可学习, loss 应随训练下降 (见 test_true_jepa_*)。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -36,8 +37,12 @@ class TestPredictorLearnabilityContract:
         from mci_world_model.sdk._world_model import CausalWorldModelState
 
         state = CausalWorldModelState(
-            causal_edges=[("A", "B")], active_states={"A", "B"},
-            n_confirmed=1, n_novel=0, n_suppressed=0, n_memories=5,
+            causal_edges=[("A", "B")],
+            active_states={"A", "B"},
+            n_confirmed=1,
+            n_novel=0,
+            n_suppressed=0,
+            n_memories=5,
             timestamp=1.0,
         )
         pred = IdentityPredictor()
@@ -52,11 +57,11 @@ class TestPredictorLearnabilityContract:
         参数更新。若未来改为可学习, 此测试需相应调整。
         """
         try:
+            from mci_world_model import MCIWorldModel
+            from mci_world_model.sdk._jepa_dataset import JEPADataset
             from mci_world_model.sdk._jepa_encoder import JEPAEncoder
             from mci_world_model.sdk._jepa_predictor import IdentityPredictor
             from mci_world_model.sdk._jepa_trainer import JEPATrainer
-            from mci_world_model.sdk._jepa_dataset import JEPADataset
-            from mci_world_model import MCIWorldModel
         except ImportError:
             pytest.skip("JEPA modules not available")
 
@@ -83,7 +88,4 @@ class TestPredictorLearnabilityContract:
         # 契约: 基线 loss 恒定 (不下降)
         loss_arr = np.array(loss_history, dtype=float)
         spread = loss_arr.max() - loss_arr.min()
-        assert spread < 1e-9, (
-            f"基线 loss 应恒定, 但有波动 spread={spread:.2e}。"
-            f"若这是可学习改进, 请更新此契约测试。"
-        )
+        assert spread < 1e-9, f"基线 loss 应恒定, 但有波动 spread={spread:.2e}。若这是可学习改进, 请更新此契约测试。"

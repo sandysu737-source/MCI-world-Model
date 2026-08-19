@@ -5,6 +5,7 @@
 - 传播遵循生克几何衰减
 - 与 EnergyCore 矩阵迭代语义一致
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -13,8 +14,8 @@ import pytest
 pytestmark = pytest.mark.oracle
 
 from mci_world_model._sys._energy_core import EnergyCore
+from mci_world_model._sys._terms import ENERGY_ENHANCE
 from mci_world_model.sdk._energy_causal_graph import EnergyWeightedCausalGraph
-from mci_world_model._sys._terms import ENERGY_ENHANCE, ENERGY_SUPPRESS
 
 
 @pytest.fixture
@@ -40,9 +41,7 @@ class TestEnergyWeightedGraph:
                 w_flow = F[idx[dst], idx[src]]
                 w_graph = graph.dag.edge_weight(src, dst)
                 if w_flow > 0.01:
-                    assert abs(w_graph - round(w_flow, 6)) < 1e-9, (
-                        f"{src}→{dst}: graph={w_graph} vs flow={w_flow}"
-                    )
+                    assert abs(w_graph - round(w_flow, 6)) < 1e-9, f"{src}→{dst}: graph={w_graph} vs flow={w_flow}"
 
     def test_propagation_source_included(self, graph):
         """传播结果应包含源节点自身。"""
@@ -53,9 +52,7 @@ class TestEnergyWeightedGraph:
         """传播应遵循几何衰减 (生关系 0.15 衰减)。"""
         eff = graph.propagate("semantic", 1.0)
         # semantic 生 causal: causal 应 ≈ 0.15
-        assert abs(eff["causal"] - 0.15) < 0.01, (
-            f"causal={eff['causal']}, 生关系应≈0.15"
-        )
+        assert abs(eff["causal"] - 0.15) < 0.01, f"causal={eff['causal']}, 生关系应≈0.15"
 
     def test_different_sources_different_propagation(self, graph):
         """不同干预源应产生不同传播模式。"""
@@ -78,9 +75,7 @@ class TestEnergyWeightedGraph:
             f_val = F[idx[dst], idx["semantic"]]
             if f_val > 0.01 and dst != "semantic":
                 # 直接邻居的图传播 = F 矩阵值
-                assert abs(eff[dst] - f_val) < 0.011, (
-                    f"{dst}: graph={eff[dst]} vs F={f_val}"
-                )
+                assert abs(eff[dst] - f_val) < 0.011, f"{dst}: graph={eff[dst]} vs F={f_val}"
 
 
 class TestRelationClassification:
@@ -89,9 +84,7 @@ class TestRelationClassification:
     def test_generation_relation(self, graph):
         """ENERGY_ENHANCE 的对应边应分类为'生'。"""
         for src, dst in ENERGY_ENHANCE.items():
-            assert graph.relation(src, dst) == "生", (
-                f"{src}→{dst} 应为'生', 实际 '{graph.relation(src, dst)}'"
-            )
+            assert graph.relation(src, dst) == "生", f"{src}→{dst} 应为'生', 实际 '{graph.relation(src, dst)}'"
 
     def test_suppress_energy_seizure(self, graph):
         """克关系的能量夺取方向: 克方←被克方 应有边。"""

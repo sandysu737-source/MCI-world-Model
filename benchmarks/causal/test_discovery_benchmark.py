@@ -56,9 +56,7 @@ def five_node_dag(n: int = 500, noise: float = 0.3, seed: int = 42) -> tuple[np.
     return data, [("X1", "X2"), ("X1", "X3"), ("X2", "X4"), ("X3", "X4"), ("X3", "X5")]
 
 
-def compute_discovery_metrics(
-    predicted: list[tuple[str, str]], true: list[tuple[str, str]]
-) -> dict[str, Any]:
+def compute_discovery_metrics(predicted: list[tuple[str, str]], true: list[tuple[str, str]]) -> dict[str, Any]:
     pred_set = set(predicted)
     true_set = set(true)
     tp = len(pred_set & true_set)
@@ -69,8 +67,17 @@ def compute_discovery_metrics(
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
     reversed_edges = sum(1 for (a, b) in pred_set if (a, b) not in true_set and (b, a) in true_set)
     shd = fp + fn + reversed_edges
-    return {"precision": precision, "recall": recall, "f1": f1, "shd": shd,
-            "tp": tp, "fp": fp, "fn": fn, "n_true": len(true_set), "n_pred": len(pred_set)}
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "shd": shd,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "n_true": len(true_set),
+        "n_pred": len(pred_set),
+    }
 
 
 class TestPCDiscovery:
@@ -147,9 +154,9 @@ class TestPCEdgeCases:
 class TestDiscoveryReport:
     def test_full_report(self) -> None:
         cases = [
-            ("chain", *chain_data(n=300), ["X","Z","Y"]),
-            ("confounder", *confounder_data(n=300), ["X","Y","Z"]),
-            ("collider", *collider_data(n=300), ["X","Y","Z"]),
+            ("chain", *chain_data(n=300), ["X", "Z", "Y"]),
+            ("confounder", *confounder_data(n=300), ["X", "Y", "Z"]),
+            ("collider", *collider_data(n=300), ["X", "Y", "Z"]),
         ]
         pc = PCSkeletonDiscoverer(alpha=0.05)
         results = {}
@@ -164,6 +171,7 @@ class TestDiscoveryReport:
 
 
 # ── GES ──────────────────────────────────────────────────────────────
+
 
 class TestGESDiscovery:
     def test_chain_recovery(self) -> None:
@@ -201,6 +209,7 @@ class TestGESDiscovery:
 
 
 # ── LiNGAM ───────────────────────────────────────────────────────────
+
 
 class TestLiNGAMDiscovery:
     def test_chain_recovery(self) -> None:
@@ -245,6 +254,7 @@ class TestLiNGAMDiscovery:
 
 
 # ── Comparison ───────────────────────────────────────────────────────
+
 
 class TestDiscoveryComparison:
     def test_all_three_on_chain(self) -> None:

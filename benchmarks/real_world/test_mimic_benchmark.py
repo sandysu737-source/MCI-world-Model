@@ -49,13 +49,13 @@ class TestMIMICBenchmark:
         t = time.perf_counter() - t0
         gc.enable()
 
-        assert hasattr(result, 'metrics')
+        assert hasattr(result, "metrics")
         m = result.metrics
         print(f"\n  MIMIC CEWM ({len(patients)} patients):")
         print(f"    Edge F1:        {m.f1:.3f}")
         print(f"    Direction Acc:  {m.direction_accuracy:.3f}")
         print(f"    ATE Spearman ρ: {m.ate_spearman_rho:.3f}")
-        print(f"    Time: {t*1000:.0f}ms")
+        print(f"    Time: {t * 1000:.0f}ms")
         # NOTE: synthetic data generation produces noise-dominated correlations;
         assert m.f1 >= 0.40, f"MIMIC F1={m.f1:.3f} below 0.40"
         assert m.direction_accuracy >= 0.5, f"DirAcc={m.direction_accuracy:.3f} below 0.5"
@@ -71,10 +71,9 @@ class TestMIMICBenchmark:
         print("\n  MIMIC Full Report AI vs LLM:")
         if report.get("llm_baselines"):
             for baseline in report["llm_baselines"]:
-                print(f"    {baseline.get('model','LLM')}: F1={baseline.get('metrics',{}).get('f1',0):.3f}")
+                print(f"    {baseline.get('model', 'LLM')}: F1={baseline.get('metrics', {}).get('f1', 0):.3f}")
         cewm_m = report["cewm"]["metrics"]
         print(f"    CEWM: F1={cewm_m['f1']:.3f}, DirAcc={cewm_m['direction_accuracy']:.3f}")
-
 
     def test_graph_comparison(self):
         """因果图对比 (CEWM vs Ground Truth)。"""
@@ -84,8 +83,9 @@ class TestMIMICBenchmark:
 
         print("\n  Graph Comparison:")
         print(f"    CEWM: F1={result.metrics.f1:.3f}, DirAcc={result.metrics.direction_accuracy:.3f}")
-        print(f"    TP={result.metrics.n_true_positives}, Pred={result.metrics.n_edges_predicted}, GT={result.metrics.n_edges_ground_truth}")
-
+        print(
+            f"    TP={result.metrics.n_true_positives}, Pred={result.metrics.n_edges_predicted}, GT={result.metrics.n_edges_ground_truth}"
+        )
 
     def test_causal_discovery_accuracy(self):
         """因果发现在 MIMIC 合成数据上的结构学习精度。
@@ -98,6 +98,7 @@ class TestMIMICBenchmark:
             ICU_VARIABLES,
             generate_synthetic_icu_patients,
         )
+
         np.random.seed(42)
         patients = generate_synthetic_icu_patients(n_patients=100, n_timesteps=48, seed=42)
 
@@ -140,9 +141,9 @@ class TestMIMICBenchmark:
         fci_skel = fci.discover(data, var_names)
 
         # CAMGOLEM (sparse high-dim: limited by CAM skeleton phase)
-        cg = CAMGOLEMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
-                                n_subsamples=30, stability_threshold=0.4,
-                                lambda1=0.01, max_iter=200)
+        cg = CAMGOLEMDiscoverer(
+            alpha=0.05, n_splines=7, max_parents=3, n_subsamples=30, stability_threshold=0.4, lambda1=0.01, max_iter=200
+        )
         cg_skel = cg.discover(data, var_names)
 
         # Precision/Recall/F1
@@ -178,5 +179,5 @@ class TestMIMICBenchmark:
         t = time.perf_counter() - t0
         gc.enable()
 
-        print(f"\n  MIMIC scalability (50 patients): {t*1000:.0f}ms")
+        print(f"\n  MIMIC scalability (50 patients): {t * 1000:.0f}ms")
         assert t < 30.0  # 30s 内完成

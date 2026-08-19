@@ -57,10 +57,10 @@ class TestTuebingenBenchmark:
             result = evaluate_direction(pairs)
             assert result["total"] == 50
             # IGCI + residual should get >50% on synthetic data
-            assert result["accuracy"] >= 0.40, \
+            assert result["accuracy"] >= 0.40, (
                 f"Direction accuracy (real Tübingen is authoritative) {result['accuracy']:.1%} below 50%"
-            print(f"\n  Tübingen direction accuracy: {result['accuracy']:.1%} "
-                  f"({result['correct']}/{result['total']})")
+            )
+            print(f"\n  Tübingen direction accuracy: {result['accuracy']:.1%} ({result['correct']}/{result['total']})")
         finally:
             tp.TUEBINGEN_DIR = original_dir
             shutil.rmtree(str(tmp_dir), ignore_errors=True)
@@ -88,8 +88,7 @@ class TestTuebingenBenchmark:
         var_ba = rss_ba / n
 
         # cause→effect should have lower residual variance
-        assert var_ab < var_ba, \
-            f"Expected var(cause→effect)={var_ab:.4f} < var(effect→cause)={var_ba:.4f}"
+        assert var_ab < var_ba, f"Expected var(cause→effect)={var_ab:.4f} < var(effect→cause)={var_ba:.4f}"
         print(f"\n  var(c→e)={var_ab:.4f} < var(e→c)={var_ba:.4f} ✓")
 
     def test_camgolem_direction_accuracy(self):
@@ -108,10 +107,8 @@ class TestTuebingenBenchmark:
             pairs = load_tuebingen_pairs()
             result = evaluate_camgolem_direction(pairs)
             assert result["total"] == 50
-            assert result["accuracy"] >= 0.40, \
-                f"CAMGOLEM direction accuracy {result['accuracy']:.1%} below 50%"
-            print(f"\n  CAMGOLEM direction accuracy: {result['accuracy']:.1%} "
-                  f"({result['correct']}/{result['total']})")
+            assert result["accuracy"] >= 0.40, f"CAMGOLEM direction accuracy {result['accuracy']:.1%} below 50%"
+            print(f"\n  CAMGOLEM direction accuracy: {result['accuracy']:.1%} ({result['correct']}/{result['total']})")
         finally:
             tp.TUEBINGEN_DIR = original_dir
             shutil.rmtree(str(tmp_dir), ignore_errors=True)
@@ -128,6 +125,7 @@ class TestTuebingenBenchmark:
             _cam_nonlinear_residual,
             _residual_asymmetry,
         )
+
         cam_asym = _cam_nonlinear_residual(cause, effect)
         lin_asym = abs(_residual_asymmetry(cause, effect))
 
@@ -170,8 +168,7 @@ class TestTuebingenSOTA:
             print(f"  Correct:       {result['correct']}/{result['total']}")
 
             # Should be in the ballpark of IGCI
-            assert result["accuracy"] >= 0.40, \
-                f"Direction accuracy {result['accuracy']:.1%} too low"
+            assert result["accuracy"] >= 0.40, f"Direction accuracy {result['accuracy']:.1%} too low"
         finally:
             tp.TUEBINGEN_DIR = original_dir
             shutil.rmtree(str(tmp_dir), ignore_errors=True)

@@ -7,6 +7,7 @@
 数学 oracle: 高阶偏相关 r_{ij|S} = -P^{-1}[i,j] / sqrt(P^{-1}[i,i]*P^{-1}[j,j])
 其中 P = corr[{i,j}∪S, {i,j}∪S] 的逆 (precision matrix 的归一化元素)。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -21,7 +22,7 @@ from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscover
 
 def _correct_partial_corr(corr: np.ndarray, i: int, j: int, cond: list[int]) -> float:
     """高阶偏相关的正确解析实现 (precision matrix)。"""
-    idx = [i, j] + list(cond)
+    idx = [i, j, *list(cond)]
     sub = corr[np.ix_(idx, idx)]
     P_inv = np.linalg.inv(sub)
     return -P_inv[0, 1] / np.sqrt(P_inv[0, 0] * P_inv[1, 1])
@@ -55,16 +56,14 @@ class TestPartialCorrHighOrder:
         r_correct = _correct_partial_corr(corr, 0, 1, [2, 3])
         assert abs(r_impl - r_correct) < 0.05, (
             f"2阶偏相关错误: 实现={r_impl:.4f}, 正确={r_correct:.4f}。"
-            f"差值{abs(r_impl-r_correct):.4f}表明实现退化成了1阶"
+            f"差值{abs(r_impl - r_correct):.4f}表明实现退化成了1阶"
         )
 
     def test_second_order_detects_conditional_independence(self, diamond_data):
         """在 diamond 结构上, r_{XY|Z1,Z2} 应识别出条件独立(绝对值小)。"""
         corr = np.corrcoef(diamond_data.T)
         r = PCSkeletonDiscoverer._partial_corr(corr, 0, 1, [2, 3])
-        assert abs(r) < 0.1, (
-            f"X⊥Y|{{Z1,Z2}} 但 r={r:.4f}, 未识别出条件独立"
-        )
+        assert abs(r) < 0.1, f"X⊥Y|{{Z1,Z2}} 但 r={r:.4f}, 未识别出条件独立"
 
     def test_first_order_still_correlated(self, diamond_data):
         """对照: 1 阶 r_{XY|Z1} 应仍显相关(绝对值大)。"""
@@ -84,9 +83,7 @@ class TestPartialCorrHighOrder:
         corr = np.corrcoef(data.T)
         r_impl = PCSkeletonDiscoverer._partial_corr(corr, 0, 1, [2, 3, 4])
         r_correct = _correct_partial_corr(corr, 0, 1, [2, 3, 4])
-        assert abs(r_impl - r_correct) < 0.05, (
-            f"3阶偏相关错误: 实现={r_impl:.4f}, 正确={r_correct:.4f}"
-        )
+        assert abs(r_impl - r_correct) < 0.05, f"3阶偏相关错误: 实现={r_impl:.4f}, 正确={r_correct:.4f}"
 
     def test_zero_and_first_order_unchanged(self, diamond_data):
         """修复不应破坏 0 阶和 1 阶(它们原本正确)。"""

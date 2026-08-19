@@ -55,7 +55,6 @@ def legal_context():
             {"step": "evidence_collection", "data": "collected"},
         ],
         "evidence": [{"reliability": 0.8}, {"reliability": 0.75}],
-        "evidence": [{"reliability": 0.8}, {"reliability": 0.75}],
         "jurisdiction": "CN",
         "conclusion": "action_A caused harm_B",
         "confidence": 0.85,
@@ -163,7 +162,7 @@ class TestLegalRules:
 
     def test_bias_detection_ok(self):
         rule = _BiasDetectionRule()
-        ctx = {"evidence": [{"reliability": 0.7}], "conclusion": "ok", "evidence": [{"reliability": 0.7}]}
+        ctx = {"evidence": [{"reliability": 0.7}], "conclusion": "ok"}
         report = rule.check(ctx)
         assert report.level == ComplianceLevel.COMPLIANT
 
@@ -277,12 +276,17 @@ class TestComplianceEngine:
     def test_custom_rule(self, engine):
         class CustomRule(ComplianceRule):
             @property
-            def domain(self): return "test"
+            def domain(self):
+                return "test"
+
             @property
-            def name(self): return "custom_check"
+            def name(self):
+                return "custom_check"
+
             def check(self, ctx):
-                return ComplianceReport(rule_name="custom_check", domain="test",
-                                        level=ComplianceLevel.COMPLIANT, reasoning="ok")
+                return ComplianceReport(
+                    rule_name="custom_check", domain="test", level=ComplianceLevel.COMPLIANT, reasoning="ok"
+                )
 
         engine.register(CustomRule())
         assert engine.rule_count == 10
@@ -292,9 +296,13 @@ class TestComplianceEngine:
     def test_rule_exception(self, engine):
         class BrokenRule(ComplianceRule):
             @property
-            def domain(self): return "test"
+            def domain(self):
+                return "test"
+
             @property
-            def name(self): return "broken"
+            def name(self):
+                return "broken"
+
             def check(self, ctx):
                 raise RuntimeError("fail")
 
@@ -324,9 +332,13 @@ class TestComplianceResult:
         assert not r.is_acceptable
 
     def test_report_fields(self):
-        report = ComplianceReport(rule_name="test", domain="medical",
-                                  level=ComplianceLevel.COMPLIANT,
-                                  reasoning="all good", remediation="none needed")
+        report = ComplianceReport(
+            rule_name="test",
+            domain="medical",
+            level=ComplianceLevel.COMPLIANT,
+            reasoning="all good",
+            remediation="none needed",
+        )
         assert report.rule_name == "test"
         assert report.domain == "medical"
         assert report.level == ComplianceLevel.COMPLIANT

@@ -5,6 +5,7 @@ D2: CausalDAG list-of-tuples 构造
 D3: stationary_distribution 基于 Flow 而非 AffinityMatrix
 D4: clip 后归一化保守恒
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -22,8 +23,10 @@ class TestD1AbduceNoisePosterior:
 
         coeff = np.array([[0, 2.0, 0], [0, 0, 3.0], [0, 0, 0]])
         sem = StructuralEquationModel(
-            coefficients=coeff, node_names=["A", "B", "C"],
-            noise_std=1.0, activation="linear",
+            coefficients=coeff,
+            node_names=["A", "B", "C"],
+            noise_std=1.0,
+            activation="linear",
         )
         noise = sem.abduce({"A": 1.0, "C": 5.0}, n_samples=3000)
         # U_A = 1 (根节点)
@@ -85,8 +88,7 @@ class TestD4ClipConservation:
         from mci_world_model._sys._energy_core import EnergyCore
 
         ec = EnergyCore()
-        energies = {"semantic": 10.0, "causal": 5.0, "spacetime": 3.0,
-                    "generative": 2.0, "trust": 1.0}
+        energies = {"semantic": 10.0, "causal": 5.0, "spacetime": 3.0, "generative": 2.0, "trust": 1.0}
         total0 = sum(energies.values())
         for _ in range(10):
             energies = ec._calculate_flow_step(energies)
@@ -97,16 +99,14 @@ class TestD6SimulatedBackdoorLabel:
     """D6: 无数据时 backdoor 结果应标注为模拟。"""
 
     def test_no_data_labels_simulated(self):
-        from mci_world_model.sdk._do_calculus import DoCalculus, CausalGraph
+        from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
 
         cg = CausalGraph()
         cg.add_edge("X", "Y")
         dc = DoCalculus()
         dc.set_graph(cg)
         result = dc.backdoor_adjustment("X", "Y", Z_set=[])
-        assert result.method == "backdoor_simulated", (
-            f"无数据时应标注 backdoor_simulated, 实际 {result.method}"
-        )
+        assert result.method == "backdoor_simulated", f"无数据时应标注 backdoor_simulated, 实际 {result.method}"
 
 
 class TestD7EncodeDimensionValidation:
@@ -135,8 +135,10 @@ class TestD8NaNGuard:
 
         coeff = np.array([[0, 1.0], [1.0, 0]])  # 环 A↔B
         sem = StructuralEquationModel(
-            coefficients=coeff, node_names=["A", "B"],
-            noise_std=1.0, activation="linear",
+            coefficients=coeff,
+            node_names=["A", "B"],
+            noise_std=1.0,
+            activation="linear",
         )
         noise = sem.abduce({"A": 1.0}, n_samples=10)
         assert not np.any(np.isnan(noise)), "abduce 产生了 NaN"

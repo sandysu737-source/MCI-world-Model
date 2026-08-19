@@ -268,9 +268,11 @@ class TestAutonomousLawDiscovererV2:
         assert skeleton is not None
         assert isinstance(skeleton, CausalSkeleton)
 
+
 # =============================================================================
 # Regression-based edge orientation tests (Phase A: SOTA gap fix)
 # =============================================================================
+
 
 class TestRegressionEdgeOrientation:
     """Tests for _orient_edges_by_regression post-processor."""
@@ -278,6 +280,7 @@ class TestRegressionEdgeOrientation:
     def test_orient_chain_x_to_y(self):
         """Chain X->Y: regression should orient X->Y correctly."""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         rng = np.random.RandomState(42)
         n = 500
         X = rng.randn(n)
@@ -285,12 +288,12 @@ class TestRegressionEdgeOrientation:
         data = np.column_stack([X, Y])
         pc = PCSkeletonDiscoverer(alpha=0.01)
         skel = pc.discover(data, ["X", "Y"])
-        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges, \
-            f"No edge between X and Y: {skel.edges}"
+        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges, f"No edge between X and Y: {skel.edges}"
 
     def test_orient_chain_y_to_x(self):
         """Chain Y->X: regression should orient Y->X correctly."""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         rng = np.random.RandomState(42)
         n = 500
         Y = rng.randn(n)
@@ -298,12 +301,12 @@ class TestRegressionEdgeOrientation:
         data = np.column_stack([X, Y])
         pc = PCSkeletonDiscoverer(alpha=0.01)
         skel = pc.discover(data, ["X", "Y"])
-        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges, \
-            f"No edge between X and Y: {skel.edges}"
+        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges, f"No edge between X and Y: {skel.edges}"
 
     def test_orient_v_structure(self):
         """V-structure X->Z<-Y: should find both directions pointing to Z."""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         rng = np.random.RandomState(42)
         n = 500
         X = rng.randn(n)
@@ -322,6 +325,7 @@ class TestRegressionEdgeOrientation:
         when direction is ambiguous — this is correct behavior.
         """
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         rng = np.random.RandomState(42)
         n = 500
         X = rng.randn(n)
@@ -330,7 +334,7 @@ class TestRegressionEdgeOrientation:
         pc = PCSkeletonDiscoverer(alpha=0.01)
         skel = pc.discover(data, ["X", "Y"])
         # Edge should exist (X→Y, Y→X, or both)
-        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges,             "No edge found between X and Y"
+        assert ("X", "Y") in skel.edges or ("Y", "X") in skel.edges, "No edge found between X and Y"
         # If only one direction, it should be correct (X→Y)
         if ("X", "Y") in skel.edges and ("Y", "X") not in skel.edges:
             pass  # X→Y only: correct
@@ -341,6 +345,7 @@ class TestRegressionEdgeOrientation:
     def test_orient_adj_matrix_directed(self):
         """Adjacency matrix should not be empty for connected variables."""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         rng = np.random.RandomState(42)
         n = 500
         X = rng.randn(n)
@@ -350,4 +355,4 @@ class TestRegressionEdgeOrientation:
         skel = pc.discover(data, ["X", "Y"])
         adj = skel.adj_matrix
         # At least one edge direction should exist
-        assert adj[0, 1] == 1 or adj[1, 0] == 1,             f"No edge found in adjacency matrix: {adj}"
+        assert adj[0, 1] == 1 or adj[1, 0] == 1, f"No edge found in adjacency matrix: {adj}"

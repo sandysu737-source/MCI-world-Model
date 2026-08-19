@@ -46,7 +46,7 @@ class TestTuebingenAccuracy:
         gc.enable()
 
         accuracy = correct / len(pairs)
-        print(f"\n  Tübingen IGCI: {accuracy:.1%} ({correct}/{len(pairs)}) in {t*1000:.0f}ms")
+        print(f"\n  Tübingen IGCI: {accuracy:.1%} ({correct}/{len(pairs)}) in {t * 1000:.0f}ms")
         assert accuracy >= 0.55
 
     def test_residual_asymmetry(self):
@@ -106,10 +106,10 @@ class TestTuebingenAccuracy:
         pairs = adapter.generate_synthetic_pairs(n_pairs=50)
 
         methods = {
-            "IGCI": lambda x, y: adapter._residual_independence(x, y),
-            "Residual": lambda x, y: adapter._residual_asymmetry(x, y),
-            "NonGaussian": lambda x, y: adapter._nongaussian_asymmetry(x, y),
-            "Complexity": lambda x, y: adapter._complexity_asymmetry(x, y),
+            "IGCI": adapter._residual_independence,
+            "Residual": adapter._residual_asymmetry,
+            "NonGaussian": adapter._nongaussian_asymmetry,
+            "Complexity": adapter._complexity_asymmetry,
         }
 
         # Ensemble: majority vote
@@ -122,10 +122,15 @@ class TestTuebingenAccuracy:
 
         print("\n  === Tübingen 方法对比 (n=50) ===")
         print(f"  {'Method':<15} {'Accuracy':>10}")
-        print(f"  {'-'*25}")
+        print(f"  {'-' * 25}")
 
         for name, fn in methods.items():
-            correct = sum(1 for p in pairs if (fn(p["x"], p["y"]) > 0 and p["true_direction"] == "X→Y") or (fn(p["x"], p["y"]) < 0 and p["true_direction"] == "Y→X"))
+            correct = sum(
+                1
+                for p in pairs
+                if (fn(p["x"], p["y"]) > 0 and p["true_direction"] == "X→Y")
+                or (fn(p["x"], p["y"]) < 0 and p["true_direction"] == "Y→X")
+            )
             acc = correct / len(pairs)
             print(f"  {name:<15} {acc:>9.1%}")
 
@@ -150,5 +155,7 @@ class TestTuebingenAccuracy:
         gc.enable()
 
         throughput = len(pairs) / t
-        print(f"\n  Tübingen 100 pairs: {correct}/{len(pairs)} ({correct/len(pairs):.1%}) in {t*1000:.0f}ms ({throughput:.0f} pairs/s)")
+        print(
+            f"\n  Tübingen 100 pairs: {correct}/{len(pairs)} ({correct / len(pairs):.1%}) in {t * 1000:.0f}ms ({throughput:.0f} pairs/s)"
+        )
         assert throughput > 10
