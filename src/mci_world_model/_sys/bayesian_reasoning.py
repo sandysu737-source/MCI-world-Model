@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 import json
 import math
 import time
+from typing import cast
 
 from .bayesian import BayesianEngine
 from .bayesian_network import BayesianNetwork
@@ -36,9 +37,9 @@ class BayesianPredictor:
 
     def __init__(
         self,
-        engine: BayesianEngine = None,
-        network: BayesianNetwork = None,
-        evidence: EvidenceCollector = None,
+        engine: BayesianEngine | None = None,
+        network: BayesianNetwork | None = None,
+        evidence: EvidenceCollector | None = None,
     ):
         self._engine = engine or BayesianEngine()
         self._network = network or BayesianNetwork()
@@ -97,8 +98,8 @@ class BayesianPredictor:
 
                 # 融合：加权平均
                 if len(sources) == 2:
-                    w1 = sources[0]["weight"]
-                    w2 = sources[1]["weight"]
+                    w1 = cast(float, sources[0]["weight"])
+                    w2 = cast(float, sources[1]["weight"])
                     total_w = w1 + w2
                     probability = (prob_direct * w1 + prob_net * w2) / total_w
                     uncertainty = (uncert_direct * w1 + uncert_net * w2) / total_w
@@ -243,9 +244,9 @@ class BayesianAdvisor:
 
     def __init__(
         self,
-        engine: BayesianEngine = None,
-        network: BayesianNetwork = None,
-        predictor: BayesianPredictor = None,
+        engine: BayesianEngine | None = None,
+        network: BayesianNetwork | None = None,
+        predictor: BayesianPredictor | None = None,
     ):
         self._engine = engine or BayesianEngine()
         self._network = network or BayesianNetwork()
@@ -425,7 +426,7 @@ class BayesianAdvisor:
                 }
             )
 
-        plan.sort(key=lambda x: x["priority"], reverse=True)
+        plan.sort(key=lambda x: cast(float, x["priority"]), reverse=True)
         return plan[:top_k]
 
 

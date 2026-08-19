@@ -16,9 +16,9 @@ from typing import Optional
 try:
     from .bayesian import BayesianBelief, BayesianEngine, BetaDistribution
 except ImportError:
-    BayesianEngine = None
-    BetaDistribution = None
-    BayesianBelief = None
+    BayesianEngine = None  # type: ignore[assignment, misc]
+    BetaDistribution = None  # type: ignore[assignment, misc]
+    BayesianBelief = None  # type: ignore[assignment, misc]
 
 
 class BeliefStage:
@@ -258,7 +258,9 @@ class BayesianBeliefTracker:
             prior_type: 先验类型 "uniform" | "jeffreys" | "weak"
         """
         self._engine = (
-            BayesianEngine(default_prior_type=prior_type, default_prior_strength=2.0) if BayesianEngine else None
+            BayesianEngine(default_prior_type=prior_type, default_prior_strength=2.0)
+            if BayesianEngine is not None
+            else None
         )
         self._transitions: dict[str, list[str]] = {}  # memory_id → transition history
         self._initialized_at: dict[str, float] = {}

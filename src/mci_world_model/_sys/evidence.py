@@ -15,6 +15,7 @@ import json
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import cast
 
 from .bayesian import BayesianEngine, BetaDistribution, LikelihoodFunctions
 
@@ -93,7 +94,7 @@ class EvidenceCollector:
 
     def __init__(
         self,
-        bayesian_engine: BayesianEngine = None,
+        bayesian_engine: BayesianEngine | None = None,
         max_history: int = 10000,
         default_source_reliability: float = 0.7,
     ):
@@ -446,7 +447,7 @@ class EvidenceCollector:
                     }
                 )
 
-        rankings.sort(key=lambda x: x["reliability"], reverse=True)
+        rankings.sort(key=lambda x: cast(float, x["reliability"]), reverse=True)
         return rankings
 
     # ---- 查询辅助 ----

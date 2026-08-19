@@ -186,7 +186,7 @@ class EnergyState:
     intensity: float = 1.0
     status: str = "balanced"
 
-    def get_effective_intensity(self, environment: "EnergyState" = None) -> float:
+    def get_effective_intensity(self, environment: "EnergyState | None" = None) -> float:
         if environment is None:
             return self.intensity
         state_name, multiplier = get_energy_state(self.energy_type, environment.energy_type)
@@ -219,7 +219,7 @@ class EnergyNetwork:
         for state in self.memory_states.values():
             e = state.energy_type
             counts[e] = counts.get(e, 0) + state.intensity
-        return max(counts, key=counts.get)
+        return max(counts, key=counts.__getitem__)
 
 
 def energy_from_category(category_name: str) -> EnergyType:

@@ -120,7 +120,7 @@ class CausalChain:
         self.temporal_links: dict[str, list[str]] = defaultdict(list)
 
         # Layer 5: Pattern relationships (inverse/mirror/rotation)
-        self.pattern_pairs: dict[str, tuple[str, str, str]] = {}
+        self.pattern_pairs: dict[tuple[str, str], tuple[str, str, str]] = {}
 
         # Energy propagation history (for balance constraints)
         self.propagation_history: list[dict] = []
@@ -281,7 +281,7 @@ class CausalChain:
         if not energy_counts:
             return []
 
-        max_energy_type = max(energy_counts, key=energy_counts.get)
+        max_energy_type = max(energy_counts, key=energy_counts.__getitem__)
         max_strength = energy_counts[max_energy_type]
         total = sum(energy_counts.values())
 
@@ -345,9 +345,7 @@ class CausalChain:
                     covered.add(mid)
 
             # Layer 5: Pattern relationships
-            if (mid,) in self.pattern_pairs or any(
-                mid in pair for pairs in self.pattern_pairs.values() for pair in pairs[:2]
-            ):
+            if any(mid in pair for pairs in self.pattern_pairs.values() for pair in pairs[:2]):
                 covered.add(mid)
 
         return round(len(covered) / len(all_ids) * 100, 1)

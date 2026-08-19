@@ -473,7 +473,7 @@ class HierarchicalConfigurator:
             "cognitive": cog_score,
             "energy": eng_score,
         }
-        dominant = min(dimensions, key=dimensions.get)
+        dominant = min(dimensions, key=dimensions.__getitem__)
 
         # 生成建议
         recommendations = []
@@ -615,4 +615,6 @@ def _extract_energy_ratios_from_state(state) -> dict[str, float] | None:
     from mci_world_model.sdk._world_model import _aggregate_energy_ratios
 
     edges = getattr(state, "causal_edges", None)
+    if not isinstance(edges, list):
+        return None
     return _aggregate_energy_ratios(edges)

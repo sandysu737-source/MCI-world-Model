@@ -16,7 +16,7 @@ import math
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from .bayesian import BayesianEngine, BetaDistribution
 
@@ -735,7 +735,7 @@ class BayesianNetwork:
         backtrack(cause_node, [cause_node], 1.0)
 
         # 按链强度排序
-        chains.sort(key=lambda x: x["chain_strength"], reverse=True)
+        chains.sort(key=lambda x: cast(float, x["chain_strength"]), reverse=True)
         return chains
 
     # ---- 统计与分析 ----
