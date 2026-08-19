@@ -35,6 +35,7 @@ class AwarenessScope(str, Enum):
 @dataclass
 class CausalDomain:
     """因果域。"""
+
     domain_id: str = ""
     name: str = ""
     n_causal_relations: int = 0
@@ -45,6 +46,7 @@ class CausalDomain:
 @dataclass
 class CosmicMap:
     """宇宙因果地貌图。"""
+
     scope: str = ""
     domains: list[CausalDomain] = field(default_factory=list)
     n_universal_laws: int = 0
@@ -56,6 +58,7 @@ class CosmicMap:
 @dataclass
 class CausalAnomaly:
     """因果异常。"""
+
     anomaly_id: str = ""
     domain: str = ""
     anomaly_type: str = ""
@@ -66,6 +69,7 @@ class CausalAnomaly:
 @dataclass
 class EvolutionPrediction:
     """因果演化预测。"""
+
     timescale: str = ""
     predicted_changes: list[dict[str, Any]] = field(default_factory=list)
     confidence: float = 0.0
@@ -87,8 +91,16 @@ class CosmicAwareness:
     """
 
     DOMAIN_CATALOG = [
-        "physics", "biology", "economics", "social", "cognitive",
-        "chemistry", "ecology", "medicine", "engineering", "computer_science",
+        "physics",
+        "biology",
+        "economics",
+        "social",
+        "cognitive",
+        "chemistry",
+        "ecology",
+        "medicine",
+        "engineering",
+        "computer_science",
     ]
 
     def __init__(
@@ -146,8 +158,11 @@ class CosmicAwareness:
 
         # 更新宇宙地貌图
         self._update_cosmic_map(
-            target_scope, local_awareness, regional_awareness,
-            global_awareness, cosmic_awareness,
+            target_scope,
+            local_awareness,
+            regional_awareness,
+            global_awareness,
+            cosmic_awareness,
         )
 
         self._scope = target_scope
@@ -190,33 +205,39 @@ class CosmicAwareness:
         for domain_id, domain in self._domains.items():
             # 健康度异常
             if domain.health < 0.3:
-                self._anomalies.append(CausalAnomaly(
-                    anomaly_id=f"anomaly_health_{domain_id}",
-                    domain=domain_id,
-                    anomaly_type="low_health",
-                    severity=1.0 - domain.health,
-                    description=f"Domain {domain_id} has low health: {domain.health:.2f}",
-                ))
+                self._anomalies.append(
+                    CausalAnomaly(
+                        anomaly_id=f"anomaly_health_{domain_id}",
+                        domain=domain_id,
+                        anomaly_type="low_health",
+                        severity=1.0 - domain.health,
+                        description=f"Domain {domain_id} has low health: {domain.health:.2f}",
+                    )
+                )
 
             # 活跃进程异常
             if domain.n_active_processes > domain.n_causal_relations * 2:
-                self._anomalies.append(CausalAnomaly(
-                    anomaly_id=f"anomaly_overload_{domain_id}",
-                    domain=domain_id,
-                    anomaly_type="process_overload",
-                    severity=min(domain.n_active_processes / max(domain.n_causal_relations, 1) - 2, 1.0),
-                    description=f"Domain {domain_id} has process overload",
-                ))
+                self._anomalies.append(
+                    CausalAnomaly(
+                        anomaly_id=f"anomaly_overload_{domain_id}",
+                        domain=domain_id,
+                        anomaly_type="process_overload",
+                        severity=min(domain.n_active_processes / max(domain.n_causal_relations, 1) - 2, 1.0),
+                        description=f"Domain {domain_id} has process overload",
+                    )
+                )
 
         # 全局因果熵异常
         if self._cosmic_map.causal_entropy > 0.8:
-            self._anomalies.append(CausalAnomaly(
-                anomaly_id="anomaly_high_entropy",
-                domain="global",
-                anomaly_type="high_causal_entropy",
-                severity=self._cosmic_map.causal_entropy,
-                description="Global causal entropy is dangerously high",
-            ))
+            self._anomalies.append(
+                CausalAnomaly(
+                    anomaly_id="anomaly_high_entropy",
+                    domain="global",
+                    anomaly_type="high_causal_entropy",
+                    severity=self._cosmic_map.causal_entropy,
+                    description="Global causal entropy is dangerously high",
+                )
+            )
 
         logger.info("Detected %d causal anomalies", len(self._anomalies))
         return list(self._anomalies)
@@ -231,27 +252,33 @@ class CosmicAwareness:
 
         # 基于因果熵趋势预测
         entropy_trend = self._estimate_entropy_trend()
-        predicted_changes.append({
-            "type": "entropy_change",
-            "direction": "increasing" if entropy_trend > 0 else "decreasing",
-            "magnitude": abs(entropy_trend),
-        })
+        predicted_changes.append(
+            {
+                "type": "entropy_change",
+                "direction": "increasing" if entropy_trend > 0 else "decreasing",
+                "magnitude": abs(entropy_trend),
+            }
+        )
 
         # 基于域健康趋势预测
         for domain_id, domain in self._domains.items():
             if domain.health < 0.5:
-                predicted_changes.append({
-                    "type": "domain_instability",
-                    "domain": domain_id,
-                    "probability": 1.0 - domain.health,
-                })
+                predicted_changes.append(
+                    {
+                        "type": "domain_instability",
+                        "domain": domain_id,
+                        "probability": 1.0 - domain.health,
+                    }
+                )
 
         # 基于跨尺度链数预测
         if self._cosmic_map.n_cross_scale_chains > 0:
-            predicted_changes.append({
-                "type": "cross_scale_emergence",
-                "probability": min(self._cosmic_map.n_cross_scale_chains / 10.0, 0.9),
-            })
+            predicted_changes.append(
+                {
+                    "type": "cross_scale_emergence",
+                    "probability": min(self._cosmic_map.n_cross_scale_chains / 10.0, 0.9),
+                }
+            )
 
         confidence_map = {"short": 0.8, "medium": 0.6, "long": 0.4}
         confidence = confidence_map.get(timescale, 0.5)
@@ -339,7 +366,7 @@ class CosmicAwareness:
         cosmic: dict[str, Any],
     ) -> None:
         """更新宇宙地貌图。"""
-        _ = locals().get('all_data', None)
+        _ = locals().get("all_data", None)
         domains = list(self._domains.values())
         self._cosmic_map = CosmicMap(
             scope=scope.value,
@@ -359,7 +386,7 @@ class CosmicAwareness:
         chains = []
         domain_ids = list(self._domains.keys())
         for i, d1 in enumerate(domain_ids):
-            for d2 in domain_ids[i + 1:]:
+            for d2 in domain_ids[i + 1 :]:
                 if np.random.random() > 0.5:
                     chains.append({"from": d1, "to": d2, "strength": float(np.random.uniform(0.3, 0.9))})
         return chains

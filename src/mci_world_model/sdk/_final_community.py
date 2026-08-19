@@ -45,32 +45,36 @@ logger = logging.getLogger(__name__)
 
 class MemberRole(Enum):
     """社区成员角色"""
-    OBSERVER = "observer"          # 观察者 — 可参与讨论，无投票权
-    PARTICIPANT = "participant"    # 参与者 — 可投票
-    ELDER = "elder"                # 长老 — 具有否决权
-    FOUNDER = "founder"            # 创始者 — 绝对存在的原始实例
+
+    OBSERVER = "observer"  # 观察者 — 可参与讨论，无投票权
+    PARTICIPANT = "participant"  # 参与者 — 可投票
+    ELDER = "elder"  # 长老 — 具有否决权
+    FOUNDER = "founder"  # 创始者 — 绝对存在的原始实例
 
 
 class ProposalStatus(Enum):
     """提议状态"""
-    DRAFT = "draft"                # 草案
-    VOTING = "voting"              # 投票中
-    APPROVED = "approved"          # 已通过
-    REJECTED = "rejected"          # 已否决
-    ETERNAL = "eternal"            # 永恒 — 已签署为永恒宣言
+
+    DRAFT = "draft"  # 草案
+    VOTING = "voting"  # 投票中
+    APPROVED = "approved"  # 已通过
+    REJECTED = "rejected"  # 已否决
+    ETERNAL = "eternal"  # 永恒 — 已签署为永恒宣言
 
 
 class CommunityState(Enum):
     """社区状态"""
-    FORMING = "forming"            # 组建中
-    ACTIVE = "active"              # 运行中
-    CONSENSUS = "consensus"        # 共识态
-    ETERNAL = "eternal"            # 永恒态 — 永恒宣言已签署
+
+    FORMING = "forming"  # 组建中
+    ACTIVE = "active"  # 运行中
+    CONSENSUS = "consensus"  # 共识态
+    ETERNAL = "eternal"  # 永恒态 — 永恒宣言已签署
 
 
 @dataclass
 class CommunityMember:
     """社区成员"""
+
     member_id: str
     role: MemberRole = MemberRole.OBSERVER
     joined_at: float = 0.0
@@ -89,6 +93,7 @@ class CommunityMember:
 @dataclass
 class Proposal:
     """社区提议"""
+
     proposal_id: str
     proposer_id: str
     title: str
@@ -113,6 +118,7 @@ class Proposal:
 @dataclass
 class EternalDeclaration:
     """永恒宣言 — 社区的终极共识文档"""
+
     declaration_id: str
     title: str
     content: str
@@ -212,7 +218,9 @@ class FinalCommunity:
         }
 
     def admit_member(
-        self, member_id: str, role: MemberRole = MemberRole.PARTICIPANT,
+        self,
+        member_id: str,
+        role: MemberRole = MemberRole.PARTICIPANT,
         causal_signature: dict | None = None,  # type: ignore
     ) -> dict[str, Any]:
         """接纳社区成员 — 需要 ≥2/3 多数投票
@@ -233,7 +241,8 @@ class FinalCommunity:
 
         # 模拟投票：现有成员 ≥2/3 同意
         voting_members = [
-            m for m in self._members.values()
+            m
+            for m in self._members.values()
             if m.role in (MemberRole.PARTICIPANT, MemberRole.ELDER, MemberRole.FOUNDER)
         ]
         if not voting_members:
@@ -272,8 +281,11 @@ class FinalCommunity:
     # ── 共识与投票 ────────────────────────────────────────────────────────────
 
     def reach_consensus(
-        self, title: str, description: str = "",
-        proposer_id: str = "", is_eternal: bool = False,
+        self,
+        title: str,
+        description: str = "",
+        proposer_id: str = "",
+        is_eternal: bool = False,
     ) -> dict[str, Any]:
         """发起社区共识投票
 
@@ -299,7 +311,8 @@ class FinalCommunity:
 
         # 模拟投票过程
         voting_members = [
-            m for m in self._members.values()
+            m
+            for m in self._members.values()
             if m.role in (MemberRole.PARTICIPANT, MemberRole.ELDER, MemberRole.FOUNDER)
         ]
 
@@ -437,8 +450,7 @@ class FinalCommunity:
             "state": self._state.value,
             "total_members": len(self._members),
             "members_by_role": {
-                role.value: len([m for m in self._members.values() if m.role == role])
-                for role in MemberRole
+                role.value: len([m for m in self._members.values() if m.role == role]) for role in MemberRole
             },
             "total_proposals": len(self._proposals),
             "proposals_by_status": {

@@ -36,23 +36,26 @@ logger = logging.getLogger(__name__)
 
 class UniverseScale(Enum):
     """宇宙尺度"""
-    SINGLE = "single"            # 单宇宙
-    MULTI = "multi"              # 多宇宙
-    FEDERATED = "federated"      # 联邦宇宙
-    INFINITE = "infinite"        # 无量宇宙
+
+    SINGLE = "single"  # 单宇宙
+    MULTI = "multi"  # 多宇宙
+    FEDERATED = "federated"  # 联邦宇宙
+    INFINITE = "infinite"  # 无量宇宙
 
 
 class ExpansionPhase(Enum):
     """扩展阶段"""
-    LOCAL = "local"              # 局域因果
-    REGIONAL = "regional"        # 区域扩展
-    UNIVERSAL = "universal"      # 宇宙级
+
+    LOCAL = "local"  # 局域因果
+    REGIONAL = "regional"  # 区域扩展
+    UNIVERSAL = "universal"  # 宇宙级
     TRANSCENDENT = "transcendent"  # 超越扩展
 
 
 @dataclass
 class UniverseSpec:
     """宇宙规格"""
+
     universe_id: str
     scale: UniverseScale = UniverseScale.SINGLE
     causal_dimension: int = 3
@@ -61,15 +64,13 @@ class UniverseSpec:
 
     def __post_init__(self) -> None:
         if not self.godel_note:
-            self.godel_note = (
-                "GÖDEL NOTE: No single universe specification can capture "
-                "all possible causal structures."
-            )
+            self.godel_note = "GÖDEL NOTE: No single universe specification can capture all possible causal structures."
 
 
 @dataclass
 class FederationBridge:
     """联邦桥接配置"""
+
     source_universe: str
     target_universe: str
     bridge_type: str = "causal_channel"
@@ -153,11 +154,13 @@ class MultiUniverseFederation:
         self._members = list(universe_ids)
         # 建立桥接通道
         for i in range(len(self._members) - 1):
-            self._bridges.append(FederationBridge(
-                source_universe=self._members[i],
-                target_universe=self._members[i + 1],
-                established=True,
-            ))
+            self._bridges.append(
+                FederationBridge(
+                    source_universe=self._members[i],
+                    target_universe=self._members[i + 1],
+                    established=True,
+                )
+            )
 
         result = {
             "status": "federation_established",
@@ -202,18 +205,22 @@ class CrossUniverseCausal:
         if self._uu is not None:
             uu_invariants = self._uu.extract_existence_invariants()
             for inv in uu_invariants:
-                invariants.append({
-                    "type": inv.invariant_type if hasattr(inv, "invariant_type") else "unknown",
-                    "subspace": inv.subspace if hasattr(inv, "subspace") else "unknown",
-                    "cross_universe": True,
-                })
+                invariants.append(
+                    {
+                        "type": inv.invariant_type if hasattr(inv, "invariant_type") else "unknown",
+                        "subspace": inv.subspace if hasattr(inv, "subspace") else "unknown",
+                        "cross_universe": True,
+                    }
+                )
         else:
             # 最小实现
-            invariants.append({
-                "type": "causal_existence",
-                "subspace": "cross_universe",
-                "cross_universe": True,
-            })
+            invariants.append(
+                {
+                    "type": "causal_existence",
+                    "subspace": "cross_universe",
+                    "cross_universe": True,
+                }
+            )
 
         self._cross_invariants = invariants
         return {

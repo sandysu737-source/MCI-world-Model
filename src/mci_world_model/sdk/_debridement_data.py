@@ -57,31 +57,17 @@ class DebridementSample:
     """
 
     # 视觉模态
-    rgb_image: np.ndarray = field(
-        default_factory=lambda: np.zeros((224, 224, 3), dtype=np.uint8)
-    )
-    depth_image: np.ndarray = field(
-        default_factory=lambda: np.zeros((224, 224), dtype=np.float32)
-    )
-    thermal_image: np.ndarray = field(
-        default_factory=lambda: np.full((224, 224), 37.0, dtype=np.float32)
-    )
+    rgb_image: np.ndarray = field(default_factory=lambda: np.zeros((224, 224, 3), dtype=np.uint8))
+    depth_image: np.ndarray = field(default_factory=lambda: np.zeros((224, 224), dtype=np.float32))
+    thermal_image: np.ndarray = field(default_factory=lambda: np.full((224, 224), 37.0, dtype=np.float32))
 
     # 力触觉
-    force_torque: np.ndarray = field(
-        default_factory=lambda: np.zeros(6, dtype=np.float32)
-    )
+    force_torque: np.ndarray = field(default_factory=lambda: np.zeros(6, dtype=np.float32))
 
     # 本体感知 (7-DOF)
-    joint_positions: np.ndarray = field(
-        default_factory=lambda: np.zeros(7, dtype=np.float32)
-    )
-    joint_velocities: np.ndarray = field(
-        default_factory=lambda: np.zeros(7, dtype=np.float32)
-    )
-    joint_efforts: np.ndarray = field(
-        default_factory=lambda: np.zeros(7, dtype=np.float32)
-    )
+    joint_positions: np.ndarray = field(default_factory=lambda: np.zeros(7, dtype=np.float32))
+    joint_velocities: np.ndarray = field(default_factory=lambda: np.zeros(7, dtype=np.float32))
+    joint_efforts: np.ndarray = field(default_factory=lambda: np.zeros(7, dtype=np.float32))
 
     # 临床标注
     tissue_label: int = 0  # 0=坏死 1=腐肉 2=肉芽 3=上皮
@@ -129,9 +115,7 @@ class DebridementSample:
         depth_flat = self.depth_image.ravel() / 200.0  # 归一化到 ~[0,1]
         thermal_flat = (self.thermal_image.ravel() - 30.0) / 15.0  # 归一化
 
-        proprio = np.concatenate(
-            [self.joint_positions, self.joint_velocities, self.joint_efforts]
-        )
+        proprio = np.concatenate([self.joint_positions, self.joint_velocities, self.joint_efforts])
 
         return np.concatenate(
             [
@@ -253,10 +237,34 @@ class SyntheticDebridementGenerator:
     def _tissue_params(self, label: int) -> dict[str, Any]:
         """组织特异性物理参数。"""
         params = {
-            0: {"color": (40, 20, 10), "temp_range": (30, 34), "depth_range": (2, 8), "force_range": (0.5, 2.0), "depth": 5.0},
-            1: {"color": (180, 160, 80), "temp_range": (33, 36), "depth_range": (1, 5), "force_range": (1.0, 3.0), "depth": 3.0},
-            2: {"color": (200, 60, 50), "temp_range": (35, 38), "depth_range": (0.5, 3), "force_range": (2.0, 5.0), "depth": 1.5},
-            3: {"color": (230, 180, 170), "temp_range": (36, 37.5), "depth_range": (0, 0.5), "force_range": (4.0, 10.0), "depth": 0.2},
+            0: {
+                "color": (40, 20, 10),
+                "temp_range": (30, 34),
+                "depth_range": (2, 8),
+                "force_range": (0.5, 2.0),
+                "depth": 5.0,
+            },
+            1: {
+                "color": (180, 160, 80),
+                "temp_range": (33, 36),
+                "depth_range": (1, 5),
+                "force_range": (1.0, 3.0),
+                "depth": 3.0,
+            },
+            2: {
+                "color": (200, 60, 50),
+                "temp_range": (35, 38),
+                "depth_range": (0.5, 3),
+                "force_range": (2.0, 5.0),
+                "depth": 1.5,
+            },
+            3: {
+                "color": (230, 180, 170),
+                "temp_range": (36, 37.5),
+                "depth_range": (0, 0.5),
+                "force_range": (4.0, 10.0),
+                "depth": 0.2,
+            },
         }
         return params[label]
 
@@ -277,9 +285,9 @@ class SyntheticDebridementGenerator:
 
         wound_color = np.array(self._tissue_params(tissue_label)["color"], dtype=np.uint8)
         for c in range(3):
-            img[:, :, c][mask] = np.clip(
-                wound_color[c] + self._rng.randint(-15, 15, mask.sum()), 0, 255
-            ).astype(np.uint8)
+            img[:, :, c][mask] = np.clip(wound_color[c] + self._rng.randint(-15, 15, mask.sum()), 0, 255).astype(
+                np.uint8
+            )
 
         return img
 

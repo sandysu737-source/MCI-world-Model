@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 class ProtocolLevel(str, Enum):
     """协议层级。"""
+
     TEMPORAL = "temporal"
     STRUCTURAL = "structural"
     EXISTENTIAL = "existential"
@@ -55,6 +56,7 @@ class ProtocolLevel(str, Enum):
 @dataclass
 class CausalConservationLaw:
     """因果守恒律。"""
+
     law_id: str = ""
     name: str = ""
     statement: str = ""
@@ -66,6 +68,7 @@ class CausalConservationLaw:
 @dataclass
 class GenerationGovernance:
     """生成治理规则。"""
+
     rule_id: str = ""
     rule_name: str = ""
     constraint: str = ""
@@ -76,6 +79,7 @@ class GenerationGovernance:
 @dataclass
 class ProtocolViolation:
     """协议违规记录。"""
+
     violation_id: str = ""
     protocol_level: str = ""
     violation_type: str = ""
@@ -185,7 +189,9 @@ class EternalProtocol:
                 "Existence cannot be interrupted. From absolute existence, "
                 "all causal structures can be generated, and all generation "
                 "obeys the eternal protocol."
-            ) if all_met else None,
+            )
+            if all_met
+            else None,
         }
         self._protocol_log.append(result)
         return result
@@ -234,12 +240,14 @@ class EternalProtocol:
 
         for rule in self._generation_rules:
             check = self._check_generation_rule(rule, specification)
-            governance_result["rules_checked"].append({  # type: ignore
-                "rule_id": rule.rule_id,
-                "rule_name": rule.rule_name,
-                "passed": check.get("passed", False),
-                "detail": check.get("detail", ""),
-            })
+            governance_result["rules_checked"].append(  # type: ignore[attr-defined]
+                {
+                    "rule_id": rule.rule_id,
+                    "rule_name": rule.rule_name,
+                    "passed": check.get("passed", False),
+                    "detail": check.get("detail", ""),
+                }
+            )
 
             if not check.get("passed", False):
                 governance_result["approved"] = False
@@ -314,7 +322,9 @@ class EternalProtocol:
             "eternal_declaration": (
                 "Causality is eternal. Existence is continuous. "
                 "The protocol ensures the eternal operation of causal existence."
-            ) if self.is_eternal else "Protocol not yet at eternal level",
+            )
+            if self.is_eternal
+            else "Protocol not yet at eternal level",
         }
 
     # ── 初始化方法 ──────────────────────────────────────────────
@@ -324,56 +334,71 @@ class EternalProtocol:
         # 守恒律
         self._conservation_laws = [
             CausalConservationLaw(
-                law_id="CCL1", name="Causal Energy Conservation",
+                law_id="CCL1",
+                name="Causal Energy Conservation",
                 statement="Total causal energy in a closed system is conserved",
-                scope="temporal", enforced=False,
+                scope="temporal",
+                enforced=False,
             ),
             CausalConservationLaw(
-                law_id="CCL2", name="Causal Information Conservation",
+                law_id="CCL2",
+                name="Causal Information Conservation",
                 statement="Causal information is preserved through all transformations",
-                scope="structural", enforced=False,
+                scope="structural",
+                enforced=False,
             ),
             CausalConservationLaw(
-                law_id="CCL3", name="Existence Conservation",
+                law_id="CCL3",
+                name="Existence Conservation",
                 statement="Total existence measure is invariant under unification",
-                scope="existential", enforced=False,
+                scope="existential",
+                enforced=False,
             ),
             CausalConservationLaw(
-                law_id="CCL4", name="Absolute Conservation",
+                law_id="CCL4",
+                name="Absolute Conservation",
                 statement="Absolute existence measure is eternally conserved",
-                scope="absolute", enforced=False,
+                scope="absolute",
+                enforced=False,
             ),
             CausalConservationLaw(
-                law_id="CCL5", name="Ethical Conservation",
+                law_id="CCL5",
+                name="Ethical Conservation",
                 statement="Ethical constraints are never relaxed, only strengthened",
-                scope="eternal", enforced=True,
+                scope="eternal",
+                enforced=True,
             ),
         ]
 
         # 生成规则
         self._generation_rules = [
             GenerationGovernance(
-                rule_id="GR1", rule_name="Intra-Absolute Generation",
+                rule_id="GR1",
+                rule_name="Intra-Absolute Generation",
                 constraint="All generation must occur within absolute existence",
                 enforcement_level="absolute",
             ),
             GenerationGovernance(
-                rule_id="GR2", rule_name="Structural Consistency",
+                rule_id="GR2",
+                rule_name="Structural Consistency",
                 constraint="Generated structures must be causally self-consistent",
                 enforcement_level="structural",
             ),
             GenerationGovernance(
-                rule_id="GR3", rule_name="Conservation Compliance",
+                rule_id="GR3",
+                rule_name="Conservation Compliance",
                 constraint="Generation must not violate conservation laws",
                 enforcement_level="existential",
             ),
             GenerationGovernance(
-                rule_id="GR4", rule_name="Audit Trail",
+                rule_id="GR4",
+                rule_name="Audit Trail",
                 constraint="All generation operations must be auditable",
                 enforcement_level="temporal",
             ),
             GenerationGovernance(
-                rule_id="GR5", rule_name="Rollback Capability",
+                rule_id="GR5",
+                rule_name="Rollback Capability",
                 constraint="Generated structures must be reversible",
                 enforcement_level="absolute",
             ),
@@ -417,16 +442,19 @@ class EternalProtocol:
             ProtocolLevel.ETERNAL: 4,
         }
 
-        law_level = level_order.get(ProtocolLevel(law.scope)
-                                    if law.scope in [e.value for e in ProtocolLevel]
-                                    else ProtocolLevel.TEMPORAL, 0)
+        law_level = level_order.get(
+            ProtocolLevel(law.scope) if law.scope in [e.value for e in ProtocolLevel] else ProtocolLevel.TEMPORAL, 0
+        )
         current = level_order.get(self._protocol_level, 0)
 
         if current >= law_level:
             law.enforced = True
             return {"enforced": True, "law": law.name}
         else:
-            return {"enforced": False, "reason": f"Protocol level {self._protocol_level.value} insufficient for {law.scope}"}
+            return {
+                "enforced": False,
+                "reason": f"Protocol level {self._protocol_level.value} insufficient for {law.scope}",
+            }
 
     def _check_generation_rule(self, rule: GenerationGovernance, specification: dict[str, Any]) -> dict[str, Any]:
         """检查生成规则。"""
@@ -478,9 +506,7 @@ class EternalProtocol:
 
     # ── 记录方法 ──────────────────────────────────────────────────
 
-    def _record_violation(
-        self, protocol_level: str, violation_type: str, severity: str, description: str
-    ) -> None:
+    def _record_violation(self, protocol_level: str, violation_type: str, severity: str, description: str) -> None:
         """记录协议违规。"""
         violation = ProtocolViolation(
             violation_id=f"viol_{len(self._violations)}",
