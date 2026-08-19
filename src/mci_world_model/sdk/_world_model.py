@@ -2209,9 +2209,11 @@ class MCIWorldModel:
 
     def health_check(self) -> dict[str, Any]:
         """全系统健康诊断。"""
+        from mci_world_model import __version__
+
         check = {
-            "version": "4.6.0",
-            "code_name": "MCI World Model v4.6.0 CEWM 认知增强",
+            "version": __version__,
+            "code_name": f"MCI World Model {__version__} CEWM 认知增强",
             "initialized": self._initialized,
             "causal_pipeline": {
                 "edges_discovered": len(self._state.causal_edges),

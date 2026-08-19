@@ -14,6 +14,7 @@ MCI World Model v3.1.0 — World Model 端到端集成测试
 import numpy as np
 import pytest
 
+import mci_world_model
 from mci_world_model.sdk._world_model import CausalWorldModelState, MCIWorldModel
 
 # =============================================================================
@@ -79,7 +80,7 @@ class TestMCIWorldModelInit:
         wm, _ = initialized_wm
         check = wm.health_check()
         assert isinstance(check, dict)
-        assert check["version"] == "4.3.3"
+        assert check["version"] == mci_world_model.__version__
         assert "causal_pipeline" in check
         assert "jepa_predictor" in check
         assert "energy_loss" in check
@@ -155,7 +156,7 @@ class TestPredictions:
             results = wm.jepa_predict("价格上升", memories=sample_memories)
             assert isinstance(results, list)
         except Exception:
-            pass  # JEPA 编码器可能回退到检索路径
+            results = []  # JEPA 编码器可能回退到检索路径，容忍为空结果
 
     def test_intervene_insufficient_input(self, initialized_wm):
         """缺少 do_x/target 时返回错误。"""

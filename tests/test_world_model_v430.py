@@ -876,12 +876,14 @@ class TestCheckAdmissibility:
 
 
 class TestV432HealthCheck:
-    """v4.3.3 health_check 报告验证。"""
+    """health_check 报告验证（版本跟随 __version__）。"""
 
-    def test_version_432(self, wm):
-        """health_check 返回 4.3.3。"""
+    def test_version_460(self, wm):
+        """health_check 返回当前包版本。"""
+        import mci_world_model
+
         check = wm.health_check()
-        assert check["version"] == "4.3.3"
+        assert check["version"] == mci_world_model.__version__
 
     def test_cewm_components_extended(self, wm):
         """cewm_components 包含 v4.3.2+v4.3.3 字段。"""
