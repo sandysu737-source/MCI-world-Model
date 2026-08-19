@@ -8,6 +8,7 @@
     x = B.array([1.0, 2.0])
     y = B.matmul(A, x)
 """
+
 from mci_world_model._backend.selector import get_backend
 
 B = get_backend()

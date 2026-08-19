@@ -84,14 +84,12 @@ class ClinicalObjective:
         self._w_safety = w_safety / total
 
         # 预计算正常范围中点和半宽（用于稳定度评分）
-        self._vital_mids = np.array([
-            (VITAL_NORMAL_RANGES[v][0] + VITAL_NORMAL_RANGES[v][1]) / 2.0
-            for v in VITAL_NAMES
-        ])
-        self._vital_halfs = np.array([
-            max((VITAL_NORMAL_RANGES[v][1] - VITAL_NORMAL_RANGES[v][0]) / 2.0, 1e-6)
-            for v in VITAL_NAMES
-        ])
+        self._vital_mids = np.array(
+            [(VITAL_NORMAL_RANGES[v][0] + VITAL_NORMAL_RANGES[v][1]) / 2.0 for v in VITAL_NAMES]
+        )
+        self._vital_halfs = np.array(
+            [max((VITAL_NORMAL_RANGES[v][1] - VITAL_NORMAL_RANGES[v][0]) / 2.0, 1e-6) for v in VITAL_NAMES]
+        )
 
     @property
     def weights(self) -> dict[str, float]:

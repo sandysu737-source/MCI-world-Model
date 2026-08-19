@@ -77,8 +77,7 @@ class CrossDimensionalCausal:
             "bridge_quality": bridge["quality"],
         }
 
-    def digital_twin_causal_sync(
-        self, physical_observations: dict[str, Any]) -> dict[str, Any]:
+    def digital_twin_causal_sync(self, physical_observations: dict[str, Any]) -> dict[str, Any]:
         """数字孪生因果同步。"""
         sync_result = {"success": True, "observations_synced": len(physical_observations)}
         predictions = {"predicted_effects": "computed"}
@@ -110,9 +109,7 @@ class CrossDimensionalCausal:
             "n_dimensions": len(dim_results),
         }
 
-    def establish_dimension_bridge(
-        self, source_dim: str, target_dim: str, quality: float = 0.7
-    ) -> dict[str, Any]:
+    def establish_dimension_bridge(self, source_dim: str, target_dim: str, quality: float = 0.7) -> dict[str, Any]:
         """建立维度间桥接。"""
         key = f"{source_dim}->{target_dim}"
         self._bridges[key] = {"quality": quality, "established": True}

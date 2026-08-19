@@ -562,7 +562,7 @@ class JEPATrainer:
         stats = self._parametric_memory.train_on_signals(cause_texts, true_categories, learning_rate=learning_rate)
         return stats.get("final_loss", 0.0)
 
-    def evaluate(self, dataset: Any=None) -> dict[str, Any]:
+    def evaluate(self, dataset: Any = None) -> dict[str, Any]:
         """
         在完整数据集上评估预测器精度。
 

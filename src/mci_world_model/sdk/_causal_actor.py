@@ -154,7 +154,7 @@ class CausalActor:
     MIN_COST_IMPROVEMENT: float = 0.01  # 最小代价改善阈值
     DEFAULT_DELTA: float = 0.1  # 有限差分扰动幅度
 
-    def __init__(self, world_model: Any, cost_module: Any=None, energy_core: Any=None) -> None:
+    def __init__(self, world_model: Any, cost_module: Any = None, energy_core: Any = None) -> None:
         """
         Args:
             world_model: MCIWorldModel 实例

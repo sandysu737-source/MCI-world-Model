@@ -183,7 +183,10 @@ class CartStateParser:
         """检查观测是否为 CartState 或含 x+v 的 dict。"""
         if obs is None:
             return False
-        return bool((hasattr(obs, "x") and hasattr(obs, "v") and not hasattr(obs, "theta")) or (isinstance(obs, dict) and "x" in obs and "v" in obs and "theta" not in obs))
+        return bool(
+            (hasattr(obs, "x") and hasattr(obs, "v") and not hasattr(obs, "theta"))
+            or (isinstance(obs, dict) and "x" in obs and "v" in obs and "theta" not in obs)
+        )
 
     def parse(self, obs: object) -> WorldState:
         """解析为 CartState。"""

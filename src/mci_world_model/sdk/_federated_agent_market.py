@@ -63,9 +63,7 @@ class AgentSpec:
 
     def __post_init__(self) -> None:
         if not self.agent_id:
-            self.agent_id = hashlib.md5(
-                f"{self.name}:{self.provider}:{time.time()}".encode()
-            ).hexdigest()[:12]
+            self.agent_id = hashlib.md5(f"{self.name}:{self.provider}:{time.time()}".encode()).hexdigest()[:12]
 
 
 # =============================================================================
@@ -93,9 +91,7 @@ class TradeRecord:
 
     def __post_init__(self) -> None:
         if not self.trade_id:
-            self.trade_id = hashlib.md5(
-                f"{self.agent_id}:{self.consumer}:{self.timestamp}".encode()
-            ).hexdigest()[:12]
+            self.trade_id = hashlib.md5(f"{self.agent_id}:{self.consumer}:{self.timestamp}".encode()).hexdigest()[:12]
 
 
 # =============================================================================

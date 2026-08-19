@@ -168,7 +168,9 @@ class MCIDomainSDK:
         self._results.append(result)
         return result
 
-    def _reason_engineering(self, cause: str, effect: str, evidence: list[dict[str, Any]], prior: float) -> DomainResult:
+    def _reason_engineering(
+        self, cause: str, effect: str, evidence: list[dict[str, Any]], prior: float
+    ) -> DomainResult:
         evidence_count = len(evidence)
         has_margin = any(e.get("safety_margin", 0) >= 0.2 for e in evidence)
         is_compliant = has_margin and evidence_count > 0

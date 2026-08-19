@@ -426,7 +426,9 @@ class ReflectionSynthesizer:
             qa_pair_id=_hash_pair_id(content_a, content_b),
         )
 
-    def _try_synthesize_chain(self, fact_a: dict[str, Any], fact_b: dict[str, Any], relation: str) -> SynthesizedQAPair | None:
+    def _try_synthesize_chain(
+        self, fact_a: dict[str, Any], fact_b: dict[str, Any], relation: str
+    ) -> SynthesizedQAPair | None:
         """
         能量关系驱动的因果链合成。
 

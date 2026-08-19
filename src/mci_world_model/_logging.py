@@ -11,6 +11,7 @@
     import logging
     logger = logging.getLogger(__name__)
 """
+
 from __future__ import annotations
 
 import json
@@ -56,9 +57,7 @@ def setup_logging(
     if json_format:
         handler.setFormatter(JSONFormatter())
     else:
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-        )
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
 
     root = logging.getLogger()
     root.setLevel(level)

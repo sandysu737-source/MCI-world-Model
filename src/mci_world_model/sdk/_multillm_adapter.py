@@ -122,7 +122,9 @@ class OllamaProvider:
 class OpenAIProvider:
     """OpenAI API provider。"""
 
-    def __init__(self, api_key: str = "", model: str = "gpt-4o-mini", base_url: str = "", timeout: float = 30.0) -> None:
+    def __init__(
+        self, api_key: str = "", model: str = "gpt-4o-mini", base_url: str = "", timeout: float = 30.0
+    ) -> None:
         import os
 
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")

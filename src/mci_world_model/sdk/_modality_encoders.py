@@ -553,9 +553,7 @@ class ForceEncoder:
 
         # 轻量投影: 统计特征 → 输出 (无训练参数, 确定性)
         rng = np.random.RandomState(seed)
-        self._proj_W = rng.randn(feature_dim, output_dim).astype(np.float64) * np.sqrt(
-            2.0 / (feature_dim + output_dim)
-        )
+        self._proj_W = rng.randn(feature_dim, output_dim).astype(np.float64) * np.sqrt(2.0 / (feature_dim + output_dim))
         self._proj_b = np.zeros(output_dim, dtype=np.float64)
 
     @property

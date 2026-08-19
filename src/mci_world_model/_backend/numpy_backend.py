@@ -1,4 +1,5 @@
 """NumPy 后端 — CPU 实现 (默认)。"""
+
 from __future__ import annotations
 
 import numpy as np

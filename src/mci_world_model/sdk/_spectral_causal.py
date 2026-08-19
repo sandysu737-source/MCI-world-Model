@@ -413,7 +413,7 @@ class GaussianDAG:
                         rel = analyze_relation(mem_etype_a, mem_etype_b)
                         energy_rel = rel.relation.value
                     except ImportError:
-                        pass  # 能量模块不可用，energy_rel 保持默认值
+                        logger.debug("能量模块不可用，energy_rel 保持默认值")
 
                 edges.append(
                     {
@@ -614,7 +614,7 @@ class FourierCausal:
         "water": 0.25,  # T=4 → f=0.25 (冬藏)
     }
 
-    def __init__(self, energy_bus: Any=None) -> None:
+    def __init__(self, energy_bus: Any = None) -> None:
         """
         Args:
             energy_bus: EnergyBus 实例 (可选，用于 record_snapshot 自动采集)
@@ -1208,7 +1208,7 @@ class BayesianCausal:
         "weak_h1": 1.0,
     }
 
-    def __init__(self, energy_bus: Any=None) -> None:
+    def __init__(self, energy_bus: Any = None) -> None:
         """
         Args:
             energy_bus: EnergyBus 实例 (可选, 用于能量先验推断)

@@ -3,6 +3,7 @@
 当 torch 可用且有 CUDA GPU 时自动启用。
 提供与 NumPyBackend 相同的接口, 底层用 torch.tensor + GPU。
 """
+
 from __future__ import annotations
 
 import logging
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import torch
+
     _TORCH_AVAILABLE = True
     _CUDA_AVAILABLE = torch.cuda.is_available()
 except ImportError:

@@ -40,7 +40,7 @@ try:
 
     _zvec_available = True
 except ImportError:
-    pass
+    logger.debug("zvec 不可用，_zvec_available=False")
 
 
 # =============================================================================
@@ -114,17 +114,13 @@ class ZvecEmbeddingStore:
                 ],
             )
 
-            self._collection = _zvec.create_and_open(
-                self.config.store_path, schema
-            )
+            self._collection = _zvec.create_and_open(self.config.store_path, schema)
 
             # Build index
             if self.config.index_type == "hnsw":
                 self._collection.create_index(  # type: ignore[attr-defined]
                     "vec",
-                    index_param=_zvec.HnswIndexParam(
-                        metric_type=_zvec.MetricType.COSINE
-                    ),
+                    index_param=_zvec.HnswIndexParam(metric_type=_zvec.MetricType.COSINE),
                 )
             logger.info("Zvec store initialized at %s", self.config.store_path)
 

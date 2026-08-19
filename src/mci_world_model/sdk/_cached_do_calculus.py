@@ -153,15 +153,13 @@ class CachedDoCalculus:
         if graph is None:
             return "no_graph"
         # 确定性排序 + MD5 指纹
-        edges_str = ",".join(
-            sorted(f"{a}->{b}" for a, b in graph.edges)
-        ) if hasattr(graph, "adjacency") else str(id(graph))
+        edges_str = (
+            ",".join(sorted(f"{a}->{b}" for a, b in graph.edges)) if hasattr(graph, "adjacency") else str(id(graph))
+        )
         h = hashlib.md5(edges_str.encode()).hexdigest()[:8]
         return f"g{h}"
 
-    def _compute(
-        self, X: str, Y: str, Z_set: list[str] | None
-    ) -> dict[str, Any] | None:
+    def _compute(self, X: str, Y: str, Z_set: list[str] | None) -> dict[str, Any] | None:
         """底层 DoCalculus 计算 (无缓存)。"""
         try:
             result = self._do.estimate_ate(X, Y)

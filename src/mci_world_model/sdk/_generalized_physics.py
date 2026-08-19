@@ -283,7 +283,9 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
         # 注册内置动力学函数（FIX-C3: 绑定状态类名）
         self.register_dynamics("pendulum", pendulum_dynamics, state_dim=2, action_dim=1, state_cls="PendulumState")
         self.register_dynamics("cart", cart_dynamics, state_dim=2, action_dim=1, state_cls="CartState")
-        self.register_dynamics("double_pendulum", double_pendulum_dynamics, state_dim=4, action_dim=2, state_cls="DoublePendulumState")
+        self.register_dynamics(
+            "double_pendulum", double_pendulum_dynamics, state_dim=4, action_dim=2, state_cls="DoublePendulumState"
+        )
         # v5.1.0: 新增物理系统
         self.register_dynamics("spring_mass", spring_mass_dynamics, state_dim=2, action_dim=1)
         self.register_dynamics("projectile", projectile_dynamics, state_dim=4, action_dim=2)
@@ -393,7 +395,9 @@ class GeneralizedPhysicsPredictor(ActionConditionedPredictor):
         if len(candidates) > 1:
             logger.warning(
                 "后端推断维度碰撞: %dD 有 %s，使用默认 '%s'",
-                state_dim, candidates, self._backend,
+                state_dim,
+                candidates,
+                self._backend,
             )
         return self._backend
 

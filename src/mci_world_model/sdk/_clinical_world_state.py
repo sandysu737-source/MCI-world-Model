@@ -182,7 +182,6 @@ class PatientState(WorldState):
         )
         return np.concatenate([latest_vitals, lab_vec])
 
-
     @classmethod
     def from_vector(cls, vec: np.ndarray) -> PatientState:
         """从向量解码为患者状态（JEPA Decoder 输出）。
@@ -531,7 +530,6 @@ class MedicalAction(Action):
                 target = DRUG_REGISTRY[drug_idx]
         mag = float(vec[drug_end]) if len(vec) > drug_end else 0.0
         return cls(action_type=types[idx], target=target, magnitude=mag)
-
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为字典（审计日志用）。"""

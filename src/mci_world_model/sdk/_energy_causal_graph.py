@@ -14,6 +14,7 @@
   - _sys/_energy_core.py EnergyCore.simulate_energy_flow (矩阵迭代)
 为基于 algebra 层的单一守恒传播。
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -100,6 +101,7 @@ class EnergyWeightedCausalGraph:
     def relation(self, src: str, dst: str) -> str:
         """分类 src→dst 的关系 (生/克夺取/无)。"""
         from mci_world_model._sys._terms import ENERGY_ENHANCE, ENERGY_SUPPRESS
+
         if ENERGY_ENHANCE.get(src) == dst:
             return "生"
         if ENERGY_SUPPRESS.get(src) == dst:

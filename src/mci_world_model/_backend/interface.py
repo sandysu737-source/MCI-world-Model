@@ -1,4 +1,5 @@
 """后端抽象接口 — 7 种核心线性代数操作。"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

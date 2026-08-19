@@ -207,7 +207,9 @@ class OrchestratorBridge:
 
         return result
 
-    def execute_workflow(self, workflow_name: str, patient_id: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    def execute_workflow(
+        self, workflow_name: str, patient_id: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         执行多意图工作流。
 
