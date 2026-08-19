@@ -146,7 +146,7 @@ class ForceLimitConstraint(SafetyConstraint):
                         reason=f"动作幅值超限: {abs(float(vec[0])):.2f} > {self._max_force:.2f}",
                         severity="violation",
                     )
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return SafetyCheckResult(passed=True, constraint_name=self.name)
 
@@ -609,13 +609,14 @@ class TissueForceConstraint(SafetyConstraint):
     def __init__(self, tissue_label: int = 0) -> None:
         self._tissue_label = tissue_label
         from mci_world_model.sdk._force_tissue_dynamics import TISSUE_PARAMS
+
         self._params = TISSUE_PARAMS
 
     @property
     def name(self) -> str:
         return "tissue_force"
 
-    def check(self, state: Any, action: Any=None) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any = None) -> SafetyCheckResult:
         p = self._params.get(self._tissue_label, {"max_force": 0.5, "name": "未知"})
         current_force = getattr(state, "tool_force_n", 0.0) if hasattr(state, "tool_force_n") else 0.0
 
@@ -641,13 +642,16 @@ class ThermalSafetyConstraint(SafetyConstraint):
     def name(self) -> str:
         return "thermal_safety"
 
-    def check(self, state: Any, action: Any=None) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any = None) -> SafetyCheckResult:
         import numpy as _np
+
         temp = getattr(state, "thermal_image", None)
         if temp is not None:
             max_t = float(_np.max(temp))
             if max_t > self._max_temp:
-                return SafetyCheckResult(passed=False, reason=f"温度超限: {max_t:.1f}°C > {self._max_temp}°C", constraint_name=self.name)
+                return SafetyCheckResult(
+                    passed=False, reason=f"温度超限: {max_t:.1f}°C > {self._max_temp}°C", constraint_name=self.name
+                )
         return SafetyCheckResult(passed=True, constraint_name=self.name)
 
 
@@ -661,8 +665,10 @@ class DepthLimitConstraint(SafetyConstraint):
     def name(self) -> str:
         return "depth_limit"
 
-    def check(self, state: Any, action: Any=None) -> SafetyCheckResult:
+    def check(self, state: Any, action: Any = None) -> SafetyCheckResult:
         depth = getattr(state, "wound_depth_mm", 0.0)
         if depth > self._max_depth:
-            return SafetyCheckResult(passed=False, reason=f"深度超限: {depth:.1f}mm > {self._max_depth}mm", constraint_name=self.name)
+            return SafetyCheckResult(
+                passed=False, reason=f"深度超限: {depth:.1f}mm > {self._max_depth}mm", constraint_name=self.name
+            )
         return SafetyCheckResult(passed=True, constraint_name=self.name)

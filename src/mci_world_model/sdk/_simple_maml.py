@@ -20,9 +20,8 @@ Usage::
 """
 
 
-from dataclasses import dataclass, field
-
 import logging
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 import numpy as np
@@ -105,16 +104,19 @@ class SimpleMAML:
 
     # ── Forward ─────────────────────────────────────────────────────────
 
-    def _forward(
-        self, x: np.ndarray, w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray
-    ) -> np.ndarray:
+    def _forward(self, x: np.ndarray, w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray) -> np.ndarray:
         """单隐藏层 MLP 前向传播。"""
         h = np.maximum(0, x @ w1 + b1)  # ReLU
         return h @ w2 + b2
 
     def _loss(
-        self, x: np.ndarray, y: np.ndarray,
-        w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray,
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        w1: np.ndarray,
+        b1: np.ndarray,
+        w2: np.ndarray,
+        b2: np.ndarray,
     ) -> float:
         """MSE 损失。"""
         pred = self._forward(x, w1, b1, w2, b2)
@@ -123,7 +125,9 @@ class SimpleMAML:
     # ── Inner Loop (Task-Specific Adaptation) ────────────────────────────
 
     def adapt(
-        self, x_support: np.ndarray, y_support: np.ndarray,
+        self,
+        x_support: np.ndarray,
+        y_support: np.ndarray,
         steps: int | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """内循环：在支撑集上快速适应。
@@ -162,7 +166,10 @@ class SimpleMAML:
     # ── Outer Loop (Meta-Learning) ───────────────────────────────────────
 
     def meta_train(
-        self, tasks: list[MAMLTask], n_epochs: int = 100, verbose: bool = False,
+        self,
+        tasks: list[MAMLTask],
+        n_epochs: int = 100,
+        verbose: bool = False,
     ) -> list[float]:
         """元训练：学习跨任务通用初始化。
 
@@ -189,9 +196,7 @@ class SimpleMAML:
                 w1_a, b1_a, w2_a, b2_a = self.adapt(task.x_support, task.y_support)
 
                 # Query set loss
-                pred_q = self._forward(
-                    task.x_query, w1_a, b1_a, w2_a, b2_a
-                )
+                pred_q = self._forward(task.x_query, w1_a, b1_a, w2_a, b2_a)
                 task_loss = float(np.mean((pred_q - task.y_query) ** 2))
                 epoch_loss += task_loss
 
@@ -233,8 +238,11 @@ class SimpleMAML:
     # ── Evaluation ──────────────────────────────────────────────────────
 
     def evaluate_adaptation(
-        self, x_support: np.ndarray, y_support: np.ndarray,
-        x_test: np.ndarray, y_test: np.ndarray,
+        self,
+        x_support: np.ndarray,
+        y_support: np.ndarray,
+        x_test: np.ndarray,
+        y_test: np.ndarray,
     ) -> dict[str, float]:
         """评估在新任务上的快速适应能力。
 
@@ -279,8 +287,10 @@ class SimpleMAML:
 
         # Evaluate on target
         eval_result = self.evaluate_adaptation(
-            target_task.x_support, target_task.y_support,
-            target_task.x_query, target_task.y_query,
+            target_task.x_support,
+            target_task.y_support,
+            target_task.x_query,
+            target_task.y_query,
         )
 
         # Transfer score: improvement from pre-adaptation to post-adaptation

@@ -23,11 +23,10 @@ WorldState 是 MCI 世界模型"认知环"的核心数据结构——被建模�
 """
 
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
-
-import logging
 
 logger = logging.getLogger(__name__)
 import numpy as np
@@ -249,14 +248,14 @@ class PendulumState(WorldState):
                     try:
                         theta = float(sig.value)
                     except (TypeError, ValueError):
-                        pass
+                        logger.debug("忽略非法 encoder_position 信号，保持默认摆角")
                 elif "imu_9axis" in sub_type_str:
                     val = sig.value
                     if isinstance(val, (list, tuple)) and len(val) >= 3:
                         try:
                             omega = float(val[2])  # gyro_z
                         except (TypeError, ValueError):
-                            pass
+                            logger.debug("忽略非法 gyro_z 信号，保持默认角速度")
 
         return cls(theta=theta, omega=omega)
 
@@ -780,7 +779,7 @@ class MultimodalWorldState(WorldState):
         if cls._last_layout and len(vec) >= sum(end - start for start, end in cls._last_layout.values()):
             try:
                 return cls.from_vector_with_layout(vec, cls._last_layout)
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return cls(fused=vec)
 

@@ -42,6 +42,7 @@ class CapabilityStatus(str, Enum):
 @dataclass
 class Capability:
     """因果智能能力。"""
+
     name: str = ""
     status: str = CapabilityStatus.INACTIVE
     description: str = ""
@@ -52,6 +53,7 @@ class Capability:
 @dataclass
 class ExistenceReport:
     """存在状态报告。"""
+
     mode: str = ""
     n_active_capabilities: int = 0
     n_total_capabilities: int = 0
@@ -63,6 +65,7 @@ class ExistenceReport:
 @dataclass
 class AutonomousAction:
     """自主行动。"""
+
     action_type: str = ""
     target: str = ""
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -351,7 +354,7 @@ class UltimateCausalIntelligence:
         if self._consciousness is not None and hasattr(self._consciousness, "unify_consciousness"):
             try:
                 return self._consciousness.unify_consciousness()
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return {"perceived": True, "environment_keys": list(env.keys())}
 
@@ -382,7 +385,7 @@ class UltimateCausalIntelligence:
                 domain = env.get("domain", "meta")
                 theory = self._creation.create_causal_theory(domain)
                 return {"created": theory is not None, "domain": domain}
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return {"created": False}
 
@@ -393,7 +396,7 @@ class UltimateCausalIntelligence:
                 domain = env.get("domain", "meta")
                 result = self._civilization.knowledge_generation_cycle(domain)
                 return {"heritage": True, "result": result}
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return {"heritage": False}
 
@@ -403,7 +406,7 @@ class UltimateCausalIntelligence:
             try:
                 result = self._economy.trade_knowledge("seller", "buyer", "knowledge_unit")
                 return {"traded": True, "result": result}
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return {"traded": False}
 

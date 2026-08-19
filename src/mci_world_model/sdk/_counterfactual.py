@@ -396,9 +396,7 @@ class StructuralEquationModel:
         # 由调用方 obs_vec 决定, 这里通过 coefficients 规模间接判断
         return self._n_nodes > 0
 
-    def _gaussian_posterior(
-        self, unobserved_idx: int, obs_vec: np.ndarray
-    ) -> tuple[float, float]:
+    def _gaussian_posterior(self, unobserved_idx: int, obs_vec: np.ndarray) -> tuple[float, float]:
         """线性高斯 SEM 下未观测节点的后验 P(U_i | E)。
 
         SEM: V = B^T V + ε, ε ~ N(0, σ²I)  =>  V ~ N(0, (I-B^T)^{-1} σ² (I-B^T)^{-T})
@@ -412,15 +410,15 @@ class StructuralEquationModel:
         """
         B = self.coefficients
         n = self._n_nodes
-        I = np.eye(n)
+        ident = np.eye(n)
         # 噪声是加在激活后的: V = σ(B^T V) + ε。线性下 σ=identity, 所以 V = B^T V + ε
         # => (I - B^T) V = ε => V = (I - B^T)^{-1} ε
         # Cov(V) = (I-B^T)^{-1} σ²I (I-B^T)^{-T}
         try:
-            A_inv = np.linalg.inv(I - B.T)
+            A_inv = np.linalg.inv(ident - B.T)
         except np.linalg.LinAlgError:
             return 0.0, self.noise_std  # 奇异回退先验
-        sigma_v = self.noise_std ** 2 * (A_inv @ A_inv.T)
+        sigma_v = self.noise_std**2 * (A_inv @ A_inv.T)
 
         # 观测节点索引
         obs_idx = [i for i in range(n) if not np.isnan(obs_vec[i])]

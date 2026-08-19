@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class TrustLevel(str, Enum):
     """信任层次。"""
+
     EXTERNAL = "external"
     SELF_VERIFY = "self_verify"
     THEOREM_BACKED = "theorem_backed"
@@ -51,6 +52,7 @@ class TrustLevel(str, Enum):
 @dataclass
 class TrustChain:
     """信任链。"""
+
     chain_id: str = ""
     levels: list[str] = field(default_factory=list)
     integrity: float = 0.0
@@ -61,6 +63,7 @@ class TrustChain:
 @dataclass
 class IntegrityCheck:
     """完整性检查结果。"""
+
     check_id: str = ""
     dimension: str = ""
     value: float = 0.0
@@ -72,6 +75,7 @@ class IntegrityCheck:
 @dataclass
 class AuditEntry:
     """审计条目。"""
+
     audit_id: str = ""
     audit_type: str = ""
     result: str = ""
@@ -193,15 +197,13 @@ class AbsoluteTrust:
         for level in chain_levels:
             chain_verification[level.value] = {
                 "reached": self._trust_level.value >= level.value
-                    if isinstance(self._trust_level.value, str) else False,
+                if isinstance(self._trust_level.value, str)
+                else False,
                 "verified": self._verify_trust_at_level(level),
             }
 
         # 检查信任链完整性
-        chain_intact = all(
-            v.get("verified", False) for v in chain_verification.values()
-            if v.get("reached", False)
-        )
+        chain_intact = all(v.get("verified", False) for v in chain_verification.values() if v.get("reached", False))
 
         self._trust_chain.integrity = 1.0 if chain_intact else 0.5
         self._trust_chain.verified = chain_intact
@@ -286,13 +288,15 @@ class AbsoluteTrust:
             findings.append("Ethical compliance not verified")
             recommendations.append("Pass final ethical review before absolute mode")
 
-        all_ok = all([
-            activation_ok.get("valid", False),
-            rollback_ok.get("safe", False),
-            generation_ok.get("safe", False),
-            godel_ok.get("annotated", False),
-            ethical_ok.get("compliant", False),
-        ])
+        all_ok = all(
+            [
+                activation_ok.get("valid", False),
+                rollback_ok.get("safe", False),
+                generation_ok.get("safe", False),
+                godel_ok.get("annotated", False),
+                ethical_ok.get("compliant", False),
+            ]
+        )
 
         entry = AuditEntry(
             audit_id=f"audit_{len(self._audit_log)}",
@@ -394,7 +398,7 @@ class AbsoluteTrust:
             try:
                 result = self._final_theorem.check_consistency()
                 return 1.0 if result.get("overall_consistent", False) else 0.5
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return 0.8
 
@@ -419,7 +423,7 @@ class AbsoluteTrust:
             try:
                 result = self._absolute.check_activation_conditions()
                 return {"valid": result.get("all_met", False)}
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         return {"valid": False, "note": "Cannot verify activation conditions"}
 

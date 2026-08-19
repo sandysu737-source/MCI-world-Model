@@ -408,7 +408,7 @@ class NeurosymbolicWorldModel:
             if len(state_vec) > 0 and self._jepa_encoder is not None:
                 latent = self._jepa_encoder.forward(state_vec)
                 return {"latent_prediction": latent, "method": "jepa"}, 0.7
-        except Exception as e:
+        except Exception:
             logger.warning("吞异常", exc_info=True)
         return {"method": "jepa", "status": "unavailable"}, 0.3
 
@@ -434,7 +434,7 @@ class NeurosymbolicWorldModel:
                     "n_edges": len(self._causal_graph.edges),
                     "method": "graph_lookup",
                 }, 0.5
-        except Exception as e:
+        except Exception:
             logger.warning("吞异常", exc_info=True)
         return {"method": "causal", "status": "unavailable"}, 0.2
 
@@ -448,7 +448,7 @@ class NeurosymbolicWorldModel:
             if self._llm_adapter is not None:
                 response = self._llm_adapter.generate(query, context=context)
                 return {"response": response, "method": "llm"}, 0.6
-        except Exception as e:
+        except Exception:
             logger.warning("吞异常", exc_info=True)
         return {"method": "semantic", "status": "unavailable"}, 0.2
 
@@ -631,7 +631,7 @@ class NeurosymbolicWorldModel:
         if self._llm_adapter is not None:
             try:
                 return self._llm_adapter.embed(query, dim=self._config.embed_dim)
-            except Exception as e:
+            except Exception:
                 logger.warning("吞异常", exc_info=True)
         # 语义路由: 关键词匹配得分
         query_lower = query.lower()
