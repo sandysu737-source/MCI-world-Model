@@ -33,25 +33,28 @@ logger = logging.getLogger(__name__)
 
 class TrustGrade(Enum):
     """信任等级"""
-    UNVERIFIED = "unverified"        # 未验证
-    BASIC = "basic"                  # 基本信任
-    ENHANCED = "enhanced"            # 增强信任
-    CERTIFIED = "certified"          # 认证信任
-    FORMAL = "formal"                # 形式化证明
+
+    UNVERIFIED = "unverified"  # 未验证
+    BASIC = "basic"  # 基本信任
+    ENHANCED = "enhanced"  # 增强信任
+    CERTIFIED = "certified"  # 认证信任
+    FORMAL = "formal"  # 形式化证明
 
 
 class ValidationMethod(Enum):
     """验证方法"""
-    EMPIRICAL = "empirical"          # 经验验证
-    STATISTICAL = "statistical"      # 统计验证
+
+    EMPIRICAL = "empirical"  # 经验验证
+    STATISTICAL = "statistical"  # 统计验证
     COUNTERFACTUAL = "counterfactual"  # 反事实验证
-    FORMAL_PROOF = "formal_proof"    # 形式化证明
-    PEER_REVIEW = "peer_review"      # 同行审查
+    FORMAL_PROOF = "formal_proof"  # 形式化证明
+    PEER_REVIEW = "peer_review"  # 同行审查
 
 
 @dataclass
 class TrustCertificate:
     """因果信任证书"""
+
     certificate_id: str
     claim_id: str
     grade: TrustGrade = TrustGrade.UNVERIFIED
@@ -76,6 +79,7 @@ class TrustCertificate:
 @dataclass
 class TrustClaim:
     """信任声明"""
+
     claim_id: str
     description: str
     evidence: dict[str, Any] = field(default_factory=dict)
@@ -218,9 +222,7 @@ class CausalTrustEnhancement:
             return {"status": "not_found", "claim_id": claim_id}
 
         # 形式化验证模拟
-        has_formal_evidence = any(
-            key in claim.evidence for key in ("proof", "derivation", "axiom_chain")
-        )
+        has_formal_evidence = any(key in claim.evidence for key in ("proof", "derivation", "axiom_chain"))
 
         if has_formal_evidence:
             claim.grade = TrustGrade.FORMAL

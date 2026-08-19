@@ -93,7 +93,9 @@ class LocalTrust:
     """本地信任评估 — 基于证据的信任计算。"""
 
     def reason_with_trust(
-        self, evidence: dict[str, Any], context: dict | None = None  # type: ignore
+        self,
+        evidence: dict[str, Any],
+        context: dict | None = None,  # type: ignore
     ) -> dict[str, Any]:
         """基于证据的信任评估。
 
@@ -180,8 +182,7 @@ class FederatedTrust:
 
     # ── Trust Assessment ────────────────────────────────────────────────
 
-    def assess_federation_trust(
-        self, node_id: str, evidence: dict[str, Any]) -> dict[str, Any]:
+    def assess_federation_trust(self, node_id: str, evidence: dict[str, Any]) -> dict[str, Any]:
         """联邦信任评估。
 
         流程:
@@ -197,9 +198,7 @@ class FederatedTrust:
             联邦信任评估结果
         """
         # 本地评估
-        local_assessment = self._local_trust.reason_with_trust(
-            evidence, context={"source_node": node_id}
-        )
+        local_assessment = self._local_trust.reason_with_trust(evidence, context={"source_node": node_id})
 
         # 跨节点证明 (仿真)
         cross_attestations = self._collect_cross_attestations(node_id)
@@ -228,9 +227,7 @@ class FederatedTrust:
 
     # ── Trust Propagation ───────────────────────────────────────────────
 
-    def propagate_trust(
-        self, source_cert: TrustCertificate, target_node: str
-    ) -> dict[str, Any]:
+    def propagate_trust(self, source_cert: TrustCertificate, target_node: str) -> dict[str, Any]:
         """联邦信任传播: 跨节点信任证书传递。
 
         每跳衰减 decay_factor。
@@ -255,8 +252,7 @@ class FederatedTrust:
 
     # ── Certificate Management ──────────────────────────────────────────
 
-    def issue_trust_certificate(
-        self, node_id: str, evidence: dict[str, Any]) -> TrustCertificate:
+    def issue_trust_certificate(self, node_id: str, evidence: dict[str, Any]) -> TrustCertificate:
         """颁发信任证书。
 
         Args:
@@ -319,9 +315,7 @@ class FederatedTrust:
         attestations = []
         for peer_id, score in self._peer_trust_scores.items():
             if peer_id != node_id:
-                attestations.append(
-                    {"attester": peer_id, "trust_score": score}
-                )
+                attestations.append({"attester": peer_id, "trust_score": score})
         return attestations
 
     def add_peer_trust(self, peer_id: str, trust_score: float) -> None:

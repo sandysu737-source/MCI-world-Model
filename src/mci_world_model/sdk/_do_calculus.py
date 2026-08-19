@@ -177,6 +177,7 @@ class CausalGraph:
         后门准则等图论算法。
         """
         from mci_world_model.algebra.causal_graph import CausalDAG
+
         dag = CausalDAG()
         for n in self.nodes:
             dag.add_node(n)
@@ -214,7 +215,6 @@ class CausalGraph:
             if dst in descendants:
                 mediators.append(child)
         return mediators
-
 
     def __repr__(self) -> str:
         return f"CausalGraph(nodes={len(self.nodes)}, edges={len(self.edges)})"
@@ -492,6 +492,7 @@ class DoCalculus:
             def _ey_given_x(x_level: float) -> float:
                 mask = np.abs(x_data - x_level) < 1e-6
                 return float(np.mean(y_data[mask])) if np.any(mask) else float(np.mean(y_data))
+
             ate = _ey_given_x(x_value) - _ey_given_x(x_baseline)
         else:
             # 构建设计矩阵 [1, X, Z1, Z2, ...] 做 OLS
@@ -1157,7 +1158,6 @@ class DoCalculus:
             note=note,
         )
 
-
     # -----------------------------------------------------------------
     # 批量 API
     # -----------------------------------------------------------------
@@ -1178,10 +1178,7 @@ class DoCalculus:
         Returns:
             [InterventionResult, ...] 与 pairs 顺序一致
         """
-        return [
-            self.estimate_ate(X, Y, x_value=x_value, x_baseline=x_baseline)
-            for X, Y in pairs
-        ]
+        return [self.estimate_ate(X, Y, x_value=x_value, x_baseline=x_baseline) for X, Y in pairs]
 
     def batch_identify_adjustment_sets(
         self,
@@ -1225,16 +1222,18 @@ class DoCalculus:
             xv = q.get("x_value", 1.0)
             xb = q.get("x_baseline", 0.0)
             r = self.estimate_ate(X, Y, x_value=xv, x_baseline=xb)
-            results.append({
-                "X": X,
-                "Y": Y,
-                "ate": r.ate,
-                "method": r.method,
-                "adjustment_set": r.adjustment_set,
-                "ci_low": r.confidence_interval[0],
-                "ci_high": r.confidence_interval[1],
-                "p_value": r.p_value,
-            })
+            results.append(
+                {
+                    "X": X,
+                    "Y": Y,
+                    "ate": r.ate,
+                    "method": r.method,
+                    "adjustment_set": r.adjustment_set,
+                    "ci_low": r.confidence_interval[0],
+                    "ci_high": r.confidence_interval[1],
+                    "p_value": r.p_value,
+                }
+            )
         return results
 
     def __repr__(self) -> str:

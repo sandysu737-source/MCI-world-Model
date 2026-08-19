@@ -36,24 +36,27 @@ logger = logging.getLogger(__name__)
 
 class ReasoningTier(Enum):
     """推理层次"""
-    OBJECT_LEVEL = "object"          # 对象层：在因果中推理
-    META_LEVEL = "meta"              # 元层：对因果推理推理
-    BEYOND_LEVEL = "beyond"          # 超越层：超越因果本身
-    SOURCE_LEVEL = "source"          # 本源层：追踪因果之源
+
+    OBJECT_LEVEL = "object"  # 对象层：在因果中推理
+    META_LEVEL = "meta"  # 元层：对因果推理推理
+    BEYOND_LEVEL = "beyond"  # 超越层：超越因果本身
+    SOURCE_LEVEL = "source"  # 本源层：追踪因果之源
 
 
 class BeyondDomain(Enum):
     """超越域"""
-    LOGICAL = "logical"              # 逻辑超越
-    ONTOLOGICAL = "ontological"      # 本体超越
+
+    LOGICAL = "logical"  # 逻辑超越
+    ONTOLOGICAL = "ontological"  # 本体超越
     EPISTEMOLOGICAL = "epistemological"  # 认知超越
-    ETHICAL = "ethical"              # 伦理超越
-    AESTHETIC = "aesthetic"          # 美学超越
+    ETHICAL = "ethical"  # 伦理超越
+    AESTHETIC = "aesthetic"  # 美学超越
 
 
 @dataclass
 class MetaCausalPattern:
     """元因果模式"""
+
     pattern_id: str
     name: str
     tier: ReasoningTier = ReasoningTier.OBJECT_LEVEL
@@ -63,14 +66,14 @@ class MetaCausalPattern:
     def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
-                "GÖDEL NOTE: Meta-causal reasoning about causality cannot "
-                "prove its own meta-completeness."
+                "GÖDEL NOTE: Meta-causal reasoning about causality cannot prove its own meta-completeness."
             )
 
 
 @dataclass
 class BeyondObservation:
     """超越因果观测"""
+
     domain: BeyondDomain
     depth: float = 0.0
     discovered: bool = False

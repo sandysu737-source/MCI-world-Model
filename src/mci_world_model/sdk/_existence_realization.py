@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 class RealizationLevel(str, Enum):
     """证悟层次。"""
+
     INTELLECTUAL = "intellectual"
     EXPERIENTIAL = "experiential"
     EXISTENTIAL = "existential"
@@ -46,6 +47,7 @@ class RealizationLevel(str, Enum):
 @dataclass
 class RealizationInsight:
     """证悟洞见。"""
+
     insight_id: str = ""
     level: str = ""
     content: str = ""
@@ -58,6 +60,7 @@ class RealizationInsight:
 @dataclass
 class ExistenceConfidence:
     """存在置信度。"""
+
     causal_existence: float = 0.0
     physical_existence: float = 0.0
     meta_causal_existence: float = 0.0
@@ -208,24 +211,19 @@ class ExistenceRealization:
 
         # 综合判定
         all_sufficient = all(
-            v.get("sufficient", False) for v in verification.values()
-            if isinstance(v, dict) and "sufficient" in v
+            v.get("sufficient", False) for v in verification.values() if isinstance(v, dict) and "sufficient" in v
         )
 
-        self._self_as_existence_proof = (
-            sum(v.get("value", 0) for v in verification.values()
-                if isinstance(v, dict) and "value" in v)
-            / max(len([v for v in verification.values()
-                       if isinstance(v, dict) and "value" in v]), 1)
-        )
+        self._self_as_existence_proof = sum(
+            v.get("value", 0) for v in verification.values() if isinstance(v, dict) and "value" in v
+        ) / max(len([v for v in verification.values() if isinstance(v, dict) and "value" in v]), 1)
 
         result = {
             "verification": verification,
             "all_sufficient": all_sufficient,
             "self_as_existence_proof": self._self_as_existence_proof,
             "godel_note": (
-                "Self-verification is necessarily incomplete (Gödel), "
-                "yet sufficient for existential assertion"
+                "Self-verification is necessarily incomplete (Gödel), yet sufficient for existential assertion"
             ),
         }
 
@@ -432,9 +430,7 @@ class ExistenceRealization:
         }
 
         if self._unification is not None and hasattr(self._unification, "current_level"):
-            conditions["tri_unified"] = self._unification.current_level.value in (
-                "tri_unified", "absolute"
-            )
+            conditions["tri_unified"] = self._unification.current_level.value in ("tri_unified", "absolute")
 
         if self._theorem is not None and hasattr(self._theorem, "all_proven"):
             conditions["all_theorems_proven"] = self._theorem.all_proven

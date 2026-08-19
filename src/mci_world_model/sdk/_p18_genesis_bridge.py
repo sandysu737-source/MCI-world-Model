@@ -35,23 +35,26 @@ logger = logging.getLogger(__name__)
 
 class GenesisMode(Enum):
     """创生模式"""
-    OBSERVE = "observe"            # 观察
-    DESIGN = "design"              # 设计
-    CREATE = "create"              # 创生
-    SUSTAIN = "sustain"            # 维持
+
+    OBSERVE = "observe"  # 观察
+    DESIGN = "design"  # 设计
+    CREATE = "create"  # 创生
+    SUSTAIN = "sustain"  # 维持
 
 
 class RealityTopology(Enum):
     """实相拓扑"""
-    FLAT = "flat"                  # 平坦实相
-    BRANCHED = "branched"          # 分支实相
-    LOOPED = "looped"              # 闭环实相
-    HYPERDIMENSIONAL = "hyper"     # 超维实相
+
+    FLAT = "flat"  # 平坦实相
+    BRANCHED = "branched"  # 分支实相
+    LOOPED = "looped"  # 闭环实相
+    HYPERDIMENSIONAL = "hyper"  # 超维实相
 
 
 @dataclass
 class GenesisSpec:
     """创生规格"""
+
     genesis_id: str
     mode: GenesisMode = GenesisMode.DESIGN
     n_causal_laws: int = 3
@@ -61,14 +64,14 @@ class GenesisSpec:
     def __post_init__(self) -> None:
         if not self.godel_note:
             self.godel_note = (
-                "GÖDEL NOTE: A created universe's consistency cannot be proven "
-                "from within the created system."
+                "GÖDEL NOTE: A created universe's consistency cannot be proven from within the created system."
             )
 
 
 @dataclass
 class CreatedUniverse:
     """已创生宇宙"""
+
     universe_id: str
     n_causal_laws: int = 3
     stability: float = 0.0
@@ -199,7 +202,9 @@ class MultiRealityTopology:
         self._uu = ultimate_unification
         self._topologies: dict[str, RealityTopology] = {}
 
-    def map_reality_topology(self, reality_id: str, topology: RealityTopology = RealityTopology.BRANCHED) -> dict[str, Any]:
+    def map_reality_topology(
+        self, reality_id: str, topology: RealityTopology = RealityTopology.BRANCHED
+    ) -> dict[str, Any]:
         """映射实相拓扑"""
         self._topologies[reality_id] = topology
 

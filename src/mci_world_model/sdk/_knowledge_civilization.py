@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CivilizationMetrics:
     """文明指标。"""
+
     knowledge_volume: int = 0
     knowledge_diversity: int = 0
     knowledge_depth: float = 0.0
@@ -102,9 +103,7 @@ class AutonomousKnowledgeCivilization:
     def n_generations(self) -> int:
         return len(self._generations)
 
-    def knowledge_generation_cycle(
-        self, domain: str, n_theories: int = 5
-    ) -> dict[str, Any]:
+    def knowledge_generation_cycle(self, domain: str, n_theories: int = 5) -> dict[str, Any]:
         """知识世代循环: 评估→创造→验证→传承→淘汰。"""
         # Step 1: 世代评估
         assessment = self._assess_knowledge_state(domain)
@@ -123,9 +122,7 @@ class AutonomousKnowledgeCivilization:
         verified = []
         for theory in new_theories:
             if self._federation is not None:
-                fed_result = self._federation.federated_query(
-                    {"type": "theory_verification", "theory": str(theory)}
-                )
+                fed_result = self._federation.federated_query({"type": "theory_verification", "theory": str(theory)})
                 consensus = fed_result.get("consensus_level", 0.5)
             else:
                 consensus = 0.7
@@ -157,9 +154,7 @@ class AutonomousKnowledgeCivilization:
 
         return generation
 
-    def knowledge_heritage(
-        self, source_domain: str, target_domain: str
-    ) -> dict[str, Any]:
+    def knowledge_heritage(self, source_domain: str, target_domain: str) -> dict[str, Any]:
         """跨域知识传承。"""
         source_knowledge = self._repository.export_domain(source_domain)
         if not source_knowledge:
@@ -191,20 +186,18 @@ class AutonomousKnowledgeCivilization:
             "gaps_identified": max(0, 5 - len(theories)),
         }
 
-    def _adapt_knowledge(
-        self, source_knowledge: list[dict[str, Any]], target_domain: str
-    ) -> list[dict[str, Any]]:
+    def _adapt_knowledge(self, source_knowledge: list[dict[str, Any]], target_domain: str) -> list[dict[str, Any]]:
         adapted = []
         for item in source_knowledge[:5]:
-            adapted.append({
-                "original": item,
-                "adapted_domain": target_domain,
-            })
+            adapted.append(
+                {
+                    "original": item,
+                    "adapted_domain": target_domain,
+                }
+            )
         return adapted
 
     def _update_metrics(self, generation: dict[str, Any]) -> None:
         self._metrics.knowledge_volume = self._repository.total_count()
         self._metrics.knowledge_diversity = self._repository.domain_diversity()
-        self._metrics.innovation_rate = (
-            generation["n_verified"] / max(generation["n_created"], 1)
-        )
+        self._metrics.innovation_rate = generation["n_verified"] / max(generation["n_created"], 1)

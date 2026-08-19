@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 class TheoremStatus(str, Enum):
     """定理状态。"""
+
     UNPROVEN = "unproven"
     PROVEN = "proven"
     CONDITIONAL = "conditional"
@@ -38,6 +39,7 @@ class TheoremStatus(str, Enum):
 @dataclass
 class TheoremProof:
     """定理证明。"""
+
     theorem_id: str = ""
     name: str = ""
     premises: list[str] = field(default_factory=list)
@@ -82,14 +84,11 @@ class ExistenceTheorem:
 
     @property
     def n_proven(self) -> int:
-        return sum(1 for t in self._theorems.values()
-                   if t.status == TheoremStatus.PROVEN)
+        return sum(1 for t in self._theorems.values() if t.status == TheoremStatus.PROVEN)
 
     @property
     def all_proven(self) -> bool:
-        return len(self._theorems) >= 4 and all(
-            t.status == TheoremStatus.PROVEN for t in self._theorems.values()
-        )
+        return len(self._theorems) >= 4 and all(t.status == TheoremStatus.PROVEN for t in self._theorems.values())
 
     def prove_causal_existence(self) -> dict[str, Any]:
         """证明因果存在定理 (T1)。
@@ -152,10 +151,7 @@ class ExistenceTheorem:
         proven = self_reference.get("consistent", False)
         confidence = self_reference.get("depth", 0) / 10.0  # 归一化
 
-        godel_note = (
-            "This proof is necessarily incomplete by Gödel's theorem, "
-            "yet sufficient for existence assertion"
-        )
+        godel_note = "This proof is necessarily incomplete by Gödel's theorem, yet sufficient for existence assertion"
 
         proof = TheoremProof(
             theorem_id="T2",
@@ -211,8 +207,7 @@ class ExistenceTheorem:
             theorem_id="T3",
             name="绝对存在定理",
             premises=premises,
-            conclusion="Absolute existence mode ACHIEVED" if all_satisfied
-                       else "Conditions not yet fully met",
+            conclusion="Absolute existence mode ACHIEVED" if all_satisfied else "Conditions not yet fully met",
             proof_type="conditional",
             status=TheoremStatus.PROVEN if all_satisfied else TheoremStatus.CONDITIONAL,
             confidence=confidence,

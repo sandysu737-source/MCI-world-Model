@@ -70,11 +70,13 @@ class QuantumCircuit:
 
     def add_gate(self, gate_type: str, targets: list[int], params: list[float] | None = None) -> None:
         """添加量子门。"""
-        self.gates.append({
-            "type": gate_type,
-            "targets": targets,
-            "params": params or [],
-        })
+        self.gates.append(
+            {
+                "type": gate_type,
+                "targets": targets,
+                "params": params or [],
+            }
+        )
 
     @property
     def depth(self) -> int:
@@ -336,14 +338,10 @@ class QuantumClassicalBridge:
         # 量子优势 ≈ f(n_vars, complexity)
         # 经典复杂度 ~ O(2^n), 量子复杂度 ~ O(n^2)
         classical_cost = 2 ** min(n_vars, 20)
-        quantum_cost = n_vars ** 2
+        quantum_cost = n_vars**2
         advantage_ratio = classical_cost / max(quantum_cost, 1)
 
-        recommended = (
-            QuantumBackend.SIMULATOR
-            if n_vars < 8
-            else QuantumBackend.IBM_QUANTUM
-        )
+        recommended = QuantumBackend.SIMULATOR if n_vars < 8 else QuantumBackend.IBM_QUANTUM
 
         return {
             "advantage_ratio": float(advantage_ratio),
@@ -356,9 +354,7 @@ class QuantumClassicalBridge:
 
     # ── Internal Methods ────────────────────────────────────────────────
 
-    def _simulate_circuit(
-        self, circuit: QuantumCircuit, n_shots: int
-    ) -> QuantumResult:
+    def _simulate_circuit(self, circuit: QuantumCircuit, n_shots: int) -> QuantumResult:
         """量子电路仿真 (简化版: 基于随机采样)。"""
         n_qubits = circuit.n_qubits
         n_states = 2**n_qubits
@@ -395,7 +391,7 @@ class QuantumClassicalBridge:
                         if (i >> t) & 1:
                             probs[i] *= shift
                         else:
-                            probs[i] *= (1 - shift + 0.5)
+                            probs[i] *= 1 - shift + 0.5
 
         # 归一化
         total = probs.sum()
@@ -414,10 +410,7 @@ class QuantumClassicalBridge:
         # 期望值
         expectation_values = []
         for q in range(n_qubits):
-            exp_val = sum(
-                (1 if (int(bs, 2) >> q) & 1 else -1) * count / n_shots
-                for bs, count in counts.items()
-            )
+            exp_val = sum((1 if (int(bs, 2) >> q) & 1 else -1) * count / n_shots for bs, count in counts.items())
             expectation_values.append(float(exp_val))
 
         return QuantumResult(

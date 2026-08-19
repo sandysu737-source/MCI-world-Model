@@ -31,25 +31,28 @@ logger = logging.getLogger(__name__)
 
 class DomainType(Enum):
     """领域类型"""
-    MEDICAL = "medical"              # 医疗
-    FINANCE = "finance"              # 金融
-    ENGINEERING = "engineering"      # 工程
-    SOCIAL = "social"                # 社科
-    PHYSICAL = "physical"            # 物理
+
+    MEDICAL = "medical"  # 医疗
+    FINANCE = "finance"  # 金融
+    ENGINEERING = "engineering"  # 工程
+    SOCIAL = "social"  # 社科
+    PHYSICAL = "physical"  # 物理
 
 
 class TransferStatus(Enum):
     """迁移状态"""
-    PENDING = "pending"              # 待迁移
-    ADAPTING = "adapting"            # 适配中
-    TRANSFERRED = "transferred"      # 已迁移
-    VERIFIED = "verified"            # 已验证
-    FAILED = "failed"                # 迁移失败
+
+    PENDING = "pending"  # 待迁移
+    ADAPTING = "adapting"  # 适配中
+    TRANSFERRED = "transferred"  # 已迁移
+    VERIFIED = "verified"  # 已验证
+    FAILED = "failed"  # 迁移失败
 
 
 @dataclass
 class CausalKnowledge:
     """因果知识单元"""
+
     knowledge_id: str
     source_domain: DomainType
     causal_graph: dict[str, Any] = field(default_factory=dict)
@@ -60,6 +63,7 @@ class CausalKnowledge:
 @dataclass
 class DomainAdapter:
     """领域适配器"""
+
     source_domain: DomainType
     target_domain: DomainType
     adaptation_matrix: dict[str, Any] = field(default_factory=dict)
@@ -82,6 +86,7 @@ class DomainAdapter:
 @dataclass
 class TransferResult:
     """迁移结果"""
+
     transfer_id: str
     source_domain: DomainType
     target_domain: DomainType
@@ -214,10 +219,7 @@ class CrossDomainCausalTransfer:
 
     def detect_emergence(self, domain: DomainType) -> dict[str, Any]:
         """检测涌现模式"""
-        domain_knowledge = [
-            k for k in self._knowledge_base.values()
-            if k.source_domain == domain
-        ]
+        domain_knowledge = [k for k in self._knowledge_base.values() if k.source_domain == domain]
 
         # 涌现检测：迁移后的知识数量超过原始知识
         original_count = sum(1 for k in domain_knowledge if "->" not in k.knowledge_id)
