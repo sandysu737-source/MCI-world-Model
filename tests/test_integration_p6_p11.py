@@ -39,7 +39,7 @@ class TestP6CausalReasoning:
         # 应发现至少 gene→protein 或 protein→disease
         adj = skel.adj_matrix
         assert adj[0, 1] == 1 or adj[1, 2] == 1
-        print(f"  FCI found {len(skel.edges)//2} causal links, conf={skel.confidence:.3f}")
+        print(f"  FCI found {len(skel.edges) // 2} causal links, conf={skel.confidence:.3f}")
 
     def test_notears_linear_chain(self):
         """场景: 可微分因果发现线性经济指标链。"""
@@ -67,25 +67,29 @@ class TestP6CausalReasoning:
         cg = CausalGraph(
             nodes=["rate", "inflation", "gdp", "employment"],
             edges=[
-                ("rate", "inflation"), ("rate", "gdp"),
-                ("inflation", "gdp"), ("gdp", "employment"),
+                ("rate", "inflation"),
+                ("rate", "gdp"),
+                ("inflation", "gdp"),
+                ("gdp", "employment"),
             ],
         )
         dc = DoCalculus(graph=cg, seed=42)
 
         t0 = time.perf_counter()
-        results = dc.batch_estimate_ate([
-            ("rate", "inflation"),
-            ("rate", "gdp"),
-            ("rate", "employment"),
-        ])
+        results = dc.batch_estimate_ate(
+            [
+                ("rate", "inflation"),
+                ("rate", "gdp"),
+                ("rate", "employment"),
+            ]
+        )
         elapsed = time.perf_counter() - t0
 
         assert len(results) == 3
         assert elapsed < 1.0  # 批量应在 1s 内完成
         for r in results:
             assert r.ate is not None
-        print(f"  Batch {len(results)} ATEs in {elapsed*1000:.1f}ms")
+        print(f"  Batch {len(results)} ATEs in {elapsed * 1000:.1f}ms")
 
     def test_energy_bridge_what_if(self):
         """场景: 五行能量系统的 what-if 干预分析。"""
@@ -134,7 +138,9 @@ class TestP7IndustrySDKs:
         assert result.is_conclusive
         assert result.confidence > 0.7
         assert len(result.evidence_ids) >= 4
-        print(f"  Medical: {result.cause}→{result.effect}, strength={result.causal_strength:.3f}, conf={result.confidence:.3f}")
+        print(
+            f"  Medical: {result.cause}→{result.effect}, strength={result.causal_strength:.3f}, conf={result.confidence:.3f}"
+        )
 
     def test_legal_reasoning_workflow(self):
         """场景: 法律因果——产品责任因果链。"""
@@ -153,7 +159,9 @@ class TestP7IndustrySDKs:
         assert result.legal_standard_met
         assert result.causal_link_strength > 0.51
         assert len(result.bias_flags) == 0
-        print(f"  Legal: {result.cause}→{result.effect}, strength={result.causal_link_strength:.3f}, met={result.legal_standard_met}")
+        print(
+            f"  Legal: {result.cause}→{result.effect}, strength={result.causal_link_strength:.3f}, met={result.legal_standard_met}"
+        )
 
     def test_engineering_safety_workflow(self):
         """场景: 工程安全——核电站控制棒故障因果分析。"""
@@ -177,7 +185,9 @@ class TestP7IndustrySDKs:
         assert result.safety_assessment == "safe"
         assert result.causal_confidence > 0.8
         assert result.margin_sufficient
-        print(f"  Engineering: {result.cause}→{result.effect}, safety={result.safety_assessment}, RPN={result.fmea_rpn_max}")
+        print(
+            f"  Engineering: {result.cause}→{result.effect}, safety={result.safety_assessment}, RPN={result.fmea_rpn_max}"
+        )
 
 
 # =============================================================================
@@ -205,7 +215,9 @@ class TestP8NeuralSymbolicFusion:
         rules = fusion.neural_to_symbolic(neural_repr, var_names)
         constraint = fusion.symbolic_to_neural(rules, len(neural_repr))
         assert np.any(constraint > 0)
-        print(f"  NS-Fusion: score={state.fusion_score:.3f}, rules={len(state.symbolic_rules)}, consistency={state.consistency:.3f}")
+        print(
+            f"  NS-Fusion: score={state.fusion_score:.3f}, rules={len(state.symbolic_rules)}, consistency={state.consistency:.3f}"
+        )
 
 
 # =============================================================================
@@ -247,7 +259,7 @@ class TestP9ComplianceEngine:
         sdk.add_parameter(SafetyParameter("rpm", 5400, 7200))
         sdk.add_fmea(FMEAItem("blade_fracture", severity=7, occurrence=2, detection=2, mitigated=True))
         sdk.set_redundancy("bearing_path", True)
-        analysis = sdk.analyze("vibration_spike", "blade_failure", causal_evidence_strength=0.85)
+        sdk.analyze("vibration_spike", "blade_failure", causal_evidence_strength=0.85)
 
         engine = ComplianceRuleEngine()
         context = {
@@ -295,7 +307,9 @@ class TestP10CrossModalPipeline:
         ]
         edges = builder.build_from_features(timeline)
         assert isinstance(edges, list)
-        print(f"  Cross-modal: vis={vis_vec.shape}, depth={dep_vec.shape}, fused={fused.fused_vector.shape}, graph_edges={len(edges)}")
+        print(
+            f"  Cross-modal: vis={vis_vec.shape}, depth={dep_vec.shape}, fused={fused.fused_vector.shape}, graph_edges={len(edges)}"
+        )
 
 
 # =============================================================================
@@ -342,7 +356,7 @@ class TestP11DifferentiableCausal:
         health_score = 5.0 - 2.0 * smoking + 0.3 * rng.randn(n)
         dci = DifferentiableCausalInference(learning_rate=0.005)
         dci.set_data(treatment=smoking, outcome=health_score)
-        result = dci.optimize(n_iterations=300)
+        dci.optimize(n_iterations=300)
         effect = dci.treatment_effect
         assert abs(effect) > 0.5
         print(f"  NOTEARS→DCI: discovered {np.sum(skel.adj_matrix)} edges, ATE={effect:.3f}")
@@ -358,12 +372,11 @@ class TestP11DifferentiableCausal:
         rng = np.random.RandomState(42)
         data = np.column_stack([rng.randn(200) for _ in range(4)])
 
-        results = {}
         t0 = time.perf_counter()
 
         # P6
-        fci = FCIDiscoverer().discover(data, ["A", "B", "C", "D"])
-        nt = NOTEARSDiscoverer(max_iter=50).discover(data, ["A", "B", "C", "D"])
+        FCIDiscoverer().discover(data, ["A", "B", "C", "D"])
+        NOTEARSDiscoverer(max_iter=50).discover(data, ["A", "B", "C", "D"])
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg)
         dc.batch_estimate_ate([("X", "Y")])
@@ -377,10 +390,11 @@ class TestP11DifferentiableCausal:
 
         # P11
         from mci_world_model.sdk._differentiable_causal import DifferentiableCausalInference
+
         dci = DifferentiableCausalInference()
         dci.set_data(treatment=rng.randn(100), outcome=rng.randn(100))
         dci.optimize(n_iterations=30)
 
         elapsed = time.perf_counter() - t0
-        print(f"  Full P6-P11 pipeline: completed in {elapsed*1000:.0f}ms (zero crash)")
+        print(f"  Full P6-P11 pipeline: completed in {elapsed * 1000:.0f}ms (zero crash)")
         assert elapsed < 5.0

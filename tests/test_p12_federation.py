@@ -233,27 +233,19 @@ class TestFederatedCausalConsciousness:
 
     def test_synchronize_synchronized(self):
         fcc = FederatedCausalConsciousness()
-        fcc.set_local_self_model(
-            domains=["physics", "economics"], confidence=0.8
-        )
-        fcc.add_peer_model(
-            "node_2", domains=["medical", "biology"], confidence=0.8
-        )
-        fcc.add_peer_model(
-            "node_3", domains=["chemistry", "social"], confidence=0.8
-        )
+        fcc.set_local_self_model(domains=["physics", "economics"], confidence=0.8)
+        fcc.add_peer_model("node_2", domains=["medical", "biology"], confidence=0.8)
+        fcc.add_peer_model("node_3", domains=["chemistry", "social"], confidence=0.8)
         result = fcc.synchronize_awareness()
         assert result["federation_awareness"] in ("synchronized", "emergent")
 
     def test_synchronize_emergent(self):
         fcc = FederatedCausalConsciousness()
-        fcc.set_local_self_model(
-            domains=["physics", "economics", "social"], confidence=0.9
-        )
+        fcc.set_local_self_model(domains=["physics", "economics", "social"], confidence=0.9)
         for i in range(4):
             fcc.add_peer_model(
                 f"node_{i}",
-                domains=[f"domain_{i}", f"domain_{i+1}"],
+                domains=[f"domain_{i}", f"domain_{i + 1}"],
                 confidence=0.85,
             )
         result = fcc.synchronize_awareness()
@@ -363,9 +355,7 @@ class TestCausalFederationArchitecture:
             "edges": [{"from": "A", "to": "B"}],
         }
         arch.distribute_causal_knowledge(graph, "medical")
-        result = arch.retrieve_federated_knowledge(
-            {"domain": "medical", "variables": ["A"]}
-        )
+        result = arch.retrieve_federated_knowledge({"domain": "medical", "variables": ["A"]})
         assert result["found"] is True
 
     def test_retrieve_not_found(self):
@@ -389,9 +379,7 @@ class TestFederatedTrust:
 
     def test_assess_federation_trust_no_cross(self):
         ft = FederatedTrust()
-        result = ft.assess_federation_trust(
-            "node_2", {"consistency": 0.8, "accuracy": 0.7, "coverage": 0.6}
-        )
+        result = ft.assess_federation_trust("node_2", {"consistency": 0.8, "accuracy": 0.7, "coverage": 0.6})
         assert result["federation_trust"] > 0
         assert result["n_cross_attestations"] == 0
 
@@ -399,9 +387,7 @@ class TestFederatedTrust:
         ft = FederatedTrust()
         ft.add_peer_trust("node_3", 0.8)
         ft.add_peer_trust("node_4", 0.7)
-        result = ft.assess_federation_trust(
-            "node_2", {"consistency": 0.8, "accuracy": 0.7, "coverage": 0.6}
-        )
+        result = ft.assess_federation_trust("node_2", {"consistency": 0.8, "accuracy": 0.7, "coverage": 0.6})
         assert result["n_cross_attestations"] == 2
         assert result["cross_trust_avg"] > 0
 
@@ -415,18 +401,14 @@ class TestFederatedTrust:
 
     def test_issue_certificate(self):
         ft = FederatedTrust()
-        cert = ft.issue_trust_certificate(
-            "node_2", {"consistency": 0.9, "accuracy": 0.8, "coverage": 0.7}
-        )
+        cert = ft.issue_trust_certificate("node_2", {"consistency": 0.9, "accuracy": 0.8, "coverage": 0.7})
         assert cert.subject == "node_2"
         assert cert.trust_score > 0
         assert not cert.is_expired
 
     def test_verify_certificate(self):
         ft = FederatedTrust()
-        cert = ft.issue_trust_certificate(
-            "node_2", {"consistency": 0.9, "accuracy": 0.8, "coverage": 0.7}
-        )
+        cert = ft.issue_trust_certificate("node_2", {"consistency": 0.9, "accuracy": 0.8, "coverage": 0.7})
         result = ft.verify_certificate(cert)
         assert result["valid"] is True
 
@@ -461,23 +443,17 @@ class TestLocalTrust:
 
     def test_high_trust(self):
         lt = LocalTrust()
-        result = lt.reason_with_trust(
-            {"consistency": 0.9, "accuracy": 0.9, "coverage": 0.8}
-        )
+        result = lt.reason_with_trust({"consistency": 0.9, "accuracy": 0.9, "coverage": 0.8})
         assert result["trust"]["level"] in ("high", "verified")
 
     def test_low_trust(self):
         lt = LocalTrust()
-        result = lt.reason_with_trust(
-            {"consistency": 0.2, "accuracy": 0.2, "coverage": 0.2}
-        )
+        result = lt.reason_with_trust({"consistency": 0.2, "accuracy": 0.2, "coverage": 0.2})
         assert result["trust"]["level"] in ("untrusted", "low")
 
     def test_medium_trust(self):
         lt = LocalTrust()
-        result = lt.reason_with_trust(
-            {"consistency": 0.5, "accuracy": 0.5, "coverage": 0.5}
-        )
+        result = lt.reason_with_trust({"consistency": 0.5, "accuracy": 0.5, "coverage": 0.5})
         assert result["trust"]["score"] == pytest.approx(0.5)
 
 
@@ -493,9 +469,18 @@ class TestP12Stage1KPI:
         """KPI: 因果联邦协议 12 种消息类型全部可用。"""
         assert len(FederationMessageType) == 12
         expected_types = {
-            "fed_join", "fed_leave", "fed_sync", "fed_query", "fed_result",
-            "fed_discovery", "fed_consensus", "fed_vote", "fed_evolve",
-            "fed_audit", "fed_trust_renew", "fed_evidence_share",
+            "fed_join",
+            "fed_leave",
+            "fed_sync",
+            "fed_query",
+            "fed_result",
+            "fed_discovery",
+            "fed_consensus",
+            "fed_vote",
+            "fed_evolve",
+            "fed_audit",
+            "fed_trust_renew",
+            "fed_evidence_share",
         }
         actual_types = {mt.value for mt in FederationMessageType}
         assert actual_types == expected_types
@@ -544,7 +529,5 @@ class TestP12Stage1KPI:
         """KPI: 联邦信任评估。"""
         ft = FederatedTrust()
         ft.add_peer_trust("node_2", 0.8)
-        result = ft.assess_federation_trust(
-            "node_3", {"consistency": 0.8, "accuracy": 0.7, "coverage": 0.6}
-        )
+        result = ft.assess_federation_trust("node_3", {"consistency": 0.8, "accuracy": 0.7, "coverage": 0.6})
         assert result["federation_trust"] > 0.5
