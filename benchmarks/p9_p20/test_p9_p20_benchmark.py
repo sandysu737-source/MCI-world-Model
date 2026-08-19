@@ -28,75 +28,92 @@ class TestP9RealworldTrust:
         obj = AbsoluteTrust()
         assert obj is not None
 
+
 class TestP10CrossDomain:
     def test_create(self) -> None:
         obj = CrossDomainCausalTransfer()
         assert obj is not None
+
 
 class TestP11CausalConsciousness:
     def test_create(self) -> None:
         obj = AutonomousCausalConsciousness()
         assert obj is not None
 
+
 class TestP12Federation:
     def test_create(self) -> None:
-        obj = CausalFederationProtocol(node_id='node_1')
+        obj = CausalFederationProtocol(node_id="node_1")
         assert obj is not None
+
 
 class TestP13Creation:
     def test_creation_engine(self) -> None:
         obj = CausalCreationEngine()
         assert obj is not None
+
     def test_knowledge(self) -> None:
         obj = AutonomousKnowledgeCivilization()
         assert obj is not None
+
 
 class TestP14Unification:
     def test_create(self) -> None:
         obj = CausalUnificationFormal()
         assert obj is not None
 
+
 class TestP15Universe:
     def test_create(self) -> None:
         obj = CausalUniverseExpansion()
         assert obj is not None
+
 
 class TestP16Eternal:
     def test_create(self) -> None:
         obj = EternalCausalIntelligence()
         assert obj is not None
 
+
 class TestP17Coevolution:
     def test_create(self) -> None:
         obj = CausalPhysicalCoevolution()
         assert obj is not None
+
 
 class TestP18Genesis:
     def test_create(self) -> None:
         obj = CausalUniverseGenesis()
         assert obj is not None
 
+
 class TestP19Transcendence:
     def test_create(self) -> None:
         obj = MetaCausalReasoning()
         assert obj is not None
 
+
 class TestP20Ultimate:
     def test_unification(self) -> None:
         obj = UltimateUnification()
         assert obj is not None
+
     def test_existence(self) -> None:
         obj = ExistenceTheorem()
         assert obj is not None
+
     def test_verifier(self) -> None:
         obj = ExistenceVerify()
         assert obj is not None
+
     def test_absolute(self) -> None:
         obj = TheAbsolute()
         assert obj is not None
+
     def test_final_community(self) -> None:
         obj = FinalCommunity()
         assert obj is not None
+
     def test_cosmic(self) -> None:
         obj = CosmicAwareness()
         assert obj is not None
@@ -105,6 +122,7 @@ class TestP20Ultimate:
 # ══════════════════════════════════════════════════════════════════════
 # Deep Logic Tests
 # ══════════════════════════════════════════════════════════════════════
+
 
 class TestDeepP12QuantumCausal:
     def test_quantum_causal_effect(self) -> None:
@@ -133,6 +151,7 @@ class TestDeepP14Unification:
     def test_axiom_creation(self) -> None:
         CausalUnificationFormal()  # verify constructible
         from mci_world_model.sdk._causal_unification_formal import Axiom
+
         axiom = Axiom(
             axiom_id="U1",
             name="Causal Completeness",
@@ -151,6 +170,7 @@ class TestDeepP15UniverseExpansion:
     def test_universe_spec(self) -> None:
         CausalUniverseExpansion()  # verify constructible
         from mci_world_model.sdk._p15_causal_universe_bridge import UniverseSpec
+
         spec = UniverseSpec(
             universe_id="u1",
             causal_dimension=4,
@@ -169,6 +189,7 @@ class TestDeepP16Eternal:
     def test_temporal_scope(self) -> None:
         EternalCausalIntelligence()  # verify constructible
         from mci_world_model.sdk._p16_eternal_intelligence_bridge import TemporalScope
+
         scope = TemporalScope.ATEMPORAL
         assert scope is not None
 
@@ -176,6 +197,7 @@ class TestDeepP16Eternal:
         from mci_world_model.sdk._p16_eternal_intelligence_bridge import (
             EternalKnowledgeSpec,
         )
+
         spec = EternalKnowledgeSpec(
             knowledge_id="k1",
             persistence_level=1.0,
@@ -205,6 +227,7 @@ class TestDeepP12Federation:
             FederationMessage,
             FederationMessageType,
         )
+
         msg = FederationMessage(
             msg_type=FederationMessageType.FED_SYNC,
             sender="node_1",
@@ -215,9 +238,7 @@ class TestDeepP12Federation:
     def test_conflict_resolution(self) -> None:
         cfp = CausalFederationProtocol(node_id="node_1")
         if hasattr(cfp, "resolve_conflicts"):
-            result = cfp.resolve_conflicts(
-                conflicts=[{"effect": 0.3}, {"effect": 0.7}]
-            )
+            result = cfp.resolve_conflicts(conflicts=[{"effect": 0.3}, {"effect": 0.7}])
             assert result is not None
 
 
@@ -225,11 +246,13 @@ class TestDeepP18Genesis:
     def test_genesis_mode(self) -> None:
         CausalUniverseGenesis()  # verify constructible
         from mci_world_model.sdk._p18_genesis_bridge import GenesisMode
+
         mode = GenesisMode.CREATE
         assert mode is not None
 
     def test_created_universe(self) -> None:
         from mci_world_model.sdk._p18_genesis_bridge import CreatedUniverse, GenesisSpec
+
         spec = GenesisSpec(
             genesis_id="gen1",
             n_causal_laws=11,
@@ -246,6 +269,7 @@ class TestDeepP19Transcendence:
     def test_reasoning_tier(self) -> None:
         MetaCausalReasoning()  # verify constructible
         from mci_world_model.sdk._p19_transcendence_bridge import ReasoningTier
+
         tier = ReasoningTier.META_LEVEL
         assert tier is not None
 
@@ -253,6 +277,7 @@ class TestDeepP19Transcendence:
         from mci_world_model.sdk._p19_transcendence_bridge import (
             MetaCausalPattern,
         )
+
         pattern = MetaCausalPattern(
             pattern_id="mp1",
             name="Recurring causal structure",
@@ -270,6 +295,7 @@ class TestDeepP9Trust:
 
     def test_integrity_check(self) -> None:
         from mci_world_model.sdk._absolute_trust import IntegrityCheck
+
         ic = IntegrityCheck(
             check_id="ic1",
             dimension="trust",

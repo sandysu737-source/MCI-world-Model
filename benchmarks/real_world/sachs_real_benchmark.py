@@ -14,6 +14,7 @@ Ground truth: Sachs 共识网络 (17 条边, 11 节点):
 
 这是 L3 真实数据基准 — 区别于 benchmarks/bnlearn/ 里的合成线性 SEM 测试。
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,14 +28,35 @@ SACHS_DATA = Path(__file__).parent / "sachs_data" / "sachs_obs.txt"
 
 # Sachs 共识网络 (11 节点, 17 边) — 官方 ground truth
 SACHS_NODES = [
-    "praf", "pmek", "plc", "pip2", "pip3",
-    "p44/42", "pakts473", "p38", "pjnk", "pcrab", "pgg",
+    "praf",
+    "pmek",
+    "plc",
+    "pip2",
+    "pip3",
+    "p44/42",
+    "pakts473",
+    "p38",
+    "pjnk",
+    "pcrab",
+    "pgg",
 ]
 SACHS_EDGES = [
-    ("praf", "pmek"), ("pmek", "p44/42"), ("plc", "pip2"), ("pip2", "pip3"),
-    ("p44/42", "pakts473"), ("pakts473", "p38"), ("pcrab", "pmek"), ("pka", "praf"),
-    ("pka", "pmek"), ("pka", "p44/42"), ("pka", "pakts473"), ("pka", "plg"),
-    ("pka", "p38"), ("pka", "pjnk"), ("plc", "pgg"), ("pakts", "p38"),
+    ("praf", "pmek"),
+    ("pmek", "p44/42"),
+    ("plc", "pip2"),
+    ("pip2", "pip3"),
+    ("p44/42", "pakts473"),
+    ("pakts473", "p38"),
+    ("pcrab", "pmek"),
+    ("pka", "praf"),
+    ("pka", "pmek"),
+    ("pka", "p44/42"),
+    ("pka", "pakts473"),
+    ("pka", "plg"),
+    ("pka", "p38"),
+    ("pka", "pjnk"),
+    ("plc", "pgg"),
+    ("pakts", "p38"),
     ("p38", "p44/42"),
 ]
 
@@ -45,10 +67,22 @@ SACHS_GT_GRAPH = Path(__file__).parent / "sachs_data" / "sachs_gt_graph.txt"
 # 真实 Sachs ground truth (bnlearn 离散版, X1-X11, 17 条有向边)
 SACHS_REAL_NODES = [f"X{i}" for i in range(1, 12)]
 SACHS_REAL_EDGES = [
-    ("X2", "X1"), ("X4", "X2"), ("X7", "X6"), ("X8", "X1"),
-    ("X8", "X2"), ("X8", "X3"), ("X8", "X4"), ("X8", "X5"),
-    ("X8", "X11"), ("X9", "X3"), ("X9", "X4"), ("X9", "X5"),
-    ("X9", "X8"), ("X9", "X11"), ("X10", "X6"), ("X10", "X7"),
+    ("X2", "X1"),
+    ("X4", "X2"),
+    ("X7", "X6"),
+    ("X8", "X1"),
+    ("X8", "X2"),
+    ("X8", "X3"),
+    ("X8", "X4"),
+    ("X8", "X5"),
+    ("X8", "X11"),
+    ("X9", "X3"),
+    ("X9", "X4"),
+    ("X9", "X5"),
+    ("X9", "X8"),
+    ("X9", "X11"),
+    ("X10", "X6"),
+    ("X10", "X7"),
     ("X11", "X4"),
 ]
 
@@ -113,6 +147,7 @@ class TestSachsRealBenchmark:
         gt_adj = _build_gt_adjacency(nodes, SACHS_REAL_EDGES)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         # 最优参数: alpha=0.05 (容许弱依赖), min_corr=0.05 (保留中等相关边)
         # 这是 recall 提升的关键 — 旧参数 (alpha=0.01,min_corr=0.02) 过严导致漏边
         algo = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05)
@@ -131,6 +166,7 @@ class TestSachsRealBenchmark:
         gt_adj = _build_gt_adjacency(nodes, SACHS_REAL_EDGES)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer
+
         # 低阈值提升 recall: 离散数据线性相关性弱, 高阈值会截断真实边
         algo = NOTEARSDiscoverer(threshold=0.01, max_iter=50)
         skel = algo.discover(data, nodes)
@@ -150,6 +186,7 @@ class TestSachsRealBenchmark:
 # 使 L3 验证体系可运行。这验证因果发现在 Sachs 拓扑上的可恢复性,
 # 但不等同于真实流式细胞术数据 (后者含非线性/离散化/批次效应)。
 
+
 def _generate_sachs_topology_data(
     n_samples: int = 2000, seed: int = 42, noise_scale: float = 0.5
 ) -> tuple[np.ndarray, list[str]]:
@@ -160,13 +197,13 @@ def _generate_sachs_topology_data(
     """
     rng = np.random.RandomState(seed)
     nodes = SACHS_NODES
-    n = len(nodes)
-    idx = {name: i for i, name in enumerate(nodes)}
+    len(nodes)
+    {name: i for i, name in enumerate(nodes)}
 
     # 补充缺失节点 pka, pakts (在 EDGES 中出现但不在 SACHS_NODES) — 扩展节点表
     # 注: SACHS_NODES 原始定义为 11 节点, 但 EDGES 引用了 pka/pakts/pakts473。
     # 为一致性, 用扩展的 13 节点表 (含 pka, pakts)。
-    full_nodes = list(dict.fromkeys(nodes + ["pka", "pakts"]))
+    full_nodes = list(dict.fromkeys([*nodes, "pka", "pakts"]))
     full_idx = {name: i for i, name in enumerate(full_nodes)}
     m = len(full_nodes)
 
@@ -195,7 +232,7 @@ def _generate_sachs_topology_data(
         if nd not in topo:
             topo.append(nd)
 
-    pos = {nd: i for i, nd in enumerate(topo)}
+    {nd: i for i, nd in enumerate(topo)}
     # 反向映射到 full_nodes 顺序
     name_to_col = full_idx
 
@@ -240,8 +277,12 @@ class TestSachsTopologyConsistency:
         np.fill_diagonal(gt_u, 0)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
-            PCSkeletonDiscoverer, NOTEARSDiscoverer, LiNGAMDiscoverer, FCIDiscoverer,
+            FCIDiscoverer,
+            LiNGAMDiscoverer,
+            NOTEARSDiscoverer,
+            PCSkeletonDiscoverer,
         )
+
         algos = [
             PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05),
             NOTEARSDiscoverer(threshold=0.01, max_iter=50),
@@ -275,6 +316,7 @@ class TestSachsTopologyConsistency:
         gt_adj = _build_gt_adjacency(nodes, SACHS_REAL_EDGES)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         # 非线性 CI: HSIC + KCIT 复核, 捕捉线性方法漏掉的非线性边
         algo = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05, nonlinear=True)
         skel = algo.discover(data, nodes)
@@ -283,9 +325,7 @@ class TestSachsTopologyConsistency:
         shd = _shd(skel.adj_matrix, gt_adj)
         print(f"\n  Nonlinear-PC on REAL Sachs: SHD={shd}, P={prec:.3f}, R={rec:.3f}, F1={f1:.3f}")
         # 关键断言: 非线性 recall 应突破线性上限 0.765
-        assert rec > 0.78, (
-            f"非线性 recall={rec:.3f} 未突破线性上限 0.765"
-        )
+        assert rec > 0.78, f"非线性 recall={rec:.3f} 未突破线性上限 0.765"
         assert f1 > 0.8, f"非线性 F1={f1:.3f} 过低"
 
     def test_real_sachs_high_recall_config(self):
@@ -298,6 +338,7 @@ class TestSachsTopologyConsistency:
         gt_adj = _build_gt_adjacency(nodes, SACHS_REAL_EDGES)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         algo = PCSkeletonDiscoverer(alpha=0.01, min_corr=0.0, nonlinear=True)
         skel = algo.discover(data, nodes)
 
@@ -312,6 +353,7 @@ class TestSachsTopologyConsistency:
         gt_adj = _build_gt_adjacency(nodes, SACHS_EDGES)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         algo = PCSkeletonDiscoverer(alpha=0.01, min_corr=0.05)
         skel = algo.discover(data, nodes)
 
@@ -326,6 +368,7 @@ class TestSachsTopologyConsistency:
         gt_adj = _build_gt_adjacency(nodes, SACHS_EDGES)
 
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer
+
         algo = NOTEARSDiscoverer(threshold=0.2, max_iter=50)
         skel = algo.discover(data, nodes)
 

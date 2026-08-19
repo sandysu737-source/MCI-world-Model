@@ -135,7 +135,7 @@ class TestUnifiedCausalConsciousness:
             federation_consciousness=mock_federation,
             creative_consciousness=mock_creative,
         )
-        result = uc.unify_consciousness()
+        uc.unify_consciousness()
         # 应有 ≥4 层: sensory + cognitive + creative + social + universal
         assert len(uc.active_layers) >= 4
         assert uc.state == UnifiedState.UNIFIED
@@ -556,19 +556,35 @@ class TestUltimateCausalIntelligence:
 
     def test_autonomous_exist_with_full_deps(self):
         """KPI: 自主存在模式可运行。"""
-        mock_consciousness = type("MockC", (), {
-            "state": type("MockState", (), {"value": "unified"})(),
-            "unify_consciousness": lambda self: {"unified_state": "unified"},
-        })()
-        mock_creation = type("MockCr", (), {
-            "create_causal_theory": lambda self, d: {"created": True},
-        })()
-        mock_civilization = type("MockCiv", (), {
-            "knowledge_generation_cycle": lambda self, d: {"n_created": 1},
-        })()
-        mock_economy = type("MockEcon", (), {
-            "trade_knowledge": lambda self, s, b, k: {"traded": True},
-        })()
+        mock_consciousness = type(
+            "MockC",
+            (),
+            {
+                "state": type("MockState", (), {"value": "unified"})(),
+                "unify_consciousness": lambda self: {"unified_state": "unified"},
+            },
+        )()
+        mock_creation = type(
+            "MockCr",
+            (),
+            {
+                "create_causal_theory": lambda self, d: {"created": True},
+            },
+        )()
+        mock_civilization = type(
+            "MockCiv",
+            (),
+            {
+                "knowledge_generation_cycle": lambda self, d: {"n_created": 1},
+            },
+        )()
+        mock_economy = type(
+            "MockEcon",
+            (),
+            {
+                "trade_knowledge": lambda self, s, b, k: {"traded": True},
+            },
+        )()
         uci = UltimateCausalIntelligence(
             universe_theory=object(),
             unified_consciousness=mock_consciousness,
@@ -677,7 +693,7 @@ class TestP14Integration:
         cdc = CrossDimensionalCausal()
         trust = CosmicTrust()
 
-        dim_results = cdc.reason_cross_dimensional({"query": "test"})
+        cdc.reason_cross_dimensional({"query": "test"})
         trust_result = trust.assess_cosmic_trust(
             {"confidence": 0.8},
             dimensions=list(CrossDimensionalCausal.DIMENSIONS),
@@ -686,19 +702,35 @@ class TestP14Integration:
 
     def test_ultimate_intelligence_full_stack(self):
         """终极形态全栈集成。"""
-        mock_consciousness = type("MockC", (), {
-            "state": type("MockState", (), {"value": "unified"})(),
-            "unify_consciousness": lambda self: {"unified_state": "unified"},
-        })()
-        mock_creation = type("MockCr", (), {
-            "create_causal_theory": lambda self, d: {"created": True},
-        })()
-        mock_civilization = type("MockCiv", (), {
-            "knowledge_generation_cycle": lambda self, d: {"n_created": 1},
-        })()
-        mock_economy = type("MockEcon", (), {
-            "trade_knowledge": lambda self, s, b, k: {"traded": True},
-        })()
+        mock_consciousness = type(
+            "MockC",
+            (),
+            {
+                "state": type("MockState", (), {"value": "unified"})(),
+                "unify_consciousness": lambda self: {"unified_state": "unified"},
+            },
+        )()
+        mock_creation = type(
+            "MockCr",
+            (),
+            {
+                "create_causal_theory": lambda self, d: {"created": True},
+            },
+        )()
+        mock_civilization = type(
+            "MockCiv",
+            (),
+            {
+                "knowledge_generation_cycle": lambda self, d: {"n_created": 1},
+            },
+        )()
+        mock_economy = type(
+            "MockEcon",
+            (),
+            {
+                "trade_knowledge": lambda self, s, b, k: {"traded": True},
+            },
+        )()
 
         uci = UltimateCausalIntelligence(
             universe_theory=CausalUniverseTheory(),
@@ -744,8 +776,13 @@ class TestP14Integration:
 
         # KPI 5: 形式化 ≥3/5 属性可证明
         formal = CausalUnificationFormal()
-        props = ["hierarchical_consistency", "scale_bridging", "classical_quantum_correspondence",
-                 "invariant_conservation", "creative_closure"]
+        props = [
+            "hierarchical_consistency",
+            "scale_bridging",
+            "classical_quantum_correspondence",
+            "invariant_conservation",
+            "creative_closure",
+        ]
         proven = sum(1 for p in props if formal.prove_unification_property(p).proven)
         assert proven >= 3
 
@@ -757,15 +794,21 @@ class TestP14Integration:
 
         # KPI 8: 宇宙级可信 ≥3 维度
         ct = CosmicTrust()
-        ct_result = ct.assess_cosmic_trust({"confidence": 0.8}, dimensions=["physical", "digital_twin", "mixed_reality"])
+        ct_result = ct.assess_cosmic_trust(
+            {"confidence": 0.8}, dimensions=["physical", "digital_twin", "mixed_reality"]
+        )
         assert ct_result["n_dimensions"] >= 3
 
         # KPI 9: 终极形态 being 可达
         mock_c = type("MC", (), {"state": type("MS", (), {"value": "unified"})()})()
         uci = UltimateCausalIntelligence(
-            universe_theory=object(), unified_consciousness=mock_c,
-            cross_dimensional=object(), creation_engine=object(),
-            civilization=object(), economy=object(), trust_framework=object(),
+            universe_theory=object(),
+            unified_consciousness=mock_c,
+            cross_dimensional=object(),
+            creation_engine=object(),
+            civilization=object(),
+            economy=object(),
+            trust_framework=object(),
         )
         evo = uci.evolve_existence_mode()
         assert evo["existence_mode"] == "being"

@@ -2,6 +2,7 @@
 
 验证每个模块: import → 实例化 → 核心方法调用 → 基本正确性。
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -15,12 +16,14 @@ class TestPatternInference:
 
     def test_create_and_query(self):
         from mci_world_model._sys._pattern_inference import create_pattern, get_heavenly_stem
+
         p = create_pattern(0, 0)
         stem = get_heavenly_stem(p)
         assert stem  # 非空
 
     def test_pattern_is_consistent(self):
         from mci_world_model._sys._pattern_inference import create_pattern, get_heavenly_stem
+
         p1 = create_pattern(0, 0)
         p2 = create_pattern(0, 0)
         assert get_heavenly_stem(p1) == get_heavenly_stem(p2)
@@ -31,15 +34,17 @@ class TestBayesianReasoning:
 
     def test_instantiate(self):
         from mci_world_model._sys.bayesian_reasoning import BayesianReasoningSystem
+
         sys = BayesianReasoningSystem()
         assert sys is not None
 
     def test_predict_returns_dict(self):
         from mci_world_model._sys.bayesian_reasoning import BayesianReasoningSystem
+
         sys = BayesianReasoningSystem()
         # 基本 predict 调用
         try:
-            result = sys.predict({}) if hasattr(sys, 'predict') else {}
+            result = sys.predict({}) if hasattr(sys, "predict") else {}
             assert isinstance(result, (dict, tuple, list, float, int, type(None)))
         except Exception:
             # predict 可能需要特定参数, 至少验证对象可用
@@ -51,6 +56,7 @@ class TestChrono:
 
     def test_instantiate(self):
         from mci_world_model._sys.chrono import TemporalSystem
+
         ts = TemporalSystem()
         assert ts is not None
 
@@ -60,16 +66,19 @@ class TestTissueClassifier:
 
     def test_instantiate(self):
         from mci_world_model.sdk._tissue_classifier import TissueClassifier
+
         tc = TissueClassifier()
         assert tc is not None
 
     def test_classify_returns_result(self):
         from mci_world_model.sdk._tissue_classifier import TissueClassifier
+
         tc = TissueClassifier()
         # 尝试分类一个简单输入
         try:
             import inspect
-            sig = inspect.signature(tc.classify) if hasattr(tc, 'classify') else None
+
+            sig = inspect.signature(tc.classify) if hasattr(tc, "classify") else None
             if sig:
                 result = tc.classify(0.5)  # 假设数值输入
                 assert result is not None
@@ -82,13 +91,15 @@ class TestDebridementData:
 
     def test_instantiate(self):
         from mci_world_model.sdk._debridement_data import SyntheticDebridementGenerator
+
         gen = SyntheticDebridementGenerator()
         assert gen is not None
 
     def test_generate_sample(self):
         from mci_world_model.sdk._debridement_data import SyntheticDebridementGenerator
+
         gen = SyntheticDebridementGenerator()
-        if hasattr(gen, 'generate'):
+        if hasattr(gen, "generate"):
             try:
                 sample = gen.generate()
                 assert sample is not None
@@ -101,11 +112,14 @@ class TestJepaGNN:
 
     def test_import(self):
         from mci_world_model.sdk._jepa_gnn import GNNPredictor
+
         assert GNNPredictor is not None
 
     def test_align_adjacency(self):
-        from mci_world_model.sdk._jepa_gnn import align_adjacency
         import numpy as np
+
+        from mci_world_model.sdk._jepa_gnn import align_adjacency
+
         adj = np.array([[0, 1], [0, 0]])
         try:
             result = align_adjacency(adj, n_nodes=2)
@@ -119,6 +133,7 @@ class TestEmpiricalCausal:
 
     def test_instantiate(self):
         from mci_world_model.sdk._empirical_causal import EmpiricalCausal
+
         ec = EmpiricalCausal()
         assert ec is not None
 
@@ -128,6 +143,7 @@ class TestCausalDataFrame:
 
     def test_import(self):
         from mci_world_model.sdk._causal_dataframe import CausalDataFrame
+
         assert CausalDataFrame is not None
 
 
@@ -136,6 +152,7 @@ class TestEnhancedPerception:
 
     def test_import(self):
         from mci_world_model.sdk._enhanced_perception import EnhancedPerception
+
         assert EnhancedPerception is not None
 
 
@@ -144,13 +161,15 @@ class TestCharTokenizer:
 
     def test_instantiate(self):
         from mci_world_model.sdk._char_tokenizer import CharTokenizer
+
         tok = CharTokenizer()
         assert tok is not None
 
     def test_encode_decode(self):
         from mci_world_model.sdk._char_tokenizer import CharTokenizer
+
         tok = CharTokenizer()
-        if hasattr(tok, 'encode'):
+        if hasattr(tok, "encode"):
             ids = tok.encode("test")
             assert isinstance(ids, (list, tuple, np.ndarray))
 
@@ -160,9 +179,11 @@ class TestForceTissueDynamics:
 
     def test_instantiate(self):
         from mci_world_model.sdk._force_tissue_dynamics import ForceTissueDynamics
+
         ftd = ForceTissueDynamics()
         assert ftd is not None
 
     def test_safety_verdict(self):
-        from mci_world_model.sdk._force_tissue_dynamics import ForceTissueDynamics, SafetyVerdict
+        from mci_world_model.sdk._force_tissue_dynamics import SafetyVerdict
+
         assert SafetyVerdict is not None
