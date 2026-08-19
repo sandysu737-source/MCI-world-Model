@@ -35,6 +35,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import cast
 
 import numpy as np
 
@@ -301,7 +302,7 @@ class PerceptionPipeline:
                     if isinstance(processed, list):
                         features.extend(processed)
                     else:
-                        features.append(processed)
+                        features.append(cast(dict, processed))
             except Exception as e:
                 logger.warning("信号处理异常 [%s]: %s", sig.signal_type.value, e)
 
@@ -377,13 +378,13 @@ class PerceptionPipeline:
 
             _STATE_REGISTRY["proprioception"] = PendulumState
         except ImportError:
-            pass
+            logger.debug("PendulumState 未安装，跳过 proprioception 世界状态注册")
         try:
             from mci_world_model.sdk._world_state import MultimodalWorldState
 
             _STATE_REGISTRY["multimodal"] = MultimodalWorldState
         except ImportError:
-            pass
+            logger.debug("MultimodalWorldState 未安装，跳过 multimodal 世界状态注册")
 
         modalities_found: set[str] = set()
         for sig in signals:
@@ -460,7 +461,8 @@ class PerceptionPipeline:
         # 2. 按模态分组收集特征向量
         modality_features: dict[str, np.ndarray] = {}
         modality_confidences: dict[str, float] = {}
-        for item in processed:
+        processed_items = processed if isinstance(processed, list) else []
+        for item in processed_items:
             modality = item.get("modality", "")
             value = item.get("value")
             if modality and value is not None:
@@ -711,11 +713,13 @@ class PerceptionPipeline:
 
                 if content:
                     collector.register_source(mem_id, source_type=source)
-                    collector.add_observation(
-                        source_id=mem_id,
-                        observation_type="memory_content",
-                        value=True,
-                        confidence=mem.get("confidence", 0.7),
+                    collector.collect(
+                        belief_id=mem_id,
+                        is_positive=True,
+                        source=mem_id,
+                        source_type="memory",
+                        weight=mem.get("confidence", 0.7),
+                        context=content[:200],
                         metadata={"content": content[:200]},
                     )
                     count += 1
@@ -728,6 +732,8 @@ class PerceptionPipeline:
     def _annotate_temporal(self, memories: list[dict]) -> dict:
         """时间标注：提取最新的时序上下文。"""
         try:
+            from datetime import date
+
             from mci_world_model._sys.chrono import TemporalSystem
 
             ts = TemporalSystem()
@@ -738,12 +744,14 @@ class PerceptionPipeline:
                 content = mem.get("content", "")
                 if timestamp or content:
                     try:
-                        temporal_info = ts.encode(timestamp or content)
+                        raw_time = timestamp or content
+                        parsed_date = date.fromisoformat(str(raw_time)[:10])
+                        temporal_info = ts.date_to_time_code(parsed_date)
                         if temporal_info:
                             latest_context = (
                                 temporal_info if isinstance(temporal_info, dict) else {"info": str(temporal_info)}
                             )
-                    except Exception as e:
+                    except Exception:
                         logger.warning("吞异常", exc_info=True)
             return latest_context
         except Exception as e:
@@ -798,12 +806,13 @@ class PerceptionPipeline:
             total: float = 0.0
             for mem in memories:
                 content = str(mem.get("content", ""))
-                for keyword, category in KEYWORDS_TO_CATEGORY.items():
+                for keyword, categories in KEYWORDS_TO_CATEGORY.items():
                     if keyword in content:
-                        energy_type = category_to_energy(category)
-                        if energy_type in profile:
-                            profile[energy_type] += 1.0
-                            total += 1.0
+                        for category in categories:
+                            energy_type = category_to_energy(category)
+                            if energy_type in profile:
+                                profile[energy_type] += 1.0
+                                total += 1.0
 
             # 归一化
             if total > 0:

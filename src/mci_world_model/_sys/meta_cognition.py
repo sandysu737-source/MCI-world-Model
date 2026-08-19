@@ -154,7 +154,7 @@ class MetaCognition:
 
     def __init__(self):
         self._gaps: list[CognitiveGap] = []
-        self._last_scan = 0
+        self._last_scan = 0.0
         self._scan_interval = 3600  # 每小时最多扫描一次
 
         # v3.4.0: 根因分析历史
@@ -417,7 +417,7 @@ class MetaCognition:
         b_pos = sum(1 for p in pos if p in text_b)
         a_neg = sum(1 for n in neg if n in text_a)
         b_neg = sum(1 for n in neg if n in text_b)
-        return (a_pos and b_neg) or (a_neg and b_pos) > 0
+        return (a_pos > 0 and b_neg > 0) or (a_neg > 0 and b_pos > 0)
 
     def _is_contradictory(self, content_a: str, content_b: str) -> bool:
         """判断内容是否矛盾（v3.4.0 增强版）。"""
@@ -828,7 +828,7 @@ class MetaCognition:
     def reset(self) -> None:
         """重置所有状态。"""
         self._gaps.clear()
-        self._last_scan = 0
+        self._last_scan = 0.0
         self._root_cause_history.clear()
         self._score_history.clear()
         self._strategy_log.clear()
