@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NoveltyResult:
     """新颖性验证结果。"""
+
     novelty_confirmed: bool = False
     max_structural_similarity: float = 0.0
     min_prediction_difference: float = 1.0
@@ -68,14 +69,8 @@ class NoveltyVerifier:
         domain = theory.domain if hasattr(theory, "domain") else ""
         existing = self._repository.get_all_theories(domain)
 
-        structural_sim = [
-            self._compute_structural_similarity(theory, e)
-            for e in existing
-        ]
-        prediction_diff = [
-            self._compute_prediction_difference(theory, e)
-            for e in existing
-        ]
+        structural_sim = [self._compute_structural_similarity(theory, e) for e in existing]
+        prediction_diff = [self._compute_prediction_difference(theory, e) for e in existing]
 
         max_sim = max(structural_sim) if structural_sim else 0
         min_diff = min(prediction_diff) if prediction_diff else 1

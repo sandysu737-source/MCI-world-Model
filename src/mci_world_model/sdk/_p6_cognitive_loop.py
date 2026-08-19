@@ -66,21 +66,24 @@ class P6CognitiveLoop:
         if self.meta is None:
             try:
                 from mci_world_model.sdk._metacognition_v2 import MetacognitionV2
+
                 self.meta = MetacognitionV2()
             except ImportError:
-                pass
+                logger.debug("MetacognitionV2 不可用，meta 保持 None")
         if self.diagnoser is None:
             try:
                 from mci_world_model.sdk._meta_diagnoser import MetaDiagnoser
+
                 self.diagnoser = MetaDiagnoser()
             except ImportError:
-                pass
+                logger.debug("MetaDiagnoser 不可用，diagnoser 保持 None")
         if self.repairer is None:
             try:
                 from mci_world_model.sdk._self_repair_cognition import SelfRepairCognition
+
                 self.repairer = SelfRepairCognition()
             except ImportError:
-                pass
+                logger.debug("SelfRepairCognition 不可用，repairer 保持 None")
 
     def run(
         self,
@@ -139,9 +142,11 @@ class P6CognitiveLoop:
                     prediction=prediction.tolist() if isinstance(prediction, np.ndarray) else prediction,
                 )
                 diagnosis["root_cause"] = diag_result.root_cause if hasattr(diag_result, "root_cause") else "unknown"
-                diagnosis["patterns"] = [
-                    p.pattern_name for p in diag_result.matched_patterns
-                ] if hasattr(diag_result, "matched_patterns") else []
+                diagnosis["patterns"] = (
+                    [p.pattern_name for p in diag_result.matched_patterns]
+                    if hasattr(diag_result, "matched_patterns")
+                    else []
+                )
             except Exception:
                 logger.warning("异常降级", exc_info=True)
                 diagnosis["root_cause"] = "diagnoser_unavailable"

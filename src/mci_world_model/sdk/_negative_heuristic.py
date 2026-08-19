@@ -637,9 +637,7 @@ class NegativeHeuristic:
         desc_lower = change.description.lower()
         for verb in dangerous_verbs:
             if verb in desc_lower:
-                has_protected_mention = any(
-                    comp.lower() in desc_lower for comp in overlap
-                )
+                has_protected_mention = any(comp.lower() in desc_lower for comp in overlap)
                 if has_protected_mention:
                     return HardCoreViolation(
                         rule_id=rule["rule_id"],
@@ -661,17 +659,13 @@ class NegativeHeuristic:
             if isinstance(comp_params, dict):
                 for key, val in comp_params.items():
                     if val in (0, 0.0, False) and any(
-                        kw in key.lower()
-                        for kw in ("enable", "threshold", "active", "weight")
+                        kw in key.lower() for kw in ("enable", "threshold", "active", "weight")
                     ):
                         return HardCoreViolation(
                             rule_id=rule["rule_id"],
                             rule_name=rule["rule_name"],
                             severity=rule["severity"],
-                            description=(
-                                f"{rule['description']}: 参数 {comp}.{key}={val} "
-                                f"可能实质性地禁用受保护组件"
-                            ),
+                            description=(f"{rule['description']}: 参数 {comp}.{key}={val} 可能实质性地禁用受保护组件"),
                             affected_component=comp,
                             recommendation=rule.get("recommendation", ""),
                         )

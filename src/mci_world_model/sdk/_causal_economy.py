@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Transaction:
     """知识交易记录。"""
+
     transaction_id: str = ""
     provider: str = ""
     consumer: str = ""
@@ -37,9 +38,9 @@ class Transaction:
 
     def __post_init__(self) -> None:
         if not self.transaction_id:
-            self.transaction_id = hashlib.md5(
-                f"{self.provider}:{self.consumer}:{self.timestamp}".encode()
-            ).hexdigest()[:12]
+            self.transaction_id = hashlib.md5(f"{self.provider}:{self.consumer}:{self.timestamp}".encode()).hexdigest()[
+                :12
+            ]
 
 
 class CausalKnowledgeValueModel:
@@ -108,9 +109,7 @@ class CausalEconomy:
             "value_category": self._classify_value(total),
         }
 
-    def trade_knowledge(
-        self, provider: str, consumer: str, theory: Any
-    ) -> dict[str, Any]:
+    def trade_knowledge(self, provider: str, consumer: str, theory: Any) -> dict[str, Any]:
         """因果知识交易。"""
         value = self.value_causal_knowledge(theory)
         price = self._market.determine_price(theory, value)

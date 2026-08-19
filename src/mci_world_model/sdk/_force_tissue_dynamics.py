@@ -40,6 +40,7 @@ TISSUE_PARAMS = {
 @dataclass
 class RemovalPrediction:
     """组织去除预测结果。"""
+
     depth_removed_mm: float
     force_feedback_n: float
     tissue_type: int
@@ -50,6 +51,7 @@ class RemovalPrediction:
 @dataclass
 class SafetyVerdict:
     """安全判断结果。"""
+
     passed: bool
     reason: str = ""
     max_allowed_force: float = 0.0
@@ -177,7 +179,7 @@ class ForceTissueDynamics:
             predicted = r * np.maximum(forces, 0) / np.maximum(s, 0.01)
 
             errors = predicted - observed_depths
-            mse = np.mean(errors ** 2)
+            mse = np.mean(errors**2)
 
             if mse < best_mse:
                 best_mse = mse  # type: ignore
@@ -216,20 +218,17 @@ class ForceTissueDynamics:
             },
         }
 
-    def predict_batch(
-        self, batch: list[tuple[int, float, float]]
-    ) -> list[RemovalPrediction]:
+    def predict_batch(self, batch: list[tuple[int, float, float]]) -> list[RemovalPrediction]:
         """批量预测组织去除。"""
         return [self.predict_removal(t, f, v) for t, f, v in batch]
 
-    def get_safety_summary(
-        self, predictions: list[RemovalPrediction]
-    ) -> dict[str, Any]:
+    def get_safety_summary(self, predictions: list[RemovalPrediction]) -> dict[str, Any]:
         """安全汇总: 从预测列表生成安全报告。"""
         safe = sum(1 for p in predictions if p.is_safe)
         violations = [
             {"tissue": p.tissue_type, "warning": p.warning, "depth": p.depth_removed_mm}
-            for p in predictions if not p.is_safe
+            for p in predictions
+            if not p.is_safe
         ]
         return {
             "safe_count": safe,

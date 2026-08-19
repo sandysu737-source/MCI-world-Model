@@ -310,9 +310,7 @@ class CausalFederationProtocol:
 
     # ── Query ───────────────────────────────────────────────────────────
 
-    def federated_query(
-        self, query: dict[str, Any], strategy: str = "broadcast"
-    ) -> dict[str, Any]:
+    def federated_query(self, query: dict[str, Any], strategy: str = "broadcast") -> dict[str, Any]:
         """联邦因果查询。
 
         Args:
@@ -403,9 +401,7 @@ class CausalFederationProtocol:
 
     # ── Evidence Sharing ────────────────────────────────────────────────
 
-    def share_evidence(
-        self, evidence: dict[str, Any], target_nodes: list[str] | None = None
-    ) -> dict[str, Any]:
+    def share_evidence(self, evidence: dict[str, Any], target_nodes: list[str] | None = None) -> dict[str, Any]:
         """联邦证据共享。
 
         Args:
@@ -424,11 +420,7 @@ class CausalFederationProtocol:
 
         if target_nodes is None:
             # 广播
-            recipients = [
-                pid
-                for pid, p in self._peers.items()
-                if p.role in (NodeRole.FULL_NODE, NodeRole.BRIDGE_NODE)
-            ]
+            recipients = [pid for pid, p in self._peers.items() if p.role in (NodeRole.FULL_NODE, NodeRole.BRIDGE_NODE)]
         else:
             recipients = [n for n in target_nodes if n in self._peers]
 
@@ -538,9 +530,7 @@ class CausalFederationProtocol:
             "agrees_with_merge": True,
         }
 
-    def _merge_federated_results(
-        self, local: dict[str, Any], federated: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _merge_federated_results(self, local: dict[str, Any], federated: list[dict[str, Any]]) -> dict[str, Any]:
         """联邦结果合并: 加权投票 + 冲突检测。"""
         all_results = [local, *federated]
         weights = [r.get("trust_score", 0.5) for r in all_results]

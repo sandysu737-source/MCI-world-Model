@@ -33,6 +33,7 @@ class CausalScale(str, Enum):
 @dataclass
 class ScaleResult:
     """单尺度推理结果。"""
+
     scale: str = ""
     conclusion: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
@@ -111,7 +112,10 @@ class CausalUniverseTheory:
         return {
             "unified_conclusion": conclusion,
             "scale_analysis": scale_analysis,
-            "per_scale_results": {k: {"conclusion": v.conclusion, "confidence": v.confidence, "method": v.method} for k, v in results.items()},
+            "per_scale_results": {
+                k: {"conclusion": v.conclusion, "confidence": v.confidence, "method": v.method}
+                for k, v in results.items()
+            },
             "inter_scale_consistency": consistency,
             "unification_quality": self._assess_unification_quality(unified, consistency),
         }
@@ -135,7 +139,12 @@ class CausalUniverseTheory:
 
     def _analyze_query_scale(self, query: dict[str, Any]) -> dict[str, Any]:
         return {
-            "applicable_scales": [CausalScale.MICRO.value, CausalScale.MESO.value, CausalScale.MACRO.value, CausalScale.META.value],
+            "applicable_scales": [
+                CausalScale.MICRO.value,
+                CausalScale.MESO.value,
+                CausalScale.MACRO.value,
+                CausalScale.META.value,
+            ],
             "primary_scale": CausalScale.MESO.value,
             "cross_scale_interactions": True,
             "quantum_relevant": False,
@@ -151,7 +160,7 @@ class CausalUniverseTheory:
         scales = list(results.keys())
         checks = []
         for i, s1 in enumerate(scales):
-            for s2 in scales[i + 1:]:
+            for s2 in scales[i + 1 :]:
                 consistent = results[s1].confidence > 0.3 and results[s2].confidence > 0.3
                 checks.append({"scales": (s1, s2), "consistent": consistent})
         all_consistent = all(c["consistent"] for c in checks)

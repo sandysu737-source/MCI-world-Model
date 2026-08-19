@@ -44,6 +44,7 @@ class ProofStatus(str, Enum):
 @dataclass
 class Axiom:
     """统一公理。"""
+
     axiom_id: str = ""
     name: str = ""
     statement: str = ""
@@ -53,6 +54,7 @@ class Axiom:
 @dataclass
 class Theorem:
     """形式化定理。"""
+
     theorem_id: str = ""
     name: str = ""
     statement: str = ""
@@ -66,6 +68,7 @@ class Theorem:
 @dataclass
 class ProofResult:
     """证明结果。"""
+
     property_name: str = ""
     proven: bool = False
     steps: int = 0
@@ -245,7 +248,7 @@ class CausalUnificationFormal:
         theorem_names = list(proven.keys())
         conflicts = []
         for i, t1 in enumerate(theorem_names):
-            for t2 in theorem_names[i + 1:]:
+            for t2 in theorem_names[i + 1 :]:
                 conflict = self._check_theorem_conflict(proven[t1], proven[t2])
                 if conflict:
                     conflicts.append({"theorems": (t1, t2), "conflict": conflict})

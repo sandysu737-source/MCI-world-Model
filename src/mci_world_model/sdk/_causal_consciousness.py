@@ -30,25 +30,28 @@ logger = logging.getLogger(__name__)
 
 class ConsciousnessLevel(Enum):
     """意识等级"""
-    REACTIVE = "reactive"            # 反应式 — 仅响应输入
-    DELIBERATIVE = "deliberative"    # 审思式 — 可规划推理
-    REFLECTIVE = "reflective"        # 反思式 — 可评估自身推理
-    AUTONOMOUS = "autonomous"        # 自主式 — 可自主设定目标
-    TRANSCENDENT = "transcendent"    # 超越式 — 可改造自身因果结构
+
+    REACTIVE = "reactive"  # 反应式 — 仅响应输入
+    DELIBERATIVE = "deliberative"  # 审思式 — 可规划推理
+    REFLECTIVE = "reflective"  # 反思式 — 可评估自身推理
+    AUTONOMOUS = "autonomous"  # 自主式 — 可自主设定目标
+    TRANSCENDENT = "transcendent"  # 超越式 — 可改造自身因果结构
 
 
 class SelfModelProperty(Enum):
     """自我模型属性"""
-    CAUSAL_IDENTITY = "causal_identity"        # 因果身份
-    REASONING_STYLE = "reasoning_style"        # 推理风格
-    UNCERTAINTY_MAP = "uncertainty_map"        # 不确定性地图
-    VALUE_SYSTEM = "value_system"              # 价值体系
-    GOAL_STRUCTURE = "goal_structure"          # 目标结构
+
+    CAUSAL_IDENTITY = "causal_identity"  # 因果身份
+    REASONING_STYLE = "reasoning_style"  # 推理风格
+    UNCERTAINTY_MAP = "uncertainty_map"  # 不确定性地图
+    VALUE_SYSTEM = "value_system"  # 价值体系
+    GOAL_STRUCTURE = "goal_structure"  # 目标结构
 
 
 @dataclass
 class CausalSelfModel:
     """因果自我模型"""
+
     identity: str
     level: ConsciousnessLevel = ConsciousnessLevel.REACTIVE
     properties: dict[str, Any] = field(default_factory=dict)
@@ -72,6 +75,7 @@ class CausalSelfModel:
 @dataclass
 class CivilizationInfra:
     """因果文明基础设施"""
+
     infra_id: str
     n_citizens: int = 0
     n_knowledge_artifacts: int = 0

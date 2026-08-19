@@ -39,6 +39,7 @@ class CreativeState(str, Enum):
 @dataclass
 class CreativeDrive:
     """创造驱动力。"""
+
     curiosity: float = 0.5
     aesthetic: float = 0.3
     coherence: float = 0.7
@@ -74,7 +75,9 @@ class CreativeCausalConsciousness:
         return self._drive
 
     def enter_creative_mode(
-        self, domain: str, drive_adjustment: dict | None = None  # type: ignore
+        self,
+        domain: str,
+        drive_adjustment: dict | None = None,  # type: ignore
     ) -> dict[str, Any]:
         """进入创造模式。"""
         if drive_adjustment:
@@ -126,9 +129,7 @@ class CreativeCausalConsciousness:
         drive_calibration = self._calibrate_creative_drive(creation_episode)
 
         # 美学评估
-        aesthetic = self.aesthetic_evaluation(
-            creation_episode.get("created_theory", {})
-        )
+        aesthetic = self.aesthetic_evaluation(creation_episode.get("created_theory", {}))
 
         # 自适应调整
         for key, adjustment in drive_calibration.items():

@@ -35,23 +35,26 @@ logger = logging.getLogger(__name__)
 
 class CoevolutionMode(Enum):
     """共演化模式"""
-    OBSERVER = "observer"          # 观察者
-    PARTICIPANT = "participant"    # 参与者
-    SHAPER = "shaper"              # 塑造者
-    CARRIER = "carrier"            # 因果力载体
+
+    OBSERVER = "observer"  # 观察者
+    PARTICIPANT = "participant"  # 参与者
+    SHAPER = "shaper"  # 塑造者
+    CARRIER = "carrier"  # 因果力载体
 
 
 class ForceType(Enum):
     """因果力类型"""
-    CAUSAL_GRAVITY = "causal_gravity"      # 因果引力
+
+    CAUSAL_GRAVITY = "causal_gravity"  # 因果引力
     CAUSAL_REPULSION = "causal_repulsion"  # 因果斥力
-    CAUSAL_TENSION = "causal_tension"      # 因果张力
-    CAUSAL_INERTIA = "causal_inertia"      # 因果惯性
+    CAUSAL_TENSION = "causal_tension"  # 因果张力
+    CAUSAL_INERTIA = "causal_inertia"  # 因果惯性
 
 
 @dataclass
 class CoevolutionState:
     """共演化状态"""
+
     mode: CoevolutionMode = CoevolutionMode.OBSERVER
     coupling_strength: float = 0.0
     n_interactions: int = 0

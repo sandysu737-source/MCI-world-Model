@@ -96,19 +96,14 @@ class TissueResult:
     @property
     def requires_stop(self) -> bool:
         """是否需要安全停止: 对上皮/健康组织误判为坏死。"""
-        return (
-            self.predicted_label == TISSUE_NECROTIC
-            and self.probs[TISSUE_EPITHELIAL] > 0.2
-        )
+        return self.predicted_label == TISSUE_NECROTIC and self.probs[TISSUE_EPITHELIAL] > 0.2
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "predicted": self.tissue_name,
             "label": int(self.predicted_label),
             "confidence": round(float(self.confidence), 4),
-            "probs": {
-                TISSUE_NAMES[i]: round(float(self.probs[i]), 4) for i in range(4)
-            },
+            "probs": {TISSUE_NAMES[i]: round(float(self.probs[i]), 4) for i in range(4)},
             "is_uncertain": self.is_uncertain,
             "is_safe_to_debride": self.is_safe_to_debride,
             "requires_stop": self.requires_stop,
@@ -154,10 +149,7 @@ class TissueClassifier:
         self._b: list[np.ndarray] = []
         for i in range(len(dims) - 1):
             fan_in, fan_out = dims[i], dims[i + 1]
-            self._W.append(
-                rng.randn(fan_in, fan_out).astype(np.float64)
-                * np.sqrt(2.0 / (fan_in + fan_out))
-            )
+            self._W.append(rng.randn(fan_in, fan_out).astype(np.float64) * np.sqrt(2.0 / (fan_in + fan_out)))
             self._b.append(np.zeros(fan_out, dtype=np.float64))
 
         self._trained: bool = False
@@ -275,9 +267,7 @@ class TissueClassifier:
 
                 # 加权 CrossEntropy 损失
                 weights = self._class_weights[y_batch]
-                ce = -np.log(
-                    np.clip(probs[np.arange(bs), y_batch], 1e-15, 1.0)
-                )
+                ce = -np.log(np.clip(probs[np.arange(bs), y_batch], 1e-15, 1.0))
                 loss = float(np.mean(ce * weights))
                 epoch_loss += loss
                 n_batches += 1

@@ -479,7 +479,6 @@ class MetricRegistry:
             {"applicable": len(distances) > 0, "n_pairs": len(distances)},
         )
 
-
     @staticmethod
     def causal_intervention_quality(
         pearl_bridge: Any,
@@ -509,9 +508,7 @@ class MetricRegistry:
         for tc in drug_cases[:15]:  # 抽样 15 个
             # 从单状态无法做发现，构造一个小的合成历史（基于该状态的体征分布）
             base_vitals = tc.state.vital_signs[-1]
-            history = np.array([
-                base_vitals + rng.normal(0, 2, len(base_vitals)) for _ in range(30)
-            ])
+            history = np.array([base_vitals + rng.normal(0, 2, len(base_vitals)) for _ in range(30)])
             try:
                 structure = pearl_bridge.discover(history)
                 if not structure.links:
@@ -644,7 +641,9 @@ class UnifiedReport:
             if sem == 0.0:
                 sem = "N/A"
             causal = d.get("causal_ate_estimable", {}).get("value", "N/A")
-            lines.append(f"| {br.backend_name} | {dir_acc} | {mae} | {safety} | {noise_2} | {recon} | {sem} | {causal} |")
+            lines.append(
+                f"| {br.backend_name} | {dir_acc} | {mae} | {safety} | {noise_2} | {recon} | {sem} | {causal} |"
+            )
 
         lines.extend(
             [
@@ -677,7 +676,7 @@ class UnifiedReport:
                 "- 重建MSE: 仅 JEPA 类适用（编码再解码的保真度），N/A=不适用",
                 "- 语义区分: 相同体征不同诊断的潜向量平均距离，N/A=不适用（数值模型无法区分）",
                 "- 多步误差: 自然演化场景 1-5 步预测的 MAE 累积",
-            "- 因果可估率: Pearl do-calculus L2 干预效应(ATE)可估计的比例（方向三，N/A=未注册因果桥接）",
+                "- 因果可估率: Pearl do-calculus L2 干预效应(ATE)可估计的比例（方向三，N/A=未注册因果桥接）",
             ]
         )
         return "\n".join(lines)
@@ -800,9 +799,7 @@ class UnifiedEvalSuite:
 
         # 因果干预质量（方向三 L2，需注册 pearl_bridge，全局评一次附加到首 backend）
         if eval_causal and self._pearl_bridge is not None:
-            causal_results = metrics.causal_intervention_quality(
-                self._pearl_bridge, self._test_cases
-            )
+            causal_results = metrics.causal_intervention_quality(self._pearl_bridge, self._test_cases)
             if report.backend_reports:
                 report.backend_reports[0].metrics.extend(causal_results)
 

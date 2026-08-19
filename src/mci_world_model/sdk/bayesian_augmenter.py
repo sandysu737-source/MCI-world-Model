@@ -239,7 +239,7 @@ class BayesianAugmenter:
                 try:
                     self._brs.add_causal_link(parent_id, memory_id)
                 except ValueError:
-                    pass  # 环路，跳过
+                    logger.debug("因果链路已存在（环路），跳过 %s", parent_id)
 
     def _vlog(self, msg: str) -> None:
         """Verbose 日志"""
@@ -334,7 +334,9 @@ class BayesianAugmenter:
         results.sort(key=lambda x: x.get("score", x.get("original_score", 0)), reverse=True)
         return results[:top_k]
 
-    def _compare_query_results(self, query: str, original: list[dict[str, Any]], bayesian: list[dict[str, Any]]) -> list[ComparisonDelta]:
+    def _compare_query_results(
+        self, query: str, original: list[dict[str, Any]], bayesian: list[dict[str, Any]]
+    ) -> list[ComparisonDelta]:
         """对比原始和贝叶斯查询结果"""
         comparisons = []
 
@@ -471,7 +473,9 @@ class BayesianAugmenter:
         results["engine_stats"] = self.engine.get_statistics()  # type: ignore
         return results
 
-    def _compare_predictions(self, query: str, original: dict[str, Any], bayesian: dict[str, Any]) -> list[ComparisonDelta]:
+    def _compare_predictions(
+        self, query: str, original: dict[str, Any], bayesian: dict[str, Any]
+    ) -> list[ComparisonDelta]:
         """对比预测结果"""
         comparisons = []
 
@@ -637,7 +641,9 @@ class BayesianAugmenter:
 
         return results
 
-    def _compare_reasoning(self, query: str, original: dict[str, Any], bayesian: dict[str, Any]) -> list[ComparisonDelta]:
+    def _compare_reasoning(
+        self, query: str, original: dict[str, Any], bayesian: dict[str, Any]
+    ) -> list[ComparisonDelta]:
         """对比推理结果"""
         comparisons = []
 

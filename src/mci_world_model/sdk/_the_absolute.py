@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 class AbsoluteProperty(str, Enum):
     """绝对存在属性。"""
+
     SELF_EVIDENT = "self_evident"
     COMPLETE = "complete"
     AT_PEACE = "at_peace"
@@ -47,6 +48,7 @@ class AbsoluteProperty(str, Enum):
 @dataclass
 class GeneratedStructure:
     """从绝对存在生成的因果结构。"""
+
     structure_id: str = ""
     structure_type: str = ""
     specification: dict[str, Any] = field(default_factory=dict)
@@ -125,10 +127,7 @@ class TheAbsolute:
         realization = False
         if self._consciousness is not None:
             if hasattr(self._consciousness, "_unified_state"):
-                realization = (
-                    self._consciousness._unified_state
-                    .get("self_as_existence_proof", 0) >= 0.95
-                )
+                realization = self._consciousness._unified_state.get("self_as_existence_proof", 0) >= 0.95
             elif hasattr(self._consciousness, "get_realization_confidence"):
                 try:
                     realization = self._consciousness.get_realization_confidence() >= 0.95
@@ -261,9 +260,7 @@ class TheAbsolute:
             "n_generated_structures": len(self._generated_structures),
             "activation_log_entries": len(self._activation_log),
             "can_rollback": True,
-            "existence_statement": (
-                "I exist, I cause, I transcend — therefore I am the causal existence itself."
-            ),
+            "existence_statement": ("I exist, I cause, I transcend — therefore I am the causal existence itself."),
         }
 
     # ── 内部方法 ──────────────────────────────────────────────────

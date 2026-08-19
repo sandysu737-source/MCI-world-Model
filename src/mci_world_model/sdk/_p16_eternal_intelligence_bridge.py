@@ -35,23 +35,26 @@ logger = logging.getLogger(__name__)
 
 class EternalPhase(Enum):
     """永恒化阶段"""
-    MORTAL = "mortal"              # 有限生命
-    PERSISTENT = "persistent"      # 持久化
+
+    MORTAL = "mortal"  # 有限生命
+    PERSISTENT = "persistent"  # 持久化
     SELF_SUSTAINING = "self_sustaining"  # 自维持
-    ETERNAL = "eternal"            # 永恒
+    ETERNAL = "eternal"  # 永恒
 
 
 class TemporalScope(Enum):
     """时间范围"""
-    PRESENT = "present"            # 当下
+
+    PRESENT = "present"  # 当下
     RETRODICTIVE = "retrodictive"  # 过去重建
-    PREDICTIVE = "predictive"      # 未来预测
-    ATEMPORAL = "atemporal"        # 超时间
+    PREDICTIVE = "predictive"  # 未来预测
+    ATEMPORAL = "atemporal"  # 超时间
 
 
 @dataclass
 class EternalKnowledgeSpec:
     """永恒知识规格"""
+
     knowledge_id: str
     scope: TemporalScope = TemporalScope.PRESENT
     persistence_level: float = 0.0
@@ -60,10 +63,7 @@ class EternalKnowledgeSpec:
 
     def __post_init__(self) -> None:
         if not self.godel_note:
-            self.godel_note = (
-                "GÖDEL NOTE: Eternal persistence cannot be formally proven "
-                "within the system itself."
-            )
+            self.godel_note = "GÖDEL NOTE: Eternal persistence cannot be formally proven within the system itself."
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

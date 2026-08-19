@@ -137,8 +137,14 @@ class FederationAudit:
 
         # 检查1: 操作类型是否合法
         valid_types = {
-            "join", "leave", "query", "discovery",
-            "consensus", "evolve", "evidence_share", "sync",
+            "join",
+            "leave",
+            "query",
+            "discovery",
+            "consensus",
+            "evolve",
+            "evidence_share",
+            "sync",
         }
         if op_type not in valid_types:
             severity = AuditSeverity.WARNING
@@ -243,16 +249,12 @@ class FederationAudit:
     def generate_audit_report(self) -> dict[str, Any]:
         """生成不可篡改的审计报告。"""
         report = {
-            "report_id": hashlib.md5(
-                f"audit:{time.time()}:{len(self._entries)}".encode()
-            ).hexdigest()[:12],
+            "report_id": hashlib.md5(f"audit:{time.time()}:{len(self._entries)}".encode()).hexdigest()[:12],
             "timestamp": time.time(),
             "n_entries": len(self._entries),
             "n_critical": self.n_critical,
             "n_failures": self.n_failures,
-            "pass_rate": (
-                1 - self.n_failures / max(len(self._entries), 1)
-            ),
+            "pass_rate": (1 - self.n_failures / max(len(self._entries), 1)),
             "entries_summary": [
                 {
                     "id": e.entry_id,
