@@ -1,6 +1,7 @@
 import numpy as np
 
 from mci_world_model._backend import B
+
 """
 Five Elements Energy Core Engine
 
@@ -299,6 +300,7 @@ class EnergyCore:
         #   克 (suppress) = 转移非消灭: 被克者→克者。
         #     Flow[i, j_sup] += SUPP, Flow[j_sup,j_sup] -= SUPP → 列和: SUPP-SUPP=0 ✓
         from mci_world_model.algebra.affinity import AffinityMatrix
+
         self._affinity = AffinityMatrix(labels=tuple(self.ENERGY_ORDER))
         self._energy_idx = {e: i for i, e in enumerate(self.ENERGY_ORDER)}
         self._flow_matrix = self._build_flow_matrix()
@@ -310,8 +312,8 @@ class EnergyCore:
         生=纯转移(源→目标), 克=转移非消灭(被克者→克者)。
         """
         Flow = np.zeros((5, 5), dtype=np.float64)
-        _enh = self.ENHANCE_FLOW_RATE           # 0.15
-        _supp = abs(self.SUPPRESS_FLOW_RATE)    # 0.10
+        _enh = self.ENHANCE_FLOW_RATE  # 0.15
+        _supp = abs(self.SUPPRESS_FLOW_RATE)  # 0.10
         for i in range(5):
             e_src = self.ENERGY_ORDER[i]
             # 生: 源损耗等量流量、目标获得流量 (守恒)
@@ -375,7 +377,7 @@ class EnergyCore:
         """分布偏离平稳分布的 L2 距离 (越大越失衡)。"""
         v = self._to_vector(energies)
         if v.sum() <= 0:
-            return float('inf')
+            return float("inf")
         return self._affinity.balance_deviation(v)
 
     def _build_bidirectional_enhance(self) -> dict[str, str]:
@@ -643,7 +645,7 @@ class EnergyCore:
         ratios = {k: v / total for k, v in energies.items()}
 
         # Find dominant energy
-        dominant = max(ratios, key=ratios.get)
+        dominant = max(ratios, key=ratios.__getitem__)
         dominant_ratio = ratios[dominant]
 
         # Determine balance status
@@ -682,8 +684,8 @@ class EnergyCore:
             return EnergyPattern.CONG_WANG
 
         # Check for reverse pattern (反局格)
-        dominant = max(ratios, key=ratios.get)
-        dominated = min(ratios, key=ratios.get)
+        dominant = max(ratios, key=ratios.__getitem__)
+        dominated = min(ratios, key=ratios.__getitem__)
 
         # If dominant suppresses dominated severely
         if self.get_suppress_relation(dominant, dominated) and ratios[dominant] > 0.35:
@@ -757,7 +759,7 @@ class EnergyCore:
 
         elif pattern == EnergyPattern.CONG_WANG:
             # Following strength: follow the strongest, weaken the weakest
-            dominant = max(energies, key=energies.get)
+            dominant = max(energies, key=energies.__getitem__)
             result[dominant] *= 1.2
             total = sum(result.values())
 
@@ -1037,7 +1039,7 @@ def test_energy_core():
 
     # Test 3: Energy states (旺相休囚死)
     logger.info("\n[TEST 3] Energy States by Month (旺相休囚死)")
-    test_cases = [
+    state_cases: list[tuple[str, int, StrengthState]] = [
         ("wood", 2, StrengthState.WANG),  # 寅月木旺
         ("wood", 3, StrengthState.WANG),  # 卯月木旺
         ("fire", 5, StrengthState.WANG),  # 巳月火旺
@@ -1049,35 +1051,37 @@ def test_energy_core():
         ("water", 11, StrengthState.WANG),  # 亥月水旺
     ]
 
-    for energy, branch, expected_strength in test_cases:
-        state = ec.get_energy_state(energy, branch)
-        status = "PASS" if state.strength == expected_strength else "FAIL"
+    for energy_name, month_branch, expected_strength in state_cases:
+        month_state = ec.get_energy_state(energy_name, month_branch)
+        status = "PASS" if month_state.strength == expected_strength else "FAIL"
         if status == "PASS":
             tests_passed += 1
         else:
             tests_failed += 1
-        logger.info(f"  {energy} @ branch {branch}: {state.strength.name} (expected {expected_strength.name}) [{status}]")
+        logger.info(
+            f"  {energy_name} @ branch {month_branch}: {month_state.strength.name} (expected {expected_strength.name}) [{status}]"
+        )
 
     # Test 4: Intensity calculation
     logger.info("\n[TEST 4] Intensity Calculation")
-    state = ec.get_energy_state("wood", 2)  # 寅月
+    intensity_state = ec.get_energy_state("wood", 2)  # 寅月
     expected_intensity = ec.STRENGTH_MULTIPLIER[StrengthState.WANG]
-    status = "PASS" if abs(state.intensity - expected_intensity) < 0.01 else "FAIL"
+    status = "PASS" if abs(intensity_state.intensity - expected_intensity) < 0.01 else "FAIL"
     if status == "PASS":
         tests_passed += 1
     else:
         tests_failed += 1
-    logger.info(f"  wood @ branch 2 intensity: {state.intensity} (expected {expected_intensity}) [{status}]")
+    logger.info(f"  wood @ branch 2 intensity: {intensity_state.intensity} (expected {expected_intensity}) [{status}]")
 
     # Test 5: Balance analysis
     logger.info("\n[TEST 5] Balance Analysis")
     energies = {"wood": 0.3, "fire": 0.2, "earth": 0.2, "metal": 0.15, "water": 0.15}
-    result = ec.analyze_balance(energies)
-    logger.info(f"  Status: {result.status}")
-    logger.info(f"  Pattern: {result.pattern.name}")
-    logger.info(f"  Dominant: {result.dominant}")
-    logger.info(f"  Ratios: {result.ratios}")
-    logger.info(f"  Suggestions: {result.suggestions}")
+    balance = ec.analyze_balance(energies)
+    logger.info(f"  Status: {balance.status}")
+    logger.info(f"  Pattern: {balance.pattern.name}")
+    logger.info(f"  Dominant: {balance.dominant}")
+    logger.info(f"  Ratios: {balance.ratios}")
+    logger.info(f"  Suggestions: {balance.suggestions}")
 
     # Test 6: Energy attributes
     logger.info("\n[TEST 6] Energy Attributes")
@@ -1088,9 +1092,9 @@ def test_energy_core():
 
     # Test 7: Compatibility calculation
     logger.info("\n[TEST 7] Compatibility Calculation")
-    e1 = {"wood": 0.4, "fire": 0.2, "earth": 0.2, "metal": 0.1, "water": 0.1}
-    e2 = {"wood": 0.3, "fire": 0.3, "earth": 0.2, "metal": 0.1, "water": 0.1}
-    compat = ec.calculate_compatibility(e1, e2)
+    dist1 = {"wood": 0.4, "fire": 0.2, "earth": 0.2, "metal": 0.1, "water": 0.1}
+    dist2 = {"wood": 0.3, "fire": 0.3, "earth": 0.2, "metal": 0.1, "water": 0.1}
+    compat = ec.calculate_compatibility(dist1, dist2)
     logger.info(f"  Compatibility score: {compat:.4f}")
 
     # Test 8: Interaction analysis
@@ -1105,8 +1109,8 @@ def test_energy_core():
     initial = {"wood": 0.3, "fire": 0.2, "earth": 0.2, "metal": 0.15, "water": 0.15}
     history = ec.simulate_energy_flow(initial, steps=3)
     logger.info(f"  Initial: {initial}")
-    for i, state in enumerate(history[1:], 1):
-        logger.info(f"  Step {i}: {state}")
+    for i, flow_state in enumerate(history[1:], 1):
+        logger.info(f"  Step {i}: {flow_state}")
 
     # Test 10: Strength from branch
     logger.info("\n[TEST 10] Strength from Branch")

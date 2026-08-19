@@ -178,6 +178,8 @@ class UnifiedInfoUnit:
         This method automatically populates direction, colors, organs,
         emotions, and industries based on the energy_type value.
         """
+        if self.energy_type is None:
+            return
         if 0 <= self.energy_type < 5:
             energy_name = ENERGY_NAMES[self.energy_type]
             self.direction = ENERGY_DIRECTION.get(energy_name, [])
@@ -204,7 +206,7 @@ class UnifiedInfoUnit:
             - stem_name: Name of the heavenly stem
             - branch_name: Name of the earthly branch
         """
-        result = {
+        result: dict[str, Any] = {
             "stem": self.temporal_stem,
             "branch": self.temporal_branch,
             "cycle_position": self.cyclic_code,
@@ -229,7 +231,7 @@ class UnifiedInfoUnit:
             - post_trigram: Post trigram index (Wen Wang)
             - trigram_name: Name of the trigram
         """
-        result = {
+        result: dict[str, Any] = {
             "trigram": self.trigram,
             "hexagram_index": self.hexagram_index,
             "prior_trigram": self.prior_trigram,
@@ -252,7 +254,7 @@ class UnifiedInfoUnit:
             - energy_name: Name of the energy type
             - attributes: Extended attributes dictionary
         """
-        result = {
+        result: dict[str, Any] = {
             "energy_type": self.energy_type,
             "intensity": self.energy_intensity,
             "strength_state": self.strength_state,
@@ -770,7 +772,9 @@ def run_tests():
             )
             assert len(unit.direction) > 0, f"Energy {energy_idx} missing directions"
             assert len(unit.colors) > 0, f"Energy {energy_idx} missing colors"
-            logger.info(f"  Energy {energy_idx} ({ENERGY_NAMES[energy_idx]}): dir={unit.direction}, colors={unit.colors}")
+            logger.info(
+                f"  Energy {energy_idx} ({ENERGY_NAMES[energy_idx]}): dir={unit.direction}, colors={unit.colors}"
+            )
         logger.info("  PASS: All energy types have extended attributes")
         tests_passed += 1
     except Exception as e:

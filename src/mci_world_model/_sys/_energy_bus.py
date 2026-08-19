@@ -39,10 +39,10 @@ import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import cast
 
+from ._category_core import PRIOR_ORDER, TRIGRAM_ENERGY_TYPE
 from ._dimension_map import (
-    PRIOR_ORDER,
-    TRIGRAM_ENERGY_TYPE,
     TaijiMapper,
 )
 from ._energy_relations import (
@@ -678,7 +678,10 @@ class EnergyBus:
         # Calculate trigram position difference for spatial decay
         if source.trigram_idx is not None and target.trigram_idx is not None:
             # 【先天主数】: Calculate numerical distance
-            pos_diff = abs(PRIOR_ORDER.get(source.trigram_idx, 0) - PRIOR_ORDER.get(target.trigram_idx, 0))
+            pos_diff = abs(
+                PRIOR_ORDER.get(cast(TrigramType, source.trigram_idx), 0)
+                - PRIOR_ORDER.get(cast(TrigramType, target.trigram_idx), 0)
+            )
             spatial_decay = math.exp(-0.1 * min(pos_diff, 4))
         else:
             spatial_decay = 1.0
@@ -761,8 +764,8 @@ class EnergyBus:
         return {
             "balanced": max_ratio < 0.5 and min_ratio > 0.1,
             "ratios": ratios,
-            "dominant": max(element_totals, key=element_totals.get),
-            "weakest": min(element_totals, key=element_totals.get),
+            "dominant": max(element_totals, key=element_totals.__getitem__),
+            "weakest": min(element_totals, key=element_totals.__getitem__),
         }
 
     def _update_layer_stats(self, layer: EnergyLayer):
@@ -943,6 +946,7 @@ def test_energy_bus():
 
     channel_id = bus.connect("node1", "node2", RelationType.ENHANCE, base_weight=1.0)
     test("Create channel", channel_id is not None)
+    assert channel_id is not None
     test("Channel exists", bus.get_channel(channel_id) is not None)
     test("Outgoing channels", len(bus.get_outgoing_channels("node1")) == 1)
     test("Incoming channels", len(bus.get_incoming_channels("node2")) == 1)
@@ -951,11 +955,14 @@ def test_energy_bus():
     logger.info("\n[Test 3] Energy Propagation")
     logger.info("-" * 40)
 
-    initial_intensity = bus.get_node("node1").intensity
+    node1_before = bus.get_node("node1")
+    assert node1_before is not None
+    initial_intensity = node1_before.intensity
     signals = bus.propagate_energy("node1", 0.5)
     test("Propagate creates signals", len(signals) > 0)
 
     node1_new = bus.get_node("node1")
+    assert node1_new is not None
     test("Source intensity increased", node1_new.intensity > initial_intensity)
 
     # Test 4: Five Elements Network
@@ -975,7 +982,9 @@ def test_energy_bus():
 
     # Test propagation through enhance cycle
     bus2.propagate_energy("element_wood", 0.3)
-    fire_intensity = bus2.get_node("element_fire").intensity
+    fire_node2 = bus2.get_node("element_fire")
+    assert fire_node2 is not None
+    fire_intensity = fire_node2.intensity
     test("Fire intensity increased via propagation", fire_intensity > 1.0)
 
     # Test 5: Trigrams Network
@@ -989,6 +998,7 @@ def test_energy_bus():
 
     # Check QIAN (generative in CEWM) has correct energy
     qian = bus3.get_node("trigram_0")
+    assert qian is not None
     test("QIAN energy is generative", qian.energy_type == "generative")
 
     # Test 6: Bus State
@@ -1014,6 +1024,7 @@ def test_energy_bus():
     logger.info("-" * 40)
 
     node_state = bus2.get_node_state("element_wood")
+    assert node_state is not None
     test("Node state has intensity", "intensity" in node_state)
     test("Node state has energy_level", "energy_level" in node_state)
     test("Node state has connections", "connections" in node_state)
@@ -1042,6 +1053,7 @@ def test_energy_bus():
     bus5.connect("w", "e", RelationType.SUPPRESS)
 
     channel = bus5.get_channel("ch_w_e")
+    assert channel is not None
     test("Channel has correct relation", channel.relation_type == RelationType.SUPPRESS)
     test("Suppress effective weight", abs(channel.effective_weight - 0.8) < 0.01)
 

@@ -437,8 +437,8 @@ def analyze_balance(energy_distribution: dict[str, float]) -> dict[str, Any]:
     ratio = {k: v / total for k, v in energy_distribution.items() if total > 0}
 
     # Find dominant and weak energies
-    dominant = max(energy_distribution, key=energy_distribution.get)
-    weak = min(energy_distribution, key=energy_distribution.get)
+    dominant = max(energy_distribution, key=energy_distribution.__getitem__)
+    weak = min(energy_distribution, key=energy_distribution.__getitem__)
 
     # Analyze status
     max_ratio = ratio.get(dominant, 0)
@@ -681,38 +681,38 @@ def test_energy_relations():
 
     # Test 3: Relation analysis
     logger.info("\n[Test 3] Relation Analysis")
-    test_cases = [
+    test_cases_rel = [
         ("wood", "fire", RelationType.ENHANCE, 1.2),  # 木生火
         ("wood", "earth", RelationType.SUPPRESS, 0.8),  # 木克土
         ("fire", "fire", RelationType.SAME, 1.1),  # 火同火
         ("wood", "metal", RelationType.REVERSE, 0.4),  # 金克木 (相侮)
     ]
 
-    for source, target, exp_rel, exp_str in test_cases:
-        result = analyze_relation(source, target)
-        rel_ok = result.relation == exp_rel
-        str_ok = abs(result.strength - exp_str) < 0.01
+    for source, target, exp_rel, exp_str in test_cases_rel:
+        result_rel = analyze_relation(source, target)
+        rel_ok = result_rel.relation == exp_rel
+        str_ok = abs(result_rel.strength - exp_str) < 0.01
         status = "✓" if rel_ok and str_ok else "✗"
         if not (rel_ok and str_ok):
             all_passed = False
-        logger.info(f"  {status} {source} <-> {target}: {result.relation.value} ({result.strength})")
-        logger.info(f"      Description: {result.description}")
+        logger.info(f"  {status} {source} <-> {target}: {result_rel.relation.value} ({result_rel.strength})")
+        logger.info(f"      Description: {result_rel.description}")
 
     # Test 4: Link weight calculation
     logger.info("\n[Test 4] Link Weight Calculation")
-    test_cases = [
+    test_cases_weight = [
         ("wood", "fire", 1.0, 1.2),  # enhance +20%
         ("wood", "earth", 1.0, 0.8),  # suppress -20%
         ("fire", "fire", 1.0, 1.1),  # 同类增强
         ("wood", "metal", 1.0, 0.4),  # 相侮削弱
     ]
 
-    for source, target, base, expected in test_cases:
-        result = calculate_link_weight(source, target, base)
-        status = "✓" if abs(result - expected) < 0.01 else "✗"
-        if abs(result - expected) >= 0.01:
+    for source, target, base, expected_w in test_cases_weight:
+        result_w = calculate_link_weight(source, target, base)
+        status = "✓" if abs(result_w - expected_w) < 0.01 else "✗"
+        if abs(result_w - expected_w) >= 0.01:
             all_passed = False
-        logger.info(f"  {status} Link({source}, {target}, base={base}): {result}")
+        logger.info(f"  {status} Link({source}, {target}, base={base}): {result_w}")
 
     # Test 5: Cycle sequences
     logger.info("\n[Test 5] Cycle Sequences")
@@ -727,10 +727,10 @@ def test_energy_relations():
     # Test 6: Balance analysis
     logger.info("\n[Test 6] Balance Analysis")
     dist = {"wood": 0.3, "fire": 0.2, "earth": 0.2, "metal": 0.15, "water": 0.15}
-    result = analyze_balance(dist)
-    logger.info(f"  Status: {result['status']}")
-    logger.info(f"  Dominant: {result['dominant']}")
-    logger.info(f"  Ratio: {result['ratio']}")
+    result_bal = analyze_balance(dist)
+    logger.info(f"  Status: {result_bal['status']}")
+    logger.info(f"  Dominant: {result_bal['dominant']}")
+    logger.info(f"  Ratio: {result_bal['ratio']}")
 
     # Test 7: Four Symbols mapping
     logger.info("\n[Test 7] Four Symbols Mapping (Four Symbols映射)")
@@ -743,11 +743,11 @@ def test_energy_relations():
     ]
 
     for energy, expected_symbol in four_symbol_tests:
-        result = ENERGY_TO_FOUR_SYMBOLS.get(energy)
-        status = "✓" if result == expected_symbol else "✗"
-        if result != expected_symbol:
+        result_sym = ENERGY_TO_FOUR_SYMBOLS.get(energy)
+        status = "✓" if result_sym == expected_symbol else "✗"
+        if result_sym != expected_symbol:
             all_passed = False
-        logger.info(f"  {status} {energy} -> {result} (expected: {expected_symbol})")
+        logger.info(f"  {status} {energy} -> {result_sym} (expected: {expected_symbol})")
 
     # Test 8: Season mapping
     logger.info("\n[Test 8] Season Energy Mapping (季节能量)")
@@ -760,11 +760,11 @@ def test_energy_relations():
     ]
 
     for season, expected_energy in season_tests:
-        result = SEASON_ENERGY_MAP.get(season)
-        status = "✓" if result == expected_energy else "✗"
-        if result != expected_energy:
+        result_season = SEASON_ENERGY_MAP.get(season)
+        status = "✓" if result_season == expected_energy else "✗"
+        if result_season != expected_energy:
             all_passed = False
-        logger.info(f"  {status} {season} -> {result} (expected: {expected_energy})")
+        logger.info(f"  {status} {season} -> {result_season} (expected: {expected_energy})")
 
     logger.info("\n" + "=" * 60)
     if all_passed:
