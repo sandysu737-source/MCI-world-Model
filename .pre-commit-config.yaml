@@ -8,14 +8,6 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [numpy>=1.26, scipy>=1.10]
-        args: [--strict, --ignore-missing-imports]
-        files: ^src/
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
@@ -28,6 +20,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: mypy
+        name: mypy
+        entry: .venv/bin/mypy
+        language: system
+        pass_filenames: true
+        args: [--strict, --ignore-missing-imports]
+        files: ^src/
+
       - id: ai-guard
         name: ai-guard (AI 工程化守卫)
         entry: bash scripts/ai-verify/ai-guard.sh
