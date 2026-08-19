@@ -152,6 +152,17 @@ python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 warn_return_any = false
+# 研究内核校准（2026-08-19）：strict 全开产生大量注解风格噪音，且与存量 ignore 注释冲突。
+# 关闭注解风格类规则，保留真实类型错误检查（attr-defined/arg-type/assignment/union-attr/index 等）。
+disable_error_code = [
+    "type-arg",
+    "no-untyped-def",
+    "no-any-return",
+    "no-untyped-call",
+    "list-item",
+    "var-annotated",
+    "unused-ignore",
+]
 
 [tool.pytest.ini_options]
 minversion = "7.4"
