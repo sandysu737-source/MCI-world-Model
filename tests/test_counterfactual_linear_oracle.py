@@ -7,6 +7,7 @@
 
 这些是确定性的解析解, 可作 oracle 验证反事实引擎的 Abduction+Action+Prediction。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -26,11 +27,14 @@ def _make_linear_chain_sem(seed: int = 42) -> StructuralEquationModel:
     系数: X = ε_x, Y = 0.6·X + ε_y, Z = 0.8·Y + ε_z
     coefficients[parent, child] 约定: B[0,1]=0.6 (X→Y), B[1,2]=0.8 (Y→Z)
     """
-    B = np.array([
-        [0.0, 0.6, 0.0],
-        [0.0, 0.0, 0.8],
-        [0.0, 0.0, 0.0],
-    ], dtype=np.float64)
+    B = np.array(
+        [
+            [0.0, 0.6, 0.0],
+            [0.0, 0.0, 0.8],
+            [0.0, 0.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
     return StructuralEquationModel(B, ["X", "Y", "Z"], noise_std=0.3, activation="linear", seed=seed)
 
 
@@ -139,13 +143,15 @@ class TestUnobservedNodePosterior:
     def test_unobserved_posterior_tighter_than_prior(self):
         """未观测节点的后验 std 应小于先验 std (证据收紧不确定性)。"""
         # U(未观测) -> X, Y (观测): 共因结构
-        B = np.array([
-            [0.0, 0.8, 0.6],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-        ], dtype=np.float64)
-        sem = StructuralEquationModel(B, ["U", "X", "Y"], noise_std=0.5,
-                                      activation="linear", seed=42)
+        B = np.array(
+            [
+                [0.0, 0.8, 0.6],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        sem = StructuralEquationModel(B, ["U", "X", "Y"], noise_std=0.5, activation="linear", seed=42)
         rng = np.random.RandomState(7)
         u_true, ex, ey = rng.randn(3)
         X = 0.8 * u_true + 0.5 * ex
@@ -155,32 +161,30 @@ class TestUnobservedNodePosterior:
         noise = sem.abduce({"X": X, "Y": Y}, n_samples=3000)
         post_U = noise[:, 0]
         assert post_U.std() < sem.noise_std * 0.9, (
-            f"后验 std={post_U.std():.3f} 未显著小于先验 {sem.noise_std:.3f}, "
-            "证据未收紧未观测节点的不确定性"
+            f"后验 std={post_U.std():.3f} 未显著小于先验 {sem.noise_std:.3f}, 证据未收紧未观测节点的不确定性"
         )
 
     def test_posterior_mean_informed_by_evidence(self):
         """后验均值应被证据"拉向"真实值 (非先验均值 0)。"""
-        B = np.array([
-            [0.0, 0.8, 0.6],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-        ], dtype=np.float64)
-        sem = StructuralEquationModel(B, ["U", "X", "Y"], noise_std=0.5,
-                                      activation="linear", seed=42)
+        B = np.array(
+            [
+                [0.0, 0.8, 0.6],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        sem = StructuralEquationModel(B, ["U", "X", "Y"], noise_std=0.5, activation="linear", seed=42)
         # 强证据: X, Y 都大 => U 应该也大
         noise = sem.abduce({"X": 3.0, "Y": 2.5}, n_samples=3000)
         post_U = noise[:, 0]
         # 后验均值应明显 > 0 (证据指向 U 为正)
-        assert post_U.mean() > 0.5, (
-            f"强正证据下 U 后验均值={post_U.mean():.3f}, 应被拉向正值"
-        )
+        assert post_U.mean() > 0.5, f"强正证据下 U 后验均值={post_U.mean():.3f}, 应被拉向正值"
 
     def test_nonlinear_falls_back_to_prior(self):
         """非线性 SEM 应回退到先验 (无闭式后验)。"""
         B = np.array([[0.0, 0.7], [0.0, 0.0]], dtype=np.float64)
-        sem = StructuralEquationModel(B, ["X", "Y"], noise_std=0.4,
-                                      activation="tanh", seed=42)
+        sem = StructuralEquationModel(B, ["X", "Y"], noise_std=0.4, activation="tanh", seed=42)
         # 不应崩溃, 回退先验采样
         noise = sem.abduce({"Y": 0.5}, n_samples=100)
         assert noise.shape == (100, 2)

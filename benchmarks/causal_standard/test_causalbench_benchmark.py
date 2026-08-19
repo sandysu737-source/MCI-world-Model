@@ -44,7 +44,7 @@ class TestCausalBenchAccuracy:
         gc.enable()
 
         accuracy = correct / len(pairs)
-        print(f"\n  CEWM (IGCI): {accuracy:.1%} ({correct}/{len(pairs)}) in {t*1000:.0f}ms")
+        print(f"\n  CEWM (IGCI): {accuracy:.1%} ({correct}/{len(pairs)}) in {t * 1000:.0f}ms")
         assert accuracy >= 0.55  # CEWM 基线
 
     def test_pc_based_direction(self):
@@ -129,53 +129,65 @@ class TestCausalBenchAccuracy:
         adapter = CausalBenchAdapter(seed=42)
         pairs = adapter.generate_synthetic_pairs(n_pairs=50)
 
-
         methods = {
             "CEWM (IGCI)": lambda p: adapter.judge_direction(p).predicted_direction,
             "CEWM (residual)": lambda p: adapter.judge_direction(p).predicted_direction,
         }
 
         # 添加 PC/NOTEARS/FCI
-        methods["PC"] = lambda p: _pc_direction(p)
-        methods["NOTEARS"] = lambda p: _notears_direction(p)
-        methods["FCI"] = lambda p: _fci_direction(p)
+        methods["PC"] = _pc_direction
+        methods["NOTEARS"] = _notears_direction
+        methods["FCI"] = _fci_direction
 
         print("\n  === CausalBench 方法对比 (n=50) ===")
         print(f"  {'Method':<20} {'Accuracy':>10}")
-        print(f"  {'-'*30}")
+        print(f"  {'-' * 30}")
         for name, fn in methods.items():
             correct = sum(1 for p in pairs if fn(p) == p.true_direction)
             acc = correct / len(pairs)
             print(f"  {name:<20} {acc:>9.1%}")
 
         # 达标检查
-        cewm_acc = sum(1 for p in pairs if adapter.judge_direction(p).predicted_direction == p.true_direction) / len(pairs)
+        cewm_acc = sum(1 for p in pairs if adapter.judge_direction(p).predicted_direction == p.true_direction) / len(
+            pairs
+        )
         assert cewm_acc >= 0.55
 
 
 def _pc_direction(pair):
     from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
     data = np.column_stack([pair.x, pair.y])
     skel = PCSkeletonDiscoverer(alpha=0.05).discover(data, ["X", "Y"])
     adj = skel.adj_matrix
-    if adj[0,1]==1 and adj[1,0]==0: return "X→Y"
-    if adj[1,0]==1 and adj[0,1]==0: return "Y→X"
+    if adj[0, 1] == 1 and adj[1, 0] == 0:
+        return "X→Y"
+    if adj[1, 0] == 1 and adj[0, 1] == 0:
+        return "Y→X"
     return "unknown"
+
 
 def _notears_direction(pair):
     from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer
+
     data = np.column_stack([pair.x, pair.y])
     skel = NOTEARSDiscoverer(lambda1=0.05, max_iter=150, threshold=0.3).discover(data, ["X", "Y"])
     adj = skel.adj_matrix
-    if adj[0,1]==1 and adj[1,0]==0: return "X→Y"
-    if adj[1,0]==1 and adj[0,1]==0: return "Y→X"
+    if adj[0, 1] == 1 and adj[1, 0] == 0:
+        return "X→Y"
+    if adj[1, 0] == 1 and adj[0, 1] == 0:
+        return "Y→X"
     return "unknown"
+
 
 def _fci_direction(pair):
     from mci_world_model.sdk._autonomous_law_discoverer_v2 import FCIDiscoverer
+
     data = np.column_stack([pair.x, pair.y])
     skel = FCIDiscoverer(alpha=0.05, min_corr=0.1).discover(data, ["X", "Y"])
     adj = skel.adj_matrix
-    if adj[0,1]==1 and adj[1,0]==0: return "X→Y"
-    if adj[1,0]==1 and adj[0,1]==0: return "Y→X"
+    if adj[0, 1] == 1 and adj[1, 0] == 0:
+        return "X→Y"
+    if adj[1, 0] == 1 and adj[0, 1] == 0:
+        return "Y→X"
     return "unknown"

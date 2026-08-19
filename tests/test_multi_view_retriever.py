@@ -25,8 +25,7 @@ class TestMultiViewRetriever:
         for i in range(50):
             exp = Experience(
                 experience_id=f"exp_{i}",
-                tags=[f"topic_{i % 10}", f"type_{i % 3}"]
-                     + ([f"exact_{i}"] if i < 10 else []),
+                tags=[f"topic_{i % 10}", f"type_{i % 3}"] + ([f"exact_{i}"] if i < 10 else []),
                 causal_edges=[("A", "B")] if i % 5 == 0 else [],
                 experience_type=ExperienceType.PREDICTION,
                 importance=1.0,
@@ -174,12 +173,16 @@ class TestHybridRetriever:
             if i < 10:
                 tags.append(f"exact_{i}")
             exp = Experience(
-                experience_id=f"exp_{i}", tags=tags, causal_edges=[],
-                experience_type=ExperienceType.PREDICTION, importance=1.0,
+                experience_id=f"exp_{i}",
+                tags=tags,
+                causal_edges=[],
+                experience_type=ExperienceType.PREDICTION,
+                importance=1.0,
                 timestamp=time.time() - i * 3600,
             )
             db.store(exp)
         from mci_world_model.sdk._multi_view_retriever import HybridRetriever
+
         return HybridRetriever(retriever)
 
     def test_one_pass_when_small(self, hybrid_retriever):
@@ -195,12 +198,16 @@ class TestHybridRetriever:
         retriever = MultiViewRetriever(experience_db=db)
         for i in range(50):
             exp = Experience(
-                experience_id=f"exp_{i}", tags=[f"tag_{i}"], causal_edges=[],
-                experience_type=ExperienceType.PREDICTION, importance=1.0,
+                experience_id=f"exp_{i}",
+                tags=[f"tag_{i}"],
+                causal_edges=[],
+                experience_type=ExperienceType.PREDICTION,
+                importance=1.0,
                 timestamp=time.time(),
             )
             db.store(exp)
         from mci_world_model.sdk._multi_view_retriever import HybridRetriever
+
         hr = HybridRetriever(retriever, enable_two_stage=True, recall_k=10)
         q = QuerySpec(tags=["tag_5"])
         results = hr.retrieve(q, top_k=3)
@@ -214,12 +221,16 @@ class TestHybridRetriever:
         retriever = MultiViewRetriever(experience_db=db)
         for i in range(30):
             exp = Experience(
-                experience_id=f"exp_{i}", tags=[f"tag_{i}"], causal_edges=[],
-                experience_type=ExperienceType.PREDICTION, importance=1.0,
+                experience_id=f"exp_{i}",
+                tags=[f"tag_{i}"],
+                causal_edges=[],
+                experience_type=ExperienceType.PREDICTION,
+                importance=1.0,
                 timestamp=time.time(),
             )
             db.store(exp)
         from mci_world_model.sdk._multi_view_retriever import HybridRetriever
+
         hr = HybridRetriever(retriever, enable_two_stage=True, recall_k=5)
         q = QuerySpec(tags=["tag_0"])
         results = hr.retrieve(q, top_k=15)  # ask for more than recall_k
@@ -232,12 +243,16 @@ class TestHybridRetriever:
         retriever = MultiViewRetriever(experience_db=db)
         for i in range(20):
             exp = Experience(
-                experience_id=f"exp_{i}", tags=[f"tag_{i % 3}"], causal_edges=[],
-                experience_type=ExperienceType.PREDICTION, importance=1.0,
+                experience_id=f"exp_{i}",
+                tags=[f"tag_{i % 3}"],
+                causal_edges=[],
+                experience_type=ExperienceType.PREDICTION,
+                importance=1.0,
                 timestamp=time.time(),
             )
             db.store(exp)
         from mci_world_model.sdk._multi_view_retriever import HybridRetriever
+
         hr = HybridRetriever(retriever, enable_two_stage=True, recall_k=10)
         q = QuerySpec(tags=["tag_0"])
         r1 = retriever.retrieve(q, top_k=3)

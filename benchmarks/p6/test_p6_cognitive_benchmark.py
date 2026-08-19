@@ -10,7 +10,6 @@
   D7 认知闭环        (P6CognitiveLoop) [新增]
 """
 
-
 import numpy as np
 
 from mci_world_model.sdk._autonomous_law_discoverer_v2 import (
@@ -26,6 +25,7 @@ from mci_world_model.sdk._social_cognition import SocialCognition as SocialCog
 # ═══════════════════════════════════════════════════════════════════════════════
 # D1: AutonomousLawDiscovererV2
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestD1AutonomousDiscovery:
     def test_basic_discovery(self) -> None:
@@ -48,6 +48,7 @@ class TestD1AutonomousDiscovery:
 # D2: Cross-Modal Causal
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestD2CrossModalCausal:
     def test_reasoner_create(self) -> None:
         reasoner = CrossModalCausalReasoner()
@@ -63,6 +64,7 @@ class TestD2CrossModalCausal:
         reasoner = CrossModalCausalReasoner()
         stats = reasoner.statistics()
         assert isinstance(stats, dict)
+
 
 class TestD3SocialCognition:
     def test_create(self) -> None:
@@ -85,6 +87,7 @@ class TestD3SocialCognition:
 # ═══════════════════════════════════════════════════════════════════════════════
 # D4: Self-Repair Cognition
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestD4SelfRepair:
     def test_anomaly_detection(self) -> None:
@@ -118,6 +121,7 @@ class TestD4SelfRepair:
 # D5: Differentiable Causal
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestD5DifferentiableCausal:
     def test_create(self) -> None:
         dc = DifferentiableCausal()
@@ -137,6 +141,7 @@ class TestD5DifferentiableCausal:
 # D6: Causal Imagination
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestD6CausalImagination:
     def test_create(self) -> None:
         ci = CausalImagination()
@@ -153,6 +158,7 @@ class TestD6CausalImagination:
 # ═══════════════════════════════════════════════════════════════════════════════
 # D7: P6 Cognitive Loop (NEW)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestP6CognitiveLoop:
     def test_create(self) -> None:
@@ -185,9 +191,7 @@ class TestP6CognitiveLoop:
         loop = P6CognitiveLoop()
         # 运行多次含异常的循环
         for _ in range(5):
-            loop.run(
-                np.array([1.0]), np.array([2.0]), confidence=0.5
-            )
+            loop.run(np.array([1.0]), np.array([2.0]), confidence=0.5)
         stats = loop.statistics()
         assert stats["total_runs"] == 5
         assert stats["repair_total"] >= 0  # 至少记录了尝试
@@ -196,8 +200,11 @@ class TestP6CognitiveLoop:
         loop = P6CognitiveLoop()
         stats = loop.statistics()
         required_keys = [
-            "total_runs", "repair_total", "repair_successes",
-            "repair_rate", "meets_p6_target",
+            "total_runs",
+            "repair_total",
+            "repair_successes",
+            "repair_rate",
+            "meets_p6_target",
         ]
         for key in required_keys:
             assert key in stats, f"Missing key: {key}"

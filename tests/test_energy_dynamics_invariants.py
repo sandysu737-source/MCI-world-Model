@@ -6,6 +6,7 @@
 
 这些测试设计为"先红后绿": 修复前应失败(暴露守恒bug), 修复后通过。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -73,20 +74,16 @@ class TestEnergyConservation:
 
     def test_total_energy_constant_over_steps(self, core):
         """总能量在多步迭代后必须守恒(不耗散、不发散)。"""
-        x0 = {"semantic": 0.9, "causal": 0.025, "spacetime": 0.025,
-              "generative": 0.025, "trust": 0.025}
+        x0 = {"semantic": 0.9, "causal": 0.025, "spacetime": 0.025, "generative": 0.025, "trust": 0.025}
         history = core.simulate_energy_flow(x0, steps=50)
         initial_total = sum(x0.values())
         for i, state in enumerate(history):
             total = sum(state.values())
-            assert abs(total - initial_total) < 1e-6, (
-                f"第{i}步总能量{total:.6f}≠初始{initial_total:.6f}, 守恒被破坏"
-            )
+            assert abs(total - initial_total) < 1e-6, f"第{i}步总能量{total:.6f}≠初始{initial_total:.6f}, 守恒被破坏"
 
     def test_steady_state_nonzero(self, core):
         """长时间后稳态必须非零(不坍缩到零向量)。"""
-        x0 = {"semantic": 0.9, "causal": 0.025, "spacetime": 0.025,
-              "generative": 0.025, "trust": 0.025}
+        x0 = {"semantic": 0.9, "causal": 0.025, "spacetime": 0.025, "generative": 0.025, "trust": 0.025}
         history = core.simulate_energy_flow(x0, steps=200)
         final = history[-1]
         total = sum(final.values())
@@ -94,10 +91,8 @@ class TestEnergyConservation:
 
     def test_steady_state_independent_of_initial(self, core):
         """不同初值应收敛到同一稳态(不可约非负矩阵的Perron唯一性)。"""
-        x_a = {"semantic": 0.9, "causal": 0.025, "spacetime": 0.025,
-               "generative": 0.025, "trust": 0.025}
-        x_b = {"semantic": 0.025, "causal": 0.9, "spacetime": 0.025,
-               "generative": 0.025, "trust": 0.025}
+        x_a = {"semantic": 0.9, "causal": 0.025, "spacetime": 0.025, "generative": 0.025, "trust": 0.025}
+        x_b = {"semantic": 0.025, "causal": 0.9, "spacetime": 0.025, "generative": 0.025, "trust": 0.025}
         ha = core.simulate_energy_flow(x_a, steps=500)
         hb = core.simulate_energy_flow(x_b, steps=500)
         for key in x_a:
@@ -113,14 +108,11 @@ class TestFlowMatrixDynamics:
         """Flow 矩阵每列和必须 = 0 (能量不灭, 守恒律)。"""
         F = core.flow_matrix()
         col_sums = F.sum(axis=0)
-        assert np.allclose(col_sums, 0.0, atol=1e-12), (
-            f"Flow 列和≠0: {col_sums}, 能量不守恒"
-        )
+        assert np.allclose(col_sums, 0.0, atol=1e-12), f"Flow 列和≠0: {col_sums}, 能量不守恒"
 
     def test_flow_matrix_equivalent_to_iteration(self, core):
         """矩阵乘法 x_{t+1}=clip(x+Fx) 必须等价于 simulate_energy_flow 单步。"""
-        x0 = {"semantic": 0.7, "causal": 0.1, "spacetime": 0.1,
-              "generative": 0.05, "trust": 0.05}
+        x0 = {"semantic": 0.7, "causal": 0.1, "spacetime": 0.1, "generative": 0.05, "trust": 0.05}
         # 通过 simulate_energy_flow 走 1 步
         sim_result = core.simulate_energy_flow(x0, steps=1)[1]
         # 通过矩阵直接算
@@ -135,17 +127,13 @@ class TestFlowMatrixDynamics:
     def test_stationary_distribution_uniform(self, core):
         """对称生克环的平稳分布应为均匀分布 [0.2×5]。"""
         stat = core.stationary_distribution()
-        assert np.allclose(stat, 0.2, atol=0.01), (
-            f"平稳分布非均匀: {stat}, 对称五环应趋于均匀"
-        )
+        assert np.allclose(stat, 0.2, atol=0.01), f"平稳分布非均匀: {stat}, 对称五环应趋于均匀"
 
     def test_balance_deviation_orders_distributions(self, core):
         """失衡度应有区分度: 极端分布 > 中度 > 均匀。"""
-        uniform = {k: 0.2 for k in ["semantic", "causal", "spacetime", "generative", "trust"]}
-        extreme = {"semantic": 0.96, "causal": 0.01, "spacetime": 0.01,
-                   "generative": 0.01, "trust": 0.01}
-        moderate = {"semantic": 0.4, "causal": 0.3, "spacetime": 0.15,
-                    "generative": 0.1, "trust": 0.05}
+        uniform = dict.fromkeys(["semantic", "causal", "spacetime", "generative", "trust"], 0.2)
+        extreme = {"semantic": 0.96, "causal": 0.01, "spacetime": 0.01, "generative": 0.01, "trust": 0.01}
+        moderate = {"semantic": 0.4, "causal": 0.3, "spacetime": 0.15, "generative": 0.1, "trust": 0.05}
         d_uniform = core.balance_deviation(uniform)
         d_moderate = core.balance_deviation(moderate)
         d_extreme = core.balance_deviation(extreme)

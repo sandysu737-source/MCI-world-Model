@@ -4,6 +4,7 @@
 这是"接入"的核心验证: 守恒系统中, 反事实效应 = Flow·δ (单步传播),
 而非两个终态的差 (守恒系统终态都趋均匀, 无区分度)。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -12,7 +13,6 @@ pytestmark = pytest.mark.oracle
 
 from mci_world_model._sys._energy_core import EnergyCore
 from mci_world_model.sdk._energy_counterfactual_bridge import EnergyCounterfactualBridge
-from mci_world_model._sys._terms import ENERGY_ENHANCE, ENERGY_SUPPRESS
 
 
 @pytest.fixture
@@ -29,9 +29,7 @@ class TestPropagationMode:
         deltas = [r.delta for r in results]
         # 不应全部相同 (区别于稳态模式的全 0.04)
         spread = max(deltas) - min(deltas)
-        assert spread > 0.01, (
-            f"传播效应无区分度, delta spread={spread:.4f}, deltas={deltas}"
-        )
+        assert spread > 0.01, f"传播效应无区分度, delta spread={spread:.4f}, deltas={deltas}"
 
     def test_steady_state_mode_uniform_delta(self, bridge):
         """对照: 稳态模式因守恒而 delta 趋同 (无区分度)。"""
@@ -45,19 +43,14 @@ class TestPropagationMode:
 
         ENERGY_ENHANCE: semantic→causal, 增强 semantic 应使 causal delta>0。
         """
-        results = {r.target_energy: r.delta for r in
-                   bridge.what_if("semantic", boost=2.0, mode="propagation")}
+        results = {r.target_energy: r.delta for r in bridge.what_if("semantic", boost=2.0, mode="propagation")}
         # semantic 生 causal
-        assert results["causal"] > 0.001, (
-            f"semantic生causal, 但 causal delta={results['causal']:.4f} 非正"
-        )
+        assert results["causal"] > 0.001, f"semantic生causal, 但 causal delta={results['causal']:.4f} 非正"
 
     def test_boost_reversal(self, bridge):
         """减弱 (boost<1) 应反转传播方向。"""
-        up = {r.target_energy: r.delta for r in
-              bridge.what_if("semantic", boost=2.0, mode="propagation")}
-        down = {r.target_energy: r.delta for r in
-                bridge.what_if("semantic", boost=0.5, mode="propagation")}
+        up = {r.target_energy: r.delta for r in bridge.what_if("semantic", boost=2.0, mode="propagation")}
+        down = {r.target_energy: r.delta for r in bridge.what_if("semantic", boost=0.5, mode="propagation")}
         # causal: 增强时 +, 减弱时 -
         assert up["causal"] > 0 and down["causal"] < 0, (
             f"causal 未反转: up={up['causal']:.4f} down={down['causal']:.4f}"
@@ -65,16 +58,15 @@ class TestPropagationMode:
 
     def test_different_sources_different_effects(self, bridge):
         """不同干预源应产生不同的效应模式 (可区分性)。"""
-        sem = {r.target_energy: r.delta for r in
-               bridge.what_if("semantic", boost=2.0, mode="propagation")}
-        cau = {r.target_energy: r.delta for r in
-               bridge.what_if("causal", boost=2.0, mode="propagation")}
+        sem = {r.target_energy: r.delta for r in bridge.what_if("semantic", boost=2.0, mode="propagation")}
+        cau = {r.target_energy: r.delta for r in bridge.what_if("causal", boost=2.0, mode="propagation")}
         # semantic 生 causal, causal 生 spacetime — 效应应不同
         assert sem != cau, "不同干预源产生相同效应, 无可区分性"
 
     def test_effect_consistent_with_flow_matrix(self, bridge):
         """传播效应应等于 Flow @ delta_input (矩阵定义)。"""
         import numpy as np
+
         core = EnergyCore()
         F = core.flow_matrix()
         cats = core.ENERGY_ORDER
@@ -83,7 +75,8 @@ class TestPropagationMode:
         results = bridge.what_if("semantic", boost=2.0, mode="propagation")
         # 手算: baseline 均匀 0.2, semantic×2 后归一化
         base = np.array([0.2] * 5)
-        do = base.copy(); do[0] *= 2
+        do = base.copy()
+        do[0] *= 2
         do = do / do.sum() * base.sum()
         delta_in = do - base
         expected = F @ delta_in

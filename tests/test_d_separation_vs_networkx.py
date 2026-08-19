@@ -3,6 +3,7 @@
 用 networkx 3.6 的 is_d_separator 作为 oracle, 验证本项目 algebra.CausalDAG
 的 d_separated 在多种图结构下给出一致结论。这是发现系统性偏差的关键层。
 """
+
 from __future__ import annotations
 
 import itertools
@@ -44,9 +45,8 @@ def _assert_dsep_consistent(dag: CausalDAG, pairs, all_nodes):
                 checked += 1
                 if ours != theirs:
                     mismatches.append((x, y, z, ours, theirs))
-    assert not mismatches, (
-        f"d-separation 与 networkx 不一致 ({len(mismatches)}/{checked} 处):\n"
-        + "\n".join(f"  {x}⊥{y}|{z}: ours={o}, nx={t}" for x, y, z, o, t in mismatches[:5])
+    assert not mismatches, f"d-separation 与 networkx 不一致 ({len(mismatches)}/{checked} 处):\n" + "\n".join(
+        f"  {x}⊥{y}|{z}: ours={o}, nx={t}" for x, y, z, o, t in mismatches[:5]
     )
 
 
@@ -54,28 +54,33 @@ def _assert_dsep_consistent(dag: CausalDAG, pairs, all_nodes):
 @pytest.fixture
 def collider():
     g = CausalDAG()
-    g.add_edge("X", "Z"); g.add_edge("Y", "Z")
+    g.add_edge("X", "Z")
+    g.add_edge("Y", "Z")
     return g
 
 
 @pytest.fixture
 def chain():
     g = CausalDAG()
-    g.add_edge("X", "M"); g.add_edge("M", "Y")
+    g.add_edge("X", "M")
+    g.add_edge("M", "Y")
     return g
 
 
 @pytest.fixture
 def fork():
     g = CausalDAG()
-    g.add_edge("M", "X"); g.add_edge("M", "Y")
+    g.add_edge("M", "X")
+    g.add_edge("M", "Y")
     return g
 
 
 @pytest.fixture
 def backdoor():
     g = CausalDAG()
-    g.add_edge("Z", "X"); g.add_edge("Z", "Y"); g.add_edge("X", "Y")
+    g.add_edge("Z", "X")
+    g.add_edge("Z", "Y")
+    g.add_edge("X", "Y")
     return g
 
 
@@ -110,35 +115,28 @@ class TestDSeparationVsNetworkx:
     """每种图结构上, 枚举条件集子集, 与 networkx 逐对照。"""
 
     def test_collider_all_subsets(self, collider):
-        nodes = ["X", "Y", "Z"]
         _assert_dsep_consistent(collider, [("X", "Y"), ("X", "Z"), ("Y", "Z")], ["X", "Y", "Z"])
 
     def test_chain_all_subsets(self, chain):
-        nodes = ["X", "M", "Y"]
         _assert_dsep_consistent(chain, [("X", "Y"), ("X", "M"), ("M", "Y")], ["X", "M", "Y"])
 
     def test_fork_all_subsets(self, fork):
-        nodes = ["M", "X", "Y"]
         _assert_dsep_consistent(fork, [("X", "Y"), ("M", "X"), ("M", "Y")], ["M", "X", "Y"])
 
     def test_backdoor_all_subsets(self, backdoor):
-        nodes = ["Z", "X", "Y"]
         _assert_dsep_consistent(backdoor, [("X", "Y"), ("X", "Z"), ("Y", "Z")], ["Z", "X", "Y"])
 
     def test_diamond_all_subsets(self, diamond):
-        nodes = ["A", "B", "C", "D"]
-        _assert_dsep_consistent(diamond,
-            [("A", "D"), ("B", "C"), ("A", "B"), ("A", "C"), ("B", "D"), ("C", "D")],
-            ["A", "B", "C", "D"])
+        _assert_dsep_consistent(
+            diamond, [("A", "D"), ("B", "C"), ("A", "B"), ("A", "C"), ("B", "D"), ("C", "D")], ["A", "B", "C", "D"]
+        )
 
     def test_extended_chain_all_subsets(self, extended_chain):
-        nodes = ["A", "B", "C", "D", "E"]
-        _assert_dsep_consistent(extended_chain,
-            [("A", "E"), ("A", "C"), ("B", "D"), ("A", "D"), ("C", "E")],
-            ["A", "B", "C", "D", "E"])
+        _assert_dsep_consistent(
+            extended_chain, [("A", "E"), ("A", "C"), ("B", "D"), ("A", "D"), ("C", "E")], ["A", "B", "C", "D", "E"]
+        )
 
     def test_confounded_chain_all_subsets(self, confounded_chain):
-        nodes = ["U", "X", "Y", "Z"]
-        _assert_dsep_consistent(confounded_chain,
-            [("X", "Y"), ("U", "Z"), ("X", "Z"), ("Y", "Z")],
-            ["U", "X", "Y", "Z"])
+        _assert_dsep_consistent(
+            confounded_chain, [("X", "Y"), ("U", "Z"), ("X", "Z"), ("Y", "Z")], ["U", "X", "Y", "Z"]
+        )

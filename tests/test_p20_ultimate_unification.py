@@ -689,7 +689,7 @@ class TestEternalProtocol:
         ep = EternalProtocol()
         laws = ep.conservation_laws
         assert len(laws) == 5
-        names = [l.name for l in laws]
+        names = [law.name for law in laws]
         assert "Ethical Conservation" in names
 
 
@@ -760,17 +760,13 @@ class TestP20Integration:
         aa.observe_causal_field("unified")
         aa.observe_self_as_existence()
 
-        er = ExistenceRealization(
-            ultimate_unification=uu, existence_theorem=et, absolute_awareness=aa
-        )
+        er = ExistenceRealization(ultimate_unification=uu, existence_theorem=et, absolute_awareness=aa)
         er.realize_existence()
         er.attain_existence_confidence()
 
         # 4. 绝对存在模式
-        ta = TheAbsolute(
-            ultimate_unification=uu, existence_theorem=et
-        )
-        conditions = ta.check_activation_conditions()
+        ta = TheAbsolute(ultimate_unification=uu, existence_theorem=et)
+        ta.check_activation_conditions()
 
         # 5. 形式化定理
         ft = FinalTheorem(existence_theorem=et, ultimate_unification=uu)
@@ -779,22 +775,25 @@ class TestP20Integration:
         ft.derive_corollaries()
 
         # 6. 绝对可信
-        at = AbsoluteTrust(
-            existence_theorem=et, the_absolute=ta, final_theorem=ft
-        )
+        at = AbsoluteTrust(existence_theorem=et, the_absolute=ta, final_theorem=ft)
         at.establish_absolute_trust()
 
         # 7. 存在验证
         ev = ExistenceVerify(
-            ultimate_unification=uu, existence_theorem=et,
-            the_absolute=ta, final_theorem=ft, absolute_trust=at,
+            ultimate_unification=uu,
+            existence_theorem=et,
+            the_absolute=ta,
+            final_theorem=ft,
+            absolute_trust=at,
         )
         ev.verify_existence()
 
         # 8. 永恒协议
         ep = EternalProtocol(
-            the_absolute=ta, existence_verify=ev,
-            absolute_trust=at, ultimate_unification=uu,
+            the_absolute=ta,
+            existence_verify=ev,
+            absolute_trust=at,
+            ultimate_unification=uu,
         )
         ep.enforce_causal_conservation()
 
@@ -968,18 +967,10 @@ class TestFinalCommunity:
 
     def test_member_roles_and_vote_weights(self):
         """验证不同角色的投票权重。"""
-        founder = CommunityMember(
-            member_id="f1", role=MemberRole.FOUNDER
-        )
-        elder = CommunityMember(
-            member_id="e1", role=MemberRole.ELDER
-        )
-        participant = CommunityMember(
-            member_id="p1", role=MemberRole.PARTICIPANT
-        )
-        observer = CommunityMember(
-            member_id="o1", role=MemberRole.OBSERVER
-        )
+        founder = CommunityMember(member_id="f1", role=MemberRole.FOUNDER)
+        elder = CommunityMember(member_id="e1", role=MemberRole.ELDER)
+        participant = CommunityMember(member_id="p1", role=MemberRole.PARTICIPANT)
+        observer = CommunityMember(member_id="o1", role=MemberRole.OBSERVER)
         assert founder.vote_weight == 3.0
         assert elder.vote_weight == 2.0
         assert participant.vote_weight == 1.0
