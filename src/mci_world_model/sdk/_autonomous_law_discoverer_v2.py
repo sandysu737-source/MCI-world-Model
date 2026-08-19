@@ -190,9 +190,7 @@ class PCSkeletonDiscoverer:
                     r = self._partial_corr(corr, i, j, [k])
                     p_val = self._fisher_z_test(r, _n_samples)
                     if self._use_nonlinear and p_val > self._alpha:
-                        p_hsic = self._kcit_test(
-                            data[:, i], data[:, j], data[:, k], n_perm=60
-                        )
+                        p_hsic = self._kcit_test(data[:, i], data[:, j], data[:, k], n_perm=60)
                         p_val = min(p_val, p_hsic)
                     if p_val > self._alpha:
                         adj[i, j] = 0
@@ -217,6 +215,7 @@ class PCSkeletonDiscoverer:
                         continue
                     # 枚举 cond_set 的 k-子集 (限制最多 200 个子集)
                     from itertools import combinations
+
                     subsets = list(combinations(cond_set, k))
                     max_subsets = 200
                     if len(subsets) > max_subsets:
@@ -232,8 +231,7 @@ class PCSkeletonDiscoverer:
                                 _n_samples, min(_n_samples, 500), replace=False
                             )
                             p_kcit = self._kcit_test(
-                                data[idx_sub, i], data[idx_sub, j],
-                                data[idx_sub, next(iter(S))], n_perm=50
+                                data[idx_sub, i], data[idx_sub, j], data[idx_sub, next(iter(S))], n_perm=50
                             )
                             p_val = min(p_val, p_kcit)
                         if p_val > self._alpha:
@@ -286,7 +284,7 @@ class PCSkeletonDiscoverer:
             denom = np.sqrt(max(1 - rik * rik, 1e-10) * max(1 - rkj * rkj, 1e-10))
             return (rij - rik * rkj) / denom
         # 高阶 (>1): precision matrix 的归一化元素
-        idx = [i, j] + list(cond)
+        idx = [i, j, *list(cond)]
         sub = corr[np.ix_(idx, idx)]
         try:
             P_inv = np.linalg.inv(sub)
@@ -296,10 +294,12 @@ class PCSkeletonDiscoverer:
         denom = np.sqrt(max(P_inv[0, 0] * P_inv[1, 1], 1e-20))
         return float(-P_inv[0, 1] / denom)
 
-
     def discover_bootstrap(
-        self, data: np.ndarray, var_names: list[str],
-        n_bootstrap: int = 30, edge_threshold: float = 0.5,
+        self,
+        data: np.ndarray,
+        var_names: list[str],
+        n_bootstrap: int = 30,
+        edge_threshold: float = 0.5,
     ) -> CausalSkeleton:
         """Bootstrap-aggregated PC discovery (PC-stable style).
 
@@ -364,7 +364,6 @@ class PCSkeletonDiscoverer:
         )
 
     def _fisher_z_test(self, r: float, n_samples: int) -> float:
-
         """Fisher z-transform 双尾检验。
 
         H₀: ρ = 0 (独立)
@@ -387,8 +386,11 @@ class PCSkeletonDiscoverer:
         return 0.5 * (1.0 + sign * y)
 
     def _orient_edges(
-        self, adj: np.ndarray, corr: np.ndarray,
-        var_names: list[str], n_samples: int,
+        self,
+        adj: np.ndarray,
+        corr: np.ndarray,
+        var_names: list[str],
+        n_samples: int,
     ) -> list[tuple[str, str]]:
         """方向推断 — v-structure + Meek R1。
 
@@ -464,10 +466,13 @@ class PCSkeletonDiscoverer:
 
         return edges
 
-
     def _bic_edge_pruning(
-        self, data: np.ndarray, adj: np.ndarray,
-        edges: list[tuple[str, str]], var_names: list[str], n_samples: int,
+        self,
+        data: np.ndarray,
+        adj: np.ndarray,
+        edges: list[tuple[str, str]],
+        var_names: list[str],
+        n_samples: int,
     ) -> list[tuple[str, str]]:
         """BIC-based edge pruning: remove spurious edges where independence model fits better.
 
@@ -492,11 +497,11 @@ class PCSkeletonDiscoverer:
             # BIC for dependent model (x_b ~ x_a)
             A = np.column_stack([x_a, np.ones(len(x_a))])
             _, res, _, _ = np.linalg.lstsq(A, x_b, rcond=None)
-            var_dep = max(np.var(res) if res.size > 0 else 1e-10, 1e-10)
+            var_dep = max(float(np.var(res)) if res.size > 0 else 1e-10, 1e-10)
             bic_dep = n_samples * np.log(var_dep) + 2 * np.log(n_samples)
 
             # BIC for independent model (x_b ~ constant)
-            var_ind = max(np.var(x_b), 1e-10)
+            var_ind = max(float(np.var(x_b)), 1e-10)
             bic_ind = n_samples * np.log(var_ind) + 1 * np.log(n_samples)
 
             # If independent model is significantly better, prune edge
@@ -521,8 +526,11 @@ class PCSkeletonDiscoverer:
         return total / max(count, 1)
 
     def _orient_edges_by_regression(
-        self, data: np.ndarray, adj: np.ndarray,
-        edges: list[tuple[str, str]], var_names: list[str],
+        self,
+        data: np.ndarray,
+        adj: np.ndarray,
+        edges: list[tuple[str, str]],
+        var_names: list[str],
     ) -> list[tuple[str, str]]:
         """Hybrid orientation: BIC first, LiNGAM residual asymmetry as tiebreaker.
 
@@ -575,6 +583,7 @@ class PCSkeletonDiscoverer:
             # else: both directions very close — keep undirected (both directions remain)
 
         return list(edge_set)
+
     @staticmethod
     def _hsic_test(x, y, n_perm=100, sigma=None):
         """HSIC (Hilbert-Schmidt Independence Criterion) permutation test.
@@ -600,7 +609,7 @@ class PCSkeletonDiscoverer:
 
         def _rbf(a):
             sq = np.sum((a[:, None, :] - a[None, :, :]) ** 2, axis=-1)
-            return np.exp(-sq / (2.0 * sigma ** 2))
+            return np.exp(-sq / (2.0 * sigma**2))
 
         K = _rbf(x.reshape(-1, 1))
         L = _rbf(y.reshape(-1, 1))
@@ -657,7 +666,7 @@ class PCSkeletonDiscoverer:
             sigma_z = max(sigma_z, 1e-3)
         else:
             sigma_z = sigma
-        Kz = np.exp(-((z[:, None] - z[None, :]) ** 2) / (2.0 * sigma_z ** 2))
+        Kz = np.exp(-((z[:, None] - z[None, :]) ** 2) / (2.0 * sigma_z**2))
         Kz_c = H @ Kz @ H
 
         # Kernel ridge regression: regress X, Y on Z
@@ -681,8 +690,8 @@ class PCSkeletonDiscoverer:
         sigma_y = float(np.median(dists_y[dists_y > 0])) if np.any(dists_y > 0) else 1.0
         sigma_y = max(sigma_y, 1e-3)
 
-        Kx = np.exp(-((x_res[:, None] - x_res[None, :]) ** 2) / (2.0 * sigma_x ** 2))
-        Ky = np.exp(-((y_res[:, None] - y_res[None, :]) ** 2) / (2.0 * sigma_y ** 2))
+        Kx = np.exp(-((x_res[:, None] - x_res[None, :]) ** 2) / (2.0 * sigma_x**2))
+        Ky = np.exp(-((y_res[:, None] - y_res[None, :]) ** 2) / (2.0 * sigma_y**2))
 
         hsic_obs = float(np.trace(Kx @ H @ Ky @ H)) / (n - 1) ** 2
 
@@ -692,7 +701,7 @@ class PCSkeletonDiscoverer:
         rng = np.random.RandomState(42)
         for p in range(n_perm):
             rng.shuffle(y_shuf)
-            Ky_p = np.exp(-((y_shuf[:, None] - y_shuf[None, :]) ** 2) / (2.0 * sigma_y ** 2))
+            Ky_p = np.exp(-((y_shuf[:, None] - y_shuf[None, :]) ** 2) / (2.0 * sigma_y**2))
             null_hsic[p] = float(np.trace(Kx @ H @ Ky_p @ H)) / (n - 1) ** 2
 
         return float(np.mean(null_hsic >= hsic_obs))
@@ -732,7 +741,7 @@ class PCSkeletonDiscoverer:
 
         def _rbf(a):
             sq = np.sum((a[:, None, :] - a[None, :, :]) ** 2, axis=-1)
-            return np.exp(-sq / (2.0 * sigma ** 2))
+            return np.exp(-sq / (2.0 * sigma**2))
 
         K = _rbf(x_res.reshape(-1, 1))
         L = _rbf(y_res.reshape(-1, 1))
@@ -749,7 +758,6 @@ class PCSkeletonDiscoverer:
 
         return float(np.mean(null_hsic >= hsic_obs))
 
-
     def _test_independence(self, x, y, corr_val, n_samples):
         """Combined independence test: Fisher z first, HSIC fallback."""
         r = np.clip(abs(corr_val), 0.0, 0.9999)
@@ -760,6 +768,7 @@ class PCSkeletonDiscoverer:
             return p_linear
         p_hsic = self._hsic_test(x, y, n_perm=100)
         return min(p_linear, p_hsic)
+
 
 # GESDiscoverer - Greedy Equivalence Search
 # =============================================================================
@@ -778,8 +787,9 @@ class GESDiscoverer:
     Constraints: <= 10 variables, linear Gaussian data
     """
 
-    def __init__(self, alpha: float = 0.05, max_iter: int = 50,
-                 penalty_mult: float = 2.0, min_delta: float = 0.5) -> None:
+    def __init__(
+        self, alpha: float = 0.05, max_iter: int = 50, penalty_mult: float = 2.0, min_delta: float = 0.5
+    ) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha must be in (0,1), got {alpha}")
         self._alpha = alpha
@@ -787,8 +797,7 @@ class GESDiscoverer:
         self._penalty_mult = penalty_mult  # multiplier for BIC penalty (higher = sparser)
         self._min_delta = min_delta  # minimum BIC improvement to add/delete edge
 
-    def discover(self, data: np.ndarray, var_names: list[str],
-                 warm_start: bool = True) -> CausalSkeleton:
+    def discover(self, data: np.ndarray, var_names: list[str], warm_start: bool = True) -> CausalSkeleton:
         """Learn causal skeleton from data.
 
         When warm_start=True (default), starts from PC skeleton to avoid
@@ -798,9 +807,9 @@ class GESDiscoverer:
         n_samples = data.shape[0]
 
         if n_samples == 0:
-            return CausalSkeleton(nodes=list(var_names), edges=[],
-                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
-                                  confidence=0.0)
+            return CausalSkeleton(
+                nodes=list(var_names), edges=[], adj_matrix=np.zeros((n_vars, n_vars), dtype=int), confidence=0.0
+            )
 
         adj = np.zeros((n_vars, n_vars), dtype=int)
 
@@ -808,6 +817,7 @@ class GESDiscoverer:
         if warm_start and n_vars <= 30:
             try:
                 from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
                 pc = PCSkeletonDiscoverer(alpha=self._alpha, min_corr=0.05)
                 pc_skel = pc.discover(data, var_names)
                 name_to_idx = {name: i for i, name in enumerate(var_names)}
@@ -817,10 +827,10 @@ class GESDiscoverer:
                     adj[di, si] = 0  # keep only the PC-directed edge
                 # Resolve bidirectional edges from PC undirected output
                 for i in range(n_vars):
-                    for j in range(i+1, n_vars):
-                        if adj[i,j] == 1 and adj[j,i] == 1:
+                    for j in range(i + 1, n_vars):
+                        if adj[i, j] == 1 and adj[j, i] == 1:
                             # Keep direction with stronger regression
-                            xi, xj = data[:,i], data[:,j]
+                            xi, xj = data[:, i], data[:, j]
                             A_ij = np.column_stack([xi, np.ones(len(xi))])
                             _, res_ij, _, _ = np.linalg.lstsq(A_ij, xj, rcond=None)
                             rss_ij = float(res_ij[0]) if res_ij.size > 0 else 1e10
@@ -828,13 +838,12 @@ class GESDiscoverer:
                             _, res_ji, _, _ = np.linalg.lstsq(A_ji, xi, rcond=None)
                             rss_ji = float(res_ji[0]) if res_ji.size > 0 else 1e10
                             if rss_ij > rss_ji:
-                                adj[i,j] = 0
+                                adj[i, j] = 0
                             else:
-                                adj[j,i] = 0
+                                adj[j, i] = 0
             except Exception:
                 logger.warning("异常降级", exc_info=True)
                 pass  # Fall back to empty start if PC fails
-
 
         # Forward/backward phase from PC skeleton (or empty)
         best_score = self._bic_score_from_data(data, adj, n_samples)
@@ -894,11 +903,14 @@ class GESDiscoverer:
                 try:
                     coeff, residuals, _, _ = np.linalg.lstsq(A, xj, rcond=None)
                     rss = float(residuals[0]) if residuals.size > 0 else float(np.sum((xj - A @ coeff) ** 2))
-                    se = np.sqrt(max(rss, 1e-10) / max(len(xi) - 2, 1)) / max(np.sqrt(np.sum((xi - xi.mean()) ** 2)), 1e-10)
+                    se = np.sqrt(max(rss, 1e-10) / max(len(xi) - 2, 1)) / max(
+                        np.sqrt(np.sum((xi - xi.mean()) ** 2)), 1e-10
+                    )
                     t_stat = abs(coeff[0]) / max(se, 1e-10)
                     if t_stat > 1.96:
                         dir_adj[i, j] = 1
                 except np.linalg.LinAlgError:
+                    logger.debug("OLS 拟合奇异矩阵，跳过该方向")
                     pass
 
         # Remove cycles: for bidirectional edges, keep stronger t-stat
@@ -1027,13 +1039,13 @@ class LiNGAMDiscoverer:
         n_samples = data.shape[0]
 
         if n_samples == 0:
-            return CausalSkeleton(nodes=list(var_names), edges=[],
-                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
-                                  confidence=0.0)
+            return CausalSkeleton(
+                nodes=list(var_names), edges=[], adj_matrix=np.zeros((n_vars, n_vars), dtype=int), confidence=0.0
+            )
         if n_vars < 2:
-            return CausalSkeleton(nodes=list(var_names), edges=[],
-                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
-                                  confidence=1.0)
+            return CausalSkeleton(
+                nodes=list(var_names), edges=[], adj_matrix=np.zeros((n_vars, n_vars), dtype=int), confidence=1.0
+            )
 
         X = data - data.mean(axis=0)
         ordering = self._estimate_ordering(X)
@@ -1118,7 +1130,6 @@ class LiNGAMDiscoverer:
                 remaining.remove(best_var)
 
         return ordering
-
 
 
 # =============================================================================
@@ -1347,13 +1358,13 @@ class NOTEARSDiscoverer:
         n_samples = data.shape[0]
 
         if n_samples == 0:
-            return CausalSkeleton(nodes=list(var_names), edges=[],
-                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
-                                  confidence=0.0)
+            return CausalSkeleton(
+                nodes=list(var_names), edges=[], adj_matrix=np.zeros((n_vars, n_vars), dtype=int), confidence=0.0
+            )
         if n_vars < 2:
-            return CausalSkeleton(nodes=list(var_names), edges=[],
-                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
-                                  confidence=1.0)
+            return CausalSkeleton(
+                nodes=list(var_names), edges=[], adj_matrix=np.zeros((n_vars, n_vars), dtype=int), confidence=1.0
+            )
 
         X = data - data.mean(axis=0)
 
@@ -1361,6 +1372,7 @@ class NOTEARSDiscoverer:
         W_init = None
         try:
             from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
             pc = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1)
             pc_skel = pc.discover(data, var_names)
             name_to_idx = {name: i for i, name in enumerate(var_names)}
@@ -1400,12 +1412,15 @@ class NOTEARSDiscoverer:
                     if adj_refit[i, j] == 1:
                         edges.append((var_names[i], var_names[j]))
             return CausalSkeleton(
-                nodes=list(var_names), edges=edges, adj_matrix=adj_refit,
+                nodes=list(var_names),
+                edges=edges,
+                adj_matrix=adj_refit,
                 confidence=float(np.mean(np.abs(W)[adj_refit == 1]) if np.sum(adj_refit) > 0 else 0.0),
             )
 
         # Stage 1 (default): Get candidate edge set from PC skeleton (reliable directions)
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         pc_refit = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.05)
         pc_skel = pc_refit.discover(data, var_names)
 
@@ -1424,7 +1439,7 @@ class NOTEARSDiscoverer:
         for i in range(n_vars):
             for j in range(n_vars):
                 if i == j:
-                            continue
+                    continue
                 if abs(W[i, j]) > 0.05 and abs(W[j, i]) > 0.05:
                     candidate_pairs.add((min(i, j), max(i, j)))
 
@@ -1433,20 +1448,23 @@ class NOTEARSDiscoverer:
             best_dir = None
             best_t = 0.0
             for direction in [(ci, cj), (cj, ci)]:
-                src, dst = direction
-                xi = data[:, src]
-                xj = data[:, dst]
+                i_src, i_dst = direction
+                xi = data[:, i_src]
+                xj = data[:, i_dst]
                 A = np.column_stack([xi, np.ones(len(xi))])
                 try:
                     coeff, residuals, _, _ = np.linalg.lstsq(A, xj, rcond=None)
                     rss = float(residuals[0]) if residuals.size > 0 else float(np.sum((xj - A @ coeff) ** 2))
-                    se = np.sqrt(max(rss, 1e-10) / max(len(xi) - 2, 1)) / max(np.sqrt(np.sum((xi - xi.mean()) ** 2)), 1e-10)
+                    se = np.sqrt(max(rss, 1e-10) / max(len(xi) - 2, 1)) / max(
+                        np.sqrt(np.sum((xi - xi.mean()) ** 2)), 1e-10
+                    )
                     t_stat = abs(coeff[0]) / max(se, 1e-10)
                     if t_stat > best_t:
                         best_t = t_stat
-                        best_dir = (src, dst)
-                        fitted_weights[src, dst] = abs(coeff[0])
+                        best_dir = (i_src, i_dst)
+                        fitted_weights[i_src, i_dst] = abs(coeff[0])
                 except np.linalg.LinAlgError:
+                    logger.debug("OLS 拟合奇异矩阵，跳过该方向")
                     pass
 
             # Keep edge if t > 1.96 (p < 0.05)
@@ -1469,7 +1487,10 @@ class NOTEARSDiscoverer:
         )
 
     def _optimize_w(
-        self, X: np.ndarray, n_vars: int, n_samples: int,
+        self,
+        X: np.ndarray,
+        n_vars: int,
+        n_samples: int,
         W_init: np.ndarray | None = None,
     ) -> np.ndarray:
         """Optimize W using augmented Lagrangian with increasing penalty.
@@ -1494,11 +1515,11 @@ class NOTEARSDiscoverer:
                 def _objective_and_grad(w_flat: np.ndarray, _r: float = _rho) -> tuple[float, np.ndarray]:
                     W = w_flat.reshape(n_vars, n_vars)
                     residual = X - X @ W
-                    loss = 0.5 * np.sum(residual ** 2) / n_samples
+                    loss = 0.5 * np.sum(residual**2) / n_samples
                     l1 = self._lambda1 * np.sum(np.abs(W))
                     W2 = W * W
                     h_val = float(np.trace(self._matrix_exp(W2)) - n_vars)
-                    total = loss + l1 + 0.5 * _r * h_val ** 2
+                    total = loss + l1 + 0.5 * _r * h_val**2
 
                     grad_loss = -X.T @ residual / n_samples
                     grad_l1 = self._lambda1 * np.sign(W)
@@ -1508,8 +1529,11 @@ class NOTEARSDiscoverer:
                     return total, grad.ravel()
 
                 result = minimize(
-                    _objective_and_grad, w0, method='L-BFGS-B', jac=True,
-                    options={'maxiter': self._max_iter, 'ftol': 1e-10},
+                    _objective_and_grad,
+                    w0,
+                    method="L-BFGS-B",
+                    jac=True,
+                    options={"maxiter": self._max_iter, "ftol": 1e-10},
                 )
                 w0 = result.x
                 W_check = w0.reshape(n_vars, n_vars)
@@ -1524,6 +1548,7 @@ class NOTEARSDiscoverer:
             np.fill_diagonal(W_opt, 0)
             return W_opt
         except ImportError:
+            logger.debug("可选依赖未安装，回退梯度下降")
             pass
 
         # Gradient descent fallback (with aggressive rho schedule)
@@ -1553,7 +1578,10 @@ class NOTEARSDiscoverer:
         return W
 
     def _golem_optimize_w(
-        self, X: np.ndarray, n_vars: int, n_samples: int,
+        self,
+        X: np.ndarray,
+        n_vars: int,
+        n_samples: int,
         W_init: np.ndarray | None = None,
     ) -> np.ndarray:
         """GOLEM: log-det DAG penalty + Gaussian likelihood.
@@ -1568,6 +1596,7 @@ class NOTEARSDiscoverer:
         n_vars_d = float(n_vars)
         try:
             from scipy.optimize import minimize
+
             if W_init is not None:
                 w0 = W_init.ravel().copy()
             else:
@@ -1577,7 +1606,7 @@ class NOTEARSDiscoverer:
                 W = w_flat.reshape(n_vars, n_vars)
                 # Residual
                 residual = X - X @ W
-                rss = float(np.sum(residual ** 2))
+                rss = float(np.sum(residual**2))
                 rss = max(rss, 1e-10)
                 # GOLEM loss
                 loss_nll = 0.5 * n_vars_d * np.log(rss / max(n_samples, 1))
@@ -1609,13 +1638,17 @@ class NOTEARSDiscoverer:
                 return total, grad.ravel()
 
             result = minimize(
-                _golem_obj_grad, w0, method='L-BFGS-B', jac=True,
-                options={'maxiter': self._max_iter, 'ftol': 1e-10},
+                _golem_obj_grad,
+                w0,
+                method="L-BFGS-B",
+                jac=True,
+                options={"maxiter": self._max_iter, "ftol": 1e-10},
             )
             W_opt = result.x.reshape(n_vars, n_vars)
             np.fill_diagonal(W_opt, 0)
             return W_opt
         except ImportError:
+            logger.debug("可选依赖未安装，回退梯度下降")
             pass
 
         # Gradient descent fallback
@@ -1623,7 +1656,7 @@ class NOTEARSDiscoverer:
         lr = 0.01
         for iteration in range(self._max_iter):
             residual = X - X @ W
-            rss = max(float(np.sum(residual ** 2)), 1e-10)
+            rss = max(float(np.sum(residual**2)), 1e-10)
             I_minus_W = np.eye(n_vars) - W
             try:
                 inv_IW = np.linalg.inv(I_minus_W)
@@ -1644,6 +1677,7 @@ class NOTEARSDiscoverer:
         """Matrix exponential via scaling-and-squaring (simplified)."""
         # Use scipy if available, else power series
         from scipy.linalg import expm
+
         return expm(A)
 
 
@@ -1682,14 +1716,14 @@ class FCIDiscoverer:
         n_samples = data.shape[0]
 
         if n_samples == 0:
-            return CausalSkeleton(nodes=list(var_names), edges=[],
-                                  adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
-                                  confidence=0.0)
+            return CausalSkeleton(
+                nodes=list(var_names), edges=[], adj_matrix=np.zeros((n_vars, n_vars), dtype=int), confidence=0.0
+            )
 
         # Step 1: PC 骨架 + v-structure
         pc = PCSkeletonDiscoverer(alpha=self._alpha, min_corr=self._min_corr)
         pc_skel = pc.discover(data, var_names)
-        adj = pc_skel.adj_matrix.copy()
+        adj = pc_skel.adj_matrix.copy() if pc_skel.adj_matrix is not None else np.zeros((n_vars, n_vars), dtype=int)
         corr = np.corrcoef(data.T)
 
         # Step 2: PDS (Possible-D-Sep) search -- systematic higher-order CI
@@ -1763,8 +1797,7 @@ class FCIDiscoverer:
                     if k in (i, j):
                         continue
                     rik, rkj, rij = corr[i, k], corr[k, j], corr[i, j]
-                    denom = np.sqrt(max(1 - rik * rik, 1e-10) *
-                                    max(1 - rkj * rkj, 1e-10))
+                    denom = np.sqrt(max(1 - rik * rik, 1e-10) * max(1 - rkj * rkj, 1e-10))
                     partial_1st[i, j, k] = (rij - rik * rkj) / denom
 
         for order in range(2, max_order + 1):
@@ -1775,10 +1808,8 @@ class FCIDiscoverer:
                         continue
 
                     # PDS: variables adjacent to i or j (excluding i,j)
-                    pds_i = [k for k in range(n_vars) if k not in (i, j) and
-                             (adj[i, k] == 1 or adj[k, i] == 1)]
-                    pds_j = [k for k in range(n_vars) if k not in (i, j) and
-                             (adj[j, k] == 1 or adj[k, j] == 1)]
+                    pds_i = [k for k in range(n_vars) if k not in (i, j) and (adj[i, k] == 1 or adj[k, i] == 1)]
+                    pds_j = [k for k in range(n_vars) if k not in (i, j) and (adj[j, k] == 1 or adj[k, j] == 1)]
                     pds_set = set(pds_i) | set(pds_j)
 
                     # Adaptive pruning: use percentile-based threshold
@@ -1787,23 +1818,20 @@ class FCIDiscoverer:
                         prune_thresh = 0.01
                     else:
                         prune_thresh = 0.03
-                    pds = [k for k in pds_set
-                           if corr_strength[i, k] > prune_thresh or
-                           corr_strength[j, k] > prune_thresh]
+                    pds = [
+                        k for k in pds_set if corr_strength[i, k] > prune_thresh or corr_strength[j, k] > prune_thresh
+                    ]
 
                     if len(pds) < order:
                         continue
 
                     # Prioritize: sort by max partial corr to (i,j)
                     pds_prioritized = sorted(
-                        pds,
-                        key=lambda k: max(abs(partial_1st[i, j, k]),
-                                         abs(partial_1st[j, i, k])),
-                        reverse=True
+                        pds, key=lambda k: max(abs(partial_1st[i, j, k]), abs(partial_1st[j, i, k])), reverse=True
                     )
 
                     # Limit combinations: adaptive based on PDS size
-                    max_combos = min(200, 5 ** order)
+                    max_combos = min(200, 5**order)
                     for combo_idx, cond_set in enumerate(combinations(pds_prioritized, order)):
                         if combo_idx >= max_combos:
                             break
@@ -1814,12 +1842,9 @@ class FCIDiscoverer:
                             # 2nd-order: r_{ij|k1,k2} ≈ r_{ij|k1} (approximate)
                             r = partial_1st[i, j, k1]
                         else:
-                            r = PCSkeletonDiscoverer._partial_corr(
-                                corr, i, j, list(cond_set))
+                            r = PCSkeletonDiscoverer._partial_corr(corr, i, j, list(cond_set))
 
-                        p = PCSkeletonDiscoverer._fisher_z_test(
-                            PCSkeletonDiscoverer(alpha=self._alpha), r, n_samples
-                        )
+                        p = PCSkeletonDiscoverer._fisher_z_test(PCSkeletonDiscoverer(alpha=self._alpha), r, n_samples)
                         if p > self._alpha:
                             adj[i, j] = 0
                             adj[j, i] = 0
@@ -1828,7 +1853,6 @@ class FCIDiscoverer:
 
             if not changed:
                 break
-
 
     def pag_edge_labels(self, data: np.ndarray, var_names: list[str]) -> dict:
         """Classify FCI output into PAG edge types.
@@ -1843,7 +1867,7 @@ class FCIDiscoverer:
         output that distinguishes direct causation from confounding.
         """
         skel = self.discover(data, var_names)
-        adj = skel.adj_matrix
+        adj = skel.adj_matrix if skel.adj_matrix is not None else np.zeros((len(var_names), len(var_names)), dtype=int)
         n_vars = len(var_names)
         corr = np.corrcoef(data.T)
 
@@ -1921,11 +1945,17 @@ class CAMDiscoverer:
     Constraints: ≤ 15 variables, n ≥ 100
     """
 
-    def __init__(self, alpha: float = 0.05, n_splines: int = 5,
-                 max_parents: int = 8, n_subsamples: int = 50,
-                 stability_threshold: float = 0.6,
-                 kernel: str = "spline", n_rbf_centers: int = 10,
-                 rbf_gamma: float | None = None) -> None:
+    def __init__(
+        self,
+        alpha: float = 0.05,
+        n_splines: int = 5,
+        max_parents: int = 8,
+        n_subsamples: int = 50,
+        stability_threshold: float = 0.6,
+        kernel: str = "spline",
+        n_rbf_centers: int = 10,
+        rbf_gamma: float | None = None,
+    ) -> None:
         if not 0.0 < alpha < 1.0:
             raise ValueError(f"alpha 必须在 (0,1), 当前 {alpha}")
         if kernel not in ("spline", "rbf"):
@@ -1950,7 +1980,8 @@ class CAMDiscoverer:
 
         if n_samples == 0 or n_vars < 2:
             return CausalSkeleton(
-                nodes=list(var_names), edges=[],
+                nodes=list(var_names),
+                edges=[],
                 adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
                 confidence=0.0,
             )
@@ -2069,7 +2100,9 @@ class CAMDiscoverer:
 
         try:
             coeff_spline, res_spline, _, _ = np.linalg.lstsq(X_spline, y, rcond=None)
-            rss_spline = float(res_spline[0]) if res_spline.size > 0 else float(np.sum((y - X_spline @ coeff_spline) ** 2))
+            rss_spline = (
+                float(res_spline[0]) if res_spline.size > 0 else float(np.sum((y - X_spline @ coeff_spline) ** 2))
+            )
         except np.linalg.LinAlgError:
             return 0.0
 
@@ -2108,8 +2141,7 @@ class CAMDiscoverer:
         X_lin = np.column_stack([np.ones(n), x])
         try:
             coeff_lin, res_lin, _, _ = np.linalg.lstsq(X_lin, y, rcond=None)
-            rss_lin = float(res_lin[0]) if res_lin.size > 0 else float(
-                np.sum((y - X_lin @ coeff_lin) ** 2))
+            rss_lin = float(res_lin[0]) if res_lin.size > 0 else float(np.sum((y - X_lin @ coeff_lin) ** 2))
         except np.linalg.LinAlgError:
             return 0.0
 
@@ -2133,8 +2165,7 @@ class CAMDiscoverer:
 
         try:
             coeff_rbf, res_rbf, _, _ = np.linalg.lstsq(X_rbf, y, rcond=None)
-            rss_rbf = float(res_rbf[0]) if res_rbf.size > 0 else float(
-                np.sum((y - X_rbf @ coeff_rbf) ** 2))
+            rss_rbf = float(res_rbf[0]) if res_rbf.size > 0 else float(np.sum((y - X_rbf @ coeff_rbf) ** 2))
         except np.linalg.LinAlgError:
             return 0.0
 
@@ -2146,8 +2177,7 @@ class CAMDiscoverer:
         if df_diff <= 0 or rss_rbf >= rss_lin:
             return 0.0
 
-        f_stat = ((rss_lin - rss_rbf) / df_diff) / max(
-            rss_rbf / max(n - df_rbf, 1), 1e-10)
+        f_stat = ((rss_lin - rss_rbf) / df_diff) / max(rss_rbf / max(n - df_rbf, 1), 1e-10)
 
         return float(f_stat)
 
@@ -2178,10 +2208,16 @@ class CAMGOLEMDiscoverer:
     Reference: CAM (Bühlmann et al. 2014) + GOLEM (Ng et al. 2020)
     """
 
-    def __init__(self, alpha: float = 0.05, n_splines: int = 7,
-                 max_parents: int = 3, n_subsamples: int = 50,
-                 stability_threshold: float = 0.5,
-                 lambda1: float = 0.01, max_iter: int = 300) -> None:
+    def __init__(
+        self,
+        alpha: float = 0.05,
+        n_splines: int = 7,
+        max_parents: int = 3,
+        n_subsamples: int = 50,
+        stability_threshold: float = 0.5,
+        lambda1: float = 0.01,
+        max_iter: int = 300,
+    ) -> None:
         self._alpha = alpha
         self._n_splines = n_splines
         self._max_parents = max_parents
@@ -2200,7 +2236,8 @@ class CAMGOLEMDiscoverer:
         n_vars = len(var_names)
         if data.shape[0] == 0 or n_vars < 2:
             return CausalSkeleton(
-                nodes=list(var_names), edges=[],
+                nodes=list(var_names),
+                edges=[],
                 adj_matrix=np.zeros((n_vars, n_vars), dtype=int),
                 confidence=0.0,
             )
@@ -2209,7 +2246,8 @@ class CAMGOLEMDiscoverer:
 
         # Stage 1: CAM stability selection → skeleton
         cam = CAMDiscoverer(
-            alpha=self._alpha, n_splines=self._n_splines,
+            alpha=self._alpha,
+            n_splines=self._n_splines,
             max_parents=self._max_parents,
             n_subsamples=self._n_subsamples,
             stability_threshold=self._stability_threshold,
@@ -2228,9 +2266,7 @@ class CAMGOLEMDiscoverer:
                     W_init[j, i] = 0.0
 
         X = data - data.mean(axis=0)
-        golem = NOTEARSDiscoverer(
-            lambda1=self._lambda1, max_iter=self._max_iter, method="golem"
-        )
+        golem = NOTEARSDiscoverer(lambda1=self._lambda1, max_iter=self._max_iter, method="golem")
         W = golem._golem_optimize_w(X, n_vars, data.shape[0], W_init=W_init)
 
         # Stage 3: OLS refit + t-test on GOLEM-refined edges
@@ -2243,13 +2279,14 @@ class CAMGOLEMDiscoverer:
                 A = np.column_stack([xi, np.ones(len(xi))])
                 try:
                     coeff, residuals, _, _ = np.linalg.lstsq(A, xj, rcond=None)
-                    rss = float(residuals[0]) if residuals.size > 0 else float(
-                        np.sum((xj - A @ coeff) ** 2))
-                    se = (np.sqrt(max(rss, 1e-10) / max(len(xi) - 2, 1)) /
-                          max(np.sqrt(np.sum((xi - xi.mean()) ** 2)), 1e-10))
+                    rss = float(residuals[0]) if residuals.size > 0 else float(np.sum((xj - A @ coeff) ** 2))
+                    se = np.sqrt(max(rss, 1e-10) / max(len(xi) - 2, 1)) / max(
+                        np.sqrt(np.sum((xi - xi.mean()) ** 2)), 1e-10
+                    )
                     if abs(coeff[0]) / max(se, 1e-10) > 1.96:
                         adj[i, j] = 1
                 except np.linalg.LinAlgError:
+                    logger.debug("OLS 拟合奇异矩阵，跳过该方向")
                     pass
 
         # Resolve bidirectional edges
@@ -2275,8 +2312,6 @@ class CAMGOLEMDiscoverer:
             adj_matrix=adj,
             confidence=confidence,
         )
-
-
 
 
 # =============================================================================
@@ -2333,9 +2368,7 @@ class CachedDiscoverer:
         """Hash key from data fingerprint + variable names."""
         # Fast hash: mean + std of first 1000 samples + var names
         subset = data[:1000] if data.shape[0] > 1000 else data
-        fp = (subset.mean(axis=0).tobytes() +
-              subset.std(axis=0).tobytes() +
-              str(sorted(var_names)).encode())
+        fp = subset.mean(axis=0).tobytes() + subset.std(axis=0).tobytes() + str(sorted(var_names)).encode()
         return hash(fp)
 
     def clear(self):
