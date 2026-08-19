@@ -24,87 +24,189 @@ BNLEARN_DAGS: dict[str, dict] = {
     "asia": {
         "nodes": ["asia", "tub", "smoke", "lung", "bronc", "either", "xray", "dysp"],
         "edges": [
-            ("asia", "tub"), ("smoke", "lung"), ("smoke", "bronc"),
-            ("tub", "either"), ("lung", "either"), ("either", "xray"),
-            ("either", "dysp"), ("bronc", "dysp"),
+            ("asia", "tub"),
+            ("smoke", "lung"),
+            ("smoke", "bronc"),
+            ("tub", "either"),
+            ("lung", "either"),
+            ("either", "xray"),
+            ("either", "dysp"),
+            ("bronc", "dysp"),
         ],
         "n": 5000,
     },
     "sachs": {
         "nodes": [
-            "pkc", "pka", "raf", "mek", "erk", "akt",
-            "p38", "jnk", "plc", "pip2", "pip3",
+            "pkc",
+            "pka",
+            "raf",
+            "mek",
+            "erk",
+            "akt",
+            "p38",
+            "jnk",
+            "plc",
+            "pip2",
+            "pip3",
         ],
         "edges": [
-            ("pkc", "raf"), ("pkc", "pka"), ("pkc", "p38"), ("pkc", "jnk"),
-            ("pka", "raf"), ("pka", "mek"), ("pka", "erk"), ("pka", "akt"),
-            ("pka", "p38"), ("pka", "jnk"),
-            ("raf", "mek"), ("mek", "erk"),
-            ("plc", "pip2"), ("pip2", "pip3"), ("pip3", "akt"),
-            ("p38", "erk"), ("jnk", "erk"),
+            ("pkc", "raf"),
+            ("pkc", "pka"),
+            ("pkc", "p38"),
+            ("pkc", "jnk"),
+            ("pka", "raf"),
+            ("pka", "mek"),
+            ("pka", "erk"),
+            ("pka", "akt"),
+            ("pka", "p38"),
+            ("pka", "jnk"),
+            ("raf", "mek"),
+            ("mek", "erk"),
+            ("plc", "pip2"),
+            ("pip2", "pip3"),
+            ("pip3", "akt"),
+            ("p38", "erk"),
+            ("jnk", "erk"),
         ],
         "n": 5000,
     },
     "child": {
         "nodes": [
-            "BirthAsphyxia", "Disease", "Sick", "DuctFlow", "CardiacMixing",
-            "LungParench", "LungFlow", "LVH", "Age", "Grunting",
-            "HypDistrib", "HypoxiaInO2", "CO2", "ChestXray", "GruntingReport",
-            "LowerBodyO2", "RUQO2", "CO2Report", "XrayReport", "DiseaseReport",
+            "BirthAsphyxia",
+            "Disease",
+            "Sick",
+            "DuctFlow",
+            "CardiacMixing",
+            "LungParench",
+            "LungFlow",
+            "LVH",
+            "Age",
+            "Grunting",
+            "HypDistrib",
+            "HypoxiaInO2",
+            "CO2",
+            "ChestXray",
+            "GruntingReport",
+            "LowerBodyO2",
+            "RUQO2",
+            "CO2Report",
+            "XrayReport",
+            "DiseaseReport",
         ],
         "edges": [
-            ("Disease", "BirthAsphyxia"), ("Disease", "Sick"),
-            ("Disease", "DuctFlow"), ("Disease", "CardiacMixing"),
-            ("Disease", "LungParench"), ("Disease", "LungFlow"),
-            ("Disease", "LVH"), ("Disease", "Age"),
-            ("Sick", "Grunting"), ("Sick", "HypDistrib"),
-            ("DuctFlow", "HypDistrib"), ("CardiacMixing", "HypDistrib"),
-            ("LungParench", "HypDistrib"), ("LungFlow", "HypDistrib"),
-            ("HypDistrib", "HypoxiaInO2"), ("HypoxiaInO2", "LowerBodyO2"),
-            ("HypoxiaInO2", "RUQO2"), ("CO2", "CO2Report"),
-            ("ChestXray", "XrayReport"), ("Grunting", "GruntingReport"),
-            ("LVH", "DiseaseReport"), ("Age", "DiseaseReport"),
-            ("LowerBodyO2", "DiseaseReport"), ("RUQO2", "DiseaseReport"),
+            ("Disease", "BirthAsphyxia"),
+            ("Disease", "Sick"),
+            ("Disease", "DuctFlow"),
+            ("Disease", "CardiacMixing"),
+            ("Disease", "LungParench"),
+            ("Disease", "LungFlow"),
+            ("Disease", "LVH"),
+            ("Disease", "Age"),
+            ("Sick", "Grunting"),
+            ("Sick", "HypDistrib"),
+            ("DuctFlow", "HypDistrib"),
+            ("CardiacMixing", "HypDistrib"),
+            ("LungParench", "HypDistrib"),
+            ("LungFlow", "HypDistrib"),
+            ("HypDistrib", "HypoxiaInO2"),
+            ("HypoxiaInO2", "LowerBodyO2"),
+            ("HypoxiaInO2", "RUQO2"),
+            ("CO2", "CO2Report"),
+            ("ChestXray", "XrayReport"),
+            ("Grunting", "GruntingReport"),
+            ("LVH", "DiseaseReport"),
+            ("Age", "DiseaseReport"),
+            ("LowerBodyO2", "DiseaseReport"),
+            ("RUQO2", "DiseaseReport"),
             ("CO2Report", "DiseaseReport"),
         ],
         "n": 5000,
     },
     "alarm": {
         "nodes": [
-            "HISTORY", "CVP", "PCWP", "HYPOVOLEMIA", "LVEDVOLUME",
-            "LVFAILURE", "STROKEVOLUME", "ERRLOWOUTPUT", "HRBP",
-            "HREKG", "ERRCAUTER", "HRSAT", "INSUFFANESTH",
-            "ANAPHYLAXIS", "TPR", "EXPCO2", "KINKEDTUBE", "MINVOL",
-            "FIO2", "PVSAT", "SAO2", "PAP", "PULMEMBOLUS",
-            "SHUNT", "INTUBATION", "PRESS", "DISCONNECT",
-            "MINVOLSET", "VENTMACH", "VENTTUBE", "VENTLUNG",
-            "VENTALV", "ARTCO2", "CATECHOL", "HISTORY",
+            "HISTORY",
+            "CVP",
+            "PCWP",
+            "HYPOVOLEMIA",
+            "LVEDVOLUME",
+            "LVFAILURE",
+            "STROKEVOLUME",
+            "ERRLOWOUTPUT",
+            "HRBP",
+            "HREKG",
+            "ERRCAUTER",
+            "HRSAT",
+            "INSUFFANESTH",
+            "ANAPHYLAXIS",
+            "TPR",
+            "EXPCO2",
+            "KINKEDTUBE",
+            "MINVOL",
+            "FIO2",
+            "PVSAT",
+            "SAO2",
+            "PAP",
+            "PULMEMBOLUS",
+            "SHUNT",
+            "INTUBATION",
+            "PRESS",
+            "DISCONNECT",
+            "MINVOLSET",
+            "VENTMACH",
+            "VENTTUBE",
+            "VENTLUNG",
+            "VENTALV",
+            "ARTCO2",
+            "CATECHOL",
+            "HISTORY",
         ],
         "edges": [
-            ("HISTORY", "HYPOVOLEMIA"), ("HISTORY", "LVFAILURE"),
-            ("HISTORY", "ERRCAUTER"), ("HISTORY", "INSUFFANESTH"),
-            ("HISTORY", "ANAPHYLAXIS"), ("HISTORY", "PULMEMBOLUS"),
-            ("HISTORY", "INTUBATION"), ("HISTORY", "KINKEDTUBE"),
+            ("HISTORY", "HYPOVOLEMIA"),
+            ("HISTORY", "LVFAILURE"),
+            ("HISTORY", "ERRCAUTER"),
+            ("HISTORY", "INSUFFANESTH"),
+            ("HISTORY", "ANAPHYLAXIS"),
+            ("HISTORY", "PULMEMBOLUS"),
+            ("HISTORY", "INTUBATION"),
+            ("HISTORY", "KINKEDTUBE"),
             ("HISTORY", "DISCONNECT"),
-            ("CVP", "LVEDVOLUME"), ("PCWP", "LVEDVOLUME"),
-            ("HYPOVOLEMIA", "LVEDVOLUME"), ("LVEDVOLUME", "STROKEVOLUME"),
-            ("LVFAILURE", "STROKEVOLUME"), ("STROKEVOLUME", "ERRLOWOUTPUT"),
-            ("HRBP", "ERRLOWOUTPUT"), ("HREKG", "ERRLOWOUTPUT"),
-            ("ERRCAUTER", "HRSAT"), ("INSUFFANESTH", "HRSAT"),
-            ("ANAPHYLAXIS", "HRSAT"), ("TPR", "HRSAT"),
-            ("ERRLOWOUTPUT", "HRSAT"), ("HRSAT", "HRBP"),
+            ("CVP", "LVEDVOLUME"),
+            ("PCWP", "LVEDVOLUME"),
+            ("HYPOVOLEMIA", "LVEDVOLUME"),
+            ("LVEDVOLUME", "STROKEVOLUME"),
+            ("LVFAILURE", "STROKEVOLUME"),
+            ("STROKEVOLUME", "ERRLOWOUTPUT"),
+            ("HRBP", "ERRLOWOUTPUT"),
+            ("HREKG", "ERRLOWOUTPUT"),
+            ("ERRCAUTER", "HRSAT"),
+            ("INSUFFANESTH", "HRSAT"),
+            ("ANAPHYLAXIS", "HRSAT"),
+            ("TPR", "HRSAT"),
+            ("ERRLOWOUTPUT", "HRSAT"),
+            ("HRSAT", "HRBP"),
             ("HRSAT", "HREKG"),
-            ("INTUBATION", "VENTMACH"), ("INTUBATION", "VENTTUBE"),
-            ("VENTMACH", "VENTLUNG"), ("VENTTUBE", "VENTLUNG"),
-            ("KINKEDTUBE", "VENTTUBE"), ("DISCONNECT", "VENTTUBE"),
-            ("VENTLUNG", "VENTALV"), ("VENTALV", "ARTCO2"),
-            ("VENTALV", "PVSAT"), ("VENTALV", "SAO2"),
-            ("MINVOLSET", "MINVOL"), ("MINVOL", "VENTALV"),
-            ("FIO2", "PVSAT"), ("FIO2", "SAO2"),
-            ("PVSAT", "SAO2"), ("PAP", "PULMEMBOLUS"),
-            ("PULMEMBOLUS", "SHUNT"), ("SHUNT", "SAO2"),
-            ("ARTCO2", "EXPCO2"), ("PRESS", "KINKEDTUBE"),
-            ("CATECHOL", "HRBP"), ("CATECHOL", "TPR"),
+            ("INTUBATION", "VENTMACH"),
+            ("INTUBATION", "VENTTUBE"),
+            ("VENTMACH", "VENTLUNG"),
+            ("VENTTUBE", "VENTLUNG"),
+            ("KINKEDTUBE", "VENTTUBE"),
+            ("DISCONNECT", "VENTTUBE"),
+            ("VENTLUNG", "VENTALV"),
+            ("VENTALV", "ARTCO2"),
+            ("VENTALV", "PVSAT"),
+            ("VENTALV", "SAO2"),
+            ("MINVOLSET", "MINVOL"),
+            ("MINVOL", "VENTALV"),
+            ("FIO2", "PVSAT"),
+            ("FIO2", "SAO2"),
+            ("PVSAT", "SAO2"),
+            ("PAP", "PULMEMBOLUS"),
+            ("PULMEMBOLUS", "SHUNT"),
+            ("SHUNT", "SAO2"),
+            ("ARTCO2", "EXPCO2"),
+            ("PRESS", "KINKEDTUBE"),
+            ("CATECHOL", "HRBP"),
+            ("CATECHOL", "TPR"),
         ],
         "n": 5000,
     },
@@ -126,7 +228,9 @@ def _generate_dag_data(dag_name: str, seed: int = 42):
     # 构建邻接矩阵
     adj = np.zeros((n_nodes, n_nodes))
     for src, dst in edges:
-        adj[node_to_idx[src], node_to_idx[dst]] = np.random.RandomState(seed + hash((src, dst)) % 10000).uniform(0.3, 0.9)
+        adj[node_to_idx[src], node_to_idx[dst]] = np.random.RandomState(seed + hash((src, dst)) % 10000).uniform(
+            0.3, 0.9
+        )
 
     # 按拓扑序生成数据
     data = np.zeros((n_samples, n_nodes))
@@ -168,9 +272,14 @@ def _generate_dag_data_nonlinear(dag_name: str, seed: int = 42):
         adj_coef[node_to_idx[src], node_to_idx[dst]] = coef_rng.uniform(0.3, 0.9)
 
     # Define nonlinear functions per edge type
-    def _sigmoid(x): return 1.0 / (1.0 + np.exp(-x))
-    def _softplus(x): return np.log(1.0 + np.exp(np.clip(x, -20, 20)))
-    def _tanh_scale(x): return np.tanh(x)
+    def _sigmoid(x):
+        return 1.0 / (1.0 + np.exp(-x))
+
+    def _softplus(x):
+        return np.log(1.0 + np.exp(np.clip(x, -20, 20)))
+
+    def _tanh_scale(x):
+        return np.tanh(x)
 
     # Per-edge nonlinearity assignment (protein signaling motifs)
     # Based on known biology: phosphorylation cascades exhibit saturation
@@ -179,21 +288,18 @@ def _generate_dag_data_nonlinear(dag_name: str, seed: int = 42):
         pair = (node_to_idx[src], node_to_idx[dst])
         # Assign nonlinearity based on biological role
         s_name, d_name = src.lower(), dst.lower()
-        if 'mek' in d_name and 'raf' in s_name:
-            edge_nonlinearity[pair] = 'sigmoid'  # MAPK cascade saturation
-        elif 'erk' in d_name:
-            edge_nonlinearity[pair] = 'sigmoid'  # Terminal kinase saturation
-        elif 'akt' in d_name and 'pip3' in s_name:
-            edge_nonlinearity[pair] = 'softplus'  # Membrane recruitment
-        elif 'akt' in d_name and 'pka' in s_name:
-            edge_nonlinearity[pair] = 'tanh'  # Cross-talk modulation
-        elif 'p38' in d_name or 'jnk' in d_name:
-            edge_nonlinearity[pair] = 'tanh'  # Stress kinase activation
+        if "mek" in d_name and "raf" in s_name:
+            edge_nonlinearity[pair] = "sigmoid"  # MAPK cascade saturation
+        elif "erk" in d_name:
+            edge_nonlinearity[pair] = "sigmoid"  # Terminal kinase saturation
+        elif "akt" in d_name and "pip3" in s_name:
+            edge_nonlinearity[pair] = "softplus"  # Membrane recruitment
+        elif "akt" in d_name and "pka" in s_name:
+            edge_nonlinearity[pair] = "tanh"  # Cross-talk modulation
+        elif "p38" in d_name or "jnk" in d_name:
+            edge_nonlinearity[pair] = "tanh"  # Stress kinase activation
         else:
-            edge_nonlinearity[pair] = rng.choice(
-                ['sigmoid', 'tanh', 'softplus', 'linear'],
-                p=[0.3, 0.3, 0.2, 0.2]
-            )
+            edge_nonlinearity[pair] = rng.choice(["sigmoid", "tanh", "softplus", "linear"], p=[0.3, 0.3, 0.2, 0.2])
 
     # Generate data by topological order
     data = np.zeros((n_samples, n_nodes))
@@ -202,8 +308,9 @@ def _generate_dag_data_nonlinear(dag_name: str, seed: int = 42):
     processed = np.zeros(n_nodes, dtype=bool)
 
     for _ in range(n_nodes):
-        ready = [i for i in range(n_nodes) if not processed[i] and
-                 all(processed[p] for p in np.where(adj_coef[:, i] > 0)[0])]
+        ready = [
+            i for i in range(n_nodes) if not processed[i] and all(processed[p] for p in np.where(adj_coef[:, i] > 0)[0])
+        ]
         if not ready:
             # Pick any unprocessed (shouldn't happen for DAG but safety)
             ready = [i for i in range(n_nodes) if not processed[i]]
@@ -216,12 +323,12 @@ def _generate_dag_data_nonlinear(dag_name: str, seed: int = 42):
                 for p in parents:
                     coef = adj_coef[p, i]
                     raw = coef * data[:, p]
-                    nl_type = edge_nonlinearity.get((p, i), 'linear')
-                    if nl_type == 'sigmoid':
+                    nl_type = edge_nonlinearity.get((p, i), "linear")
+                    if nl_type == "sigmoid":
                         signal += 1.5 * _sigmoid(raw)
-                    elif nl_type == 'tanh':
+                    elif nl_type == "tanh":
                         signal += _tanh_scale(raw)
-                    elif nl_type == 'softplus':
+                    elif nl_type == "softplus":
                         signal += 0.8 * _softplus(raw - 0.5)  # threshold effect
                     else:
                         signal += raw
@@ -276,12 +383,13 @@ class TestBNLearnAccuracy:
 
     def test_pc_on_asia(self):
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         data, nodes, gt_adj, n_edges = _generate_dag_data("asia")
         algo = PCSkeletonDiscoverer(alpha=0.05)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
         _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
-        print(f"\n  PC on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
+        print(f"\n  PC on Asia: SHD={shd_val}/{n_edges} ({shd_val / n_edges:.1%}), F1={f1:.3f}")
         assert f1 >= 0.5, f"F1={f1:.3f} below 0.5"
 
     def test_pc_on_sachs_synthetic(self):
@@ -292,32 +400,34 @@ class TestBNLearnAccuracy:
         的评估见 benchmarks/real_world/sachs_real_benchmark.py。
         """
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import PCSkeletonDiscoverer
+
         data, nodes, gt_adj, n_edges = _generate_dag_data("sachs")
         algo = PCSkeletonDiscoverer(alpha=0.05, min_corr=0.1)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
         _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
-        print(f"\n  PC on Sachs: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
+        print(f"\n  PC on Sachs: SHD={shd_val}/{n_edges} ({shd_val / n_edges:.1%}), F1={f1:.3f}")
         assert f1 >= 0.35, f"F1={f1:.3f} below 0.35"
 
     def test_fci_on_asia(self):
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import FCIDiscoverer
+
         data, nodes, gt_adj, n_edges = _generate_dag_data("asia")
         algo = FCIDiscoverer(alpha=0.05, min_corr=0.1)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
         _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
-        print(f"\n  FCI on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
+        print(f"\n  FCI on Asia: SHD={shd_val}/{n_edges} ({shd_val / n_edges:.1%}), F1={f1:.3f}")
 
     def test_notears_on_asia(self):
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import NOTEARSDiscoverer
+
         data, nodes, gt_adj, n_edges = _generate_dag_data("asia")
         algo = NOTEARSDiscoverer(lambda1=0.05, max_iter=150, threshold=0.3)
         skel = algo.discover(data, nodes)
         shd_val = _shd(skel.adj_matrix, gt_adj)
         _prec, _rec, f1 = _precision_recall_f1(skel.adj_matrix, gt_adj)
-        print(f"\n  NOTEARS on Asia: SHD={shd_val}/{n_edges} ({shd_val/n_edges:.1%}), F1={f1:.3f}")
-
+        print(f"\n  NOTEARS on Asia: SHD={shd_val}/{n_edges} ({shd_val / n_edges:.1%}), F1={f1:.3f}")
 
     def test_camgolem_on_sachs(self):
         """CAMGOLEM 在 Sachs 线性数据上应显著优于 PC。"""
@@ -345,7 +455,7 @@ class TestBNLearnAccuracy:
 
         print("\n  === CAMGOLEM BNLearn SOTA Comparison ===")
         print(f"  {'Network':<8} {'Method':<12} {'F1':>6} {'SHD':>8}")
-        print("  " + "-"*42)
+        print("  " + "-" * 42)
         for name, (shd, n, f1) in results.items():
             print(f"  {name:<8} {'CEWM CAMGOLEM':<12} {f1:>6.3f} {shd:>4}/{n:<3}")
         print(f"  {'asia':<8} {'DAG-GNN':<12} {'0.670':>6}")
@@ -370,12 +480,14 @@ class TestBNLearnAccuracy:
         total_shd = 0
         total_edges = 0
         for name, shd, n, f1 in report:
-            print(f"  {name:<8} SHD={shd:>3}/{n:<3} ({shd/n:.1%}) F1={f1:.3f}")
+            print(f"  {name:<8} SHD={shd:>3}/{n:<3} ({shd / n:.1%}) F1={f1:.3f}")
             total_shd += shd
             total_edges += n
         avg_ratio = total_shd / max(total_edges, 1)
         print(f"  {'TOTAL':<8} SHD={total_shd}/{total_edges} ({avg_ratio:.1%})")
-        print("  NOTE: Regression-based edge orientation applied; remaining undirected edges resolved via OLS residual asymmetry.")
+        print(
+            "  NOTE: Regression-based edge orientation applied; remaining undirected edges resolved via OLS residual asymmetry."
+        )
         print("  F1 range: 0.37-0.76 (regression orientation varies by data non-Gaussianity)")
         # Acceptance: SHD ratio < 2.0 (regression-oriented edges)
         assert avg_ratio < 2.5, f"SHD ratio {avg_ratio:.1%} >= 2.5"
@@ -408,8 +520,7 @@ class TestNonlinearSachs:
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMDiscoverer
 
         data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
-        cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
-                           n_subsamples=50, stability_threshold=0.5)
+        cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3, n_subsamples=50, stability_threshold=0.5)
         skel = cam.discover(data, nodes)
         _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
         print(f"\n  CAM (nonlinear Sachs): F1={f1:.3f}")
@@ -451,8 +562,7 @@ class TestNonlinearSachs:
         _, _, f1_pc = _precision_recall_f1(adj_pc, gt)
         _, _, f1_go = _precision_recall_f1(adj_go, gt)
         best_single = max(f1_pc, f1_go)
-        assert f1 >= best_single * 0.9, \
-            f"Ensemble F1={f1:.3f} significantly below best single {best_single:.3f}"
+        assert f1 >= best_single * 0.9, f"Ensemble F1={f1:.3f} significantly below best single {best_single:.3f}"
 
     def test_nonlinear_vs_linear_comparison(self):
         """非线性方法应在非线性数据上优于线性方法。"""
@@ -466,25 +576,23 @@ class TestNonlinearSachs:
         _, _, f1_lin = _precision_recall_f1(skel_lin.adj_matrix, gt)
 
         # CAM (nonlinear)
-        cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
-                           n_subsamples=50, stability_threshold=0.5)
+        cam = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3, n_subsamples=50, stability_threshold=0.5)
         skel_cam = cam.discover(data, nodes)
         _, _, f1_cam = _precision_recall_f1(skel_cam.adj_matrix, gt)
 
         print(f"\n  Linear PC:  F1={f1_lin:.3f}")
         print(f"  CAM:        F1={f1_cam:.3f}")
         # CAM should match or exceed linear PC on nonlinear data
-        assert f1_cam >= f1_lin * 0.8, \
-            f"CAM F1={f1_cam:.3f} much worse than linear PC F1={f1_lin:.3f}"
+        assert f1_cam >= f1_lin * 0.8, f"CAM F1={f1_cam:.3f} much worse than linear PC F1={f1_lin:.3f}"
 
     def test_camgolem_on_nonlinear_sachs(self):
         """CAM→GOLEM 混合管道在非线性 Sachs 上应逼近 SOTA (F1 ≥ 0.55)。"""
         from mci_world_model.sdk._autonomous_law_discoverer_v2 import CAMGOLEMDiscoverer
 
         data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
-        cg = CAMGOLEMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
-                               n_subsamples=50, stability_threshold=0.5,
-                               lambda1=0.01, max_iter=300)
+        cg = CAMGOLEMDiscoverer(
+            alpha=0.05, n_splines=7, max_parents=3, n_subsamples=50, stability_threshold=0.5, lambda1=0.01, max_iter=300
+        )
         skel = cg.discover(data, nodes)
         _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
         print(f"\n  CAMGOLEM (nonlinear Sachs): F1={f1:.3f}")
@@ -497,24 +605,29 @@ class TestNonlinearSachs:
         data, nodes, gt, _n_e = _generate_dag_data_nonlinear("sachs", seed=42)
 
         # Spline baseline
-        cam_spline = CAMDiscoverer(alpha=0.05, n_splines=7, max_parents=3,
-                                   n_subsamples=50, stability_threshold=0.5,
-                                   kernel="spline")
+        cam_spline = CAMDiscoverer(
+            alpha=0.05, n_splines=7, max_parents=3, n_subsamples=50, stability_threshold=0.5, kernel="spline"
+        )
         skel_s = cam_spline.discover(data, nodes)
         _, _, f1_s = _precision_recall_f1(skel_s.adj_matrix, gt)
 
         # RBF kernel
-        cam_rbf = CAMDiscoverer(alpha=0.05, max_parents=3,
-                                n_subsamples=50, stability_threshold=0.5,
-                                kernel="rbf", n_rbf_centers=20, rbf_gamma=0.05)
+        cam_rbf = CAMDiscoverer(
+            alpha=0.05,
+            max_parents=3,
+            n_subsamples=50,
+            stability_threshold=0.5,
+            kernel="rbf",
+            n_rbf_centers=20,
+            rbf_gamma=0.05,
+        )
         skel_r = cam_rbf.discover(data, nodes)
         _, _, f1_r = _precision_recall_f1(skel_r.adj_matrix, gt)
 
         print(f"\n  Spline CAM: F1={f1_s:.3f}")
         print(f"  RBF CAM:    F1={f1_r:.3f}")
         # RBF should be within 10% of spline (they target different nonlinearities)
-        assert f1_r >= f1_s * 0.85, \
-            f"RBF F1={f1_r:.3f} too far below spline F1={f1_s:.3f}"
+        assert f1_r >= f1_s * 0.85, f"RBF F1={f1_r:.3f} too far below spline F1={f1_s:.3f}"
 
     def test_cam_rbf_reproducibility(self):
         """RBF CAM with fixed seed should produce deterministic results."""
@@ -524,13 +637,18 @@ class TestNonlinearSachs:
 
         results = []
         for _ in range(3):
-            cam = CAMDiscoverer(alpha=0.05, max_parents=3,
-                               n_subsamples=50, stability_threshold=0.5,
-                               kernel="rbf", n_rbf_centers=10, rbf_gamma=0.1)
+            cam = CAMDiscoverer(
+                alpha=0.05,
+                max_parents=3,
+                n_subsamples=50,
+                stability_threshold=0.5,
+                kernel="rbf",
+                n_rbf_centers=10,
+                rbf_gamma=0.1,
+            )
             skel = cam.discover(data, nodes)
             _, _, f1 = _precision_recall_f1(skel.adj_matrix, gt)
             results.append(f1)
 
         # All runs should give identical results (RNG seeded internally)
-        assert all(abs(r - results[0]) < 0.01 for r in results), \
-            f"RBF CAM non-deterministic: {results}"
+        assert all(abs(r - results[0]) < 0.01 for r in results), f"RBF CAM non-deterministic: {results}"
