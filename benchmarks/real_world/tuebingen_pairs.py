@@ -53,7 +53,7 @@ def download_tuebingen_pairs(force: bool = False) -> Path:
     try:
         urllib.request.urlretrieve(TUEBINGEN_URL, zip_path)
         logger.info("Download complete. Extracting...")
-        with zipfile.ZipFile(zip_path, 'r') as zf:
+        with zipfile.ZipFile(zip_path, "r") as zf:
             zf.extractall(TUEBINGEN_DIR)
         zip_path.unlink()  # clean up
         logger.info(f"Extracted to {TUEBINGEN_DIR}")
@@ -79,10 +79,7 @@ def _generate_synthetic_pairs(n_pairs: int = 108) -> None:
         n_samples = rng.randint(200, 2000)
 
         # Random functional form
-        func_type = rng.choice([
-            "linear", "quadratic", "cubic", "sine",
-            "exp", "log", "sigmoid", "threshold"
-        ])
+        func_type = rng.choice(["linear", "quadratic", "cubic", "sine", "exp", "log", "sigmoid", "threshold"])
         noise_level = 0.1 + 0.4 * rng.random()
 
         # Generate cause
@@ -96,11 +93,11 @@ def _generate_synthetic_pairs(n_pairs: int = 108) -> None:
             weight = 0.7  # easy to detect
         elif func_type == "quadratic":
             coef = 0.5 + 1.5 * rng.random()
-            effect = coef * cause ** 2 + noise_level * rng.randn(n_samples)
+            effect = coef * cause**2 + noise_level * rng.randn(n_samples)
             weight = 0.5
         elif func_type == "cubic":
             coef = 0.3 + 1.0 * rng.random()
-            effect = coef * cause ** 3 + noise_level * rng.randn(n_samples)
+            effect = coef * cause**3 + noise_level * rng.randn(n_samples)
             weight = 0.4
         elif func_type == "sine":
             freq = 1.0 + 3.0 * rng.random()
@@ -127,8 +124,7 @@ def _generate_synthetic_pairs(n_pairs: int = 108) -> None:
 
         # Save pair
         pair_file = TUEBINGEN_DIR / f"pair{pair_id:04d}.txt"
-        np.savetxt(pair_file, np.column_stack([cause, effect]),
-                   header=f"Cause Effect (pair {pair_id})", fmt="%.6f")
+        np.savetxt(pair_file, np.column_stack([cause, effect]), header=f"Cause Effect (pair {pair_id})", fmt="%.6f")
 
         # Meta line: pair_id, cause_var, effect_var, func_type, weight, noise
         meta_lines.append(
@@ -137,7 +133,7 @@ def _generate_synthetic_pairs(n_pairs: int = 108) -> None:
         )
 
     # Save meta file
-    with open(TUEBINGEN_DIR / "pairmeta.txt", 'w') as f:
+    with open(TUEBINGEN_DIR / "pairmeta.txt", "w") as f:
         f.write("\n".join(meta_lines))
 
     logger.info(f"Generated {n_pairs} synthetic Tübingen-like pairs")
@@ -205,14 +201,16 @@ def load_tuebingen_pairs() -> list[dict]:
                 if "y --> x" in des_text or "y -> x" in des_text:
                     ground_truth = "effect→cause"
 
-            pairs.append({
-                "pair_id": pair_id,
-                "cause": data[:, 0],
-                "effect": data[:, 1],
-                "n_samples": data.shape[0],
-                "ground_truth": ground_truth,
-                "weight": official_weights.get(pair_id, 1.0),
-            })
+            pairs.append(
+                {
+                    "pair_id": pair_id,
+                    "cause": data[:, 0],
+                    "effect": data[:, 1],
+                    "n_samples": data.shape[0],
+                    "ground_truth": ground_truth,
+                    "weight": official_weights.get(pair_id, 1.0),
+                }
+            )
         except Exception:
             continue
 
@@ -257,8 +255,7 @@ def _residual_asymmetry(cause: np.ndarray, effect: np.ndarray) -> float:
     return rss_ba / max(n, 1) - rss_ab / max(n, 1)
 
 
-def _cam_nonlinear_residual(cause: np.ndarray, effect: np.ndarray,
-                            n_splines: int = 5) -> float:
+def _cam_nonlinear_residual(cause: np.ndarray, effect: np.ndarray, n_splines: int = 5) -> float:
     """CAM-style nonlinear residual asymmetry.
 
     Uses cubic spline basis regression instead of linear regression.
@@ -330,12 +327,14 @@ def evaluate_camgolem_direction(pairs: list[dict]) -> dict:
         is_correct = pred == pair["ground_truth"]
         if is_correct:
             correct += 1
-        results.append({
-            "pair_id": pair["pair_id"],
-            "correct": is_correct,
-            "ent_pred": ent_pred,
-            "res_pred": res_pred,
-        })
+        results.append(
+            {
+                "pair_id": pair["pair_id"],
+                "correct": is_correct,
+                "ent_pred": ent_pred,
+                "res_pred": res_pred,
+            }
+        )
 
     return {
         "accuracy": correct / max(len(pairs), 1),
@@ -343,6 +342,7 @@ def evaluate_camgolem_direction(pairs: list[dict]) -> dict:
         "total": len(pairs),
         "results": results,
     }
+
 
 def evaluate_direction(pairs: list[dict], method: str = "hybrid") -> dict:
     """Evaluate causal direction inference on Tübingen pairs.
@@ -381,13 +381,15 @@ def evaluate_direction(pairs: list[dict], method: str = "hybrid") -> dict:
         if is_correct:
             correct += 1
         total += 1
-        results.append({
-            "pair_id": pair["pair_id"],
-            "correct": is_correct,
-            "n_samples": pair["n_samples"],
-            "ent_pred": ent_pred,
-            "res_pred": res_pred,
-        })
+        results.append(
+            {
+                "pair_id": pair["pair_id"],
+                "correct": is_correct,
+                "n_samples": pair["n_samples"],
+                "ent_pred": ent_pred,
+                "res_pred": res_pred,
+            }
+        )
 
     accuracy = correct / max(total, 1)
     return {
@@ -509,13 +511,15 @@ def evaluate_triple_direction(pairs: list[dict]) -> dict:
         is_correct = pred == pair["ground_truth"]
         if is_correct:
             correct += 1
-        results.append({
-            "pair_id": pair["pair_id"],
-            "correct": is_correct,
-            "ent_pred": ent_pred,
-            "res_pred": res_pred,
-            "hsic_pred": hsic_pred,
-        })
+        results.append(
+            {
+                "pair_id": pair["pair_id"],
+                "correct": is_correct,
+                "ent_pred": ent_pred,
+                "res_pred": res_pred,
+                "hsic_pred": hsic_pred,
+            }
+        )
 
     return {
         "accuracy": correct / max(len(pairs), 1),
@@ -524,9 +528,11 @@ def evaluate_triple_direction(pairs: list[dict]) -> dict:
         "results": results,
     }
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Convenience: ensure data exists on import
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def ensure_data() -> Path:
     """Ensure Tübingen data is available, generating synthetic if needed."""
@@ -538,6 +544,7 @@ def ensure_data() -> Path:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     import zipfile  # needed for extraction
+
     pairs = load_tuebingen_pairs()
     result = evaluate_direction(pairs)
     print("\n=== Tübingen Cause-Effect Benchmark ===")
@@ -564,23 +571,22 @@ class TestTuebingenDirection:
         """Hybrid method should exceed random baseline (50%)."""
         pairs = load_tuebingen_pairs()
         result = evaluate_direction(pairs)
-        assert result["accuracy"] > 0.50, \
-            f"Hybrid accuracy {result['accuracy']:.1%} ≤ 50%"
+        assert result["accuracy"] > 0.50, f"Hybrid accuracy {result['accuracy']:.1%} ≤ 50%"
 
     def test_triple_voting_above_hybrid(self):
         """Triple voting should outperform hybrid method."""
         pairs = load_tuebingen_pairs()
         hybrid = evaluate_direction(pairs)
         triple = evaluate_triple_direction(pairs)
-        assert triple["accuracy"] >= hybrid["accuracy"] - 0.05, \
+        assert triple["accuracy"] >= hybrid["accuracy"] - 0.05, (
             f"Triple {triple['accuracy']:.1%} ≪ Hybrid {hybrid['accuracy']:.1%}"
+        )
 
     def test_camgolem_direction_above_chance(self):
-        """CAM+GOLEM direction should exceed 50%. """
+        """CAM+GOLEM direction should exceed 50%."""
         pairs = load_tuebingen_pairs()
         result = evaluate_camgolem_direction(pairs)
-        assert result["accuracy"] > 0.48, \
-            f"CAMGOLEM accuracy {result['accuracy']:.1%} ≤ 48%"
+        assert result["accuracy"] > 0.48, f"CAMGOLEM accuracy {result['accuracy']:.1%} ≤ 48%"
 
     def test_report(self):
         """Generate comprehensive direction benchmark report."""
@@ -598,7 +604,7 @@ class TestTuebingenDirection:
         }
         print("\\n  === Tübingen Direction Accuracy Report (synthetic 98 pairs) ===")
         print(f"  {'Method':<22} {'Accuracy':>8}")
-        print("  " + "-"*32)
+        print("  " + "-" * 32)
         for name, acc in methods.items():
             print(f"  {name:<22} {acc:>7.1%}")
         for name, acc in sota.items():

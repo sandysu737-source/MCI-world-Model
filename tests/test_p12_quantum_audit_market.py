@@ -222,21 +222,25 @@ class TestFederationAudit:
 
     def test_audit_evolve_without_consensus(self):
         audit = FederationAudit()
-        entry = audit.audit_federation_operation({
-            "type": "evolve",
-            "node_id": "n1",
-            "consensus_reached": False,
-        })
+        entry = audit.audit_federation_operation(
+            {
+                "type": "evolve",
+                "node_id": "n1",
+                "consensus_reached": False,
+            }
+        )
         assert entry.severity == AuditSeverity.CRITICAL
         assert entry.status == AuditStatus.FAIL
 
     def test_audit_evolve_with_consensus(self):
         audit = FederationAudit()
-        entry = audit.audit_federation_operation({
-            "type": "evolve",
-            "node_id": "n1",
-            "consensus_reached": True,
-        })
+        entry = audit.audit_federation_operation(
+            {
+                "type": "evolve",
+                "node_id": "n1",
+                "consensus_reached": True,
+            }
+        )
         assert entry.status == AuditStatus.PASS
 
     def test_audit_trust_state(self):
@@ -251,18 +255,22 @@ class TestFederationAudit:
 
     def test_audit_consciousness(self):
         audit = FederationAudit()
-        entry = audit.audit_consciousness_state({
-            "awareness_state": "synchronized",
-            "n_nodes": 3,
-        })
+        entry = audit.audit_consciousness_state(
+            {
+                "awareness_state": "synchronized",
+                "n_nodes": 3,
+            }
+        )
         assert entry.status == AuditStatus.PASS
 
     def test_audit_consciousness_inconsistent(self):
         audit = FederationAudit()
-        entry = audit.audit_consciousness_state({
-            "awareness_state": "synchronized",
-            "n_nodes": 1,
-        })
+        entry = audit.audit_consciousness_state(
+            {
+                "awareness_state": "synchronized",
+                "n_nodes": 1,
+            }
+        )
         assert entry.status == AuditStatus.FAIL
 
     def test_generate_report(self):
@@ -314,46 +322,73 @@ class TestFederatedAgentMarket:
 
     def test_discover_by_domain(self):
         market = FederatedAgentMarket()
-        market.register_agent(AgentSpec(
-            name="MedAgent", provider="n1", domains=["medical"],
-        ))
-        market.register_agent(AgentSpec(
-            name="PhysAgent", provider="n2", domains=["physics"],
-        ))
+        market.register_agent(
+            AgentSpec(
+                name="MedAgent",
+                provider="n1",
+                domains=["medical"],
+            )
+        )
+        market.register_agent(
+            AgentSpec(
+                name="PhysAgent",
+                provider="n2",
+                domains=["physics"],
+            )
+        )
         results = market.discover_agents({"domain": "medical"})
         assert len(results) == 1
         assert results[0].name == "MedAgent"
 
     def test_discover_by_capability(self):
         market = FederatedAgentMarket()
-        market.register_agent(AgentSpec(
-            name="Agent1", provider="n1",
-            capabilities=["causal_effect", "discovery"],
-        ))
-        market.register_agent(AgentSpec(
-            name="Agent2", provider="n2",
-            capabilities=["causal_effect"],
-        ))
+        market.register_agent(
+            AgentSpec(
+                name="Agent1",
+                provider="n1",
+                capabilities=["causal_effect", "discovery"],
+            )
+        )
+        market.register_agent(
+            AgentSpec(
+                name="Agent2",
+                provider="n2",
+                capabilities=["causal_effect"],
+            )
+        )
         results = market.discover_agents({"capability": "discovery"})
         assert len(results) == 1
 
     def test_discover_min_trust(self):
         market = FederatedAgentMarket()
-        market.register_agent(AgentSpec(
-            name="Low", provider="n1", trust_score=0.3,
-        ))
-        market.register_agent(AgentSpec(
-            name="High", provider="n2", trust_score=0.9,
-        ))
+        market.register_agent(
+            AgentSpec(
+                name="Low",
+                provider="n1",
+                trust_score=0.3,
+            )
+        )
+        market.register_agent(
+            AgentSpec(
+                name="High",
+                provider="n2",
+                trust_score=0.9,
+            )
+        )
         results = market.discover_agents({"min_trust": 0.5})
         assert len(results) == 1
         assert results[0].name == "High"
 
     def test_trade_agent(self):
         market = FederatedAgentMarket(min_trust_for_trade=0.5)
-        market.register_agent(AgentSpec(
-            agent_id="a1", name="Agent", provider="n1", trust_score=0.8,
-        ))
+        market.register_agent(
+            AgentSpec(
+                agent_id="a1",
+                name="Agent",
+                provider="n1",
+                trust_score=0.8,
+            )
+        )
         result = market.trade_agent("a1", "consumer_1")
         assert result["traded"] is True
         assert market.n_trades == 1
@@ -365,9 +400,14 @@ class TestFederatedAgentMarket:
 
     def test_trade_low_trust(self):
         market = FederatedAgentMarket(min_trust_for_trade=0.5)
-        market.register_agent(AgentSpec(
-            agent_id="a1", name="Agent", provider="n1", trust_score=0.3,
-        ))
+        market.register_agent(
+            AgentSpec(
+                agent_id="a1",
+                name="Agent",
+                provider="n1",
+                trust_score=0.3,
+            )
+        )
         result = market.trade_agent("a1", "consumer_1")
         assert result["traded"] is False
         assert result["reason"] == "trust_below_threshold"
@@ -386,11 +426,14 @@ class TestFederatedAgentMarket:
 
     def test_market_statistics(self):
         market = FederatedAgentMarket()
-        result = market.register_agent(AgentSpec(
-            name="Agent1", provider="n1",
-            domains=["medical", "physics"],
-            trust_score=0.8,
-        ))
+        result = market.register_agent(
+            AgentSpec(
+                name="Agent1",
+                provider="n1",
+                domains=["medical", "physics"],
+                trust_score=0.8,
+            )
+        )
         agent_id = result["agent_id"]
         market.rate_agent(agent_id, 4.0)
         stats = market.market_statistics()
@@ -423,9 +466,7 @@ class TestP12Stage2KPI:
     def test_kpi_quantum_counterfactual(self):
         """KPI: 量子反事实推理可执行。"""
         qci = QuantumCausalInference()
-        result = qci.quantum_counterfactual(
-            {"X": 0.5}, {"X": 0.9}
-        )
+        result = qci.quantum_counterfactual({"X": 0.5}, {"X": 0.9})
         assert "counterfactual" in result
 
     def test_kpi_federation_audit(self):
@@ -442,12 +483,14 @@ class TestP12Stage2KPI:
         """KPI: 智能体市场 ≥3 智能体注册。"""
         market = FederatedAgentMarket()
         for i in range(3):
-            market.register_agent(AgentSpec(
-                name=f"Agent_{i}",
-                provider=f"node_{i}",
-                domains=[f"domain_{i}"],
-                trust_score=0.7,
-            ))
+            market.register_agent(
+                AgentSpec(
+                    name=f"Agent_{i}",
+                    provider=f"node_{i}",
+                    domains=[f"domain_{i}"],
+                    trust_score=0.7,
+                )
+            )
         assert market.n_agents >= 3
         results = market.discover_agents({})
         assert len(results) >= 3

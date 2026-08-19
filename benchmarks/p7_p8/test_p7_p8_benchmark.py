@@ -7,7 +7,6 @@ P8 "超凡": NeuralSymbolicFusionV2, CausalGradient, SymbolGrounding, AGIProtoco
 测试策略: 验证模块可创建和导入，详细 API 测试在各 test_*.py 中。
 """
 
-
 import numpy as np
 
 from mci_world_model.sdk._agi_protocol import AGIIntegrationProtocol
@@ -36,18 +35,27 @@ class TestP7MedicalSDK:
         sdk = MedicalCausalSDK(patient_id="P001", strict_mode=False)
 
         # 添加3条临床证据
-        sdk.add_evidence(ClinicalEvidence(
-            evidence_id="E1", evidence_type="vital_sign",
-            description="dopamine 给药后心率从72升至98 bpm",
-            confidence=0.85))
-        sdk.add_evidence(ClinicalEvidence(
-            evidence_id="E2", evidence_type="lab_result",
-            description="dopamine 血药浓度与心率相关性 r=0.72",
-            confidence=0.80))
-        sdk.add_evidence(ClinicalEvidence(
-            evidence_id="E3", evidence_type="observation",
-            description="停药后心率回落至基线",
-            confidence=0.90))
+        sdk.add_evidence(
+            ClinicalEvidence(
+                evidence_id="E1",
+                evidence_type="vital_sign",
+                description="dopamine 给药后心率从72升至98 bpm",
+                confidence=0.85,
+            )
+        )
+        sdk.add_evidence(
+            ClinicalEvidence(
+                evidence_id="E2",
+                evidence_type="lab_result",
+                description="dopamine 血药浓度与心率相关性 r=0.72",
+                confidence=0.80,
+            )
+        )
+        sdk.add_evidence(
+            ClinicalEvidence(
+                evidence_id="E3", evidence_type="observation", description="停药后心率回落至基线", confidence=0.90
+            )
+        )
 
         diag = sdk.diagnose("dopamine", "heart_rate_increase")
 
@@ -71,9 +79,9 @@ class TestP7MedicalSDK:
     def test_insufficient_evidence_strict(self) -> None:
         """严格模式: 证据不足应拒绝给出确定性结论。"""
         sdk = MedicalCausalSDK(strict_mode=True)
-        sdk.add_evidence(ClinicalEvidence(
-            evidence_id="E1", evidence_type="observation",
-            description="单一观察", confidence=0.9))
+        sdk.add_evidence(
+            ClinicalEvidence(evidence_id="E1", evidence_type="observation", description="单一观察", confidence=0.9)
+        )
         # 仅1条证据，MIN_EVIDENCE_COUNT=2
         diag = sdk.diagnose("drug_A", "side_effect")
         assert not diag.is_conclusive
@@ -92,23 +100,36 @@ class TestP7LegalSDK:
         场景: 内幕交易导致股价异常波动。
         预期: 因果链强度合理, 审计轨迹100%覆盖, 偏差检测激活。
         """
-        sdk = LegalComplianceSDK(
-            jurisdiction="CN",
-            standard="preponderance")
+        sdk = LegalComplianceSDK(jurisdiction="CN", standard="preponderance")
 
         # 添加3条法律证据
-        sdk.add_evidence(LegalEvidence(
-            evidence_id="L1", evidence_type="document",
-            description="insider_trading 高管在公告前减持",
-            reliability=0.85, jurisdiction="CN"))
-        sdk.add_evidence(LegalEvidence(
-            evidence_id="L2", evidence_type="data",
-            description="stock_price 减持后2日下跌8%",
-            reliability=0.90, jurisdiction="CN"))
-        sdk.add_evidence(LegalEvidence(
-            evidence_id="L3", evidence_type="expert",
-            description="insider_trading 时间序列格兰杰因果 p<0.01",
-            reliability=0.75, jurisdiction="CN"))
+        sdk.add_evidence(
+            LegalEvidence(
+                evidence_id="L1",
+                evidence_type="document",
+                description="insider_trading 高管在公告前减持",
+                reliability=0.85,
+                jurisdiction="CN",
+            )
+        )
+        sdk.add_evidence(
+            LegalEvidence(
+                evidence_id="L2",
+                evidence_type="data",
+                description="stock_price 减持后2日下跌8%",
+                reliability=0.90,
+                jurisdiction="CN",
+            )
+        )
+        sdk.add_evidence(
+            LegalEvidence(
+                evidence_id="L3",
+                evidence_type="expert",
+                description="insider_trading 时间序列格兰杰因果 p<0.01",
+                reliability=0.75,
+                jurisdiction="CN",
+            )
+        )
 
         conclusion = sdk.reason("insider_trading", "stock_price_drop")
 
@@ -144,25 +165,31 @@ class TestP7EngineeringSDK:
         预期: 安全裕度检查失败, FMEA告警, 冗余达标。
         """
         from mci_world_model.sdk._engineering_safety_sdk import FMEAItem, SafetyParameter
+
         sdk = EngineeringSafetySDK(system_name="Bridge_A1")
 
         # 添加安全参数
-        sdk.add_parameter(SafetyParameter(
-            name="load_capacity", design_value=10.0,
-            limit_value=13.0, unit="kN"))  # margin≈0.23 < 0.3
-        sdk.add_parameter(SafetyParameter(
-            name="stress_tolerance", design_value=50.0,
-            limit_value=52.0, unit="MPa"))  # margin≈0.038
-        sdk.add_parameter(SafetyParameter(
-            name="deflection", design_value=2.0,
-            limit_value=3.0, unit="mm"))  # margin=0.33 OK
+        sdk.add_parameter(
+            SafetyParameter(name="load_capacity", design_value=10.0, limit_value=13.0, unit="kN")
+        )  # margin≈0.23 < 0.3
+        sdk.add_parameter(
+            SafetyParameter(name="stress_tolerance", design_value=50.0, limit_value=52.0, unit="MPa")
+        )  # margin≈0.038
+        sdk.add_parameter(
+            SafetyParameter(name="deflection", design_value=2.0, limit_value=3.0, unit="mm")
+        )  # margin=0.33 OK
 
         # 添加FMEA
-        sdk.add_fmea(FMEAItem(
-            failure_mode="cable_corrosion",
-            effect="structural_failure",
-            severity=8, occurrence=6, detection=3,
-            mitigated=False))  # RPN=144 > 125, 未缓解
+        sdk.add_fmea(
+            FMEAItem(
+                failure_mode="cable_corrosion",
+                effect="structural_failure",
+                severity=8,
+                occurrence=6,
+                detection=3,
+                mitigated=False,
+            )
+        )  # RPN=144 > 125, 未缓解
 
         # 设置冗余
         sdk.set_redundancy("load_sensor", True)
@@ -218,11 +245,12 @@ class TestP7EdgeCloud:
         预期: dispatch_count=2, 缓存命中。
         """
         from mci_world_model.sdk._edge_cloud_hybrid import InferenceRequest
+
         ec = EdgeCloudHybrid(edge_capacity=10)
 
         req = InferenceRequest(
-            request_id="R001", priority="high",
-            max_latency_ms=50.0, query={"type": "causal_discovery"})
+            request_id="R001", priority="high", max_latency_ms=50.0, query={"type": "causal_discovery"}
+        )
 
         # 首次请求
         r1 = ec.dispatch(req)
@@ -294,8 +322,7 @@ class TestP8NeuralSymbolic:
 
         # 多轮融合后应稳定
         state2 = nsf.fuse(state.neural_representation, n_iterations=2)
-        diff = np.max(np.abs(state2.neural_representation -
-                             state.neural_representation))
+        diff = np.max(np.abs(state2.neural_representation - state.neural_representation))
         # 融合应逐渐稳定
         assert diff < 1.0, f"融合发散 diff={diff:.4f}"
 
@@ -312,12 +339,11 @@ class TestP8CausalGradient:
         预期: 梯度沿因果图反向传播, 更新Y→Z权重。
         """
         from mci_world_model.sdk._causal_gradient import CausalGradientPropagation
+
         cgm = CausalGradientPropagation(learning_rate=0.05)
 
         # X→Y→Z 链式结构
-        adj = np.array([[0, 1, 0],
-                        [0, 0, 1],
-                        [0, 0, 0]], dtype=float)
+        adj = np.array([[0, 1, 0], [0, 0, 1], [0, 0, 0]], dtype=float)
         cgm.set_graph(adj, ["X", "Y", "Z"])
 
         # Z 的损失梯度
@@ -347,25 +373,21 @@ class TestP8SymbolGrounding:
         sg = SymbolGroundingLearning(similarity_threshold=0.5)
 
         # 第一次接地
-        e1 = sg.ground("red", "visual",
-                       np.array([0.9, 0.1, 0.05]))
+        e1 = sg.ground("red", "visual", np.array([0.9, 0.1, 0.05]))
         assert e1.symbol == "red"
         assert e1.grounding_strength == 0.2  # 首次
 
         # 增量更新 ×3
         for _ in range(3):
-            sg.ground("red", "visual",
-                      np.array([0.85, 0.12, 0.08]))
-        e_final = sg.ground("red", "visual",
-                            np.array([0.88, 0.11, 0.06]))
+            sg.ground("red", "visual", np.array([0.85, 0.12, 0.08]))
+        e_final = sg.ground("red", "visual", np.array([0.88, 0.11, 0.06]))
 
         assert e_final.grounding_strength > 0.5  # 5次≥0.2+4次增强
         assert sg.is_grounded("red")
         assert not sg.is_grounded("blue")
 
         # 验证
-        sim = sg.verify_grounding("red",
-                                  np.array([0.87, 0.13, 0.07]))
+        sim = sg.verify_grounding("red", np.array([0.87, 0.13, 0.07]))
         assert sim > 0.7, f"相似度={sim:.3f} 过低"
 
         # 未接地符号
@@ -388,6 +410,7 @@ class TestP8AGIProtocol:
         预期: 响应命中对应能力, 含审计记录。
         """
         from mci_world_model.sdk._agi_protocol import AGICapability, AGIRequest
+
         agi = AGIIntegrationProtocol(min_confidence=0.3, audit_enabled=True)
 
         # 注册能力
@@ -401,8 +424,7 @@ class TestP8AGIProtocol:
         req = AGIRequest(
             request_id="AGI_001",
             capability=AGICapability.CAUSAL_REASONING,
-            payload={"hypothesis": "X causes Y",
-                     "evidence_strength": 0.85},
+            payload={"hypothesis": "X causes Y", "evidence_strength": 0.85},
         )
         resp = agi.handle_request(req)
 
