@@ -91,9 +91,7 @@ class CreatedTheory:
 
     def __post_init__(self) -> None:
         if not self.theory_id:
-            self.theory_id = hashlib.md5(
-                f"{self.domain}:{self.strategy}:{time.time()}".encode()
-            ).hexdigest()[:12]
+            self.theory_id = hashlib.md5(f"{self.domain}:{self.strategy}:{time.time()}".encode()).hexdigest()[:12]
 
 
 # =============================================================================
@@ -137,9 +135,7 @@ class DomainKnowledge:
     def get_all_domain_theories(self, domain: str) -> list[dict[str, Any]]:
         return self._theories.get(domain, [])
 
-    def search_similar_structures(
-        self, gap: dict[str, Any], exclude_domain: str | None = None
-    ) -> list[dict[str, Any]]:
+    def search_similar_structures(self, gap: dict[str, Any], exclude_domain: str | None = None) -> list[dict[str, Any]]:
         """搜索相似因果结构。"""
         results = []
         for dom, theories in self._theories.items():
@@ -206,9 +202,7 @@ class CausalCreationEngine:
 
     # ── Main Creation ───────────────────────────────────────────────────
 
-    def create_causal_theory(
-        self, domain: str, strategy: str = "analogy"
-    ) -> dict[str, Any]:
+    def create_causal_theory(self, domain: str, strategy: str = "analogy") -> dict[str, Any]:
         """创造新因果理论。
 
         Args:
@@ -231,15 +225,10 @@ class CausalCreationEngine:
         candidates = create_fn(domain, gaps)
 
         # Step 3: 一致性检验
-        consistent = [
-            c for c in candidates if self._check_internal_consistency(c)
-        ]
+        consistent = [c for c in candidates if self._check_internal_consistency(c)]
 
         # Step 4: 兼容性检验
-        compatible = [
-            c for c in consistent
-            if self._check_knowledge_compatibility(c, domain)
-        ]
+        compatible = [c for c in consistent if self._check_knowledge_compatibility(c, domain)]
 
         # Step 5: 新颖性 + 可证伪性
         for theory in compatible:
@@ -250,8 +239,7 @@ class CausalCreationEngine:
         # 排序
         ranked = sorted(
             compatible,
-            key=lambda t: t.get("novelty_score", 0) * 0.6
-            + t.get("consistency_score", 0) * 0.4,
+            key=lambda t: t.get("novelty_score", 0) * 0.6 + t.get("consistency_score", 0) * 0.4,
             reverse=True,
         )
 
@@ -274,14 +262,16 @@ class CausalCreationEngine:
             created.status = TheoryStatus.CONSISTENT
             self._created_theories.append(created)
 
-        self._creation_log.append({
-            "domain": domain,
-            "strategy": strategy,
-            "n_candidates": len(candidates),
-            "n_consistent": len(consistent),
-            "n_compatible": len(compatible),
-            "selected_novelty": created.novelty_score if created else 0,
-        })
+        self._creation_log.append(
+            {
+                "domain": domain,
+                "strategy": strategy,
+                "n_candidates": len(candidates),
+                "n_consistent": len(consistent),
+                "n_compatible": len(compatible),
+                "selected_novelty": created.novelty_score if created else 0,
+            }
+        )
 
         return {
             "created_theory": created,
@@ -298,17 +288,17 @@ class CausalCreationEngine:
         """类比创造: 从已知领域迁移因果结构到新领域。"""
         theories = []
         for gap in gaps:
-            similar = self._knowledge.search_similar_structures(
-                gap, exclude_domain=domain
-            )
+            similar = self._knowledge.search_similar_structures(gap, exclude_domain=domain)
             for source in similar:
-                theories.append({
-                    "statement": f"Analogous to {source['domain']}: "
-                                 f"{source.get('theory', {}).get('statement', 'unknown')}",
-                    "source_domain": source["domain"],
-                    "similarity": source["similarity"],
-                    "gap_addressed": gap.get("description", ""),
-                })
+                theories.append(
+                    {
+                        "statement": f"Analogous to {source['domain']}: "
+                        f"{source.get('theory', {}).get('statement', 'unknown')}",
+                        "source_domain": source["domain"],
+                        "similarity": source["similarity"],
+                        "gap_addressed": gap.get("description", ""),
+                    }
+                )
         return theories
 
     def _create_by_composition(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -316,16 +306,20 @@ class CausalCreationEngine:
         theories = []
         mechanisms = self._knowledge.get_domain_mechanisms(domain)
         for i, m1 in enumerate(mechanisms):
-            for m2 in mechanisms[i + 1:]:
-                theories.append({
-                    "statement": f"Composed: {m1.get('name', 'M1')} + {m2.get('name', 'M2')}",
-                    "components": [m1, m2],
-                })
+            for m2 in mechanisms[i + 1 :]:
+                theories.append(
+                    {
+                        "statement": f"Composed: {m1.get('name', 'M1')} + {m2.get('name', 'M2')}",
+                        "components": [m1, m2],
+                    }
+                )
         if not mechanisms:
-            theories.append({
-                "statement": f"Composed default mechanisms for {domain}",
-                "components": [],
-            })
+            theories.append(
+                {
+                    "statement": f"Composed default mechanisms for {domain}",
+                    "components": [],
+                }
+            )
         return theories
 
     def _create_by_abstraction(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -333,16 +327,20 @@ class CausalCreationEngine:
         theories = []
         known_laws = self._knowledge.get_domain_theories(domain)
         for law in known_laws:
-            theories.append({
-                "statement": f"Abstracted from: {law.get('statement', 'unknown')}",
-                "abstracted_from": law,
-                "abstraction_level": "meta",
-            })
+            theories.append(
+                {
+                    "statement": f"Abstracted from: {law.get('statement', 'unknown')}",
+                    "abstracted_from": law,
+                    "abstraction_level": "meta",
+                }
+            )
         if not known_laws:
-            theories.append({
-                "statement": f"Abstract meta-principle for {domain}",
-                "abstraction_level": "meta",
-            })
+            theories.append(
+                {
+                    "statement": f"Abstract meta-principle for {domain}",
+                    "abstraction_level": "meta",
+                }
+            )
         return theories
 
     def _create_by_negation(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -350,16 +348,20 @@ class CausalCreationEngine:
         theories = []
         assumptions = self._knowledge.get_domain_assumptions(domain)
         for assumption in assumptions:
-            theories.append({
-                "statement": f"Negation of: {assumption}",
-                "negated_assumption": assumption,
-                "alternative": f"Not({assumption})",
-            })
+            theories.append(
+                {
+                    "statement": f"Negation of: {assumption}",
+                    "negated_assumption": assumption,
+                    "alternative": f"Not({assumption})",
+                }
+            )
         if not assumptions:
-            theories.append({
-                "statement": f"Negation of default assumptions in {domain}",
-                "negated_assumption": "default",
-            })
+            theories.append(
+                {
+                    "statement": f"Negation of default assumptions in {domain}",
+                    "negated_assumption": "default",
+                }
+            )
         return theories
 
     def _create_by_extrapolation(self, domain: str, gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -367,16 +369,20 @@ class CausalCreationEngine:
         theories = []
         trends = self._knowledge.get_domain_trends(domain)
         for trend in trends:
-            theories.append({
-                "statement": f"Extrapolated from trend: {trend.get('description', 'unknown')}",
-                "trend": trend,
-                "extrapolation_range": "beyond_known",
-            })
+            theories.append(
+                {
+                    "statement": f"Extrapolated from trend: {trend.get('description', 'unknown')}",
+                    "trend": trend,
+                    "extrapolation_range": "beyond_known",
+                }
+            )
         if not trends:
-            theories.append({
-                "statement": f"Extrapolated trend for {domain}",
-                "extrapolation_range": "unknown",
-            })
+            theories.append(
+                {
+                    "statement": f"Extrapolated trend for {domain}",
+                    "extrapolation_range": "unknown",
+                }
+            )
         return theories
 
     # ── Assessment Methods ──────────────────────────────────────────────
@@ -413,13 +419,7 @@ class CausalCreationEngine:
     def _design_falsification(self, theory: dict[str, Any]) -> dict[str, Any]:
         """可证伪性设计。"""
         return {
-            "testable_predictions": [
-                f"If theory '{theory.get('statement', '')[:30]}' is true, then X should decrease"
-            ],
-            "critical_experiments": [
-                "Intervention experiment on key variable"
-            ],
-            "boundary_conditions": [
-                "Theory should not hold under extreme conditions"
-            ],
+            "testable_predictions": [f"If theory '{theory.get('statement', '')[:30]}' is true, then X should decrease"],
+            "critical_experiments": ["Intervention experiment on key variable"],
+            "boundary_conditions": ["Theory should not hold under extreme conditions"],
         }

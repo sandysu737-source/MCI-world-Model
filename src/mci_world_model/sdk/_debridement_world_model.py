@@ -137,8 +137,12 @@ class DebridementWorldModel:
         self._attn_Wk = [rng.randn(cfg.d_model, cfg.d_model).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)]
         self._attn_Wv = [rng.randn(cfg.d_model, cfg.d_model).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)]
         self._attn_Wo = [rng.randn(cfg.d_model, cfg.d_model).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)]
-        self._ffn_W1 = [rng.randn(cfg.d_model, cfg.d_model * cfg.mlp_ratio).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)]
-        self._ffn_W2 = [rng.randn(cfg.d_model * cfg.mlp_ratio, cfg.d_model).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)]
+        self._ffn_W1 = [
+            rng.randn(cfg.d_model, cfg.d_model * cfg.mlp_ratio).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)
+        ]
+        self._ffn_W2 = [
+            rng.randn(cfg.d_model * cfg.mlp_ratio, cfg.d_model).astype(np.float64) * 0.02 for _ in range(cfg.n_layers)
+        ]
         self._ln1 = [np.ones(cfg.d_model, dtype=np.float64) for _ in range(cfg.n_layers)]
         self._ln2 = [np.ones(cfg.d_model, dtype=np.float64) for _ in range(cfg.n_layers)]
 
@@ -169,7 +173,7 @@ class DebridementWorldModel:
         total = 0
         seen = set()
         for attr in dir(self):
-            if attr.startswith('_') and not attr.startswith('__'):
+            if attr.startswith("_") and not attr.startswith("__"):
                 try:
                     v = getattr(self, attr)
                     vid = id(v)
@@ -205,48 +209,55 @@ class DebridementWorldModel:
         cfg = self.config
 
         # RGB
-        rgb_flat = sample.rgb_image.astype(np.float64).ravel()[:cfg.rgb_dim]
+        rgb_flat = sample.rgb_image.astype(np.float64).ravel()[: cfg.rgb_dim]
         if len(rgb_flat) < cfg.rgb_dim:
             rgb_flat = np.pad(rgb_flat, (0, cfg.rgb_dim - len(rgb_flat)))
         rgb_feat = rgb_flat @ self._proj_rgb
 
         # Depth
-        if not hasattr(self, '_depth_encoder'):
+        if not hasattr(self, "_depth_encoder"):
             self._depth_encoder = DepthEncoder()
         depth_feat = self._depth_encoder.encode(sample.depth_image).astype(np.float64)
         if len(depth_feat) < cfg.depth_dim:
             depth_feat = np.pad(depth_feat, (0, cfg.depth_dim - len(depth_feat)))
-        depth_feat = depth_feat[:cfg.depth_dim] @ self._proj_depth[:cfg.depth_dim]  # type: ignore
+        depth_feat = depth_feat[: cfg.depth_dim] @ self._proj_depth[: cfg.depth_dim]  # type: ignore
 
         # Thermal
-        thermal_flat = sample.thermal_image.astype(np.float64).ravel()[:cfg.thermal_dim]
+        thermal_flat = sample.thermal_image.astype(np.float64).ravel()[: cfg.thermal_dim]
         if len(thermal_flat) < cfg.thermal_dim:
             thermal_flat = np.pad(thermal_flat, (0, cfg.thermal_dim - len(thermal_flat)))
         thermal_feat = thermal_flat @ self._proj_thermal
 
         # Force
-        if not hasattr(self, '_force_encoder'):
+        if not hasattr(self, "_force_encoder"):
             self._force_encoder = ForceEncoder()
         force_feat = self._force_encoder.encode(sample.force_torque).astype(np.float64)
         if len(force_feat) < cfg.force_dim:
             force_feat = np.pad(force_feat, (0, cfg.force_dim - len(force_feat)))
-        force_feat = force_feat[:cfg.force_dim] @ self._proj_force[:cfg.force_dim]  # type: ignore
+        force_feat = force_feat[: cfg.force_dim] @ self._proj_force[: cfg.force_dim]  # type: ignore
 
         # Proprioception
-        prop = np.concatenate([sample.joint_positions, sample.joint_velocities, sample.joint_efforts]).astype(np.float64)
+        prop = np.concatenate([sample.joint_positions, sample.joint_velocities, sample.joint_efforts]).astype(
+            np.float64
+        )
         if len(prop) < cfg.proprio_dim:
             prop = np.pad(prop, (0, cfg.proprio_dim - len(prop)))
-        prop_feat = prop[:cfg.proprio_dim] @ self._proj_proprio[:cfg.proprio_dim]  # type: ignore
+        prop_feat = prop[: cfg.proprio_dim] @ self._proj_proprio[: cfg.proprio_dim]  # type: ignore
 
         # Clinical metadata
-        clinical = np.array([
-            float(sample.tissue_label), sample.wound_depth_mm / 10.0,
-            float(sample.surgical_phase), sample.tool_force_n / 5.0,
-            sample.tool_velocity / 10.0,
-        ], dtype=np.float64)
+        clinical = np.array(
+            [
+                float(sample.tissue_label),
+                sample.wound_depth_mm / 10.0,
+                float(sample.surgical_phase),
+                sample.tool_force_n / 5.0,
+                sample.tool_velocity / 10.0,
+            ],
+            dtype=np.float64,
+        )
         if len(clinical) < cfg.clinical_dim:
             clinical = np.pad(clinical, (0, cfg.clinical_dim - len(clinical)))
-        clinical_feat = clinical[:cfg.clinical_dim] @ self._proj_clinical[:cfg.clinical_dim]  # type: ignore
+        clinical_feat = clinical[: cfg.clinical_dim] @ self._proj_clinical[: cfg.clinical_dim]  # type: ignore
 
         # Stack modalities and fuse via projection + sum
         modal_feats = [rgb_feat, depth_feat, thermal_feat, force_feat, prop_feat, clinical_feat]
@@ -279,7 +290,7 @@ class DebridementWorldModel:
         return e / np.sum(e, axis=-1, keepdims=True)
 
     @staticmethod
-    def _layer_norm(x: Any, gamma: Any, eps: Any=1e-5) -> None:
+    def _layer_norm(x: Any, gamma: Any, eps: Any = 1e-5) -> None:
         mean = np.mean(x)
         var = np.var(x)
         return gamma * (x - mean) / np.sqrt(var + eps)
@@ -310,7 +321,9 @@ class DebridementWorldModel:
 
     # ── 训练 ──
 
-    def train(self, samples: list[Any], n_epochs: int | None = None, lr: float | None = None, batch_size: int | None = None) -> dict[str, Any]:
+    def train(
+        self, samples: list[Any], n_epochs: int | None = None, lr: float | None = None, batch_size: int | None = None
+    ) -> dict[str, Any]:
         """Mini-batch SGD 多任务训练。
 
         L_total = L_dynamics (MSE) + λ * L_tissue (CrossEntropy)
@@ -332,7 +345,7 @@ class DebridementWorldModel:
             n_batches = 0
 
             for start in range(0, n, batch_size):
-                batch_idx = indices[start:start + batch_size]
+                batch_idx = indices[start : start + batch_size]
                 batch_dyn_loss, batch_tis_loss = 0.0, 0.0
                 _grads = {id(p): np.zeros_like(p) for p in all_params}
 
@@ -348,14 +361,16 @@ class DebridementWorldModel:
                     tissue_probs = np.exp(tissue_logits) / np.sum(np.exp(tissue_logits))
 
                     # Dynamics target: proprio + force
-                    target = np.concatenate([
-                        sample.joint_positions.astype(np.float64),
-                        sample.joint_velocities.astype(np.float64),
-                        sample.joint_efforts.astype(np.float64),
-                        sample.force_torque.astype(np.float64),
-                    ])
+                    target = np.concatenate(
+                        [
+                            sample.joint_positions.astype(np.float64),
+                            sample.joint_velocities.astype(np.float64),
+                            sample.joint_efforts.astype(np.float64),
+                            sample.force_torque.astype(np.float64),
+                        ]
+                    )
                     if len(target) > len(dynamics_pred):
-                        target = target[:len(dynamics_pred)]
+                        target = target[: len(dynamics_pred)]
                     elif len(target) < len(dynamics_pred):
                         target = np.pad(target, (0, len(dynamics_pred) - len(target)))
 
@@ -390,7 +405,7 @@ class DebridementWorldModel:
         """收集所有可训练参数的引用列表。"""
         params = []
         for attr in dir(self):
-            if attr.startswith('_') and not attr.startswith('__'):
+            if attr.startswith("_") and not attr.startswith("__"):
                 v = getattr(self, attr)
                 if isinstance(v, np.ndarray) and v.dtype in (np.float64, np.float32):
                     params.append(v)
@@ -405,7 +420,7 @@ class DebridementWorldModel:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
             save_dict = {}
             for attr in dir(self):
-                if attr.startswith('_') and not attr.startswith('__'):
+                if attr.startswith("_") and not attr.startswith("__"):
                     v = getattr(self, attr)
                     if isinstance(v, np.ndarray):
                         save_dict[attr] = v
@@ -429,7 +444,7 @@ class DebridementWorldModel:
             cfg = config or DebridementConfig.small()
             model = cls(cfg)
             for attr in dir(model):
-                if attr.startswith('_') and not attr.startswith('__'):
+                if attr.startswith("_") and not attr.startswith("__"):
                     if attr in data:
                         v = data[attr]
                         current = getattr(model, attr)
@@ -446,12 +461,9 @@ class DebridementWorldModel:
             logger.error("Load failed: %s", e)
             return None
 
-
     # ── 时序 Transformer (多步序列) ──
 
-    def _temporal_transformer_forward(
-        self, x_seq: np.ndarray, mask: np.ndarray | None = None
-    ) -> np.ndarray:
+    def _temporal_transformer_forward(self, x_seq: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
         """时序 Transformer 前向: 处理多步序列 (T, d_model)。
 
         Args:
@@ -488,9 +500,7 @@ class DebridementWorldModel:
             h = self._layer_norm(h + ffn, self._ln2[i])  # type: ignore
         return h
 
-    def forward_sequence(
-        self, samples: list[Any], mask: np.ndarray | None = None
-    ) -> dict[str, np.ndarray]:
+    def forward_sequence(self, samples: list[Any], mask: np.ndarray | None = None) -> dict[str, np.ndarray]:
         """序列前向: 处理 T 帧 DebridementSample → 时序预测。
 
         Args:
@@ -501,9 +511,7 @@ class DebridementWorldModel:
             {"dynamics": (T, state_dim), "tissue_probs": (T, 4), "phase_probs": (T, 4)}
         """
         _T = len(samples)
-        fused_seq = np.stack([
-            self.encode_modalities(s) for s in samples
-        ])  # (T, d_model)
+        fused_seq = np.stack([self.encode_modalities(s) for s in samples])  # (T, d_model)
 
         hidden_seq = self._temporal_transformer_forward(fused_seq, mask)  # (T, d_model)
 
@@ -526,12 +534,14 @@ class DebridementWorldModel:
         output = self.forward(sample)
         dynamics = output["dynamics"]
         # 从 dynamics 信号推断手术相
-        phase_signal = np.array([
-            float(np.mean(dynamics[:7])),     # 关节位置趋势
-            float(np.mean(dynamics[7:14])),   # 关节速度趋势
-            float(np.mean(dynamics[14:21])),  # 关节力矩趋势
-            float(np.mean(dynamics[21:27])),  # 力反馈趋势
-        ])
+        phase_signal = np.array(
+            [
+                float(np.mean(dynamics[:7])),  # 关节位置趋势
+                float(np.mean(dynamics[7:14])),  # 关节速度趋势
+                float(np.mean(dynamics[14:21])),  # 关节力矩趋势
+                float(np.mean(dynamics[21:27])),  # 力反馈趋势
+            ]
+        )
         phase_signal = phase_signal - np.mean(phase_signal)
         phase_signal = np.tanh(phase_signal * 2.0)
         phase_signal = phase_signal - np.min(phase_signal)
@@ -564,12 +574,12 @@ class DebridementWorldModel:
         cfg = self.config
 
         # 编码各模态到 MLX 张量
-        rgb_vec = mx.array(sample_arrays.get("rgb", np.zeros(224 * 224 * 3)).ravel()[:cfg.rgb_dim])
-        depth_vec = mx.array(sample_arrays.get("depth", np.zeros(224 * 224)).ravel()[:cfg.depth_dim])
-        thermal_vec = mx.array(sample_arrays.get("thermal", np.zeros(224 * 224)).ravel()[:cfg.thermal_dim])
-        force_vec = mx.array(sample_arrays.get("force", np.zeros(6))[:cfg.force_dim])
-        proprio_vec = mx.array(sample_arrays.get("proprio", np.zeros(21))[:cfg.proprio_dim])
-        clinical_vec = mx.array(sample_arrays.get("clinical", np.zeros(cfg.clinical_dim))[:cfg.clinical_dim])
+        rgb_vec = mx.array(sample_arrays.get("rgb", np.zeros(224 * 224 * 3)).ravel()[: cfg.rgb_dim])
+        depth_vec = mx.array(sample_arrays.get("depth", np.zeros(224 * 224)).ravel()[: cfg.depth_dim])
+        thermal_vec = mx.array(sample_arrays.get("thermal", np.zeros(224 * 224)).ravel()[: cfg.thermal_dim])
+        force_vec = mx.array(sample_arrays.get("force", np.zeros(6))[: cfg.force_dim])
+        proprio_vec = mx.array(sample_arrays.get("proprio", np.zeros(21))[: cfg.proprio_dim])
+        clinical_vec = mx.array(sample_arrays.get("clinical", np.zeros(cfg.clinical_dim))[: cfg.clinical_dim])
 
         # 投影
         p_rgb = mx.array(self._proj_rgb)  # type: ignore
@@ -642,5 +652,5 @@ class DebridementWorldModel:
 
 
 def repr_info(self) -> str:  # type: ignore
-        cfg = self.config
-        return f"DebridementWorldModel(d={cfg.d_model}, L={cfg.n_layers}, h={cfg.n_heads}, params={self.n_params})"
+    cfg = self.config
+    return f"DebridementWorldModel(d={cfg.d_model}, L={cfg.n_layers}, h={cfg.n_heads}, params={self.n_params})"

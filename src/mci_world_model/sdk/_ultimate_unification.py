@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 class UnificationLevel(str, Enum):
     """统一层次。"""
+
     CAUSAL_PHYSICAL = "causal_physical"
     CAUSAL_CREATION = "causal_creation"
     CAUSAL_META = "causal_meta"
@@ -45,6 +46,7 @@ class UnificationLevel(str, Enum):
 @dataclass
 class FieldTensor:
     """统一场张量。"""
+
     einstein_tensor: np.ndarray | None = None
     causal_tensor: np.ndarray | None = None
     meta_causal_tensor: np.ndarray | None = None
@@ -65,19 +67,19 @@ class FieldTensor:
 
     @property
     def has_causal_physical(self) -> bool:
-        return (self.einstein_tensor is not None
-                and self.causal_tensor is not None)
+        return self.einstein_tensor is not None and self.causal_tensor is not None
 
     @property
     def has_tri_unified(self) -> bool:
-        return (self.einstein_tensor is not None
-                and self.causal_tensor is not None
-                and self.meta_causal_tensor is not None)
+        return (
+            self.einstein_tensor is not None and self.causal_tensor is not None and self.meta_causal_tensor is not None
+        )
 
 
 @dataclass
 class ExistenceInvariant:
     """存在不变量。"""
+
     invariant_type: str = ""
     value: Any = None
     subspace: str = ""
@@ -92,6 +94,7 @@ class ExistenceInvariant:
 @dataclass
 class UnificationReport:
     """统一状态报告。"""
+
     current_level: str = ""
     n_invariants: int = 0
     causal_completeness: float = 0.0
@@ -188,8 +191,7 @@ class UltimateUnification:
         }
 
         self._unification_history.append(result)
-        logger.info("Unification level: %s, tri_unified=%s",
-                     self._current_level.value, result["tri_unified"])
+        logger.info("Unification level: %s, tri_unified=%s", self._current_level.value, result["tri_unified"])
         return result
 
     def extract_existence_invariants(self) -> list[ExistenceInvariant]:
@@ -206,46 +208,54 @@ class UltimateUnification:
         # 因果存在不变量
         causal_inv = self._find_invariant("causal")
         if causal_inv is not None:
-            self._existence_invariants.append(ExistenceInvariant(
-                invariant_type="causal_existence",
-                value=causal_inv,
-                subspace="causal",
-                stability=self._measure_stability(causal_inv),
-                discovered_at="P20_unification",
-            ))
+            self._existence_invariants.append(
+                ExistenceInvariant(
+                    invariant_type="causal_existence",
+                    value=causal_inv,
+                    subspace="causal",
+                    stability=self._measure_stability(causal_inv),
+                    discovered_at="P20_unification",
+                )
+            )
 
         # 物理存在不变量
         physical_inv = self._find_invariant("physical")
         if physical_inv is not None:
-            self._existence_invariants.append(ExistenceInvariant(
-                invariant_type="physical_existence",
-                value=physical_inv,
-                subspace="physical",
-                stability=self._measure_stability(physical_inv),
-                discovered_at="P20_unification",
-            ))
+            self._existence_invariants.append(
+                ExistenceInvariant(
+                    invariant_type="physical_existence",
+                    value=physical_inv,
+                    subspace="physical",
+                    stability=self._measure_stability(physical_inv),
+                    discovered_at="P20_unification",
+                )
+            )
 
         # 元因果存在不变量
         meta_inv = self._find_invariant("meta_causal")
         if meta_inv is not None:
-            self._existence_invariants.append(ExistenceInvariant(
-                invariant_type="meta_existence",
-                value=meta_inv,
-                subspace="meta_causal",
-                stability=self._measure_stability(meta_inv),
-                discovered_at="P20_unification",
-            ))
+            self._existence_invariants.append(
+                ExistenceInvariant(
+                    invariant_type="meta_existence",
+                    value=meta_inv,
+                    subspace="meta_causal",
+                    stability=self._measure_stability(meta_inv),
+                    discovered_at="P20_unification",
+                )
+            )
 
         # 绝对存在不变量
         absolute_inv = self._find_absolute_invariant()
         if absolute_inv is not None:
-            self._existence_invariants.append(ExistenceInvariant(
-                invariant_type="absolute_existence",
-                value=absolute_inv,
-                subspace="absolute",
-                stability=self._measure_stability(absolute_inv),
-                discovered_at="P20_absolute",
-            ))
+            self._existence_invariants.append(
+                ExistenceInvariant(
+                    invariant_type="absolute_existence",
+                    value=absolute_inv,
+                    subspace="absolute",
+                    stability=self._measure_stability(absolute_inv),
+                    discovered_at="P20_absolute",
+                )
+            )
 
         logger.info("Extracted %d existence invariants", len(self._existence_invariants))
         return self._existence_invariants
@@ -328,8 +338,7 @@ class UltimateUnification:
             causal_completeness=self.measure_causal_completeness(),
             physical_coupling=self.measure_physical_coupling(),
             meta_transcendence=self._measure_meta_transcendence(),
-            tri_unified=self._current_level in (
-                UnificationLevel.TRI_UNIFIED, UnificationLevel.ABSOLUTE),
+            tri_unified=self._current_level in (UnificationLevel.TRI_UNIFIED, UnificationLevel.ABSOLUTE),
             absolute_achieved=self._current_level == UnificationLevel.ABSOLUTE,
         )
 
@@ -433,24 +442,30 @@ class UltimateUnification:
 
         if unified is not None:
             # 因果守恒
-            laws.append({
-                "name": "causal_energy_conservation",
-                "statement": "Total causal energy is conserved across unified field",
-                "verified": True,
-            })
+            laws.append(
+                {
+                    "name": "causal_energy_conservation",
+                    "statement": "Total causal energy is conserved across unified field",
+                    "verified": True,
+                }
+            )
             # 信息守恒
-            laws.append({
-                "name": "information_conservation",
-                "statement": "Causal information is preserved through unification",
-                "verified": True,
-            })
+            laws.append(
+                {
+                    "name": "information_conservation",
+                    "statement": "Causal information is preserved through unification",
+                    "verified": True,
+                }
+            )
             # 存在守恒
             if self._current_level in (UnificationLevel.TRI_UNIFIED, UnificationLevel.ABSOLUTE):
-                laws.append({
-                    "name": "existence_conservation",
-                    "statement": "Total existence measure is invariant under unification",
-                    "verified": True,
-                })
+                laws.append(
+                    {
+                        "name": "existence_conservation",
+                        "statement": "Total existence measure is invariant under unification",
+                        "verified": True,
+                    }
+                )
 
         return laws
 
@@ -458,25 +473,31 @@ class UltimateUnification:
         """发现对称性。"""
         symmetries = []
 
-        symmetries.append({
-            "name": "causal_physical_duality",
-            "description": "Causal and physical descriptions are dual",
-            "level": "causal_physical",
-        })
+        symmetries.append(
+            {
+                "name": "causal_physical_duality",
+                "description": "Causal and physical descriptions are dual",
+                "level": "causal_physical",
+            }
+        )
 
         if self._current_level in (UnificationLevel.TRI_UNIFIED, UnificationLevel.ABSOLUTE):
-            symmetries.append({
-                "name": "tri_unified_symmetry",
-                "description": "Causal×Physical×Meta form a symmetric triad",
-                "level": "tri_unified",
-            })
+            symmetries.append(
+                {
+                    "name": "tri_unified_symmetry",
+                    "description": "Causal×Physical×Meta form a symmetric triad",
+                    "level": "tri_unified",
+                }
+            )
 
         if self._current_level == UnificationLevel.ABSOLUTE:
-            symmetries.append({
-                "name": "absolute_symmetry",
-                "description": "All distinctions dissolve in absolute existence",
-                "level": "absolute",
-            })
+            symmetries.append(
+                {
+                    "name": "absolute_symmetry",
+                    "description": "All distinctions dissolve in absolute existence",
+                    "level": "absolute",
+                }
+            )
 
         return symmetries
 
@@ -492,9 +513,7 @@ class UltimateUnification:
 
     def _formulate_existence_equation(self, absolute_state: dict[str, Any]) -> str:
         """制定存在方程。"""
-        return (
-            "R_μν - (1/2)g_μνR + Λg_μν + ξC_μν + ηM_μν = (8πG/c⁴)T_μν"
-        )
+        return "R_μν - (1/2)g_μνR + Λg_μν + ξC_μν + ηM_μν = (8πG/c⁴)T_μν"
 
     def _discover_final_symmetry(self, absolute_state: dict[str, Any]) -> dict[str, Any]:
         """发现最终对称性。"""
