@@ -121,9 +121,7 @@ class QuantumCausalInference:
 
         # Step 2: 量子因果效应电路
         n_qubits = min(int(np.ceil(np.log2(max(data.shape[0], 2)))), 10)
-        circuit = self._build_causal_effect_circuit(
-            n_qubits, abs(correlation)
-        )
+        circuit = self._build_causal_effect_circuit(n_qubits, abs(correlation))
 
         # Step 3: 执行
         result = self._bridge.execute_on_quantum_hardware(circuit, n_shots)
@@ -169,22 +167,14 @@ class QuantumCausalInference:
             反事实推理结果
         """
         # Step 1: 量子编码事实数据
-        factual_array = np.array(
-            list(factual_data.values()), dtype=float
-        ).reshape(1, -1)
-        factual_circuit = self._bridge.encode_classical_to_quantum(
-            factual_array, method="angle"
-        )
+        factual_array = np.array(list(factual_data.values()), dtype=float).reshape(1, -1)
+        factual_circuit = self._bridge.encode_classical_to_quantum(factual_array, method="angle")
 
         # Step 2: 施加干预 (修改电路参数)
-        intervened_circuit = self._apply_quantum_intervention(
-            factual_circuit, intervention
-        )
+        intervened_circuit = self._apply_quantum_intervention(factual_circuit, intervention)
 
         # Step 3: 前向传播
-        result = self._bridge.execute_on_quantum_hardware(
-            intervened_circuit, n_shots
-        )
+        result = self._bridge.execute_on_quantum_hardware(intervened_circuit, n_shots)
 
         # Step 4: 解码反事实结果
         counterfactual = self._bridge.decode_quantum_to_classical(result)
@@ -198,9 +188,7 @@ class QuantumCausalInference:
 
     # ── Causal Discovery ────────────────────────────────────────────────
 
-    def quantum_causal_discovery(
-        self, data: np.ndarray, var_names: list[str] | None = None
-    ) -> dict[str, Any]:
+    def quantum_causal_discovery(self, data: np.ndarray, var_names: list[str] | None = None) -> dict[str, Any]:
         """量子因果发现 — 利用量子独立性检验发现因果结构。
 
         Args:
@@ -223,9 +211,7 @@ class QuantumCausalInference:
             for j in range(i + 1, n_vars):
                 # 量子因果效应估计
                 pair_data = np.column_stack([data[:, i], data[:, j]])
-                effect = self.quantum_causal_effect(
-                    var_names[i], var_names[j], pair_data, n_shots=2048
-                )
+                effect = self.quantum_causal_effect(var_names[i], var_names[j], pair_data, n_shots=2048)
                 if abs(effect.ate) > 0.1:
                     edges.append(
                         {
@@ -246,9 +232,7 @@ class QuantumCausalInference:
 
     # ── Internal Methods ────────────────────────────────────────────────
 
-    def _build_causal_effect_circuit(
-        self, n_qubits: int, signal_strength: float
-    ) -> QuantumCircuit:
+    def _build_causal_effect_circuit(self, n_qubits: int, signal_strength: float) -> QuantumCircuit:
         """构建因果效应检测电路。"""
         circuit = QuantumCircuit(n_qubits=n_qubits, n_shots=4096)
 
@@ -264,13 +248,9 @@ class QuantumCausalInference:
 
         return circuit
 
-    def _apply_quantum_intervention(
-        self, circuit: QuantumCircuit, intervention: dict[str, Any]
-    ) -> QuantumCircuit:
+    def _apply_quantum_intervention(self, circuit: QuantumCircuit, intervention: dict[str, Any]) -> QuantumCircuit:
         """在量子电路中施加干预。"""
-        intervened = QuantumCircuit(
-            n_qubits=circuit.n_qubits, n_shots=circuit.n_shots
-        )
+        intervened = QuantumCircuit(n_qubits=circuit.n_qubits, n_shots=circuit.n_shots)
         intervened.gates = list(circuit.gates)
 
         # 干预: 重置某些量子比特并施加新的旋转

@@ -133,9 +133,7 @@ class CausalFederationArchitecture:
 
     # ── Knowledge Distribution ──────────────────────────────────────────
 
-    def distribute_causal_knowledge(
-        self, causal_graph: dict[str, Any], domain: str
-    ) -> dict[str, Any]:
+    def distribute_causal_knowledge(self, causal_graph: dict[str, Any], domain: str) -> dict[str, Any]:
         """分布式因果知识存储。
 
         流程:
@@ -211,10 +209,7 @@ class CausalFederationArchitecture:
                 local_discoveries[node_id] = {
                     "dag": {
                         "nodes": [f"var_{i}" for i in range(n_vars)],
-                        "edges": [
-                            {"from": f"var_{i}", "to": f"var_{i+1}"}
-                            for i in range(n_vars - 1)
-                        ],
+                        "edges": [{"from": f"var_{i}", "to": f"var_{i + 1}"} for i in range(n_vars - 1)],
                     },
                     "confidence": np.random.uniform(0.5, 0.9),
                 }
@@ -236,9 +231,7 @@ class CausalFederationArchitecture:
             "merged_dag": merged_dag,
             "n_local_discoveries": len(local_discoveries),
             "n_conflicts": len(conflicts),
-            "consensus_reached": all(r.get("resolved", False) for r in resolved)
-            if resolved
-            else True,
+            "consensus_reached": all(r.get("resolved", False) for r in resolved) if resolved else True,
         }
 
     # ── Knowledge Retrieval ─────────────────────────────────────────────
@@ -284,9 +277,7 @@ class CausalFederationArchitecture:
 
     # ── Internal Methods ────────────────────────────────────────────────
 
-    def _shard_causal_graph(
-        self, graph: dict[str, Any], domain: str
-    ) -> list[CausalShard]:
+    def _shard_causal_graph(self, graph: dict[str, Any], domain: str) -> list[CausalShard]:
         """因果图分片: 按变量组切分。"""
         variables = list(graph.get("nodes", []))
         edges = graph.get("edges", [])
@@ -304,11 +295,7 @@ class CausalFederationArchitecture:
         for i in range(0, len(variables), shard_size):
             shard_vars = variables[i : i + shard_size]
             shard_id = f"{domain}_shard_{i // shard_size}"
-            shard_edges = [
-                e
-                for e in edges
-                if e.get("from") in shard_vars or e.get("to") in shard_vars
-            ]
+            shard_edges = [e for e in edges if e.get("from") in shard_vars or e.get("to") in shard_vars]
             shards.append(
                 CausalShard(
                     shard_id=shard_id,
@@ -350,9 +337,7 @@ class CausalFederationArchitecture:
             "confidence": 0.7,
         }
 
-    def _merge_causal_structures(
-        self, discoveries: dict[str, dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _merge_causal_structures(self, discoveries: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """合并因果结构。"""
         all_nodes = set()
         all_edges = []
@@ -373,11 +358,7 @@ class CausalFederationArchitecture:
         for edge in all_edges:
             edge_key = f"{edge.get('from')}->{edge.get('to')}"
             if edge_votes[edge_key] >= threshold:
-                if not any(
-                    e.get("from") == edge.get("from")
-                    and e.get("to") == edge.get("to")
-                    for e in merged_edges
-                ):
+                if not any(e.get("from") == edge.get("from") and e.get("to") == edge.get("to") for e in merged_edges):
                     merged_edges.append(edge)
 
         return {"nodes": list(all_nodes), "edges": merged_edges}
@@ -409,9 +390,7 @@ class CausalFederationArchitecture:
                 )
         return conflicts
 
-    def _apply_resolutions(
-        self, merged_dag: dict[str, Any], resolutions: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _apply_resolutions(self, merged_dag: dict[str, Any], resolutions: list[dict[str, Any]]) -> dict[str, Any]:
         """应用冲突解决方案到合并 DAG。"""
         resolved_edges = []
         removed_edges = set()

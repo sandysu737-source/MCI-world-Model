@@ -96,8 +96,7 @@ class OnlineEWC:
 
         if X.shape[1] != self._input_dim or y.shape[1] != self._output_dim:
             raise ValueError(
-                f"维度不匹配: X {X.shape} vs input {self._input_dim}, "
-                f"y {y.shape} vs output {self._output_dim}"
+                f"维度不匹配: X {X.shape} vs input {self._input_dim}, y {y.shape} vs output {self._output_dim}"
             )
 
         task_id = self._n_updates
@@ -115,7 +114,8 @@ class OnlineEWC:
                 if self._task_records:
                     current_lambda = self._adaptive_lambda
                     loss = self._model.train_step_with_ewc(
-                        x_i, y_i,
+                        x_i,
+                        y_i,
                         lr=self._config.lr,
                         task_records=self._task_records,
                         ewc_lambda=current_lambda,
@@ -202,15 +202,11 @@ class OnlineEWC:
         """自适应 EWC lambda — 随 update 次数增长。"""
         if not self._config.adaptive_ewc:
             return self._config.ewc_lambda
-        return self._config.ewc_lambda * (
-            1.0 + self._config.ewc_lambda_growth * self._n_updates
-        )
+        return self._config.ewc_lambda * (1.0 + self._config.ewc_lambda_growth * self._n_updates)
 
     # ── 内部方法 ──
 
-    def _compute_and_save_fisher(
-        self, X: np.ndarray, y: np.ndarray, task_id: int
-    ) -> None:
+    def _compute_and_save_fisher(self, X: np.ndarray, y: np.ndarray, task_id: int) -> None:
         """计算对角 Fisher 并保存任务记录。"""
         sample_idx = np.random.choice(
             X.shape[0],
@@ -241,9 +237,7 @@ class OnlineEWC:
         )
         self._task_records.append(record)
 
-    def _compute_fisher_diag(
-        self, X: np.ndarray, y: np.ndarray
-    ) -> dict[str, np.ndarray]:
+    def _compute_fisher_diag(self, X: np.ndarray, y: np.ndarray) -> dict[str, np.ndarray]:
         """计算参数的对角 Fisher 信息 (O(N) 复杂度)。
 
         对角 Fisher: F_i = E[(∂log p(y|x)/∂θ_i)²]
@@ -264,10 +258,10 @@ class OnlineEWC:
         d_b1 = d_h.sum(axis=0)
 
         fisher = {
-            "W1": d_W1 ** 2,
-            "b1": d_b1 ** 2,
-            "W2": d_W2 ** 2,
-            "b2": d_b2 ** 2,
+            "W1": d_W1**2,
+            "b1": d_b1**2,
+            "W2": d_W2**2,
+            "b2": d_b2**2,
         }
         # 正则化: 防止除零 + 裁剪防止梯度爆炸
         for k, v in fisher.items():
@@ -275,12 +269,7 @@ class OnlineEWC:
         return fisher
 
     def _count_params(self) -> int:
-        return (
-            self._model.W1.size
-            + self._model.b1.size
-            + self._model.W2.size
-            + self._model.b2.size
-        )
+        return self._model.W1.size + self._model.b1.size + self._model.W2.size + self._model.b2.size
 
     def _estimate_forgetting(self) -> float:
         """估计遗忘率: 最近 loss / 全局最小 loss - 1。

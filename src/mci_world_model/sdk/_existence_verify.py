@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 class VerificationPerspective(str, Enum):
     """验证视角。"""
+
     CAUSAL = "causal"
     PHYSICAL = "physical"
     META = "meta"
@@ -50,6 +51,7 @@ class VerificationPerspective(str, Enum):
 
 class VerificationStatus(str, Enum):
     """验证状态。"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     PASSED = "passed"
@@ -60,6 +62,7 @@ class VerificationStatus(str, Enum):
 @dataclass
 class VerificationResult:
     """验证结果。"""
+
     result_id: str = ""
     perspective: str = ""
     status: str = VerificationStatus.PENDING
@@ -73,6 +76,7 @@ class VerificationResult:
 @dataclass
 class IndependentVerification:
     """独立验证。"""
+
     verification_id: str = ""
     round_number: int = 0
     perspectives: list[str] = field(default_factory=list)
@@ -133,9 +137,7 @@ class ExistenceVerify:
 
     @property
     def all_passed(self) -> bool:
-        return len(self._verifications) >= 3 and all(
-            v.overall_passed for v in self._verifications
-        )
+        return len(self._verifications) >= 3 and all(v.overall_passed for v in self._verifications)
 
     @property
     def reproducibility(self) -> float:
@@ -163,9 +165,7 @@ class ExistenceVerify:
 
         # 计算综合置信度
         confidences = [r.confidence for r in results if r.status == VerificationStatus.PASSED]
-        consensus_confidence = (
-            sum(confidences) / len(confidences) if confidences else 0.0
-        )
+        consensus_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
         verification = IndependentVerification(
             verification_id=f"verify_{len(self._verifications)}",
@@ -198,7 +198,8 @@ class ExistenceVerify:
             "Existence verification round %d: %s (%d/%d passed)",
             verification.round_number,
             "PASSED" if overall_passed else "FAILED",
-            n_passed, len(perspectives),
+            n_passed,
+            len(perspectives),
         )
         return result_dict
 
@@ -216,18 +217,10 @@ class ExistenceVerify:
         # 额外严格检查
         n_passed = base_verification["n_passed"]
         confidence = base_verification["consensus_confidence"]
-        has_inconclusive = any(
-            r.status == VerificationStatus.INCONCLUSIVE
-            for r in self._verifications[-1].results
-        )
+        has_inconclusive = any(r.status == VerificationStatus.INCONCLUSIVE for r in self._verifications[-1].results)
         rollback_safe = self._check_rollback_safety()
 
-        absolute_passed = (
-            n_passed >= 4
-            and confidence >= 0.99
-            and not has_inconclusive
-            and rollback_safe
-        )
+        absolute_passed = n_passed >= 4 and confidence >= 0.99 and not has_inconclusive and rollback_safe
 
         return {
             "absolute_mode_verified": absolute_passed,
@@ -295,7 +288,8 @@ class ExistenceVerify:
                     "passed": self._verifications[-1].overall_passed,
                     "consensus_confidence": self._verifications[-1].consensus_confidence,
                 }
-                if self._verifications else None
+                if self._verifications
+                else None
             ),
             "perspective_summary": {
                 p.value: self._perspective_results.get(p.value, VerificationResult()).status

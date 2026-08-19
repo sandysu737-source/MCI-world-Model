@@ -285,14 +285,10 @@ class TrueJEPAEncoder:
         observations = np.asarray(observations, dtype=np.float64)
         if observations.ndim == 1:
             if observations.shape[0] != self._config.obs_dim:
-                raise ValueError(
-                    f"观测维度 {observations.shape[0]} 与配置 obs_dim={self._config.obs_dim} 不匹配"
-                )
+                raise ValueError(f"观测维度 {observations.shape[0]} 与配置 obs_dim={self._config.obs_dim} 不匹配")
         elif observations.ndim == 2:
             if observations.shape[1] != self._config.obs_dim:
-                raise ValueError(
-                    f"观测维度 {observations.shape[1]} 与配置 obs_dim={self._config.obs_dim} 不匹配"
-                )
+                raise ValueError(f"观测维度 {observations.shape[1]} 与配置 obs_dim={self._config.obs_dim} 不匹配")
         return self._online_encoder.forward(observations)
 
     def encode_target(self, observations: np.ndarray) -> np.ndarray:
@@ -379,7 +375,7 @@ class TrueJEPAEncoder:
         # ── 预测损失 (MSE) ──
         diff = z_pred - z_target
         D = self._config.latent_dim
-        pred_loss = float(np.mean(diff ** 2))
+        pred_loss = float(np.mean(diff**2))
         dz_pred = (2.0 / D) * diff  # MSE 对 z_pred 的梯度
 
         # ── VICReg 正则化 ──
@@ -503,10 +499,8 @@ class TrueJEPAEncoder:
 
         total_loss = 0.0
         # 累积 batch 标准差正则化梯度
-        online_grads_accum = {k: np.zeros_like(getattr(self._online_encoder, k))
-                              for k in ["_W1", "_b1", "_W2", "_b2"]}
-        predictor_grads_accum = {k: np.zeros_like(getattr(self._predictor, k))
-                                 for k in ["_W1", "_b1", "_W2", "_b2"]}
+        online_grads_accum = {k: np.zeros_like(getattr(self._online_encoder, k)) for k in ["_W1", "_b1", "_W2", "_b2"]}
+        predictor_grads_accum = {k: np.zeros_like(getattr(self._predictor, k)) for k in ["_W1", "_b1", "_W2", "_b2"]}
 
         # ── 编码整个 batch ──
         z_batch = np.zeros((B, D))
@@ -520,12 +514,12 @@ class TrueJEPAEncoder:
 
         # ── 预测损失 (每样本 MSE) ──
         diff_batch = z_pred_batch - z_target_batch  # (B, D)
-        pred_loss = float(np.mean(diff_batch ** 2))
+        pred_loss = float(np.mean(diff_batch**2))
 
         # ── batch 标准差正则化 ──
         z_mean = z_batch.mean(axis=0)  # (D,)
         z_centered = z_batch - z_mean  # (B, D)
-        std_d = np.sqrt(np.mean(z_centered ** 2, axis=0) + 1e-8)  # (D,)
+        std_d = np.sqrt(np.mean(z_centered**2, axis=0) + 1e-8)  # (D,)
         below = np.maximum(0.0, gamma - std_d)  # (D,)
         batch_std_loss = float(np.mean(below))
 
@@ -549,7 +543,7 @@ class TrueJEPAEncoder:
             dz_online = dz_online_pred + dz_std
             online_grads = self._online_encoder.backward(dz_online)
 
-            for k_map, attr in [("W1","_W1"),("b1","_b1"),("W2","_W2"),("b2","_b2")]:
+            for k_map, attr in [("W1", "_W1"), ("b1", "_b1"), ("W2", "_W2"), ("b2", "_b2")]:
                 online_grads_accum[attr] += online_grads[k_map]
                 predictor_grads_accum[attr] += pred_grads[k_map]
 
@@ -579,9 +573,7 @@ class TrueJEPAEncoder:
         梯度通过解析反向传播更新 online encoder。
         """
         n = min(observations.shape[0], 64)  # 限制 batch 大小
-        idx = np.random.RandomState(self._train_steps).choice(
-            observations.shape[0], n, replace=False
-        )
+        idx = np.random.RandomState(self._train_steps).choice(observations.shape[0], n, replace=False)
         batch = observations[idx]
         gamma = 2.0  # 目标 batch 标准差
         lr = self._config.lr
@@ -591,7 +583,7 @@ class TrueJEPAEncoder:
         # (n, latent_dim)
         z_mean = z_batch.mean(axis=0)
         z_centered = z_batch - z_mean  # (n, D)
-        std_d = np.sqrt(np.mean(z_centered ** 2, axis=0) + 1e-8)  # (D,)
+        std_d = np.sqrt(np.mean(z_centered**2, axis=0) + 1e-8)  # (D,)
         below = np.maximum(0.0, gamma - std_d)  # (D,)
         batch_var_loss = float(np.mean(below))
         if batch_var_loss < 1e-6:

@@ -188,9 +188,7 @@ class FederatedCausalConsciousness:
         peer_models = self._collect_peer_models()
 
         # 联邦自我模型构建
-        fed_model = self._build_federation_self_model(
-            self._local_self_model, peer_models
-        )
+        fed_model = self._build_federation_self_model(self._local_self_model, peer_models)
         self._federation_self_model = fed_model
 
         # 联邦异常检测
@@ -244,9 +242,7 @@ class FederatedCausalConsciousness:
         merged = self._merge_reflections(local_reflection, cross_reflections)
 
         # 识别共识问题
-        consensus_issues = self._identify_consensus_issues(
-            local_reflection, cross_reflections
-        )
+        consensus_issues = self._identify_consensus_issues(local_reflection, cross_reflections)
 
         result = {
             "local_reflection": local_reflection,
@@ -304,17 +300,13 @@ class FederatedCausalConsciousness:
 
     # ── Anomaly Detection ───────────────────────────────────────────────
 
-    def _detect_federation_anomaly(
-        self, fed_model: FederationSelfModel
-    ) -> dict[str, Any]:
+    def _detect_federation_anomaly(self, fed_model: FederationSelfModel) -> dict[str, Any]:
         """联邦异常检测。"""
         anomalies = []
 
         # 检测1: 置信度异常低
         if fed_model.avg_confidence < 0.3:
-            anomalies.append(
-                f"Low federation confidence: {fed_model.avg_confidence:.2f}"
-            )
+            anomalies.append(f"Low federation confidence: {fed_model.avg_confidence:.2f}")
 
         # 检测2: 领域覆盖空洞
         if len(fed_model.combined_domains) < 2:
@@ -336,15 +328,11 @@ class FederatedCausalConsciousness:
         """收集对等节点自我模型 (仿真模式)。"""
         return list(self._peer_models.values())
 
-    def _build_federation_self_model(
-        self, local: SelfModel, peers: list[SelfModel]
-    ) -> FederationSelfModel:
+    def _build_federation_self_model(self, local: SelfModel, peers: list[SelfModel]) -> FederationSelfModel:
         """构建联邦自我模型。"""
         all_models = [local, *peers]
         all_domains = list({d for m in all_models for d in m.domains})
-        avg_conf = (
-            np.mean([m.confidence for m in all_models]) if all_models else 0
-        )
+        avg_conf = np.mean([m.confidence for m in all_models]) if all_models else 0
         all_limits = list({lim for m in all_models for lim in m.limitations})
 
         return FederationSelfModel(
@@ -357,11 +345,7 @@ class FederatedCausalConsciousness:
     def _check_emergence(self, fed_model: FederationSelfModel) -> dict[str, Any]:
         """检查联邦涌现。"""
         # 涌现条件: 足够多的节点 + 足够高的置信度 + 多领域覆盖
-        detected = (
-            fed_model.n_nodes >= 3
-            and fed_model.avg_confidence >= 0.6
-            and len(fed_model.combined_domains) >= 3
-        )
+        detected = fed_model.n_nodes >= 3 and fed_model.avg_confidence >= 0.6 and len(fed_model.combined_domains) >= 3
         return {
             "detected": detected,
             "emergence_indicators": {
@@ -386,8 +370,7 @@ class FederatedCausalConsciousness:
             confidence=episode.get("confidence", 0.7),
         )
 
-    def _collect_cross_reflections(
-        self, episode: dict[str, Any]) -> list[ReflectionResult]:
+    def _collect_cross_reflections(self, episode: dict[str, Any]) -> list[ReflectionResult]:
         """收集跨节点反思 (仿真)。"""
         results = []
         for peer_id, peer_model in self._peer_models.items():

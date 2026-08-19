@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 class AxiomStatus(str, Enum):
     """公理验证状态。"""
+
     UNVERIFIED = "unverified"
     VERIFIED = "verified"
     CONDITIONAL = "conditional"
@@ -42,6 +43,7 @@ class AxiomStatus(str, Enum):
 @dataclass
 class ExistenceAxiom:
     """存在公理。"""
+
     axiom_id: str = ""
     name: str = ""
     statement: str = ""
@@ -160,8 +162,7 @@ class ExistenceAxiomSystem:
 
     @property
     def n_verified(self) -> int:
-        return sum(1 for a in self._axioms.values()
-                   if a.status == AxiomStatus.VERIFIED)
+        return sum(1 for a in self._axioms.values() if a.status == AxiomStatus.VERIFIED)
 
     @property
     def n_total(self) -> int:
@@ -187,8 +188,9 @@ class ExistenceAxiomSystem:
         axiom.status = AxiomStatus.VERIFIED if result["verified"] else AxiomStatus.CONDITIONAL
         axiom.verification_confidence = result.get("confidence", 0.0)
 
-        logger.info("Axiom %s (%s): %s, confidence=%.3f",
-                     axiom_id, axiom.name, axiom.status, axiom.verification_confidence)
+        logger.info(
+            "Axiom %s (%s): %s, confidence=%.3f", axiom_id, axiom.name, axiom.status, axiom.verification_confidence
+        )
 
         return {
             "axiom_id": axiom_id,
@@ -237,12 +239,14 @@ class ExistenceAxiomSystem:
             layer = self.AXIOM_DEFS[axiom_id]["layer"]
             if layer not in layers:
                 layers[layer] = {"axioms": [], "n_verified": 0}
-            layers[layer]["axioms"].append({  # type: ignore
-                "id": axiom_id,
-                "name": axiom.name,
-                "status": axiom.status,
-                "confidence": axiom.verification_confidence,
-            })
+            layers[layer]["axioms"].append(  # type: ignore[attr-defined]
+                {
+                    "id": axiom_id,
+                    "name": axiom.name,
+                    "status": axiom.status,
+                    "confidence": axiom.verification_confidence,
+                }
+            )
             if axiom.status == AxiomStatus.VERIFIED:
                 layers[layer]["n_verified"] += 1  # type: ignore
 
@@ -252,9 +256,7 @@ class ExistenceAxiomSystem:
             "completeness": self.n_verified / self.n_total if self.n_total > 0 else 0.0,
             "layers": layers,
             "all_verified": self.all_verified,
-            "godel_notes": [
-                a.godel_warning for a in self._axioms.values() if a.godel_warning
-            ],
+            "godel_notes": [a.godel_warning for a in self._axioms.values() if a.godel_warning],
         }
 
     # ── 内部方法 ──────────────────────────────────────────────────
@@ -336,9 +338,12 @@ class ExistenceAxiomSystem:
         e5 = self._axioms.get("E5")
 
         conditions_met = (
-            e1 is not None and e1.status == AxiomStatus.VERIFIED
-            and e4 is not None and e4.status == AxiomStatus.VERIFIED
-            and e5 is not None and e5.status == AxiomStatus.VERIFIED
+            e1 is not None
+            and e1.status == AxiomStatus.VERIFIED
+            and e4 is not None
+            and e4.status == AxiomStatus.VERIFIED
+            and e5 is not None
+            and e5.status == AxiomStatus.VERIFIED
         )
 
         confidence = 0.0
@@ -406,8 +411,7 @@ class ExistenceAxiomSystem:
         """推导: 完备性蕴含存在。"""
         e2 = self._axioms.get("E2")
         e3 = self._axioms.get("E3")
-        if (e2 and e2.status == AxiomStatus.VERIFIED
-                and e3 and e3.status == AxiomStatus.VERIFIED):
+        if e2 and e2.status == AxiomStatus.VERIFIED and e3 and e3.status == AxiomStatus.VERIFIED:
             return {
                 "derived": True,
                 "property": "completeness_implies_existence",

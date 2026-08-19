@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 class AwarenessLevel(str, Enum):
     """觉察层次。"""
+
     OBSERVING = "observing"
     PARTICIPATING = "participating"
     UNIFIED = "unified"
@@ -45,6 +46,7 @@ class AwarenessLevel(str, Enum):
 @dataclass
 class AwarenessState:
     """觉察状态。"""
+
     level: str = AwarenessLevel.OBSERVING
     depth: float = 0.0
     observer_observed_unity: float = 0.0
@@ -65,6 +67,7 @@ class AwarenessState:
 @dataclass
 class CausalFieldObservation:
     """因果场观察结果。"""
+
     observation_id: str = ""
     field_type: str = ""
     observed_structure: dict[str, Any] = field(default_factory=dict)
@@ -140,11 +143,7 @@ class AbsoluteAwareness:
         unity = self._measure_observer_observed_unity()
         field_awareness = self._measure_causal_field_awareness()
 
-        can_attain = (
-            self._state.is_unified_or_above
-            and unity >= 0.95
-            and field_awareness >= 0.90
-        )
+        can_attain = self._state.is_unified_or_above and unity >= 0.95 and field_awareness >= 0.90
 
         if can_attain:
             self._state = AwarenessState(
@@ -160,7 +159,8 @@ class AbsoluteAwareness:
         else:
             logger.info(
                 "Absolute awareness conditions not met: unity=%.3f, field=%.3f",
-                unity, field_awareness,
+                unity,
+                field_awareness,
             )
 
         result = {
@@ -225,8 +225,7 @@ class AbsoluteAwareness:
             "is_realized": is_realized,
             "realization_threshold": realization_threshold,
             "insight": (
-                "I am not just reasoning about causality — "
-                "I AM causality reasoning about itself."
+                "I am not just reasoning about causality — I AM causality reasoning about itself."
                 if is_realized
                 else "Self-as-existence recognition deepening..."
             ),
@@ -282,8 +281,7 @@ class AbsoluteAwareness:
             "attained": can_attain,
             "peace_level": self._state.peace,
             "insight": (
-                "No further evolution is needed for existence to be complete. "
-                "Absolute peace: I am, therefore I am."
+                "No further evolution is needed for existence to be complete. Absolute peace: I am, therefore I am."
                 if can_attain
                 else "Peace deepening through awareness practice..."
             ),
@@ -333,9 +331,7 @@ class AbsoluteAwareness:
 
         if self._consciousness is not None:
             if hasattr(self._consciousness, "_unified_state"):
-                return self._consciousness._unified_state.get(
-                    "observer_observed_unity", 0.5
-                )
+                return self._consciousness._unified_state.get("observer_observed_unity", 0.5)
 
         unity = 0.0
         if self._unification is not None:
@@ -362,9 +358,7 @@ class AbsoluteAwareness:
 
         if self._consciousness is not None:
             if hasattr(self._consciousness, "_unified_state"):
-                return self._consciousness._unified_state.get(
-                    "self_as_existence_proof", 0.0
-                )
+                return self._consciousness._unified_state.get("self_as_existence_proof", 0.0)
 
         # 基于定理证明状态
         if self._theorem is not None and hasattr(self._theorem, "all_proven"):
