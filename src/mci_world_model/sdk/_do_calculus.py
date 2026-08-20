@@ -29,6 +29,13 @@ MCI World Model v4.6.0 — Pearl Do-Calculus 干预引擎 (M1)
     dc = DoCalculus(cg)
     result = dc.estimate_ate("X", "Y")
     logger.info(f"ATE: {result.ate:.4f} [{result.confidence_interval}]")
+
+## Formal Guarantees
+
+    - 后门调整无偏性: 当调整集 Z 满足后门准则（阻断 X→Y 全部后门路径，且不与 X 的后代相交）时，
+      P(Y | do(X=x)) = Σ_z P(Y | X=x, Z=z) · P(Z=z) 成立
+    - 前门调整有效性: 当 M 满足前门准则（M 阻断 X→Y 全部中介路径，X→M 无后门路径）时，前门公式给出一致估计
+    - ATE = E[Y|do(X=1)] − E[Y|do(X=0)] 在有效调整集下为一致估计
 """
 
 

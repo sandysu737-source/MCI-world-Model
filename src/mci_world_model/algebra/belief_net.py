@@ -40,6 +40,12 @@ that the combination is associative in the log-odds domain).
 
 This module is pure probability theory: Beta arithmetic, conditional tables,
 and message passing. No I/O, no SDK coupling.
+
+## Formal Guarantees
+
+    - Beta-Bernoulli 共轭更新为闭式精确解（后验 Beta(α+a, β+b)），无采样近似误差
+    - 树状网络上 sum-product 消息传递给出精确后验边际（`is_tree()` 可判定该前提）
+    - 带环网络上 LBP 为定点近似：结果收敛到固定点但无精确性保证（文档化近似）
 """
 
 from __future__ import annotations

@@ -29,6 +29,12 @@ cyclic graph unless an explicit ring-tolerant mode is requested.
 
 This module is pure graph theory: nodes are arbitrary hashable keys, weights
 are plain floats, no SDK coupling.
+
+## Formal Guarantees
+
+    - 拓扑排序（Kahn 算法）正确判定 DAG/有环：有向环存在时传播被拒绝（ring-tolerant 显式模式除外）
+    - 单次访问 BFS 传播在 DAG 上确定性：每个可达节点至多被访问一次，effect 值唯一
+    - 权重 w ∈ (0, +∞) 保证沿边衰减传播有界
 """
 
 from __future__ import annotations
