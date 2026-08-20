@@ -200,6 +200,8 @@ source = ["mci_world_model"]
 relative_files = true
 
 [tool.coverage.report]
-fail_under = 53
+# 覆盖率门禁分阶段路线（2026-08-20 基线: 行 77.57% / 分支 85.1%）
+# 阶段1: 77（当前基线，立即生效）→ 阶段2: 80 → 阶段3: 85 → 阶段4: 90
+fail_under = 77
 show_missing = true
 skip_covered = false
