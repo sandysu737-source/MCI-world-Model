@@ -28,7 +28,7 @@
 | 模块 | 覆盖 | 缺口特征 | 处置 |
 |------|------|----------|------|
 | `sdk/_world_model.py` | 68% | 3,771 行大文件，421 行未覆盖 | 随 T3 拆分同步补测 |
-| `server/app.py` | 69% | HTTP 端到端路径 | 补 FastAPI TestClient 用例 |
+| `server/app.py` | 71%（+2pp） | HTTP 安全路径 | 2026-08-20 已补认证 401×2/限流 429/404 用例（`tests/test_server_api.py::TestSecurityEndpoints`） |
 | `sdk/_zvec_store.py` | 21% | **zvec 未安装**（可选依赖，非真实缺口） | 装 zvec 后复测 |
 | `sdk/_persistent_memory.py` | 需查 | 持久化路径 | 补测 |
 | 其余 200+ 模块 | ≥78% | — | 维持 |
