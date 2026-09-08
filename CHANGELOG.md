@@ -3,6 +3,19 @@
 所有本项目显著变更都记录在此文件。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+
+- 新增敏感术语 fail-closed 扫描器与受控词表 `v1.1.0`，并纳入本地 `scripts/check.sh` 与 CI 门禁。
+
+### Changed
+
+- `DoCalculus` 引入 `ObservationDataset` 数据契约，区分 `observed`、`simulated` 和 `no_data`；无数据不再用因果图静默模拟。
+- 干预结果新增 `do_x`、`estimator`、`mode`、`dataset_hash`、`seed` 和 `is_conclusive` 证据字段。
+- 世界模型单变量干预统一校验 `do_x`；多变量干预在闭式实现前返回 `unsupported/422`。
+- 能量反事实机制标识从中文别名统一为 `enhance` 和 `suppress`。
+
 ## [4.0.0] - 2026-06-03
 
 ### 🎉 CEWM (Cognitive-Enhanced World Model) 完整迭代交付

@@ -35,11 +35,10 @@ MCI World Model — 因果世界模型引擎（Pearl 三层 + JEPA 世界建模 
 ## 3. 验证命令（改动后必须跑通）
 
 ```bash
-ruff check . && ruff format --check .
-mypy .
-pytest
-bash scripts/ai-verify/ai-guard.sh
+bash scripts/check.sh
 ```
+
+该脚本依次执行 `ruff check .`、`ruff format --check .`、`mypy src/mci_world_model`、`pytest` 和 `ai-guard`；默认使用 `.venv/bin/python`，也可通过 `PYTHON_BIN` 覆盖。
 
 ## 4. 架构约定
 

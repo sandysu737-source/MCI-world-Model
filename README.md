@@ -47,8 +47,12 @@ MCI World Model 是一款**独立运行的因果世界模型引擎**，定位为
 
 **7+ 种因果发现算法 | 纯 NumPy | 零 GPU 依赖**
 
+> 干预证据边界：L2 ATE 必须绑定 `ObservationDataset`；无数据返回 `method=no_data` 且不可作结论。只有显式调用 `DoCalculus.simulate(seed=...)` 才生成 `mode=simulated` 研究数据，结果固定 `is_conclusive=false`。多变量 `do_x` 在闭式估计实现前显式返回 `unsupported/422`。
+
 ```python
-from mci_world_model.sdk import CausalGraph, DoCalculus
+import numpy as np
+
+from mci_world_model.sdk import CausalGraph, DoCalculus, ObservationDataset
 
 # 构建因果图
 cg = CausalGraph(
@@ -57,9 +61,10 @@ cg = CausalGraph(
 )
 
 # Pearl Backdoor 调整：do(X=1) vs do(X=0)，调整集 = {Z}
-dc = DoCalculus(cg)
+dataset = ObservationDataset(values={"X": np.array([0.0, 1.0, 0.0, 1.0]), "Y": np.array([0.0, 1.1, 0.1, 1.0])})
+dc = DoCalculus(cg, dataset=dataset)
 result = dc.backdoor_adjustment(X="X", Y="Y", Z_set=["Z"])
-print(f"ATE = {result.ate:.4f}  (调整集: {result.adjustment_set}, method={result.method})")
+print(f"ATE = {result.ate:.4f}  (mode={result.mode}, conclusive={result.is_conclusive})")
 ```
 
 
