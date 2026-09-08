@@ -25,9 +25,10 @@ import pytest
 from mci_world_model.sdk._batch_counterfactual import BatchCounterfactualEngine
 from mci_world_model.sdk._counterfactual import (
     CounterfactualEngine,
+    SEMFitResult,
     StructuralEquationModel,
 )
-from mci_world_model.sdk._do_calculus import CausalGraph
+from mci_world_model.sdk._do_calculus import CausalGraph, ObservationDataset
 
 # =============================================================================
 # 辅助函数
@@ -178,6 +179,37 @@ def _build_nonlinear_sem(noise_std: float = 0.1) -> StructuralEquationModel:
     )
 
 
+def _observed_engine(sem: StructuralEquationModel) -> CounterfactualEngine:
+    """为基准测试构造显式观测数据来源；非线性 oracle 保留已知 SEM 标识。"""
+    data = sem.simulate(n_samples=1000)
+    dataset = ObservationDataset(
+        values={name: data[:, index] for index, name in enumerate(sem.node_names)},
+        dataset_id=f"v308-{sem.activation}",
+        source="observed",
+        seed=42,
+    )
+    if sem.activation == "linear":
+        graph = CausalGraph(
+            nodes=list(sem.node_names),
+            edges=[],
+            adjacency=sem.coefficients,
+            edge_mode="causal",
+        )
+        return CounterfactualEngine.from_causal_graph(graph, dataset=dataset, seed=42)
+    sem_fit = SEMFitResult(
+        dataset_id=dataset.dataset_id or "v308-nonlinear",
+        dataset_hash=dataset.dataset_hash,
+        fit_method="known_nonlinear_oracle",
+        seed=42,
+        coefficients=sem.coefficients,
+        noise_covariance=np.eye(sem.n_nodes) * sem.noise_std**2,
+        fit_metrics={"mse": sem.noise_std**2, "r2": 1.0, "n_samples": data.shape[0]},
+        constraints={"oracle": True},
+        node_names=list(sem.node_names),
+    )
+    return CounterfactualEngine(sem, list(sem.node_names), sem_fit)
+
+
 # =============================================================================
 # 基准 1: Frontdoor
 # =============================================================================
@@ -189,7 +221,7 @@ class TestFrontdoorBenchmark:
     @pytest.fixture
     def engine(self):
         sem = _build_frontdoor_sem(noise_std=0.2)
-        return CounterfactualEngine(sem, list(sem.node_names))
+        return _observed_engine(sem)
 
     def test_ite_near_ground_truth(self, engine):
         """验证 ITE 与解析解偏差 < 0.15 (考虑噪声乘数)。"""
@@ -244,7 +276,7 @@ class TestMGraphBenchmark:
     @pytest.fixture
     def engine(self):
         sem = _build_mgraph_sem(noise_std=0.1)
-        return CounterfactualEngine(sem, list(sem.node_names))
+        return _observed_engine(sem)
 
     def test_total_effect_direction(self, engine):
         """验证总效应方向: X→Y 正向因果。"""
@@ -302,7 +334,7 @@ class TestColliderBenchmark:
     @pytest.fixture
     def engine(self):
         sem = _build_collider_sem(noise_std=0.2)
-        return CounterfactualEngine(sem, list(sem.node_names))
+        return _observed_engine(sem)
 
     def test_no_causal_effect(self, engine):
         """验证 Collider 结构下 X 干预不对 Y 产生因果效应。"""
@@ -343,7 +375,7 @@ class TestChain3Benchmark:
     @pytest.fixture
     def engine(self):
         sem = _build_chain3_sem(noise_std=0.1)
-        return CounterfactualEngine(sem, list(sem.node_names))
+        return _observed_engine(sem)
 
     def test_propagated_effect_direction(self, engine):
         """验证链式传播: A 干预沿 B→C→D 正向传播。"""
@@ -395,7 +427,7 @@ class TestNonlinearBenchmark:
     @pytest.fixture
     def engine(self):
         sem = _build_nonlinear_sem(noise_std=0.1)
-        return CounterfactualEngine(sem, list(sem.node_names))
+        return _observed_engine(sem)
 
     def test_tanh_output_range(self, engine):
         """验证 tanh SEM 的 simulate() 输出在 [-1, 1] 范围 (考虑噪声)。"""
@@ -477,7 +509,7 @@ class TestBatchCounterfactualEngine:
     def test_batch_vs_serial_consistency(self):
         """验证批量查询结果与串行一致。"""
         sem = _build_frontdoor_sem(noise_std=0.2)
-        engine = CounterfactualEngine(sem, list(sem.node_names))
+        engine = _observed_engine(sem)
         batch_engine = BatchCounterfactualEngine(sem)
 
         scenarios = [
@@ -621,7 +653,7 @@ class TestPnsComputation:
     def test_pns_range(self):
         """验证 PN/PS/PNS 在 [0, 1] 范围内。"""
         sem = _build_frontdoor_sem(noise_std=0.5)
-        engine = CounterfactualEngine(sem, list(sem.node_names))
+        engine = _observed_engine(sem)
 
         result = engine.query(
             evidence={"Z": 1.0, "X": 1.5, "Y": 2.5},
@@ -637,7 +669,7 @@ class TestPnsComputation:
     def test_pns_not_computed_flag(self):
         """验证 compute_pns=False 时返回 -1。"""
         sem = _build_chain3_sem()
-        engine = CounterfactualEngine(sem, list(sem.node_names))
+        engine = _observed_engine(sem)
         result = engine.query(
             evidence={"A": 1.0},
             do_x={"A": 2.0},

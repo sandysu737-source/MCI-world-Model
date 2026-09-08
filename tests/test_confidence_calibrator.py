@@ -202,7 +202,8 @@ class TestSDKIntegration:
             sdk.add_evidence(
                 ClinicalEvidence(
                     evidence_id=f"E{i}",
-                    description="白蛋白",
+                    description=["白蛋白下降", "肾功能异常", "摄入不足", "慢性炎症", "吸收障碍"][i],
+                    source=f"source-{i}",
                     confidence=0.85,
                 )
             )
@@ -225,7 +226,8 @@ class TestSDKIntegration:
             sdk.add_evidence(
                 ClinicalEvidence(
                     evidence_id=f"E{i}",
-                    description="test",
+                    description=["实验室检验", "影像检查", "生命体征", "用药记录", "随访观察"][i],
+                    source=f"source-{i}",
                     confidence=0.8,
                 )
             )

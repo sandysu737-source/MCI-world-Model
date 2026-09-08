@@ -32,7 +32,7 @@ from mci_world_model.sdk._counterfactual import (
     CounterfactualEngine,
     StructuralEquationModel,
 )
-from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
+from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus, ObservationDataset
 
 # =============================================================================
 # GAIA 评分体系
@@ -690,7 +690,19 @@ class TestGAIAL3ComplexReasoning:
             coefficients=q["sem_coeff"],
             node_names=q["sem_nodes"],
         )
-        engine = CounterfactualEngine(sem, node_names=q["sem_nodes"])
+        graph = CausalGraph(
+            nodes=q["sem_nodes"],
+            edges=[("X", "Y")],
+            adjacency=q["sem_coeff"],
+        )
+        samples = sem.simulate(n_samples=1000)
+        dataset = ObservationDataset(
+            values={name: samples[:, index] for index, name in enumerate(q["sem_nodes"])},
+            dataset_id=q["id"],
+            source="observed",
+            seed=42,
+        )
+        engine = CounterfactualEngine.from_causal_graph(graph, dataset=dataset)
         result = engine.query(
             evidence=q["evidence"],
             do_x=q["do_x"],
@@ -707,6 +719,7 @@ class TestGAIAL3ComplexReasoning:
         assert q["type"] == "uncertainty_quantification"
 
         dc = q["dc"]
+        dc.simulate(n_samples=500, seed=42)
         result = dc.estimate_ate("X", "Y")
         assert result is not None
         assert result.method != "none"

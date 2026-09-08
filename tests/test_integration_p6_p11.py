@@ -234,8 +234,16 @@ class TestP9ComplianceEngine:
         from mci_world_model.sdk._medical_causal_sdk import ClinicalEvidence, MedicalCausalSDK
 
         sdk = MedicalCausalSDK(patient_id="P-101", strict_mode=True)
+        descriptions = [
+            "drug_A 经代谢途径影响 symptom_B",
+            "drug_A 经肾脏途径影响 symptom_B",
+            "drug_A 经炎症途径影响 symptom_B",
+            "drug_A 经神经途径影响 symptom_B",
+            "drug_A 经内分泌途径影响 symptom_B",
+            "drug_A 经免疫途径影响 symptom_B",
+        ]
         for i in range(6):
-            sdk.add_evidence(ClinicalEvidence(f"e{i}", "lab_result", f"drug_A symptom_B evidence {i}", 0.92 + i * 0.01))
+            sdk.add_evidence(ClinicalEvidence(f"e{i}", "lab_result", descriptions[i], 0.92, source=f"source-{i}"))
         diagnosis = sdk.diagnose("drug_A", "symptom_B", prior_strength=0.9)
 
         engine = ComplianceRuleEngine()

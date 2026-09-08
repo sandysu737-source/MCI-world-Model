@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from mci_world_model.sdk._counterfactual import CounterfactualEngine, StructuralEquationModel
-from mci_world_model.sdk._do_calculus import CausalGraph
+from mci_world_model.sdk._do_calculus import CausalGraph, ObservationDataset
 
 
 def _make_linear_chain_sem(seed: int = 42) -> StructuralEquationModel:
@@ -36,6 +36,16 @@ def _make_linear_chain_sem(seed: int = 42) -> StructuralEquationModel:
         dtype=np.float64,
     )
     return StructuralEquationModel(B, ["X", "Y", "Z"], noise_std=0.3, activation="linear", seed=seed)
+
+
+def _observed_dataset(sem: StructuralEquationModel, n_samples: int = 1000) -> ObservationDataset:
+    data = sem.simulate(n_samples=n_samples)
+    return ObservationDataset(
+        values={name: data[:, index] for index, name in enumerate(sem.node_names)},
+        dataset_id="linear-chain-oracle",
+        source="observed",
+        seed=42,
+    )
 
 
 class TestLinearSEMAnalyticCounterfactual:
@@ -74,7 +84,7 @@ class TestLinearSEMAnalyticCounterfactual:
             edges=[("X", "Y"), ("Y", "Z")],
             adjacency=sem.coefficients.astype(np.float32),
         )
-        engine = CounterfactualEngine.from_causal_graph(cg)
+        engine = CounterfactualEngine.from_causal_graph(cg, dataset=_observed_dataset(sem))
         result = engine.query(
             evidence={"X": factual[0], "Y": factual[1], "Z": factual[2]},
             do_x={"Y": 0.0},
@@ -96,7 +106,7 @@ class TestLinearSEMAnalyticCounterfactual:
             edges=[("X", "Y"), ("Y", "Z")],
             adjacency=sem.coefficients.astype(np.float32),
         )
-        engine = CounterfactualEngine.from_causal_graph(cg)
+        engine = CounterfactualEngine.from_causal_graph(cg, dataset=_observed_dataset(sem))
         # do(X = factual[X]): 干预值为事实值, 应保持不变
         result = engine.query(
             evidence={"X": factual[0], "Y": factual[1], "Z": factual[2]},
@@ -121,7 +131,7 @@ class TestPNPSBoundaries:
             edges=[("X", "Y"), ("Y", "Z")],
             adjacency=sem.coefficients.astype(np.float32),
         )
-        engine = CounterfactualEngine.from_causal_graph(cg)
+        engine = CounterfactualEngine.from_causal_graph(cg, dataset=_observed_dataset(sem))
         result = engine.query(
             evidence={"X": factual[0], "Y": factual[1]},
             do_x={"X": factual[0] + 1.0},

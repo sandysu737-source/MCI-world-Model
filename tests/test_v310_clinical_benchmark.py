@@ -346,7 +346,7 @@ class TestJEPAEncoderPhysical:
 
         timeline = generate_synthetic_patient(seed=42, n_days=30)
         encoder = JEPAEncoder(world_model=None)
-        state = encoder.encode(signals=timeline)
+        state = encoder.encode_graph(signals=timeline)
 
         assert isinstance(state, CausalWorldModelState)
         assert len(state.causal_edges) > 0
@@ -361,7 +361,7 @@ class TestJEPAEncoderPhysical:
         # 无 world_model 时 memories 路径会抛异常 — 但签名兼容
         encoder = JEPAEncoder(world_model=None)
         # 三个参数都 None → empty
-        state = encoder.encode()
+        state = encoder.encode_graph()
         assert isinstance(state, CausalWorldModelState)
         assert len(state.causal_edges) == 0
 
@@ -371,7 +371,7 @@ class TestJEPAEncoderPhysical:
 
         timeline = generate_synthetic_patient(seed=42, n_days=30)
         encoder = JEPAEncoder(world_model=None)
-        state = encoder.encode(signals=timeline)
+        state = encoder.encode_graph(signals=timeline)
 
         adj, node_feat, edge_feat = encoder.to_graph_tensors(state)
         assert adj.shape[0] == adj.shape[1]
@@ -389,7 +389,7 @@ class TestJEPAPredictPhysical:
 
         timeline = generate_synthetic_patient(seed=42, n_days=30)
         encoder = JEPAEncoder(world_model=None)
-        state = encoder.encode(signals=timeline)
+        state = encoder.encode_graph(signals=timeline)
 
         predictor = IdentityPredictor()
         s_pred = predictor.predict(state)
@@ -412,7 +412,7 @@ class TestJEPATrainPhysical:
         states = []
         for i in range(5):
             timeline = generate_synthetic_patient(seed=i * 1000 + 42, n_days=20)
-            state = encoder.encode(signals=timeline)
+            state = encoder.encode_graph(signals=timeline)
             states.append(state)
 
         dataset = JEPADataset.from_states(states)
@@ -453,7 +453,7 @@ class TestClinicalForwardPrediction:
             states_train = []
             for t in range(10, 20):
                 window = train_timeline[t - 10 : t + 1]
-                s = encoder.encode(signals=window)
+                s = encoder.encode_graph(signals=window)
                 states_train.append(s)
 
             dataset = JEPADataset.from_states(states_train)
@@ -467,7 +467,7 @@ class TestClinicalForwardPrediction:
             test_errors = []
             for t in range(10, 20):
                 window = train_timeline[t - 10 : t + 1]
-                s_t = encoder.encode(signals=window)
+                s_t = encoder.encode_graph(signals=window)
                 s_pred = predictor.predict(s_t)
 
                 # 从 causal_edges 中提取 albumin 相关边
@@ -495,7 +495,9 @@ class TestClinicalCounterfactual:
     def test_clinical_counterfactual(self):
         """500kcal 增量干预 → albumin 反事实值 > 基线。"""
         from mci_world_model.sdk._counterfactual import CounterfactualEngine
-        from mci_world_model.sdk._do_calculus import CausalGraph
+        from mci_world_model.sdk._do_calculus import CausalGraph, ObservationDataset
+
+        timeline = generate_synthetic_patient(seed=42, n_days=30)
 
         # 构建已知因果图
         cg = CausalGraph()
@@ -505,10 +507,25 @@ class TestClinicalCounterfactual:
         cg.add_edge("albumin", "nrs2002_score", weight=-0.3)
         cg.add_edge("calorie_intake", "body_weight", weight=0.35)
 
-        sem = cg.to_sem(noise_std=0.2, activation="linear", seed=42)
-
         # 反事实: 干预 calorie_intake
-        engine = CounterfactualEngine(sem, list(sem.node_names))
+        dataset = ObservationDataset(
+            values={
+                name: np.asarray([row[name] for row in timeline], dtype=np.float64)
+                for name in (
+                    "calorie_intake",
+                    "albumin",
+                    "medication_dose",
+                    "protein_intake",
+                    "nrs2002_score",
+                    "prealbumin",
+                    "body_weight",
+                )
+            },
+            dataset_id="clinical-nutrition",
+            source="observed",
+            seed=42,
+        )
+        engine = CounterfactualEngine.from_causal_graph(cg, dataset=dataset, seed=42)
         evidence = {
             "calorie_intake": 1500.0,
             "albumin": 35.0,
@@ -534,14 +551,23 @@ class TestClinicalCounterfactual:
     def test_nrs2002_counterfactual(self):
         """高热量干预 → NRS2002 评分下降 (风险降低)。"""
         from mci_world_model.sdk._counterfactual import CounterfactualEngine
-        from mci_world_model.sdk._do_calculus import CausalGraph
+        from mci_world_model.sdk._do_calculus import CausalGraph, ObservationDataset
 
         cg = CausalGraph()
         cg.add_edge("calorie_intake", "albumin", weight=0.6)
         cg.add_edge("albumin", "nrs2002_score", weight=-0.3)
 
         sem = cg.to_sem(noise_std=0.15, activation="linear", seed=123)
-        engine = CounterfactualEngine(sem, list(sem.node_names))
+        samples = sem.simulate(n_samples=1000)
+        dataset = ObservationDataset(
+            values={
+                name: samples[:, index] for index, name in enumerate(("calorie_intake", "albumin", "nrs2002_score"))
+            },
+            dataset_id="clinical-nutrition-nrs",
+            source="observed",
+            seed=123,
+        )
+        engine = CounterfactualEngine.from_causal_graph(cg, dataset=dataset, seed=123)
         evidence = {
             "calorie_intake": 1200.0,
             "albumin": 30.0,
@@ -666,7 +692,7 @@ class TestEndToEndClinical:
             SignalType,
         )
         from mci_world_model.sdk._counterfactual import CounterfactualEngine
-        from mci_world_model.sdk._do_calculus import CausalGraph
+        from mci_world_model.sdk._do_calculus import CausalGraph, ObservationDataset
         from mci_world_model.sdk._jepa_encoder import JEPAEncoder
         from mci_world_model.sdk._physical_graph_builder import PhysicalGraphBuilder
 
@@ -715,7 +741,7 @@ class TestEndToEndClinical:
 
         # Step 4: JEPAEncoder encode
         encoder = JEPAEncoder(world_model=None)
-        state = encoder.encode(signals=timeline)
+        state = encoder.encode_graph(signals=timeline)
         assert len(state.causal_edges) > 0
 
         # Step 5: JEPAPredictor predict
@@ -729,8 +755,16 @@ class TestEndToEndClinical:
         cg = CausalGraph()
         cg.add_edge("calorie_intake", "albumin", weight=0.6)
         cg.add_edge("albumin", "nrs2002_score", weight=-0.3)
-        sem = cg.to_sem(noise_std=0.2, activation="linear", seed=42)
-        engine = CounterfactualEngine(sem, list(sem.node_names))
+        dataset = ObservationDataset(
+            values={
+                name: np.asarray([row[name] for row in timeline], dtype=np.float64)
+                for name in ("calorie_intake", "albumin", "nrs2002_score")
+            },
+            dataset_id="clinical-nutrition-e2e",
+            source="observed",
+            seed=42,
+        )
+        engine = CounterfactualEngine.from_causal_graph(cg, dataset=dataset, seed=42)
 
         evidence = {"calorie_intake": 1500.0, "albumin": 35.0, "nrs2002_score": 3.0}
         cf = engine.query(evidence=evidence, do_x={"calorie_intake": 2000.0}, target="albumin")
@@ -750,7 +784,7 @@ class TestJEPAEncoderErrorHandling:
         from mci_world_model.sdk._jepa_encoder import JEPAEncoder
 
         encoder = JEPAEncoder(world_model=None)
-        state = encoder.encode(signals=[])
+        state = encoder.encode_graph(signals=[])
         # 空输入也应返回有效 state (fallback 路径)
         assert state is not None
 
@@ -774,7 +808,7 @@ class TestJEPAEncoderErrorHandling:
         # signals 路径: encoder 内部处理不应 crash
         timeline = signals_to_timeline([sig], n_days=1)
         # 即使 timeline 全 NaN，encoder 也应容错
-        state = encoder.encode(signals=timeline)
+        state = encoder.encode_graph(signals=timeline)
         assert state is not None
 
 
