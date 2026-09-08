@@ -33,13 +33,18 @@ jobs:
       - name: Install Ruff
         run: pip install "ruff>=0.6.0"
 
-      - name: Lint (src + tests + benchmarks)
+      - name: Lint
         run: |
-          ruff check src/ tests/ benchmarks/
+          ruff check .
 
       - name: Format Check
         run: |
-          ruff format --check src/ tests/ benchmarks/
+          ruff format --check .
+
+      - name: Sensitive Term Scan
+        run: |
+          python scripts/ai-verify/sensitive_scan.py src README.md CHANGELOG.md docs \
+            --report .ai-governance/reports/sensitive-term-scan.json
 
   # ===================== Gate 2: mypy Strict =====================
   gate-2-types:
@@ -70,6 +75,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
+        include:
+          - python-version: "3.13"
+            smoke-only: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,8 +92,18 @@ jobs:
         run: pip install -e ".[full]"
 
       - name: Run Tests (excl. slow)
+        if: matrix.python-version != '3.13'
         run: |
           PYTHONPATH=${{ github.workspace }}/src pytest -m "not slow" --cov=mci_world_model --cov-report=xml --cov-report=term --cov-fail-under=77
+
+      - name: Python 3.13 Smoke
+        if: matrix.python-version == '3.13'
+        run: |
+          PYTHONPATH=${{ github.workspace }}/src pytest tests/adversarial -m "not slow"
+
+      - name: AI Governance Guard
+        run: |
+          AI_REVIEW_CI=1 bash scripts/ai-verify/ai-guard.sh
 
       - name: Upload Coverage
         if: matrix.python-version == '3.11'
