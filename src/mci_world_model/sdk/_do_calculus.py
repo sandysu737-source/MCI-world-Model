@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 """
 MCI World Model v4.6.0 — Pearl Do-Calculus 干预引擎 (M1)
@@ -39,14 +39,64 @@ MCI World Model v4.6.0 — Pearl Do-Calculus 干预引擎 (M1)
 """
 
 
+import hashlib
 import logging
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.stats import norm
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class UnknownNodeError(ValueError):
+    """结构化节点解析错误。"""
+
+    query: str | int
+    kind: str = "unknown_node"
+
+    def __str__(self) -> str:
+        return f"{self.kind}: {self.query!r}"
+
+
+@dataclass
+class ObservationDataset:
+    """显式观测数据集，携带来源、标识和确定性哈希。"""
+
+    values: dict[str, np.ndarray]
+    dataset_id: str | None = None
+    source: str = "observed"
+    seed: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.source not in {"observed", "simulated"}:
+            raise ValueError("数据来源必须是 observed 或 simulated")
+        self.values = {str(name): np.asarray(values, dtype=np.float64) for name, values in self.values.items()}
+        for name, values in self.values.items():
+            if values.size == 0:
+                raise ValueError(f"观测数据不能为空: {name}")
+            if not np.all(np.isfinite(values)):
+                raise ValueError(f"观测数据包含非有限值: {name}")
+
+    @property
+    def is_observed(self) -> bool:
+        return self.source == "observed"
+
+    @property
+    def dataset_hash(self) -> str:
+        """返回数据内容、来源与标识的确定性哈希。"""
+        digest = hashlib.sha256()
+        digest.update(self.source.encode("utf-8"))
+        digest.update(str(self.dataset_id or "").encode("utf-8"))
+        for name in sorted(self.values):
+            values = np.ascontiguousarray(self.values[name], dtype=np.float64)
+            digest.update(name.encode("utf-8"))
+            digest.update(str(values.shape).encode("utf-8"))
+            digest.update(values.tobytes(order="C"))
+        return digest.hexdigest()
 
 
 # =============================================================================
@@ -78,6 +128,13 @@ class InterventionResult:
     effect_magnitude: str = "unknown"  # "large" | "medium" | "small" | "negligible"
     sample_size: int = 0  # 有效样本量
     note: str = ""  # 附加说明
+    do_x: dict[str, float] = field(default_factory=dict)
+    x_baseline: float = 0.0
+    estimator: str = ""
+    mode: str = "no_data"
+    dataset_hash: str | None = None
+    seed: int | None = None
+    is_conclusive: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -95,6 +152,13 @@ class InterventionResult:
             "effect_magnitude": self.effect_magnitude,
             "sample_size": self.sample_size,
             "note": self.note,
+            "do_x": dict(self.do_x),
+            "x_baseline": self.x_baseline,
+            "estimator": self.estimator,
+            "mode": self.mode,
+            "dataset_hash": self.dataset_hash,
+            "seed": self.seed,
+            "is_conclusive": self.is_conclusive,
         }
 
     @staticmethod
@@ -121,9 +185,21 @@ class CausalGraph:
     nodes: list[str] = field(default_factory=list)
     edges: list[tuple[str, str]] = field(default_factory=list)
     adjacency: np.ndarray | None = None  # n×n 邻接矩阵, adj[i,j] = 边权重 or 1
+    node_aliases: dict[str, list[str]] = field(default_factory=dict)
+    edge_mode: str = "causal"
+    dataset_id: str | None = None
+
+    CAUSAL_EDGE_MODES: ClassVar[frozenset[str]] = frozenset(
+        {
+            "orientation_by_intervention",
+            "orientation_by_temporal_order",
+            "orientation_by_expert_prior",
+        }
+    )
 
     def __post_init__(self) -> None:
         n = len(self.nodes)
+        self._validate_aliases()
         if self.adjacency is None:
             self.adjacency = np.zeros((n, n), dtype=np.float32)
             node_idx = {name: i for i, name in enumerate(self.nodes)}
@@ -133,18 +209,52 @@ class CausalGraph:
                 if i is not None and j is not None:
                     self.adjacency[i, j] = 1.0
 
+    def _validate_aliases(self) -> None:
+        """确保别名到业务名节点的一一归属，禁止跨节点冲突。"""
+        owner: dict[str, str] = {}
+        for canonical, aliases in self.node_aliases.items():
+            if canonical not in self.nodes:
+                raise ValueError(f"别名映射的节点不存在: {canonical!r}")
+            for alias in aliases:
+                if alias in owner and owner[alias] != canonical:
+                    raise ValueError(f"别名冲突: {alias!r}")
+                owner[alias] = canonical
+
+    @property
+    def idx_to_name(self) -> dict[int, str]:
+        """返回图内索引到业务名节点的只读映射。"""
+        return dict(enumerate(self.nodes))
+
+    @property
+    def is_causal_graph(self) -> bool:
+        """只有显式定向证据构成的图才能参与 do-operator 推理。"""
+        return self.edge_mode == "causal"
+
+    def resolve_node(self, node: str | int) -> str:
+        """解析业务名、别名或索引到图内唯一节点。"""
+        if isinstance(node, int) and not isinstance(node, bool):
+            if not 0 <= node < len(self.nodes):
+                raise UnknownNodeError(node)
+            return self.nodes[node]
+        if node in self.nodes:
+            return node
+        for canonical, aliases in self.node_aliases.items():
+            if node in aliases:
+                return canonical
+        raise UnknownNodeError(node)
+
     @property
     def n_nodes(self) -> int:
         return len(self.nodes)
 
-    def node_index(self, name: str) -> int | None:
-        """获取节点名称对应的索引。"""
+    def node_index(self, name: str | int) -> int | None:
+        """获取业务名、别名或索引对应的图内索引。"""
         try:
-            return self.nodes.index(name)
-        except ValueError:
+            return self.nodes.index(self.resolve_node(name))
+        except UnknownNodeError:
             return None
 
-    def has_edge(self, src: str, dst: str) -> bool:
+    def has_edge(self, src: str | int, dst: str | int) -> bool:
         """检查是否存在有向边 src → dst。"""
         if self.adjacency is None:
             return False
@@ -154,7 +264,7 @@ class CausalGraph:
             return False
         return self.adjacency[i, j] > 0
 
-    def get_parents(self, node: str) -> list[str]:
+    def get_parents(self, node: str | int) -> list[str]:
         """获取节点的所有父节点 (指向 node 的节点)。"""
         idx = self.node_index(node)
         if idx is None or self.adjacency is None:
@@ -165,7 +275,7 @@ class CausalGraph:
                 parents.append(self.nodes[i])
         return parents
 
-    def get_children(self, node: str) -> list[str]:
+    def get_children(self, node: str | int) -> list[str]:
         """获取节点的所有子节点 (node 指向的节点)。"""
         idx = self.node_index(node)
         if idx is None or self.adjacency is None:
@@ -192,7 +302,7 @@ class CausalGraph:
             dag.add_edge(src, dst, weight=1.0)
         return dag
 
-    def get_descendants(self, node: str) -> set[str]:
+    def get_descendants(self, node: str | int) -> set[str]:
         """获取节点的所有后代 (BFS)。"""
         result: set[str] = set()
         idx = self.node_index(node)
@@ -207,7 +317,7 @@ class CausalGraph:
                     queue.append(child)
         return result
 
-    def get_mediators(self, src: str, dst: str) -> list[str]:
+    def get_mediators(self, src: str | int, dst: str | int) -> list[str]:
         """
         获取 src → dst 路径上的所有中间节点 (中介变量)。
 
@@ -225,6 +335,102 @@ class CausalGraph:
 
     def __repr__(self) -> str:
         return f"CausalGraph(nodes={len(self.nodes)}, edges={len(self.edges)})"
+
+    def to_dict(self) -> dict[str, Any]:
+        """序列化图结构与名称映射。"""
+        payload: dict[str, Any] = {
+            "nodes": list(self.nodes),
+            "node_aliases": {canonical: list(aliases) for canonical, aliases in self.node_aliases.items()},
+            "edges": [list(edge) for edge in self.edges],
+            "edge_mode": self.edge_mode,
+            "dataset_id": self.dataset_id,
+        }
+        if self.adjacency is not None:
+            payload["adjacency"] = np.asarray(self.adjacency).tolist()
+        return payload
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> CausalGraph:
+        """反序列化图结构，确保名称映射不丢失。"""
+        adjacency = payload.get("adjacency")
+        return cls(
+            nodes=[str(node) for node in payload.get("nodes", [])],
+            edges=[(str(edge[0]), str(edge[1])) for edge in payload.get("edges", [])],
+            adjacency=np.asarray(adjacency, dtype=np.float32) if adjacency is not None else None,
+            node_aliases={
+                str(canonical): [str(alias) for alias in aliases]
+                for canonical, aliases in payload.get("node_aliases", {}).items()
+            },
+            edge_mode=str(payload.get("edge_mode", "causal")),
+            dataset_id=payload.get("dataset_id"),
+        )
+
+    # -----------------------------------------------------------------
+    # 静态工厂: 从 GaussianDAG 边列表构建
+    # -----------------------------------------------------------------
+
+    @staticmethod
+    def build_from_gaussian_dag(
+        edges: list[dict[str, Any]],
+        n_nodes: int,
+        min_confidence: float = 0.3,
+        node_names: Sequence[str] | None = None,
+        memories: Sequence[dict[str, Any]] | None = None,
+        dataset_id: str | None = None,
+    ) -> CausalGraph:
+        """从 GaussianDAG.discover_hidden_edges() 输出构建候选因果图。"""
+        if node_names is not None and memories is not None and len(node_names) != len(memories):
+            raise ValueError("node_names 与 memories 数量不一致")
+        if node_names is None:
+            if memories is not None:
+                node_names = [
+                    str(memory.get("node_name") or memory.get("id") or memory.get("content", f"V{index}")).strip()
+                    for index, memory in enumerate(memories)
+                ]
+            else:
+                node_names = [f"V{index}" for index in range(n_nodes)]
+        if len(node_names) != n_nodes:
+            raise ValueError("node_names 数量必须等于 n_nodes")
+        if any(not name for name in node_names):
+            raise ValueError("node_names 不能包含空值")
+        if len(set(node_names)) != len(node_names):
+            raise ValueError("node_names 不能重复")
+
+        adjacency = np.zeros((n_nodes, n_nodes), dtype=np.float32)
+        edge_list: list[tuple[str, str]] = []
+        retained_edge_modes: set[str] = set()
+
+        for edge in edges:
+            confidence = float(edge.get("confidence", 0))
+            if confidence < min_confidence:
+                continue
+            cause_idx = edge.get("cause_idx")
+            effect_idx = edge.get("effect_idx")
+            if cause_idx is None or effect_idx is None:
+                continue
+            if not (0 <= cause_idx < n_nodes and 0 <= effect_idx < n_nodes):
+                continue
+            edge_mode = str(edge.get("edge_mode", "correlation"))
+            if edge_mode not in {"correlation", *CausalGraph.CAUSAL_EDGE_MODES}:
+                raise ValueError(f"不支持的 edge_mode: {edge_mode!r}")
+            adjacency[cause_idx, effect_idx] = confidence
+            edge_list.append((node_names[cause_idx], node_names[effect_idx]))
+            retained_edge_modes.add(edge_mode)
+
+        node_aliases = {name: [f"V{index}"] for index, name in enumerate(node_names) if name != f"V{index}"}
+
+        return CausalGraph(
+            nodes=list(node_names),
+            edges=edge_list,
+            adjacency=adjacency,
+            node_aliases=node_aliases,
+            edge_mode=(
+                "causal"
+                if retained_edge_modes and retained_edge_modes <= CausalGraph.CAUSAL_EDGE_MODES
+                else "correlation"
+            ),
+            dataset_id=dataset_id,
+        )
 
     # -----------------------------------------------------------------
     # CausalGraph ↔ SEM 双向转换 (v3.0.8)
@@ -249,6 +455,8 @@ class CausalGraph:
         Returns:
             StructuralEquationModel 实例
         """
+        if not self.is_causal_graph:
+            raise ValueError("关联图禁止转换为结构方程模型")
         from mci_world_model.sdk._counterfactual import StructuralEquationModel
 
         coeff = (
@@ -338,17 +546,23 @@ class DoCalculus:
         graph: CausalGraph | None = None,
         data: dict[str, np.ndarray] | None = None,
         seed: int = 42,
+        dataset: ObservationDataset | None = None,
     ):
         """
         Args:
             graph: 因果图 (CausalGraph 或 None)
             data: 观测数据 {node_name: values_array} (可选)
             seed: 随机种子 (用于模拟数据生成)
+            dataset: 显式观测数据集；传入时优先于 data
         """
+        if dataset is not None and data:
+            raise ValueError("dataset 与 data 不能同时传入")
         self._graph = graph
-        self._data = data or {}
+        self._dataset = dataset or ObservationDataset(values=data or {}, source="observed")
+        self._data = self._dataset.values
         self._rng = np.random.RandomState(seed)
-        self._is_simulated: bool = len(self._data) == 0
+        self._seed = seed
+        self._is_simulated: bool = self._dataset.source == "simulated"
 
     # -----------------------------------------------------------------
     # 图管理
@@ -358,16 +572,139 @@ class DoCalculus:
         """设置/更新因果图。"""
         self._graph = graph
 
-    def set_data(self, data: dict[str, np.ndarray]) -> None:
+    def set_data(self, data: dict[str, np.ndarray] | ObservationDataset, dataset_id: str | None = None) -> None:
         """设置观测数据。"""
-        self._data = data
-        self._is_simulated = False
+        self._dataset = (
+            data if isinstance(data, ObservationDataset) else ObservationDataset(values=data, dataset_id=dataset_id)
+        )
+        self._data = self._dataset.values
+        self._is_simulated = not self._dataset.is_observed
+
+    @property
+    def dataset(self) -> ObservationDataset:
+        """返回当前绑定的观测数据集。"""
+        return self._dataset
+
+    @property
+    def data_mode(self) -> str:
+        """返回 observed、simulated 或 no_data。"""
+        if not self._dataset.values:
+            return "no_data"
+        return self._dataset.source
+
+    def _resolve_node(self, node: str | int) -> str:
+        """将业务名、别名或字符串索引解析到图内节点。"""
+        if self._graph is None:
+            return str(node)
+        return self._graph.resolve_node(node)
+
+    def _no_data_result(self, X: str | int, Y: str | int, x_value: float, x_baseline: float) -> InterventionResult:
+        """构建显式 no_data 结果，禁止用图模拟伪装观测证据。"""
+        return InterventionResult(
+            intervention=f"do({X}={x_value})",
+            target=str(Y),
+            adjustment_set=[],
+            method="no_data",
+            do_x={str(X): x_value},
+            x_baseline=x_baseline,
+            estimator="none",
+            mode="no_data",
+            seed=self._seed,
+            is_conclusive=False,
+            note="no_data",
+            sample_size=0,
+        )
+
+    def _unsupported_result(self, X: str, Y: str, x_value: float, x_baseline: float, reason: str) -> InterventionResult:
+        """构建多变量或无效干预的显式拒绝结果。"""
+        return InterventionResult(
+            intervention=f"do({X}={x_value})",
+            target=Y,
+            adjustment_set=[],
+            method="unsupported",
+            do_x={X: x_value},
+            x_baseline=x_baseline,
+            estimator="none",
+            mode=self.data_mode,
+            dataset_hash=self._dataset.dataset_hash if self._dataset.values else None,
+            seed=self._seed,
+            is_conclusive=False,
+            note=reason,
+        )
+
+    def _association_graph_result(
+        self, X: str | int, Y: str | int, x_value: float, x_baseline: float
+    ) -> InterventionResult:
+        """关联图不构成 do-operator 证据，统一显式拒绝。"""
+        return InterventionResult(
+            intervention=f"do({X}={x_value})",
+            target=str(Y),
+            adjustment_set=[],
+            method="rejected",
+            do_x={str(X): x_value},
+            x_baseline=x_baseline,
+            estimator="none",
+            mode=self.data_mode,
+            dataset_hash=self._dataset.dataset_hash if self._dataset.values else None,
+            seed=self._seed,
+            is_conclusive=False,
+            note="association_graph_not_causal",
+        )
+
+    def _require_causal_graph(self) -> bool:
+        """返回 false 表示当前图是关联图，调用方必须停止因果估计。"""
+        return self._graph is None or self._graph.is_causal_graph
+
+    def estimate_intervention(
+        self,
+        do_x: dict[str, float],
+        target: str,
+        x_baseline: float = 0.0,
+        method: str = "auto",
+    ) -> InterventionResult:
+        """按统一契约处理干预映射；多变量在闭式实现前显式拒绝。"""
+        if not self._require_causal_graph():
+            first_name = next(iter(do_x), "")
+            first_value = float(next(iter(do_x.values()), 0.0))
+            return self._association_graph_result(first_name, target, first_value, x_baseline)
+        if not isinstance(do_x, dict) or not do_x:
+            raise ValueError("do_x 必须是非空 dict")
+        if not np.isfinite(x_baseline):
+            raise ValueError("x_baseline 必须是有限值")
+        try:
+            resolved = {
+                self._resolve_node(name): float(value)
+                for name, value in sorted(do_x.items(), key=lambda item: str(self._resolve_node(item[0])))
+            }
+        except UnknownNodeError as error:
+            first_name = next(iter(do_x), "")
+            return self._unsupported_result(
+                str(first_name),
+                target,
+                float(next(iter(do_x.values()), 0.0)),
+                x_baseline,
+                f"unknown_node: {error}",
+            )
+        if not np.all(np.isfinite(np.fromiter(resolved.values(), dtype=np.float64))):
+            return self._unsupported_result(
+                next(iter(resolved), ""), target, 0.0, x_baseline, "do_x value must be finite"
+            )
+        if len(resolved) != 1:
+            return self._unsupported_result(
+                next(iter(resolved)),
+                target,
+                next(iter(resolved.values())),
+                x_baseline,
+                "multivariate_do_not_implemented",
+            )
+        treatment, value = next(iter(resolved.items()))
+        return self.estimate_ate(treatment, target, x_value=value, x_baseline=x_baseline, method=method)
 
     # -----------------------------------------------------------------
     # 后门准则 — 调整变量集识别
     # -----------------------------------------------------------------
 
-    def identify_adjustment_set(self, X: str, Y: str) -> list[str] | None:
+    def identify_adjustment_set(self, X: str | int, Y: str | int) -> list[str] | None:
         """
         基于后门准则识别有效的调整变量集。
 
@@ -382,6 +719,11 @@ class DoCalculus:
         """
         if self._graph is None:
             return None
+        if not self._graph.is_causal_graph:
+            return None
+
+        X = self._resolve_node(X)
+        Y = self._resolve_node(Y)
 
         # 候选调整集: X 的父节点 (排除 X, Y 自身)
         parents = [p for p in self._graph.get_parents(X) if p not in (Y, X)]
@@ -421,6 +763,11 @@ class DoCalculus:
         """
         if self._graph is None:
             return None
+        if not self._graph.is_causal_graph:
+            return None
+
+        X = self._resolve_node(X)
+        Y = self._resolve_node(Y)
 
         mediators = self._graph.get_mediators(X, Y)
         # 前门准则的条件 2: 不存在从 X 到 M 的后门路径
@@ -443,7 +790,7 @@ class DoCalculus:
         self,
         X: str,
         Y: str,
-        Z_set: list[str],
+        Z_set: Sequence[str | int],
         x_value: float = 1.0,
         x_baseline: float = 0.0,
     ) -> InterventionResult:
@@ -467,33 +814,32 @@ class DoCalculus:
         Returns:
             InterventionResult 含 ATE 估计
 
-        Warns:
-            当无真实观测数据时, 结果基于因果图模拟的 SEM 数据 (循环验证),
-            ATE 反映图的拓扑结构而非真实因果效应。结果 method 字段标注为
-            "backdoor_simulated" 以提醒用户。
         """
-        if self._is_simulated and self._graph is not None:
-            result = self._backdoor_simulated(X, Y, Z_set, x_value, x_baseline)
-            # D6 修复: 明确标注结果来自模拟 (循环验证), 避免误导用户
-            if result.method != "none":
-                result.method = "backdoor_simulated"
-            return result
+        if not self._require_causal_graph():
+            return self._association_graph_result(X, Y, x_value, x_baseline)
+
+        X_name = self._resolve_node(X)
+        Y_name = self._resolve_node(Y)
+        Z_names = [self._resolve_node(z) for z in Z_set]
+
+        if self.data_mode == "no_data":
+            return self._no_data_result(X_name, Y_name, x_value, x_baseline)
 
         # ── 基于观测数据的后门调整 ──
-        if X not in self._data or Y not in self._data:
-            return InterventionResult.empty(method="backdoor")
+        if X_name not in self._data or Y_name not in self._data:
+            return self._no_data_result(X_name, Y_name, x_value, x_baseline)
 
-        x_data = self._data[X]
-        y_data = self._data[Y]
+        x_data = self._data[X_name]
+        y_data = self._data[Y_name]
         n_samples = len(x_data)
 
         if n_samples < 5:
-            return InterventionResult.empty(method="backdoor")
+            return self._no_data_result(X_name, Y_name, x_value, x_baseline)
 
         # 后门调整公式: E[Y | do(X=x)] = Σ_z E[Y | X=x, Z=z] · P(Z=z)
         # 用 OLS 回归 Y ~ X + Z 估计条件期望 E[Y|X=x,Z=z], 再按 P(Z) 加权求和。
         # 这是线性/可加假设下的标准后门调整实现; 对连续和离散 X/Z 均适用。
-        z_names = [z for z in Z_set if z in self._data]
+        z_names = [z for z in Z_names if z in self._data]
         if not z_names:
             # 无调整变量: ATE = E[Y|X=x_value] - E[Y|X=x_baseline]
             def _ey_given_x(x_level: float) -> float:
@@ -530,13 +876,13 @@ class DoCalculus:
             p_value = 1.0
 
         return self._build_result(
-            X=X,
-            Y=Y,
+            X=X_name,
+            Y=Y_name,
             x_value=x_value,
             x_baseline=x_baseline,
             ate=ate,
             ci=(ci_lower, ci_upper),
-            adjustment_set=Z_set,
+            adjustment_set=Z_names,
             method="backdoor",
             p_value=p_value,
             sample_size=n_samples,
