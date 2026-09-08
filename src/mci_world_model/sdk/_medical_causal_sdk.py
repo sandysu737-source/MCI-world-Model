@@ -18,7 +18,9 @@ from __future__ import annotations
 """
 
 
+import hashlib
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -27,6 +29,8 @@ from typing import Any
 import numpy as np
 
 from mci_world_model.sdk._confidence_calibrator import ConfidenceCalibrator
+
+DEFAULT_MAX_BATCH_QUERIES = 100
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,9 @@ class CausalDiagnosis:
         causal_strength: 因果强度 [0, 1]
         confidence: 诊断置信度
         evidence_ids: 支撑证据ID列表
+        effective_evidence_count: 去重且排除相关重复后的独立证据数
+        duplicate_count: 因内容与类型重复而不计数的证据数
+        correlated_count: 高相似度证据数
         is_conclusive: 是否确定性结论
         audit_trail: 审计轨迹
         warnings: 警告信息
@@ -87,6 +94,9 @@ class CausalDiagnosis:
     causal_strength: float = 0.0
     confidence: float = 0.0
     evidence_ids: list[str] = field(default_factory=list)
+    effective_evidence_count: int = 0
+    duplicate_count: int = 0
+    correlated_count: int = 0
     is_conclusive: bool = False
     audit_trail: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -95,6 +105,22 @@ class CausalDiagnosis:
 # =============================================================================
 # MedicalCausalSDK — 医疗因果推理 SDK
 # =============================================================================
+
+
+def get_max_batch_queries() -> int:
+    """读取批量诊断预算；非法配置必须显式失败。"""
+    try:
+        max_queries = int(os.environ.get("MCI_MAX_BATCH_QUERIES", str(DEFAULT_MAX_BATCH_QUERIES)))
+    except ValueError as error:
+        raise ValueError("MCI_MAX_BATCH_QUERIES 必须是正整数") from error
+    if max_queries <= 0:
+        raise ValueError("MCI_MAX_BATCH_QUERIES 必须是正整数")
+    return max_queries
+
+
+def _content_bigrams(text: str) -> set[str]:
+    normalized = "".join(text.lower().split())
+    return {normalized[index : index + 2] for index in range(max(len(normalized) - 1, 0))}
 
 
 class MedicalCausalSDK:
@@ -108,8 +134,12 @@ class MedicalCausalSDK:
 
     # 安全约束
     MIN_EVIDENCE_COUNT = 2
+    MIN_EVIDENCE_TYPES = 2
     MIN_CONFIDENCE_FOR_CONCLUSIVE = 0.7
     MIN_CAUSAL_STRENGTH = 0.3
+    MAX_EVIDENCE_COUNT = 1000
+
+    EVIDENCE_SIMILARITY_THRESHOLD = 0.60
 
     def __init__(self, patient_id: str = "", strict_mode: bool = True) -> None:
         self._patient_id = patient_id
@@ -131,8 +161,6 @@ class MedicalCausalSDK:
     @property
     def diagnosis_count(self) -> int:
         return len(self._diagnoses)
-
-    MAX_EVIDENCE_COUNT = 1000
 
     def set_calibrator(self, calibrator: ConfidenceCalibrator) -> None:
         """设置置信度校准器 (可选)。
@@ -186,6 +214,45 @@ class MedicalCausalSDK:
             evidence.confidence,
         )
 
+    @staticmethod
+    def _deduplicate_evidence(
+        evidence: list[ClinicalEvidence], patient_scope: str, cause: str, effect: str
+    ) -> tuple[list[ClinicalEvidence], int, list[str]]:
+        """按患者、因果假设、类型和内容哈希去重，并识别高相似证据。"""
+        seen: set[tuple[str, str, str, str, str]] = set()
+        unique: list[ClinicalEvidence] = []
+        duplicate_count = 0
+
+        for item in evidence:
+            content_hash = hashlib.sha256(item.description.encode("utf-8")).hexdigest()
+            signature = (patient_scope, cause, effect, item.evidence_type, content_hash)
+            if signature in seen:
+                duplicate_count += 1
+                continue
+            seen.add(signature)
+            unique.append(item)
+
+        correlated_indices: set[int] = set()
+        bigrams = [
+            _content_bigrams(item.description.lower().replace(cause.lower(), "").replace(effect.lower(), ""))
+            for item in unique
+        ]
+        for index, item in enumerate(unique):
+            if not bigrams[index]:
+                continue
+            for other_index, other in enumerate(unique):
+                if index == other_index or index in correlated_indices:
+                    break
+                union = len(bigrams[index] | bigrams[other_index])
+                if union and len(bigrams[index] & bigrams[other_index]) / union >= (
+                    MedicalCausalSDK.EVIDENCE_SIMILARITY_THRESHOLD
+                ):
+                    correlated_indices.add(index)
+                    correlated_indices.add(other_index)
+
+        correlated_ids = [unique[index].evidence_id for index in sorted(correlated_indices)]
+        return unique, duplicate_count, correlated_ids
+
     def diagnose(
         self,
         cause: str,
@@ -214,8 +281,16 @@ class MedicalCausalSDK:
         # Step 1: 证据充分性检查
         with self._lock:
             evidence_snapshot = list(self._evidence)
-        if len(evidence_snapshot) < self.MIN_EVIDENCE_COUNT:
-            warnings.append(f"证据不足: {len(evidence_snapshot)} < {self.MIN_EVIDENCE_COUNT}")
+        unique_evidence, duplicate_count, correlated_ids = self._deduplicate_evidence(
+            evidence_snapshot, self._patient_id, cause, effect
+        )
+        correlated_set = set(correlated_ids)
+        effective_evidence = [item for item in unique_evidence if item.evidence_id not in correlated_set]
+        evidence_types = {item.evidence_type for item in unique_evidence}
+        evidence_sources = {item.source or item.evidence_id for item in unique_evidence}
+        effective_count = len(effective_evidence)
+        if effective_count < self.MIN_EVIDENCE_COUNT:
+            warnings.append(f"独立证据不足: {effective_count} < {self.MIN_EVIDENCE_COUNT}（重复 {duplicate_count} 条）")
             if self._strict_mode:
                 audit_trail.append({"step": "evidence_check", "passed": False})
                 return CausalDiagnosis(
@@ -223,7 +298,9 @@ class MedicalCausalSDK:
                     effect=effect,
                     confidence=0.0,
                     is_conclusive=False,
-                    evidence_ids=[e.evidence_id for e in evidence_snapshot],
+                    effective_evidence_count=effective_count,
+                    duplicate_count=duplicate_count,
+                    correlated_count=len(correlated_ids),
                     audit_trail=audit_trail,
                     warnings=warnings,
                 )
@@ -233,11 +310,11 @@ class MedicalCausalSDK:
         # Step 2: 综合证据置信度
         relevant_evidence = [
             e
-            for e in evidence_snapshot
+            for e in effective_evidence
             if cause in e.description or effect in e.description or e.evidence_type == "observation"
         ]
         if not relevant_evidence:
-            relevant_evidence = evidence_snapshot  # 降级使用全部证据
+            relevant_evidence = effective_evidence  # 降级使用全部独立证据
 
         evidence_confidence = float(np.mean([e.confidence for e in relevant_evidence]))
 
@@ -260,13 +337,27 @@ class MedicalCausalSDK:
         if self._calibrator is not None:
             confidence = self._calibrator.calibrate(confidence, cause, effect)
 
-        # Step 5: 确定性判定
-        is_conclusive = confidence >= self.MIN_CONFIDENCE_FOR_CONCLUSIVE and causal_strength >= self.MIN_CAUSAL_STRENGTH
+        # Step 5: 确定性判定；数量、多样性、置信度与关键告警必须全部通过。
+        has_evidence_diversity = (
+            len(evidence_types) >= self.MIN_EVIDENCE_TYPES or len(evidence_sources) >= self.MIN_EVIDENCE_TYPES
+        )
+        if not has_evidence_diversity:
+            warnings.append(f"证据类型不足: {len(evidence_types)} < {self.MIN_EVIDENCE_TYPES}")
+        is_conclusive = (
+            effective_count >= self.MIN_EVIDENCE_COUNT
+            and has_evidence_diversity
+            and confidence >= self.MIN_CONFIDENCE_FOR_CONCLUSIVE
+            and causal_strength >= self.MIN_CAUSAL_STRENGTH
+            and not warnings
+        )
 
         audit_trail.append(
             {
                 "step": "diagnosis",
-                "evidence_count": len(relevant_evidence),
+                "evidence_count": effective_count,
+                "evidence_type_count": len(evidence_types),
+                "duplicate_count": duplicate_count,
+                "correlated_count": len(correlated_ids),
                 "evidence_confidence": evidence_confidence,
                 "causal_strength": causal_strength,
             }
@@ -281,6 +372,9 @@ class MedicalCausalSDK:
             causal_strength=causal_strength,
             confidence=confidence,
             evidence_ids=[e.evidence_id for e in relevant_evidence],
+            effective_evidence_count=effective_count,
+            duplicate_count=duplicate_count,
+            correlated_count=len(correlated_ids),
             is_conclusive=is_conclusive,
             audit_trail=audit_trail,
             warnings=warnings,
@@ -324,7 +418,12 @@ class MedicalCausalSDK:
 
         Returns:
             CausalDiagnosis 列表, 与 queries 一一对应
+
+        Raises:
+            ValueError: 批量查询数量超过 MCI_MAX_BATCH_QUERIES
         """
+        if len(queries) > get_max_batch_queries():
+            raise ValueError(f"批量查询数量超过上限 {get_max_batch_queries()}")
         results: list[CausalDiagnosis] = []
         for q in queries:
             sdk = MedicalCausalSDK(
