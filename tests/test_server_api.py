@@ -147,7 +147,13 @@ class TestDiagnoseEndpoint:
             {
                 "patient_id": "P001",
                 "evidence": [
-                    {"id": f"E{i}", "type": "lab", "description": "白蛋白", "confidence": 0.85} for i in range(5)
+                    {
+                        "id": f"E{i}",
+                        "type": "observation",
+                        "description": ["白蛋白下降", "肾功能异常", "摄入不足", "慢性炎症", "吸收障碍"][i],
+                        "confidence": 0.85,
+                    }
+                    for i in range(5)
                 ],
                 "cause": "低白蛋白",
                 "effect": "营养不良",
@@ -181,13 +187,39 @@ class TestBatchEndpoints:
                         "cause": "A",
                         "effect": "B",
                         "prior_strength": 0.5,
-                        "evidence": [{"id": f"E{i}", "description": "A B", "confidence": 0.85} for i in range(5)],
+                        "evidence": [
+                            {
+                                "id": f"E{i}",
+                                "description": [
+                                    "A 经代谢途径影响 B",
+                                    "A 经肾脏途径影响 B",
+                                    "A 经炎症途径影响 B",
+                                    "A 经神经途径影响 B",
+                                    "A 经内分泌途径影响 B",
+                                ][i],
+                                "confidence": 0.85,
+                            }
+                            for i in range(5)
+                        ],
                     },
                     {
                         "cause": "C",
                         "effect": "D",
                         "prior_strength": 0.6,
-                        "evidence": [{"id": f"E{i}", "description": "C D", "confidence": 0.9} for i in range(5)],
+                        "evidence": [
+                            {
+                                "id": f"E{i}",
+                                "description": [
+                                    "C 经代谢途径影响 D",
+                                    "C 经肾脏途径影响 D",
+                                    "C 经炎症途径影响 D",
+                                    "C 经神经途径影响 D",
+                                    "C 经内分泌途径影响 D",
+                                ][i],
+                                "confidence": 0.9,
+                            }
+                            for i in range(5)
+                        ],
                     },
                 ],
             },
@@ -234,7 +266,7 @@ class TestSecurityEndpoints:
     def test_rate_limit_429(self):
         """低限流 server: burst=2 时第 3 个请求应 429。"""
         _ensure_rate_server()
-        body = json.dumps({"cause": "A", "effect": "B", "evidence": []}).encode()
+        body = json.dumps({"cause": "A", "effect": "B", "evidence": [], "patient_id": "P001"}).encode()
         for _ in range(2):
             req = urllib.request.Request(
                 f"http://127.0.0.1:{_RATE_PORT}/api/v1/diagnose",

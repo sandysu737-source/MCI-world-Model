@@ -42,6 +42,16 @@ class IdentityRegistry:
         self._identities = identities
         self._source_path = source_path
 
+    @staticmethod
+    def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        """阻止 JSON 重复键被解析器静默覆盖。"""
+        parsed: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in parsed:
+                raise ValueError(f"重复键: {key}")
+            parsed[key] = value
+        return parsed
+
     @classmethod
     def from_path(cls, path: str | os.PathLike[str]) -> IdentityRegistry:
         """从受控 JSON 文件加载身份映射。"""
@@ -56,8 +66,11 @@ class IdentityRegistry:
             raise ValueError(f"身份映射文件权限过宽: {oct(file_mode)}")
 
         try:
-            payload = json.loads(map_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            payload = json.loads(
+                map_path.read_text(encoding="utf-8"),
+                object_pairs_hook=cls._reject_duplicate_keys,
+            )
+        except (OSError, ValueError) as exc:
             raise ValueError(f"身份映射文件无效: {exc}") from exc
         if not isinstance(payload, dict) or payload.get("version") != 1:
             raise ValueError("身份映射文件版本不受支持")
@@ -177,26 +190,33 @@ def verify_auth(headers: Any, config: AuthConfig) -> bool:
     Returns:
         True 如果认证通过
     """
+    return config.disabled or authenticate(headers, config) is not None
+
+
+def authenticate(headers: Any, config: AuthConfig) -> Identity | None:
+    """认证并返回服务端身份；禁用模式没有身份，诊断流量必须拒绝。"""
     if config.disabled:
-        return True
+        return None
     if not config.api_keys:
-        return False
+        return None
 
     # 规范化 header 为小写 (HTTP header 大小写不敏感)
     lower_headers = {k.lower(): v for k, v in headers.items()}
+    api_key = ""
 
     # Bearer token
     auth_header = lower_headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:].strip()
-        if token and any(secrets.compare_digest(token, key) for key in config.api_keys):
-            return True
+        api_key = token
 
-    # X-API-Key
-    api_key = lower_headers.get("x-api-key", "")
+    if not api_key:
+        api_key = lower_headers.get("x-api-key", "")
     if not api_key or not any(secrets.compare_digest(api_key, key) for key in config.api_keys):
-        return False
-    return config.identity_registry is not None and config.identity_registry.resolve(api_key) is not None
+        return None
+    if config.identity_registry is None:
+        return None
+    return config.identity_registry.resolve(api_key)
 
 
 @dataclass(frozen=True)
@@ -405,6 +425,32 @@ def get_auth_config() -> AuthConfig:
             _auth_config = AuthConfig.from_env()
             _auth_config.validate(strict=True)
     return _auth_config
+
+
+def set_auth_config(config: AuthConfig) -> AuthConfig:
+    """注入认证配置；测试与嵌入方使用同一入口，避免触达全局变量。"""
+    config.validate(strict=True)
+    global _auth_config
+    with _singleton_lock:
+        _auth_config = config
+    return _auth_config
+
+
+def reset_auth_config() -> None:
+    """清空认证配置缓存，下次访问按当前环境重建。"""
+    global _auth_config
+    with _singleton_lock:
+        _auth_config = None
+
+
+def reset_security_runtime() -> None:
+    """清空认证、限流、代理与熔断器缓存，确保测试互不继承状态。"""
+    global _rate_limiter, _trusted_proxies, _circuit_breaker
+    reset_auth_config()
+    with _singleton_lock:
+        _rate_limiter = None
+        _trusted_proxies = None
+        _circuit_breaker = None
 
 
 def get_rate_limiter() -> RateLimiter:
