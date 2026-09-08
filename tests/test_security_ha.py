@@ -53,6 +53,10 @@ def _ensure_server():
         os.environ["MCI_RATE_LIMIT"] = "1000"
         os.environ["MCI_RATE_BURST"] = "1000"
         os.environ["MCI_STORAGE_PATH"] = tempfile.mkdtemp(prefix="mci_test_")
+        import mci_world_model.server.security as sec_mod
+
+        sec_mod._auth_config = None
+        sec_mod._rate_limiter = None
         from mci_world_model.server.app import create_server
 
         server = create_server(port=_SERVER_PORT)
@@ -138,6 +142,7 @@ class TestAuthentication:
                 "cause": "低白蛋白",
                 "effect": "营养不良",
                 "prior_strength": 0.5,
+                "patient_id": "P001",
                 "evidence": [{"id": f"E{i}", "description": "白蛋白", "confidence": 0.85} for i in range(5)],
             },
             headers={"X-API-Key": "secure-test-key"},
@@ -153,6 +158,7 @@ class TestAuthentication:
                 "effect": "营养不良",
                 "prior_strength": 0.5,
                 "evidence": [{"id": f"E{i}", "description": "白蛋白", "confidence": 0.85} for i in range(5)],
+                "patient_id": "P001",
             },
             headers={"Authorization": "Bearer secure-test-key"},
         )
@@ -172,6 +178,7 @@ class TestAuthentication:
                 "cause": "A",
                 "effect": "B",
                 "prior_strength": 0.5,
+                "patient_id": "P001",
                 "evidence": [{"id": "E1", "description": "A B", "confidence": 0.85}],
             },
             headers={"x-api-key": "secure-test-key"},
@@ -280,6 +287,7 @@ class TestStorage:
 
     def test_storage_save_load_diagnosis(self):
         """save_diagnosis / load_diagnosis 端到端。"""
+        from mci_world_model.server.security import Identity
         from mci_world_model.server.storage import load_diagnosis, save_diagnosis
 
         os.environ["MCI_STORAGE_BACKEND"] = "file"
@@ -289,8 +297,9 @@ class TestStorage:
 
         storage_mod._storage = None
 
-        record_id = save_diagnosis("P001", {"confidence": 0.85})
-        loaded = load_diagnosis(record_id)
+        identity = Identity(subject="subject", tenant_id="tenant", patient_ids=frozenset({"P001"}))
+        record_id = save_diagnosis("P001", {"confidence": 0.85}, identity)
+        loaded = load_diagnosis(record_id, identity)
         assert loaded is not None
         assert loaded["confidence"] == 0.85
         assert loaded["patient_id"] == "P001"
@@ -312,7 +321,7 @@ class TestDiagnosisPersistence:
                 "effect": "营养不良",
                 "prior_strength": 0.5,
                 "evidence": [{"id": f"E{i}", "description": "白蛋白", "confidence": 0.85} for i in range(5)],
-                "patient_id": "PERSIST_P001",
+                "patient_id": "P001",
             },
             headers={"X-API-Key": "secure-test-key"},
         )
@@ -324,7 +333,7 @@ class TestDiagnosisPersistence:
         status2, record = _get_raw(f"/api/v1/diagnosis/{record_id}")
         assert status2 == 200
         assert record["confidence"] == body["confidence"]
-        assert record["patient_id"] == "PERSIST_P001"
+        assert record["patient_id"] == "P001"
 
     def test_diagnosis_not_found_404(self):
         """查询不存在的 record_id → 404。"""
@@ -350,6 +359,7 @@ class TestBackpressure:
         port = sock.getsockname()[1]
         sock.close()
 
+        _ensure_server()
         os.environ["MCI_API_KEY"] = "secure-test-key"
         os.environ["MCI_RATE_LIMIT"] = "10000"
         os.environ["MCI_RATE_BURST"] = "10000"
@@ -359,8 +369,7 @@ class TestBackpressure:
         import mci_world_model.server.app as app_mod
         import mci_world_model.server.security as sec_mod
 
-        sec_mod._auth_config = None
-        sec_mod._rate_limiter = None
+        sec_mod.reset_auth_config()
         app_mod._MAX_CONCURRENT = 2
         app_mod._concurrent_semaphore = threading.BoundedSemaphore(2)
 
@@ -424,46 +433,42 @@ class TestBackpressure:
 
 class TestPathTraversal:
     def test_file_storage_sanitizes_traversal(self):
-        """FileStorage 净化 ../ → 不遍历到 base 之外。"""
+        """FileStorage 直接拒绝 ../，不做净化后落盘。"""
         from mci_world_model.server.storage import FileStorage
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = FileStorage(tmpdir)
-            # key 中的 / 和 . 被净化为 _, 不遍历
-            store.save("../../etc/passwd", {"x": 1})
-            # 保存的文件在 base 目录内, key 被净化
-            loaded = store.load("../../etc/passwd")
-            assert loaded == {"x": 1}
-            # 确认没有访问 /etc/passwd
+            with pytest.raises(ValueError, match="非法存储 key"):
+                store.save("../../etc/passwd", {"x": 1})
+
             import pathlib
 
             files = list(pathlib.Path(tmpdir).glob("*.json"))
-            assert len(files) == 1
-            assert files[0].parent == pathlib.Path(tmpdir)
+            assert files == []
 
     def test_file_storage_blocks_absolute_path(self):
-        """FileStorage 净化绝对路径 key。"""
+        """FileStorage 直接拒绝绝对路径 key。"""
         from mci_world_model.server.storage import FileStorage
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = FileStorage(tmpdir)
-            # 被净化为 _etc_shadow.json, 仍在 base 内
-            result = store.load("/etc/shadow")
-            assert result is None  # 不存在 → None, 不抛异常
+            with pytest.raises(ValueError, match="非法存储 key"):
+                store.load("/etc/shadow")
 
     def test_record_id_sanitized_no_traversal(self):
-        """通过 record_id 路径遍历被净化, 不实际遍历。"""
+        """恶意 record_id 直接失败，不做净化后落盘。"""
         from mci_world_model.server.storage import FileStorage
 
         with tempfile.TemporaryDirectory() as tmpdir:
             store = FileStorage(tmpdir)
-            # 恶意 key 被净化后保存在 base 内
-            store.save("diagnosis:..:..:etc:passwd", {"evil": True})
-            # 无法通过遍历读取 /etc/passwd
+            with pytest.raises(ValueError, match="非法存储 key"):
+                store.save("diagnosis:..:..:etc:passwd", {"evil": True})
+
             import pathlib
 
             for f in pathlib.Path(tmpdir).glob("*.json"):
                 assert f.parent == pathlib.Path(tmpdir)
+            assert list(pathlib.Path(tmpdir).glob("*.json")) == []
 
 
 # =============================================================================
@@ -474,33 +479,35 @@ class TestPathTraversal:
 class TestRecordIdCollision:
     def test_record_id_has_random_suffix(self):
         """同一毫秒同一 patient 的 record_id 不碰撞。"""
+        from mci_world_model.server.security import Identity
         from mci_world_model.server.storage import save_diagnosis
 
         os.environ["MCI_STORAGE_BACKEND"] = "file"
         os.environ["MCI_STORAGE_PATH"] = tempfile.mkdtemp(prefix="mci_test3_")
+        os.environ["MCI_ENV"] = "test"
         import mci_world_model.server.storage as storage_mod
 
         storage_mod._storage = None
 
-        id1 = save_diagnosis("P001", {"conf": 0.9})
-        id2 = save_diagnosis("P001", {"conf": 0.9})
+        identity = Identity(subject="subject", tenant_id="tenant", patient_ids=frozenset({"P001"}))
+        id1 = save_diagnosis("P001", {"conf": 0.9}, identity)
+        id2 = save_diagnosis("P001", {"conf": 0.9}, identity)
         assert id1 != id2, "record_id 碰撞了!"
 
     def test_patient_id_sanitized(self):
-        """patient_id 中的特殊字符被净化。"""
+        """patient_id 不在授权集合中时直接拒绝，而不是净化后写入。"""
+        from mci_world_model.server.security import Identity
         from mci_world_model.server.storage import save_diagnosis
 
         os.environ["MCI_STORAGE_PATH"] = tempfile.mkdtemp(prefix="mci_test4_")
+        os.environ["MCI_ENV"] = "test"
         import mci_world_model.server.storage as storage_mod
 
         storage_mod._storage = None
 
-        record_id = save_diagnosis("P001'; DROP TABLE--", {"x": 1})
-        # 危险字符 '; ' 和路径分隔符必须被移除
-        assert "';" not in record_id
-        assert "/" not in record_id
-        assert ".." not in record_id
-        assert " " not in record_id
+        identity = Identity(subject="subject", tenant_id="tenant", patient_ids=frozenset({"P001"}))
+        with pytest.raises(PermissionError, match="授权范围"):
+            save_diagnosis("P001'; DROP TABLE--", {"x": 1}, identity)
 
 
 # =============================================================================
