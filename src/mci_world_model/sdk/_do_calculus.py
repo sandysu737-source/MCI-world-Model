@@ -1000,9 +1000,9 @@ class DoCalculus:
 
     def frontdoor_adjustment(
         self,
-        X: str,
-        Y: str,
-        M_set: list[str],
+        X: str | int,
+        Y: str | int,
+        M_set: Sequence[str | int],
         x_value: float = 1.0,
         x_baseline: float = 0.0,
     ) -> InterventionResult:
@@ -1026,24 +1026,34 @@ class DoCalculus:
         Returns:
             InterventionResult
         """
-        if self._is_simulated and self._graph is not None:
-            return self._frontdoor_simulated(X, Y, M_set, x_value, x_baseline)
+        if self._graph is None:
+            return self._no_data_result(X, Y, x_value, x_baseline)
+
+        if not self._require_causal_graph():
+            return self._association_graph_result(X, Y, x_value, x_baseline)
+
+        X_name = self._resolve_node(X)
+        Y_name = self._resolve_node(Y)
+        M_names = [self._resolve_node(m) for m in M_set]
+
+        if self.data_mode == "no_data":
+            return self._no_data_result(X_name, Y_name, x_value, x_baseline)
 
         # ── 基于观测数据的前门调整 ──
-        if X not in self._data or Y not in self._data:
-            return InterventionResult.empty(method="frontdoor")
+        if X_name not in self._data or Y_name not in self._data:
+            return self._no_data_result(X_name, Y_name, x_value, x_baseline)
 
-        x_data = self._data[X]
-        y_data = self._data[Y]
+        x_data = self._data[X_name]
+        y_data = self._data[Y_name]
         n_samples = len(x_data)
 
         if n_samples < 10:
-            return InterventionResult.empty(method="frontdoor")
+            return self._no_data_result(X_name, Y_name, x_value, x_baseline)
 
         y_do_total = 0.0
         n_valid_m = 0
 
-        for m_name in M_set:
+        for m_name in M_names:
             if m_name not in self._data:
                 continue
             m_data = self._data[m_name]
@@ -1088,13 +1098,13 @@ class DoCalculus:
         p_value = 2.0 * (1.0 - norm.cdf(abs(ate) / max(se, 1e-10)))
 
         return self._build_result(
-            X=X,
-            Y=Y,
+            X=X_name,
+            Y=Y_name,
             x_value=x_value,
             x_baseline=x_baseline,
             ate=ate,
             ci=ci,
-            adjustment_set=M_set,
+            adjustment_set=M_names,
             method="frontdoor",
             p_value=p_value,
             sample_size=n_samples,
@@ -1104,7 +1114,7 @@ class DoCalculus:
         self,
         X: str,
         Y: str,
-        M_set: list[str],
+        M_set: Sequence[str],
         x_value: float,
         x_baseline: float,
     ) -> InterventionResult:
@@ -1164,7 +1174,7 @@ class DoCalculus:
             x_baseline=x_baseline,
             ate=ate,
             ci=ci,
-            adjustment_set=M_set,
+            adjustment_set=list(M_set),
             method="frontdoor",
             p_value=p_value,
             sample_size=n_sim,
@@ -1177,8 +1187,8 @@ class DoCalculus:
 
     def estimate_ate(
         self,
-        X: str,
-        Y: str,
+        X: str | int,
+        Y: str | int,
         x_value: float = 1.0,
         x_baseline: float = 0.0,
         method: str = "auto",
@@ -1201,47 +1211,52 @@ class DoCalculus:
         Returns:
             InterventionResult
         """
+        if not self._require_causal_graph():
+            return self._association_graph_result(X, Y, x_value, x_baseline)
+
+        if self._graph is None:
+            return self._no_data_result(X, Y, x_value, x_baseline)
+
+        try:
+            X_name = self._resolve_node(X)
+            Y_name = self._resolve_node(Y)
+        except UnknownNodeError as error:
+            return InterventionResult(
+                intervention=f"do({X}={x_value})",
+                target=str(Y),
+                method="rejected",
+                note=f"unknown_node: {error}",
+            )
+
         # F4-P1-3: NaN/Inf 边界守卫 — 拒绝非有限输入，保证 ATE 计算洁污
         if not np.isfinite(x_value):
             return InterventionResult(
-                intervention=f"do({X}={x_value})",
-                target=Y,
+                intervention=f"do({X_name}={x_value})",
+                target=Y_name,
                 method="rejected",
                 note=f"x_value must be finite, got {x_value}",
             )
         if not np.isfinite(x_baseline):
             return InterventionResult(
-                intervention=f"do({X}={x_value})",
-                target=Y,
+                intervention=f"do({X_name}={x_value})",
+                target=Y_name,
                 method="rejected",
                 note=f"x_baseline must be finite, got {x_baseline}",
             )
 
-        if self._graph is None:
-            return InterventionResult.empty(method="none")
-
-        # X / Y 节点存在性检查
-        if X not in self._graph.nodes or Y not in self._graph.nodes:
-            return InterventionResult(
-                intervention=f"do({X}={x_value})",
-                target=Y,
-                method="rejected",
-                note=f"X ({X}) or Y ({Y}) not in graph nodes: {self._graph.nodes}",
-            )
-
         # ── 方法选择 ──
         if method in ("auto", "backdoor"):
-            adj_set = self.identify_adjustment_set(X, Y)
+            adj_set = self.identify_adjustment_set(X_name, Y_name)
             if adj_set:
-                return self.backdoor_adjustment(X, Y, adj_set, x_value, x_baseline)
+                return self.backdoor_adjustment(X_name, Y_name, adj_set, x_value, x_baseline)
 
         if method in ("auto", "frontdoor"):
-            mediators = self.identify_frontdoor_mediators(X, Y)
+            mediators = self.identify_frontdoor_mediators(X_name, Y_name)
             if mediators:
-                return self.frontdoor_adjustment(X, Y, mediators, x_value, x_baseline)
+                return self.frontdoor_adjustment(X_name, Y_name, mediators, x_value, x_baseline)
 
         # ── 回退: 直接效应 (无调整) ──
-        return self.direct_effect(X, Y, x_value, x_baseline)
+        return self.direct_effect(X_name, Y_name, x_value, x_baseline)
 
     # -----------------------------------------------------------------
     # 受控直接效应
@@ -1261,8 +1276,14 @@ class DoCalculus:
 
         当没有观测数据可用时，使用因果关系图进行模拟。
         """
-        if self._is_simulated and self._graph is not None:
-            return self._direct_effect_simulated(X, Y, x_value, x_baseline)
+        if not self._require_causal_graph():
+            return self._association_graph_result(X, Y, x_value, x_baseline)
+
+        X = self._resolve_node(X)
+        Y = self._resolve_node(Y)
+
+        if self.data_mode == "no_data":
+            return self._no_data_result(X, Y, x_value, x_baseline)
 
         # 基于观测数据的简单估计
         if X in self._data and Y in self._data:
@@ -1295,7 +1316,7 @@ class DoCalculus:
                 note="no_adjustment_(confounded_estimate)",
             )
 
-        return InterventionResult.empty(method="direct")
+        return self._no_data_result(X, Y, x_value, x_baseline)
 
     def _direct_effect_simulated(
         self,
@@ -1364,6 +1385,45 @@ class DoCalculus:
             note="simulated_do-intervention_(no_adjustment)",
         )
 
+    def simulate(
+        self,
+        n_samples: int = 500,
+        seed: int | None = None,
+        bind: bool = True,
+    ) -> ObservationDataset:
+        """显式生成研究型模拟数据；未调用本方法时 estimate_ate 返回 no_data。"""
+        if self._graph is None or self._graph.adjacency is None:
+            raise ValueError("模拟数据必须绑定有效因果图")
+        if not self._graph.is_causal_graph:
+            raise ValueError("关联图禁止用于模拟因果干预数据")
+        topo_order = self._topological_sort()
+        if topo_order is None:
+            raise ValueError("模拟数据要求无环因果图")
+        if n_samples <= 0:
+            raise ValueError("n_samples 必须为正整数")
+
+        effective_seed = self._seed if seed is None else seed
+        rng = np.random.RandomState(effective_seed)
+        n_nodes = self._graph.n_nodes
+        values = np.zeros((n_samples, n_nodes), dtype=np.float64)
+        for node_index in topo_order:
+            parent_values = np.zeros(n_samples, dtype=np.float64)
+            for parent_index in range(n_nodes):
+                weight = self._graph.adjacency[parent_index, node_index]
+                if weight > 0:
+                    parent_values += float(weight) * values[:, parent_index]
+            values[:, node_index] = parent_values + rng.randn(n_samples) * 0.5
+
+        dataset = ObservationDataset(
+            values={name: values[:, index] for index, name in enumerate(self._graph.nodes)},
+            dataset_id=self._graph.dataset_id,
+            source="simulated",
+            seed=effective_seed,
+        )
+        if bind:
+            self.set_data(dataset)
+        return dataset
+
     # -----------------------------------------------------------------
     # 静态工厂: 从 GaussianDAG 边列表构建
     # -----------------------------------------------------------------
@@ -1373,40 +1433,18 @@ class DoCalculus:
         edges: list[dict[str, Any]],
         n_nodes: int,
         min_confidence: float = 0.3,
+        node_names: Sequence[str] | None = None,
+        memories: Sequence[dict[str, Any]] | None = None,
+        dataset_id: str | None = None,
     ) -> CausalGraph:
-        """
-        从 GaussianDAG.discover_hidden_edges() 输出构建因果图。
-
-        只保留置信度 >= min_confidence 的边。
-
-        Args:
-            edges: discover_hidden_edges() 返回的边列表
-            n_nodes: 节点总数
-            min_confidence: 边置信度最低阈值
-
-        Returns:
-            CausalGraph
-        """
-        adj = np.zeros((n_nodes, n_nodes), dtype=np.float32)
-        edge_list: list[tuple[str, str]] = []
-
-        for e in edges:
-            conf = e.get("confidence", 0)
-            if conf < min_confidence:
-                continue
-            cause_idx = e.get("cause_idx")
-            effect_idx = e.get("effect_idx")
-            if cause_idx is None or effect_idx is None:
-                continue
-            if not (0 <= cause_idx < n_nodes and 0 <= effect_idx < n_nodes):
-                continue
-            adj[cause_idx, effect_idx] = float(conf)
-            edge_list.append((f"V{cause_idx}", f"V{effect_idx}"))
-
-        return CausalGraph(
-            nodes=[f"V{i}" for i in range(n_nodes)],
-            edges=edge_list,
-            adjacency=adj,
+        """兼容旧调用入口，实际构建逻辑归属 CausalGraph。"""
+        return CausalGraph.build_from_gaussian_dag(
+            edges=edges,
+            n_nodes=n_nodes,
+            min_confidence=min_confidence,
+            node_names=node_names,
+            memories=memories,
+            dataset_id=dataset_id,
         )
 
     # -----------------------------------------------------------------
@@ -1481,6 +1519,23 @@ class DoCalculus:
         note: str = "",
     ) -> InterventionResult:
         """构建标准化的 InterventionResult。"""
+        if not np.isfinite(ate) or not np.isfinite(ci[0]) or not np.isfinite(ci[1]) or not np.isfinite(p_value):
+            return InterventionResult(
+                intervention=f"do({X}={x_value})",
+                target=Y,
+                adjustment_set=list(adjustment_set),
+                method="rejected",
+                do_x={X: float(x_value)},
+                x_baseline=float(x_baseline),
+                estimator=method,
+                mode=self.data_mode,
+                dataset_hash=self._dataset.dataset_hash if self._dataset.values else None,
+                seed=self._seed,
+                is_conclusive=False,
+                note="non_finite_result",
+            )
+
+        mode = self.data_mode
         direction = "neutral"
         if ate > 0.05:
             direction = "positive"
@@ -1509,6 +1564,13 @@ class DoCalculus:
             effect_magnitude=magnitude,
             sample_size=sample_size,
             note=note,
+            do_x={X: float(x_value)},
+            x_baseline=float(x_baseline),
+            estimator=method,
+            mode=mode,
+            dataset_hash=self._dataset.dataset_hash if self._dataset.values else None,
+            seed=self._seed,
+            is_conclusive=mode == "observed" and sample_size > 0,
         )
 
     # -----------------------------------------------------------------
