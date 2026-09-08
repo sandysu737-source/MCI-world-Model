@@ -4,14 +4,14 @@
 MCI World Model v4.6.0 能量中心三才合一架构:
 
   【基础类型层 (Foundation)】
-     YinYang          阴阳二象
+     YinYang          duality
      ThreePowers       天地人三才
      FourSymbols       四象 (少阳/太阳/少阴/太阴)
      Season            五季 (春/夏/长夏/秋/冬)
-     TimeStem          十天干
-     TimeBranch        十二地支
-     BranchRelation    地支关系 (六合/三合/六冲/三刑/六害/破)
-     TrigramType       八卦类型
+     TimeStem          ten TimeStem codes
+     TimeBranch        twelve TimeBranch codes
+     BranchRelation    TimeBranch relation (六合/三合/六冲/三刑/六害/破)
+     TrigramType       TrigramType
      TrigramRelation   卦象关系 (错/互/综/半/交)
      StrengthState     旺衰五态 (旺/相/休/囚/死)
      EnergyPattern     能量格局 (制化/从旺/专旺/反局/配合)
@@ -20,13 +20,13 @@ MCI World Model v4.6.0 能量中心三才合一架构:
 
   天层 (Temporal/Sky) — "何时"
      TemporalCore     六十花甲时间编码核心
-     StemBranchCode    天干地支编码单元
+     StemBranchCode    TimeCode encoding unit
      TemporalSystem    时间系统 (日期→干支、时间衰减、相似度)
      TimeCycle         六十甲子循环
      TimeCodeInfo       时空标注
 
   地层 (Spatial/Earth) — "何地"
-     TrigramCore       八卦空间编码核心
+     TrigramCore       TrigramCore
      TaijiMapper       太极3D维度映射
      PatternInference  64卦三层推断 (本→互→变)
 

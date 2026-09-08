@@ -748,6 +748,9 @@ class MCIWorldModel:
         # v3.1.0 JEPA: 编码器 + 预测器 (懒加载)
         self._jepa_encoder: Any | None = None
         self._jepa_predictor: Any | None = None
+        self._jepa_mode = str(self._config.get("jepa_mode", "latent"))
+        if self._jepa_mode not in {"latent", "legacy_graph"}:
+            raise ValueError(f"未知 jepa_mode: {self._jepa_mode}")
 
         # Pearl L2: do-calculus 干预引擎 (懒加载)
         self._do_calculus: Any | None = None
@@ -821,6 +824,22 @@ class MCIWorldModel:
         # 如果传入了 lite_pro，自动初始化
         if lite_pro is not None:
             self.initialize()
+
+    @property
+    def jepa_mode(self) -> str:
+        """当前 JEPA 输出模式；latent 是默认生产契约。"""
+        return self._jepa_mode
+
+    def attach_true_jepa(self, encoder: Any, predictor: Any | None = None) -> None:
+        """显式注入 TrueJEPA 编码器，接入潜空间主闭环。"""
+        self._jepa_mode = "latent"
+        from mci_world_model.sdk._jepa_encoder import JEPAEncoder
+
+        if self._jepa_encoder is None:
+            self._jepa_encoder = JEPAEncoder(self, jepa_mode="latent")
+        self._jepa_encoder.attach_true_jepa(encoder)
+        if predictor is not None:
+            self._jepa_predictor = predictor
 
     # ────────────────────────────────────────────────
     # 初始化
@@ -1197,7 +1216,7 @@ class MCIWorldModel:
         Args:
             edge: 原始因果边 dict
             energy_core: EnergyCore 实例（None 时使用内置惰性获取器）
-            month_branch: 当前月份地支索引（0=子月）
+            month_branch: 当前月份TimeBranch index（0=子月）
 
         Returns:
             补全能量属性后的新 dict
@@ -1443,8 +1462,15 @@ class MCIWorldModel:
                 and self._jepa_encoder._differentiable
             )
 
-            # 1. 编码: 记忆 → 因果图状态
-            state = self._jepa_encoder.encode(memories)
+            # 1. 编码: latent 模式只接受潜向量，legacy_graph 是显式过渡。
+            encoded = self._jepa_encoder.encode(memories)
+            if getattr(encoded, "source", None) == "legacy_graph":
+                state = encoded.graph_state
+            else:
+                if not getattr(encoded, "is_ready", False):
+                    logger.warning("JEPA latent 编码未就绪: %s", encoded.diagnostics)
+                    return self.predict_effect(cause, top_k=top_k)
+                return []
 
             # 2. 预测: 状态 → 下一状态 (GNN)
             next_state = self._jepa_predictor.predict(state)
@@ -1553,7 +1579,7 @@ class MCIWorldModel:
 
         try:
             # 1. GAT 编码
-            state = self._jepa_encoder.encode(memories)
+            state = self._jepa_encoder.encode_graph(memories)
 
             if not state.causal_edges:
                 logger.info("GAT 编码未发现因果边")
@@ -1699,7 +1725,15 @@ class MCIWorldModel:
         if do_x is None or target is None:
             return {
                 "status": "insufficient_input",
+                "code": 422,
                 "message": "需要 do_x 和 target 参数",
+            }
+        if not isinstance(do_x, dict) or not do_x:
+            return {
+                "status": "unsupported",
+                "code": 422,
+                "reason": "invalid_do_x",
+                "message": "do_x 必须是非空 dict",
             }
 
         # ── 懒加载 DoCalculus 引擎 ──
@@ -1735,22 +1769,38 @@ class MCIWorldModel:
 
         self._do_calculus.set_graph(cg)  # type: ignore[arg-type]
 
-        # ── 执行干预分析 ──
-        x_name = next(iter(do_x.keys()))
-        x_value = float(next(iter(do_x.values())))
-
-        # F2-P0-1: 拒绝 NaN/Inf 干预值 — 保证浮点边界洁污不污染下游计算
-        if not np.isfinite(x_value):
+        # ── 干预契约：先统一拒绝多变量和无效值，避免 dict 键序决定语义 ──
+        try:
+            normalized_do_x = {str(name): float(value) for name, value in do_x.items()}
+        except (TypeError, ValueError):
             return {
-                "status": "error",
-                "message": (f"intervention value must be finite (NaN/Inf rejected), got: x_value={x_value}"),
+                "status": "rejected",
+                "code": 422,
+                "reason": "invalid_do_x",
+                "message": "do_x 的变量名必须可解析，干预值必须是数值",
+            }
+        if not np.all(np.isfinite(np.fromiter(normalized_do_x.values(), dtype=np.float64))):
+            return {
+                "status": "rejected",
+                "code": 422,
+                "reason": "non_finite_do_x",
+                "message": "intervention values must be finite (NaN/Inf rejected)",
+            }
+        if len(normalized_do_x) != 1:
+            return {
+                "status": "unsupported",
+                "code": 422,
+                "reason": "multivariate_do_not_implemented",
+                "message": "多变量干预尚未实现；当前只支持单变量 do({变量: 数值})",
             }
 
+        x_name = next(iter(normalized_do_x))
+        x_value = normalized_do_x[x_name]
+
         try:
-            result = self._do_calculus.estimate_ate(
-                X=x_name,
-                Y=target,
-                x_value=x_value,
+            result = self._do_calculus.estimate_intervention(
+                do_x={x_name: x_value},
+                target=target,
                 x_baseline=0.0,
                 method=method,
             )
@@ -1791,7 +1841,14 @@ class MCIWorldModel:
 
         # ── 返回结果 ──
         output = result.to_dict()
-        output["status"] = "ok"
+        if result.method == "no_data":
+            output["status"] = "no_data"
+            output["code"] = 422
+        elif result.method in {"rejected", "unsupported"}:
+            output["status"] = result.method
+            output["code"] = 422
+        else:
+            output["status"] = "ok"
         output["history_count"] = len(self._intervention_history)
         return output
 
@@ -1963,6 +2020,12 @@ class MCIWorldModel:
         if cg is None:
             all_nodes = list(evidence.keys()) + list(do_x.keys()) + [target]
             cg = CausalGraph(nodes=list(set(all_nodes)), edges=[])
+        if not getattr(cg, "is_causal_graph", False):
+            return {
+                "status": "rejected",
+                "reason": "association_graph_not_causal",
+                "message": "缺少显式定向证据的关联图不能执行反事实推理",
+            }
 
         # ── 构建反事实引擎并查询 ──
         engine = CounterfactualEngine.from_causal_graph(cg)
