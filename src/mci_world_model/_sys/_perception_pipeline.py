@@ -154,7 +154,7 @@ class PerceptionPipeline:
     三源融合:
     1. EvidenceCollector: 多源证据收集 + 可靠性评估
     2. SemanticEncoder: 文本→语义向量编码（64卦全息编码）
-    3. TemporalSystem: 时间标注（天干地支/六十花甲）
+    3. TemporalSystem: 时间标注（Time Code/六十花甲）
     """
 
     def __init__(self):

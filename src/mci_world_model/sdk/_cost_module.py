@@ -97,7 +97,7 @@ class EnergyCostModule:
         beta_causal: float = 0.3,
         gamma_temporal: float = 0.2,
         energy_core=None,  # v3.0.4: 外部注入 EnergyCore
-        month_branch: int = 0,  # v3.0.4: 当前月份地支索引
+        month_branch: int = 0,  # v3.0.4: 当前月份TimeBranch index
     ):
         """
         Args:
@@ -105,7 +105,7 @@ class EnergyCostModule:
             beta_causal: 因果一致性维度权重
             gamma_temporal: 时序连贯性维度权重
             energy_core: EnergyCore 实例，启用时变代价 (v3.0.4)
-            month_branch: 当前月份地支索引 0-11 (v3.0.4)
+            month_branch: 当前月份TimeBranch index 0-11 (v3.0.4)
         """
         self._alpha = alpha_energy
         self._beta = beta_causal

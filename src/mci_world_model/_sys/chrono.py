@@ -56,7 +56,7 @@ class DiZhi:
     ]
     # 六合关系（time_branch索引对）：子丑合, 寅亥合, 卯戌合, 辰酉合, 巳申合, 午未合
     LIUHE = {0: 1, 1: 0, 2: 11, 11: 2, 3: 10, 10: 3, 4: 9, 9: 4, 5: 8, 8: 5, 6: 7, 7: 6}
-    # 三合局（三个time_branch组成一局）：申子辰(水), 亥卯未(木), 寅午戌(火), 巳酉丑(金)
+    # 三合局（三个time_branch组成一局）：申子辰(water), 亥卯未(wood), 寅午戌(fire), 巳酉丑(metal)
     SANHE = [
         {8, 0, 4},  # 申子辰 → 水局
         {11, 3, 7},  # 亥卯未 → 木局
@@ -207,18 +207,18 @@ class TemporalSystem:
         """
         根据月份和日期确定当前月令（节气精确版）
 
-        寅月(立春~惊蛰): 2.4~3.5 → 春（木）
-        卯月(惊蛰~清明): 3.6~4.4 → 春（木）
-        辰月(清明~立夏): 4.5~5.5 → 春末（土）
-        巳月(立夏~芒种): 5.6~6.5 → 夏（火）
-        午月(芒种~小暑): 6.6~7.6 → 夏（火）
-        未月(小暑~立秋): 7.7~8.6 → 夏末（土）
-        申月(立秋~白露): 8.7~9.7 → 秋（金）
-        酉月(白露~寒露): 9.8~10.7 → 秋（金）
-        戌月(寒露~立冬): 10.8~11.6 → 秋末（土）
-        亥月(立冬~大雪): 11.7~12.6 → 冬（水）
-        子月(大雪~小寒): 12.7~1.5 → 冬（水）
-        丑月(小寒~立春): 1.6~2.3 → 冬末（土）
+        寅月(立春~惊蛰): 2.4~3.5 → 春（wood）
+        卯月(惊蛰~清明): 3.6~4.4 → 春（wood）
+        辰月(清明~立夏): 4.5~5.5 → 春末（earth）
+        巳月(立夏~芒种): 5.6~6.5 → 夏（fire）
+        午月(芒种~小暑): 6.6~7.6 → 夏（fire）
+        未月(小暑~立秋): 7.7~8.6 → 夏末（earth）
+        申月(立秋~白露): 8.7~9.7 → 秋（metal）
+        酉月(白露~寒露): 9.8~10.7 → 秋（metal）
+        戌月(寒露~立冬): 10.8~11.6 → 秋末（earth）
+        亥月(立冬~大雪): 11.7~12.6 → 冬（water）
+        子月(大雪~小寒): 12.7~1.5 → 冬（water）
+        丑月(小寒~立春): 1.6~2.3 → 冬末（earth）
         """
         # 将月+日编码为浮点数方便比较
         md = month + day / 100.0
@@ -256,7 +256,7 @@ class TemporalSystem:
         获取当前月令下各energy_type的strong衰状态
 
         Returns:
-            {"木": "strong", "火": "balanced", "土": "rested", "金": "restrained", "水": "declined"}  # 春季示例
+            {"wood": "strong", "fire": "balanced", "earth": "rested", "metal": "restrained", "water": "declined"}  # 春季示例
         """
         season = self._get_season(month, day)
 
@@ -264,11 +264,11 @@ class TemporalSystem:
         states = ["strong", "balanced", "rested", "restrained", "declined"]
 
         season_orders = {
-            "春": ["木", "火", "水", "金", "土"],
-            "夏": ["火", "土", "木", "水", "金"],
-            "秋": ["金", "水", "土", "火", "木"],
-            "冬": ["水", "木", "金", "土", "火"],
-            "四季": ["土", "金", "火", "木", "水"],
+            "春": ["wood", "fire", "water", "metal", "earth"],
+            "夏": ["fire", "earth", "wood", "water", "metal"],
+            "秋": ["metal", "water", "earth", "fire", "wood"],
+            "冬": ["water", "wood", "metal", "earth", "fire"],
+            "四季": ["earth", "metal", "fire", "wood", "water"],
         }
 
         order = season_orders.get(season, season_orders["四季"])

@@ -62,10 +62,10 @@ class FourSymbols(IntEnum):
     - TAI_YIN: Winter (太阴) - yin peak, inward storage, rest phase
 
     Corresponds to Five Elements and seasons:
-    - SHAO_YANG -> 木 (Wood) -> Spring
-    - TAI_YANG -> 火 (Fire) -> Summer
-    - SHAO_YIN -> 金 (Metal) -> Autumn
-    - TAI_YIN -> 水 (Water) -> Winter
+    - SHAO_YANG -> wood (Wood) -> Spring
+    - TAI_YANG -> fire (Fire) -> Summer
+    - SHAO_YIN -> metal (Metal) -> Autumn
+    - TAI_YIN -> water (Water) -> Winter
     """
 
     SHAO_YANG = 0  # 少阳 - Spring, Wood, birth (阴消阳长)
@@ -79,7 +79,7 @@ class Season(IntEnum):
     Four Seasons (四季) enumeration.
 
     Spring -> Summer -> Autumn -> Winter
-    With Earth (土) as center, governing late summer/transitions
+    With Earth (earth) as center, governing late summer/transitions
     """
 
     SPRING = 0  # 春 - Wood, growth
@@ -231,11 +231,11 @@ class EnergyType(IntEnum):
     - WATER: Flow, wisdom, adaptation
     """
 
-    WOOD = 0  # 木 - Wood
-    FIRE = 1  # 火 - Fire
-    EARTH = 2  # 土 - Earth
-    METAL = 3  # 金 - Metal
-    WATER = 4  # 水 - Water
+    WOOD = 0  # wood - Wood
+    FIRE = 1  # fire - Fire
+    EARTH = 2  # earth - Earth
+    METAL = 3  # metal - Metal
+    WATER = 4  # water - Water
 
 
 class EnergyRelation(IntEnum):

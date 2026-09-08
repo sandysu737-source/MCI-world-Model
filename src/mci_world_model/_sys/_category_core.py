@@ -109,19 +109,19 @@ TRIGRAM_YINYANG: dict[TrigramType, str] = {
 # Four Symbols Attribution (Four Symbols对应)
 # Based on trigram energy type and position
 TRIGRAM_FOUR_SYMBOLS: dict[TrigramType, str] = {
-    # 木属性 -> 少阳 (春)
+    # wood -> 少阳 (春)
     TrigramType.ZHEN: "SHAO_YANG",  # 震 - 雷, 少阳
     TrigramType.XUN: "SHAO_YANG",  # 巽 - 风, 少阳
-    # 火属性 -> 太阳 (夏)
-    TrigramType.LI: "TAI_YANG",  # 离 - 火, 太阳
-    # 金属性 -> 少阴 (秋)
+    # fire -> 太阳 (夏)
+    TrigramType.LI: "TAI_YANG",  # 离 - fire, 太阳
+    # metal -> 少阴 (秋)
     TrigramType.DUI: "SHAO_YIN",  # 兑 - 泽, 少阴
     TrigramType.QIAN: "SHAO_YIN",  # 乾 - 天, 少阴
-    # 水属性 -> 太阴 (冬)
-    TrigramType.KAN: "TAI_YIN",  # 坎 - 水, 太阴
-    # 土属性 -> 中宫 (长夏/平衡)
-    TrigramType.GEN: "CENTER",  # 艮 - 山, 土
-    TrigramType.KUN: "CENTER",  # 坤 - 地, 土
+    # water -> 太阴 (冬)
+    TrigramType.KAN: "TAI_YIN",  # 坎 - water, 太阴
+    # earth -> 中宫 (长夏/平衡)
+    TrigramType.GEN: "CENTER",  # 艮 - 山, earth
+    TrigramType.KUN: "CENTER",  # 坤 - 地, earth
 }
 
 

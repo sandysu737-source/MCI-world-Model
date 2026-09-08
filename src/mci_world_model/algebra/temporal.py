@@ -2,7 +2,7 @@
 
 Mathematical foundation
 -----------------------
-The 60-cycle (legacy: 天干地支 / sexagenary cycle) is the cyclic group Z_60.
+The 60-cycle (legacy: Time Code / sexagenary cycle) is the cyclic group Z_60.
 Each position t ∈ {0, ..., 59} decomposes, by the Chinese Remainder Theorem,
 into two residues on two smaller cycles:
 

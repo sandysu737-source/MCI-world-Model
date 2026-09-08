@@ -159,7 +159,7 @@ class EnergyCore:
     }
 
     # Monthly strength table (旺相休囚死)
-    # Key: branch index (0-11), Value: [木, 火, 土, 金, 水] strength states
+    # Key: branch index (0-11), Value: [wood, fire, earth, metal, water] strength states
     MONTHLY_STRENGTH: dict[int, list[StrengthState]] = {
         # 子 (0) - water: water WANG, wood XIANG, fire QIU, earth SI, metal XIU
         0: [
@@ -422,7 +422,7 @@ class EnergyCore:
 
     def get_enhance_relation(self, e1: str, e2: str) -> bool:
         """
-        Check if e1 enhances e2 (木生火, 火生土, etc.).
+        Check if e1 enhances e2 (wood generates fire, fire generates earth, etc.).
 
         Args:
             e1: Source energy type
@@ -1020,11 +1020,11 @@ def test_energy_core():
     # Test 2: Suppression relations (bidirectional per task requirements)
     logger.info("\n[TEST 2] Suppression Relations")
     test_cases = [
-        ("wood", "earth", True),  # 木克土
+        ("wood", "earth", True),  # wood suppresses earth
         ("earth", "wood", True),  # 土克木 (bidirectional)
-        ("earth", "water", True),  # 土克水
+        ("earth", "water", True),  # earth suppresses water
         ("water", "earth", True),  # 水克土 (bidirectional)
-        ("water", "fire", True),  # 水克火
+        ("water", "fire", True),  # water suppresses fire
         ("fire", "water", True),  # 火克水 (bidirectional)
     ]
 

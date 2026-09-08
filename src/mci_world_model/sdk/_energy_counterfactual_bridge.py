@@ -377,10 +377,10 @@ class EnergyCounterfactualBridge:
         try:
             is_enhance = self._energy_core.get_enhance_relation(src, dst)
             if is_enhance:
-                return "相生"
+                return "enhance"
             is_suppress = self._energy_core.get_suppress_relation(src, dst)
             if is_suppress:
-                return "相克"
+                return "suppress"
         except Exception:
             logger.warning("吞异常", exc_info=True)
         return "间接"

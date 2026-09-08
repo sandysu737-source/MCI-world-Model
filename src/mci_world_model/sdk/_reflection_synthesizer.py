@@ -601,11 +601,11 @@ class ReflectionSynthesizer:
         从文本内容推断能量类型 (wood/fire/earth/metal/water)。
 
         基于关键词匹配:
-        - wood (木): 生长、发展、扩展、春、东方
-        - fire (火): 上涨、突破、创新、夏、南方
-        - earth (土): 稳定、基础、支撑、季节交替期、中央
-        - metal (金): 下跌、收缩、减少、秋、西方
-        - water (水): 流动、变化、下降、冬、北方
+        - wood (wood): 生长、发展、扩展、春、东方
+        - fire (fire): 上涨、突破、创新、夏、南方
+        - earth (earth): 稳定、基础、支撑、季节交替期、中央
+        - metal (metal): 下跌、收缩、减少、秋、西方
+        - water (water): 流动、变化、下降、冬、北方
         """
         content_lower = content.lower()
 

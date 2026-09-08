@@ -92,11 +92,11 @@ class TestMechanismClassification:
     """机制分类 (相生/相克/间接) 正确性。"""
 
     def test_generated_target_marked_enhance(self, bridge):
-        """被生目标应标注"相生"。"""
+        """被生目标应标注 enhance。"""
         results = bridge.what_if("semantic", boost=2.0, mode="propagation")
         # semantic 生 causal
         causal_result = next(r for r in results if r.target_energy == "causal")
-        assert causal_result.mechanism == "相生"
+        assert causal_result.mechanism == "enhance"
 
     def test_unknown_energy_raises(self, bridge):
         """未知能量类型应报错。"""

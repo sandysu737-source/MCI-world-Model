@@ -23,7 +23,7 @@ from mci_world_model._sys._enums import (
     YinYang,
 )
 
-# 基础类型层 — 八卦推断（来自 _pattern_inference）
+# 基础类型层 — pattern inference（来自 _pattern_inference）
 from mci_world_model._sys._pattern_inference import TrigramContext
 
 # 贝叶斯系统（world_model.py + sdk 端 re-export 需要）
@@ -253,7 +253,7 @@ __all__ = [
     "BayesianEngine",
     "BayesianNetwork",
     "BayesianReasoningSystem",
-    # 地支
+    # TimeBranch
     "BRANCH_CHONG",
     "BRANCH_CHONG_MAP",
     "BRANCH_HE",
@@ -378,7 +378,7 @@ __all__ = [
     "SemanticCategory",
     "StemBranchCode",
     "StrengthState",
-    # 八卦
+    # Trigram Patterns
     "TIME_BRANCH_ENERGY",
     "TIME_BRANCHES",
     "TIME_STEMS",

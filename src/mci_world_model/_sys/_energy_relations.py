@@ -13,11 +13,11 @@ This module implements the core logic for Five Elements (Wu Xing) relationships:
 - 应用场景：时空索引、能量传播、Energy System养生、方位调理
 
 【Four Symbols体系】
-- 少阳 -> 木 -> 春 -> 生发
-- 太阳 -> 火 -> 夏 -> 炎盛
-- 少阴 -> 金 -> 秋 -> 收敛
-- 太阴 -> 水 -> 冬 -> 闭藏
-- 中宫 -> 土 -> 长夏 -> 化育
+- 少阳 -> wood -> 春 -> 生发
+- 太阳 -> fire -> 夏 -> 炎盛
+- 少阴 -> metal -> 秋 -> 收敛
+- 太阴 -> water -> 冬 -> 闭藏
+- 中宫 -> earth -> 长夏 -> 化育
 
 Modern Terminology Mapping:
 - Enhance -> EnergyEnhance / ShengRelationship
@@ -95,11 +95,11 @@ class RelationType(Enum):
 
 # Forward enhance: element -> what it generates
 ENERGY_ENHANCE: dict[str, str] = {
-    "wood": "fire",  # 木生火
-    "fire": "earth",  # 火生土
-    "earth": "metal",  # 土生金
-    "metal": "water",  # 金生水
-    "water": "wood",  # 水生木
+    "wood": "fire",  # wood generates fire
+    "fire": "earth",  # fire generates earth
+    "earth": "metal",  # earth generates metal
+    "metal": "water",  # metal generates water
+    "water": "wood",  # water generates wood
 }
 
 # Reverse enhance: element -> what generates it
@@ -118,20 +118,20 @@ ENERGY_ENHANCED_BY: dict[str, str] = {
 
 # Energy to Four Symbols mapping
 ENERGY_TO_FOUR_SYMBOLS: dict[str, str] = {
-    "wood": "SHAO_YANG",  # 木 -> 少阳 (春)
-    "fire": "TAI_YANG",  # 火 -> 太阳 (夏)
-    "earth": "CENTER",  # 土 -> 中宫 (长夏)
-    "metal": "SHAO_YIN",  # 金 -> 少阴 (秋)
-    "water": "TAI_YIN",  # 水 -> 太阴 (冬)
+    "wood": "SHAO_YANG",  # wood -> 少阳 (春)
+    "fire": "TAI_YANG",  # fire -> 太阳 (夏)
+    "earth": "CENTER",  # earth -> 中宫 (长夏)
+    "metal": "SHAO_YIN",  # metal -> 少阴 (秋)
+    "water": "TAI_YIN",  # water -> 太阴 (冬)
 }
 
 # Four Symbols to Energy mapping
 FOUR_SYMBOLS_TO_ENERGY: dict[str, str] = {
-    "SHAO_YANG": "wood",  # 少阳 -> 木
-    "TAI_YANG": "fire",  # 太阳 -> 火
-    "CENTER": "earth",  # 中宫 -> 土
-    "SHAO_YIN": "metal",  # 少阴 -> 金
-    "TAI_YIN": "water",  # 太阴 -> 水
+    "SHAO_YANG": "wood",  # 少阳 -> wood
+    "TAI_YANG": "fire",  # 太阳 -> fire
+    "CENTER": "earth",  # 中宫 -> earth
+    "SHAO_YIN": "metal",  # 少阴 -> metal
+    "TAI_YIN": "water",  # 太阴 -> water
 }
 
 # Four Symbols to Season mapping
@@ -145,11 +145,11 @@ FOUR_SYMBOLS_TO_SEASON: dict[str, str] = {
 
 # Season to Energy mapping (季节能量)
 SEASON_ENERGY_MAP: dict[str, str] = {
-    "spring": "wood",  # 春 -> 木
-    "summer": "fire",  # 夏 -> 火
-    "late_summer": "earth",  # 长夏 -> 土
-    "autumn": "metal",  # 秋 -> 金
-    "winter": "water",  # 冬 -> 水
+    "spring": "wood",  # 春 -> wood
+    "summer": "fire",  # 夏 -> fire
+    "late_summer": "earth",  # 长夏 -> earth
+    "autumn": "metal",  # 秋 -> metal
+    "winter": "water",  # 冬 -> water
 }
 
 
@@ -159,11 +159,11 @@ SEASON_ENERGY_MAP: dict[str, str] = {
 
 # Forward suppress: element -> what it controls
 ENERGY_SUPPRESS: dict[str, str] = {
-    "wood": "earth",  # 木克土
-    "earth": "water",  # 土克水
-    "water": "fire",  # 水克火
-    "fire": "metal",  # 火克金
-    "metal": "wood",  # 金克木
+    "wood": "earth",  # wood suppresses earth
+    "earth": "water",  # earth suppresses water
+    "water": "fire",  # water suppresses fire
+    "fire": "metal",  # fire suppresses metal
+    "metal": "wood",  # metal suppresses wood
 }
 
 # Reverse suppress: element -> what controls it
@@ -643,11 +643,11 @@ def test_energy_relations():
     # Test 1: Enhance relationships
     logger.info("\n[Test 1] Enhance Relationships")
     test_cases = [
-        ("wood", "fire", True),  # 木生火
-        ("fire", "earth", True),  # 火生土
-        ("earth", "metal", True),  # 土生金
-        ("metal", "water", True),  # 金生水
-        ("water", "wood", True),  # 水生木
+        ("wood", "fire", True),  # wood generates fire
+        ("fire", "earth", True),  # fire generates earth
+        ("earth", "metal", True),  # earth generates metal
+        ("metal", "water", True),  # metal generates water
+        ("water", "wood", True),  # water generates wood
         ("fire", "wood", False),  # 火不生木
         ("wood", "earth", False),  # 木不生土
     ]
@@ -663,13 +663,13 @@ def test_energy_relations():
     # Test 2: Suppress relationships
     logger.info("\n[Test 2] Suppress Relationships")
     test_cases = [
-        ("wood", "earth", True),  # 木克土
-        ("earth", "water", True),  # 土克水
-        ("water", "fire", True),  # 水克火
-        ("fire", "metal", True),  # 火克金
-        ("metal", "wood", True),  # 金克木
+        ("wood", "earth", True),  # wood suppresses earth
+        ("earth", "water", True),  # earth suppresses water
+        ("water", "fire", True),  # water suppresses fire
+        ("fire", "metal", True),  # fire suppresses metal
+        ("metal", "wood", True),  # metal suppresses wood
         ("fire", "earth", False),  # 火不克土
-        ("earth", "wood", False),  # 土不克木 (木克土是其反向)
+        ("earth", "wood", False),  # 土不克木 (wood suppresses earth是其反向)
     ]
 
     for source, target, expected in test_cases:
@@ -682,10 +682,10 @@ def test_energy_relations():
     # Test 3: Relation analysis
     logger.info("\n[Test 3] Relation Analysis")
     test_cases_rel = [
-        ("wood", "fire", RelationType.ENHANCE, 1.2),  # 木生火
-        ("wood", "earth", RelationType.SUPPRESS, 0.8),  # 木克土
+        ("wood", "fire", RelationType.ENHANCE, 1.2),  # wood generates fire
+        ("wood", "earth", RelationType.SUPPRESS, 0.8),  # wood suppresses earth
         ("fire", "fire", RelationType.SAME, 1.1),  # 火同火
-        ("wood", "metal", RelationType.REVERSE, 0.4),  # 金克木 (相侮)
+        ("wood", "metal", RelationType.REVERSE, 0.4),  # metal suppresses wood (相侮)
     ]
 
     for source, target, exp_rel, exp_str in test_cases_rel:
@@ -735,11 +735,11 @@ def test_energy_relations():
     # Test 7: Four Symbols mapping
     logger.info("\n[Test 7] Four Symbols Mapping (Four Symbols映射)")
     four_symbol_tests = [
-        ("wood", "SHAO_YANG"),  # 木 -> 少阳
-        ("fire", "TAI_YANG"),  # 火 -> 太阳
-        ("earth", "CENTER"),  # 土 -> 中宫
-        ("metal", "SHAO_YIN"),  # 金 -> 少阴
-        ("water", "TAI_YIN"),  # 水 -> 太阴
+        ("wood", "SHAO_YANG"),  # wood -> 少阳
+        ("fire", "TAI_YANG"),  # fire -> 太阳
+        ("earth", "CENTER"),  # earth -> 中宫
+        ("metal", "SHAO_YIN"),  # metal -> 少阴
+        ("water", "TAI_YIN"),  # water -> 太阴
     ]
 
     for energy, expected_symbol in four_symbol_tests:
@@ -752,11 +752,11 @@ def test_energy_relations():
     # Test 8: Season mapping
     logger.info("\n[Test 8] Season Energy Mapping (季节能量)")
     season_tests = [
-        ("spring", "wood"),  # 春 -> 木
-        ("summer", "fire"),  # 夏 -> 火
-        ("late_summer", "earth"),  # 长夏 -> 土
-        ("autumn", "metal"),  # 秋 -> 金
-        ("winter", "water"),  # 冬 -> 水
+        ("spring", "wood"),  # 春 -> wood
+        ("summer", "fire"),  # 夏 -> fire
+        ("late_summer", "earth"),  # 长夏 -> earth
+        ("autumn", "metal"),  # 秋 -> metal
+        ("winter", "water"),  # 冬 -> water
     ]
 
     for season, expected_energy in season_tests:
