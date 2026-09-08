@@ -12,37 +12,37 @@
 
 ### 1.1 战略定位
 
-P10 是从"归真"到"融通"的**整合波次**。P9 让系统回归真实世界、建立了可信增强体系，P10 要让一切能力**融会贯通**——因果知识跨域迁移、多智能体从协作到涌现、量子启发的因果推理突破经典极限。正如《周易》所言："天地交而万物通"——当因果推理不再局限于单一领域，而是能在领域间自由流动、在智能体间涌现协作、在量子不确定性与经典确定性之间架桥，"增强层"就从工具进化为**智能体基础设施**。根据依赖关系图：
+P10 是从"归真"到"融通"的**整合波次**。P9 让系统回归真实世界、建立了可信增强体系，P10 要让一切能力**融会贯通**——因果知识跨域迁移、多智能体从协作到涌现、量子启发的因果推理突破经典极限。正如《Pattern System》所言："天地交而万物通"——当因果推理不再局限于单一领域，而是能在领域间自由流动、在智能体间涌现协作、在量子不确定性与经典确定性之间架桥，"增强层"就从工具进化为**智能体基础设施**。根据依赖关系图：
 
 ```mermaid
 graph TB
     P9_Done[P9完成: 真实验证+可信增强+社区生态+v9.0.0] --> P10_Start
-    
+
     subgraph Ch21 [跨域融通与涌现智能 W131-150]
         CrossDomain[跨域因果迁移 W131-136]
         MultiAgent2[多智能体协作推理2.0 W137-142]
         QuantumCausal[量子启发因果推理 W143-148]
         AgentStd[因果智能体标准协议 W149-150]
     end
-    
+
     subgraph Ch19 [可信增强2.0 W131-140]
         TrustCross[跨域可信传递 W131-134]
         TrustMeta[元信任框架 W135-138]
         TrustVerify[跨域信任验证 W139-140]
     end
-    
+
     subgraph Ch08 [WMMM深化 W131-156]
         L7Deep[L7≥20% W131-136]
         L8Explore[L8涌现式探索 W137-144]
         L8Valid[L8验证+WMMM刷新 W145-156]
     end
-    
+
     subgraph Ch20 [生态深化 W141-152]
         PartnerNet[合作伙伴网络2.0 W141-144]
         CertifyPro[因果工程师认证 W145-148]
         AgentMarket[因果智能体市场 W149-152]
     end
-    
+
     CrossDomain --> MultiAgent2
     MultiAgent2 --> QuantumCausal
     QuantumCausal --> AgentStd
@@ -93,8 +93,8 @@ class CrossDomainCausalTransfer:
         self._tgt_encoder = target_encoder
         self._graph_builder = causal_graph_builder
         self._transfer_map: dict[str, dict] = {}
-    
-    def transfer(self, source_domain: str, target_domain: str, 
+
+    def transfer(self, source_domain: str, target_domain: str,
                  source_knowledge: dict) -> dict:
         """
         跨域因果知识迁移:
@@ -108,25 +108,25 @@ class CrossDomainCausalTransfer:
         src_concepts = self._extract_causal_concepts(source_knowledge)
         src_dag = source_knowledge["causal_dag"]
         src_params = source_knowledge["parameters"]
-        
+
         # Step 2: 跨域概念对齐
         alignment = self._align_concepts(
             src_concepts, target_domain
         )
-        
+
         # Step 3: 因果结构迁移
         tgt_dag = self._transfer_dag(src_dag, alignment)
-        
+
         # Step 4: 参数迁移
         tgt_params = self._adapt_parameters(
             src_params, alignment, tgt_dag
         )
-        
+
         # Step 5: 迁移验证
         validation = self._validate_transfer(
             tgt_dag, tgt_params, target_domain
         )
-        
+
         transfer_record = {
             "source_domain": source_domain,
             "target_domain": target_domain,
@@ -138,7 +138,7 @@ class CrossDomainCausalTransfer:
         }
         self._transfer_map[f"{source_domain}->{target_domain}"] = transfer_record
         return transfer_record
-    
+
     def _align_concepts(self, src_concepts, target_domain):
         """跨域概念对齐: 语义相似度 + 因果角色匹配"""
         tgt_concepts = self._tgt_encoder.get_domain_concepts(target_domain)
@@ -158,7 +158,7 @@ class CrossDomainCausalTransfer:
             if best_sim > 0.5:  # 对齐阈值
                 alignment[src_c] = {"target": best_tgt, "confidence": best_sim}
         return alignment
-    
+
     def _compute_transfer_quality(self, validation):
         """迁移质量评估"""
         return {
@@ -183,24 +183,24 @@ class CrossDomainTrust:
         self._trust = trust_framework
         self._registry = domain_registry
         self._trust_propagation = {}  # 域间信任衰减模型
-    
+
     def propagate_trust(self, source_cert: dict, target_domain: str) -> dict:
         """将源域信任证书传播到目标域"""
         # 1. 验证源域证书
         source_valid = self._trust.verify_certificate(source_cert)
         if not source_valid["valid"]:
             return {"propagated": False, "reason": "source_cert_invalid"}
-        
+
         # 2. 计算域间信任衰减
         decay = self._compute_domain_decay(
             source_cert["domain"], target_domain
         )
-        
+
         # 3. 适配信任级别
         propagated_level = self._adapt_trust_level(
             source_cert["trust_level"], decay
         )
-        
+
         # 4. 签发目标域证书
         target_cert = self._trust.issue_certificate(
             {"query": source_cert["query"], "domain": target_domain},
@@ -213,7 +213,7 @@ class CrossDomainTrust:
             "decay_factor": decay,
             "trust_level_change": f"{source_cert['trust_level']}→{propagated_level}",
         }
-    
+
     def _compute_domain_decay(self, source, target):
         """域间信任衰减: 领域距离越大衰减越多"""
         domain_similarity = self._registry.get_similarity(source, target)
@@ -238,7 +238,7 @@ class MetaTrust:
     def __init__(self, trust_history: list[dict]):
         self._history = trust_history
         self._calibration = {}
-    
+
     def calibrate(self, ground_truth_outcomes: list[dict]) -> dict:
         """
         信任校准: 评估信任评估系统的准确性
@@ -254,7 +254,7 @@ class MetaTrust:
                 "predicted": predicted_trust,
                 "actual": actual_success,
             })
-        
+
         # 分箱校准
         bins = np.linspace(0, 1, 11)
         self._calibration = self._compute_calibration_curve(
@@ -265,7 +265,7 @@ class MetaTrust:
             "overconfidence_regions": self._find_overconfidence(calibration_data),
             "underconfidence_regions": self._find_underconfidence(calibration_data),
         }
-    
+
     def meta_assess(self, trust_assessment: dict) -> dict:
         """元信任评估: 对给定信任评估进行二次评估"""
         calibration_adjustment = self._get_calibration_adjustment(
@@ -312,7 +312,7 @@ class MultiAgentCollaborativeReasoningV2:
         self._agents: list[CausalAgent] = []
         self._shared_workspace = CausalWorkspace()
         self._communication_log: list[dict] = []
-    
+
     def collaborative_reason(self, query: dict, max_rounds: int = 10) -> dict:
         """
         协作因果推理:
@@ -328,17 +328,17 @@ class MultiAgentCollaborativeReasoningV2:
             result = agent.reason(query)
             individual_results.append(result)
             self._shared_workspace.post(agent.id, result)
-        
+
         # Rounds 1-M: 协作迭代
         consensus = None
         for round_idx in range(1, max_rounds):
             # 检测分歧
             disagreements = self._detect_disagreements(individual_results)
-            
+
             if not disagreements:
                 consensus = self._merge_consensus(individual_results)
                 break
-            
+
             # 辩论与修正
             updated_results = []
             for agent in self._agents:
@@ -348,22 +348,22 @@ class MultiAgentCollaborativeReasoningV2:
                 )
                 updated_results.append(rebuttal)
                 self._shared_workspace.post(agent.id, rebuttal)
-            
+
             individual_results = updated_results
             self._communication_log.append({
                 "round": round_idx,
                 "disagreements": disagreements,
                 "updates": len([r for r in updated_results if r.get("changed")]),
             })
-        
+
         if consensus is None:
             consensus = self._merge_consensus(individual_results)
-        
+
         # 涌现检测
         emergence = self._detect_emergence(
             individual_results, consensus
         )
-        
+
         return {
             "consensus_result": consensus,
             "individual_results": individual_results,
@@ -371,7 +371,7 @@ class MultiAgentCollaborativeReasoningV2:
             "emergence_patterns": emergence["patterns"],
             "communication_rounds": len(self._communication_log),
         }
-    
+
     def _detect_emergence(self, individuals, consensus):
         """涌现检测: 群体推理是否超越个体推理"""
         # 个体最优
@@ -380,7 +380,7 @@ class MultiAgentCollaborativeReasoningV2:
         emergence_score = consensus.get("confidence", 0) - best_individual.get("confidence", 0)
         # 新发现: 共识中是否有个体均未发现的新因果路径
         novel_paths = self._find_novel_causal_paths(individuals, consensus)
-        
+
         return {
             "detected": emergence_score > 0.05 or len(novel_paths) > 0,
             "emergence_score": emergence_score,
@@ -395,11 +395,11 @@ class CausalAgent:
         self.id = agent_id
         self._specialization = specialization
         self._reasoning_history: list[dict] = []
-    
+
     def reason(self, query: dict) -> dict:
         """独立因果推理"""
         return {"agent_id": self.id, "result": {}, "confidence": 0.0}
-    
+
     def reflect_and_update(self, query, others_views, disagreements) -> dict:
         """基于他人观点反思修正"""
         return {"agent_id": self.id, "result": {}, "changed": False}
@@ -409,12 +409,12 @@ class CausalWorkspace:
     """共享工作空间 — 智能体间通信媒介"""
     def __init__(self):
         self._posts: dict[int, list[dict]] = {}
-    
+
     def post(self, agent_id, result):
         if agent_id not in self._posts:
             self._posts[agent_id] = []
         self._posts[agent_id].append(result)
-    
+
     def get_others(self, agent_id):
         return {k: v for k, v in self._posts.items() if k != agent_id}
 ```
@@ -438,7 +438,7 @@ class QuantumInspiredCausalInference:
         self._n_shots = n_shots
         self._state_vector = np.zeros(2**n_qubits, dtype=complex)
         self._state_vector[0] = 1.0  # |0...0⟩ 初始态
-    
+
     def superpose_causal_hypotheses(self, hypotheses: list[dict]) -> dict:
         """
         因果假设叠加态:
@@ -449,12 +449,12 @@ class QuantumInspiredCausalInference:
         n = len(hypotheses)
         # 均匀叠加: 每个假设等概率振幅
         amplitudes = np.ones(n) / np.sqrt(n)
-        
+
         # 假设先验 → 振幅调整
         priors = np.array([h.get("prior", 1/n) for h in hypotheses])
         priors = priors / np.linalg.norm(priors)
         amplitudes = amplitudes * np.sqrt(priors * n)
-        
+
         # 构建叠加态
         superposition = {
             "n_hypotheses": n,
@@ -463,7 +463,7 @@ class QuantumInspiredCausalInference:
             "entanglement_matrix": self._compute_entanglement(hypotheses),
         }
         return superposition
-    
+
     def measure_causal_state(self, superposition: dict, evidence: dict) -> dict:
         """
         因果态测量: 证据导致假设坍缩
@@ -472,16 +472,16 @@ class QuantumInspiredCausalInference:
           3. 保留残余不确定性 (非零概率)
         """
         current_probs = np.array(superposition["probabilities"])
-        
+
         # 贝叶斯更新 (证据 → 概率重分配)
         likelihoods = self._compute_likelihoods(evidence, superposition)
         posterior = current_probs * likelihoods
         posterior = posterior / np.sum(posterior)
-        
+
         # 坍缩: 选中最高概率假设
         selected = np.argmax(posterior)
         residual_uncertainty = 1 - posterior[selected]
-        
+
         return {
             "selected_hypothesis": selected,
             "posterior_probabilities": posterior.tolist(),
@@ -489,7 +489,7 @@ class QuantumInspiredCausalInference:
             "collapse_confidence": posterior[selected],
             "coexisting_hypotheses": np.sum(posterior > 0.05),
         }
-    
+
     def causal_entanglement(self, cause_effect_pairs: list[tuple]) -> dict:
         """
         因果纠缠: 识别因果对之间的非经典关联
@@ -501,20 +501,20 @@ class QuantumInspiredCausalInference:
             # 经典关联 vs 量子启发关联
             classical_corr = self._classical_correlation(cause, effect)
             bell_violation = self._check_bell_inequality(cause, effect)
-            
+
             entanglement_scores.append({
                 "pair": (cause, effect),
                 "classical_correlation": classical_corr,
                 "entanglement_score": bell_violation["violation_degree"],
                 "is_entangled": bell_violation["violated"],
             })
-        
+
         return {
             "entangled_pairs": [e for e in entanglement_scores if e["is_entangled"]],
             "n_entangled": sum(1 for e in entanglement_scores if e["is_entangled"]),
             "avg_entanglement": np.mean([e["entanglement_score"] for e in entanglement_scores]),
         }
-    
+
     def _compute_entanglement(self, hypotheses):
         """计算假设间的纠缠矩阵"""
         n = len(hypotheses)
@@ -530,7 +530,7 @@ class QuantumInspiredCausalInference:
                 matrix[i][j] = strength
                 matrix[j][i] = strength
         return matrix.tolist()
-    
+
     def _check_bell_inequality(self, cause, effect):
         """检查 Bell 不等式违规 (因果纠缠指标)"""
         # 简化: 2x2 列联表
@@ -570,9 +570,9 @@ class QuantumInspiredCausalInference:
 ```python
 class CausalAgentProtocol:
     """因果智能体标准协议 — 智能体间的因果通信标准"""
-    
+
     PROTOCOL_VERSION = "2.0.0"
-    
+
     # 标准消息类型
     MESSAGE_TYPES = {
         "causal_query": "请求因果推理",
@@ -585,7 +585,7 @@ class CausalAgentProtocol:
         "emergence_report": "涌现发现报告",
         "trust_attestation": "信任证明",
     }
-    
+
     def __init__(self, agent_id: str, capabilities: list[str]):
         self._agent_id = agent_id
         self._capabilities = capabilities
@@ -593,8 +593,8 @@ class CausalAgentProtocol:
             msg_type: self._default_handler for msg_type in self.MESSAGE_TYPES
         }
         self._trust_attestations: list[dict] = []
-    
-    def send_message(self, msg_type: str, payload: dict, 
+
+    def send_message(self, msg_type: str, payload: dict,
                      target: str = "broadcast") -> dict:
         """发送标准协议消息"""
         msg = {
@@ -607,24 +607,24 @@ class CausalAgentProtocol:
             "trust_attestation": self._generate_attestation(payload),
         }
         return msg
-    
+
     def receive_message(self, message: dict) -> dict:
         """接收并处理标准协议消息"""
         # 验证协议版本
         if message["protocol_version"] != self.PROTOCOL_VERSION:
             return {"error": "protocol_version_mismatch"}
-        
+
         # 验证信任证明
         trust_valid = self._verify_attestation(message["trust_attestation"])
         if not trust_valid:
             return {"error": "trust_attestation_invalid"}
-        
+
         # 分发到对应处理器
         handler = self._message_handlers.get(message["type"])
         if handler:
             return handler(message)
         return {"error": f"unknown_message_type: {message['type']}"}
-    
+
     def negotiate_capabilities(self, other_agent: 'CausalAgentProtocol') -> dict:
         """能力协商: 发现可协作的因果推理能力"""
         shared = set(self._capabilities) & set(other_agent._capabilities)
@@ -653,8 +653,8 @@ class CausalAgentMarket:
     def __init__(self):
         self._agents: dict[str, dict] = {}
         self._transactions: list[dict] = []
-    
-    def register_agent(self, agent_id: str, capabilities: list[str], 
+
+    def register_agent(self, agent_id: str, capabilities: list[str],
                        trust_cert: dict) -> dict:
         """注册因果智能体到市场"""
         self._agents[agent_id] = {
@@ -664,8 +664,8 @@ class CausalAgentMarket:
             "n_transactions": 0,
         }
         return {"registered": True, "agent_id": agent_id}
-    
-    def search_capability(self, required_capability: str, 
+
+    def search_capability(self, required_capability: str,
                           min_trust: float = 0.7) -> list[dict]:
         """搜索具有特定因果推理能力的智能体"""
         results = []
@@ -679,8 +679,8 @@ class CausalAgentMarket:
                         "rating": info["rating"],
                     })
         return sorted(results, key=lambda x: -x["rating"])
-    
-    def execute_transaction(self, requester: str, provider: str, 
+
+    def execute_transaction(self, requester: str, provider: str,
                             capability: str, query: dict) -> dict:
         """执行因果推理交易"""
         transaction = {
