@@ -18,8 +18,15 @@ class TestMedicalCausalConfidence:
             sdk.add_evidence(
                 ClinicalEvidence(
                     evidence_id=f"E{i}",
-                    evidence_type="lab_result",
-                    description="白蛋白 营养不良",
+                    evidence_type="observation",
+                    description=[
+                        "A 通过代谢通路影响 B",
+                        "A 通过肾脏通路影响 B",
+                        "A 通过炎症通路影响 B",
+                        "A 通过神经通路影响 B",
+                        "A 通过内分泌通路影响 B",
+                    ][i],
+                    source=f"source-{i}",
                     confidence=ev_conf,
                 )
             )
@@ -125,12 +132,20 @@ class TestSafetyCriticalPaths:
         """复用: 向 sdk 注入 n 条证据。"""
         from mci_world_model.sdk._medical_causal_sdk import ClinicalEvidence
 
+        descriptions = [
+            "白蛋白下降导致水肿",
+            "肾功能异常导致蛋白丢失",
+            "摄入不足导致营养缺乏",
+            "慢性炎症抑制蛋白合成",
+            "肠道吸收障碍造成营养流失",
+        ]
         for i in range(n):
             sdk.add_evidence(
                 ClinicalEvidence(
                     evidence_id=f"E{i}",
-                    evidence_type="lab_result",
-                    description=desc,
+                    evidence_type="observation",
+                    description=descriptions[i % len(descriptions)],
+                    source=f"source-{i}",
                     confidence=ev_conf,
                 )
             )
@@ -262,7 +277,16 @@ class TestSafetyCriticalPaths:
                 "effect": "营养不良",
                 "prior_strength": 0.5,
                 "evidence": [
-                    {"id": f"e{i}", "type": "lab_result", "description": "白蛋白 营养不良", "confidence": 0.85}
+                    {
+                        "id": f"e{i}",
+                        "type": "observation",
+                        "description": [
+                            "白蛋白经代谢途径影响营养不良",
+                            "白蛋白经肾脏途径影响营养不良",
+                            "白蛋白经炎症途径影响营养不良",
+                        ][i],
+                        "confidence": 0.85,
+                    }
                     for i in range(3)
                 ],
             },
@@ -271,7 +295,16 @@ class TestSafetyCriticalPaths:
                 "effect": "发热",
                 "prior_strength": 0.5,
                 "evidence": [
-                    {"id": f"f{i}", "type": "observation", "description": "感染 发热", "confidence": 0.6}
+                    {
+                        "id": f"f{i}",
+                        "type": "observation",
+                        "description": [
+                            "感染经免疫途径影响发热",
+                            "感染经神经途径影响发热",
+                            "感染经内分泌途径影响发热",
+                        ][i],
+                        "confidence": 0.6,
+                    }
                     for i in range(3)
                 ],
             },
