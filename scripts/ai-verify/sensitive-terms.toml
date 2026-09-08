@@ -1,0 +1,40 @@
+schema_version = 1
+wordlist_version = "1.1.0"
+single_cjk_match = "concept"
+source = "MCI产品矩阵敏感术语脱敏发布门禁规则（用户项目记忆，2026-05-28 快照）"
+source_sha256 = "94b4db0ae5241aa3ba7920a938079b82b22e678fc9dc2583f1e1d6f4720e081c"
+
+[[categories]]
+name = "易学体系"
+terms = ["周易", "易经"]
+safe_aliases = ["Pattern System"]
+
+[[categories]]
+name = "五行"
+terms = ["木", "火", "土", "金", "水"]
+safe_aliases = ["Energy Types"]
+
+[[categories]]
+name = "生克关系"
+terms = ["相生", "相克"]
+safe_aliases = ["enhance", "suppress"]
+
+[[categories]]
+name = "八卦"
+terms = ["八卦"]
+safe_aliases = ["Trigram Patterns"]
+
+[[categories]]
+name = "天干地支"
+terms = ["天干", "地支", "八字"]
+safe_aliases = ["Time Code"]
+
+[[categories]]
+name = "阴阳"
+terms = ["阴阳"]
+safe_aliases = ["Duality"]
+
+[[categories]]
+name = "其他"
+terms = ["六爻", "四柱", "玄学", "命理"]
+safe_aliases = ["generalized terminology"]
