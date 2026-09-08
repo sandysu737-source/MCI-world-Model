@@ -425,10 +425,10 @@ class OrchestratorBridge:
 
         # 编码
         if signals:
-            state = encoder.encode(signals=signals)
+            state = encoder.encode_graph(signals=signals)
         else:
             try:
-                state = encoder.encode(memories=memories)
+                state = encoder.encode_graph(memories=memories)
             except Exception as e:
                 logger.warning("异常降级: %s", e, exc_info=True)
                 return AgentResult.fail("PLAN_GENERATION", f"encode failed: {e}")

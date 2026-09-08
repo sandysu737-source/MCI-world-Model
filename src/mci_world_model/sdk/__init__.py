@@ -439,6 +439,7 @@ from mci_world_model.sdk._cost_module import CostSignal, EnergyCostModule
 from mci_world_model.sdk._counterfactual import (
     CounterfactualEngine,
     CounterfactualResult,
+    SEMFitResult,
     StructuralEquationModel,
 )
 
@@ -497,6 +498,8 @@ from mci_world_model.sdk._do_calculus import (
     CausalGraph,
     DoCalculus,
     InterventionResult,
+    ObservationDataset,
+    UnknownNodeError,
 )
 from mci_world_model.sdk._domain_sdk_base import (
     DomainResult,
@@ -665,6 +668,7 @@ from mci_world_model.sdk._knowledge_civilization import (
     CivilizationMetrics,
     KnowledgeRepository,
 )
+from mci_world_model.sdk._latent_state import LatentState
 
 # v5.0.0: 可学习状态编码器
 from mci_world_model.sdk._learnable_encoder import LearnableStateEncoder
@@ -1161,6 +1165,7 @@ __all__ = [
     # 因果引擎基础
     "CausalEngine",
     "CausalGraph",
+    "UnknownNodeError",
     "CausalWorldModelState",
     "ComparisonDelta",
     # v3.0.1/v3.0.3: Configurator
@@ -1168,6 +1173,7 @@ __all__ = [
     # Counterfactual
     "CounterfactualEngine",
     "CounterfactualResult",
+    "SEMFitResult",
     "EnergyGuidedAction",
     # v3.0.1: Cost Module
     "CostSignal",
@@ -1177,6 +1183,7 @@ __all__ = [
     "CausalMLP",
     # Pearl Do-Calculus
     "DoCalculus",
+    "ObservationDataset",
     "CachedDoCalculus",
     "SLearner",
     "TLearner",
@@ -1266,6 +1273,7 @@ __all__ = [
     "JEPADataset",
     # JEPA
     "JEPAEncoder",
+    "LatentState",
     "JEPAPredictor",
     "JEPATrainer",
     # v5.0.0: Learnable State Encoder

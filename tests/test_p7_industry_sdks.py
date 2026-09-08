@@ -48,8 +48,15 @@ class TestMedicalCausalSDK:
 
     def test_diagnose_conclusive(self, sdk):
         """充足证据 → 确定性诊断。"""
+        descriptions = [
+            "drug_X 在代谢通路引起 symptom_Y",
+            "drug_X 在肾脏通路引起 symptom_Y",
+            "drug_X 在炎症通路引起 symptom_Y",
+            "drug_X 在神经通路引起 symptom_Y",
+            "drug_X 在内分泌通路引起 symptom_Y",
+        ]
         for i in range(5):
-            sdk.add_evidence(ClinicalEvidence(f"e{i}", "lab_result", "drug_X causes symptom_Y", 0.95))
+            sdk.add_evidence(ClinicalEvidence(f"e{i}", "lab_result", descriptions[i], 0.95, source=f"s{i}"))
         result = sdk.diagnose("drug_X", "symptom_Y", prior_strength=0.9)
         assert isinstance(result, CausalDiagnosis)
         assert result.is_conclusive
@@ -82,8 +89,8 @@ class TestMedicalCausalSDK:
         assert sdk.evidence_count == 0
 
     def test_statistics(self, sdk):
-        sdk.add_evidence(ClinicalEvidence("e1", confidence=0.9))
-        sdk.add_evidence(ClinicalEvidence("e2", confidence=0.85))
+        sdk.add_evidence(ClinicalEvidence("e1", description="检验指标异常", source="lab", confidence=0.9))
+        sdk.add_evidence(ClinicalEvidence("e2", description="影像显示病变", source="imaging", confidence=0.85))
         sdk.diagnose("A", "B")
         stats = sdk.statistics()
         assert stats["evidence_count"] == 2

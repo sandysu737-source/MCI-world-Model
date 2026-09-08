@@ -260,11 +260,11 @@ class EnhancedPerception:
         if not features:
             # 空结果 → 尝试直接编码
             encoder = JEPAEncoder(world_model=None)
-            return encoder.encode(signals=signals)
+            return encoder.encode_graph(signals=signals)
 
         # Layer 3: 状态编码
         encoder = JEPAEncoder(world_model=None)
-        return encoder.encode(signals=features)
+        return encoder.encode_graph(signals=features)
 
     def text_to_state(self, text: str, context: dict[str, Any] | None = None) -> Any:
         """

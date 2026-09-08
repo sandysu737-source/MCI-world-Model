@@ -96,7 +96,7 @@ class TestD4ClipConservation:
 
 
 class TestD6SimulatedBackdoorLabel:
-    """D6: 无数据时 backdoor 结果应标注为模拟。"""
+    """D6: 无数据显式降级；模拟必须显式生成并标记。"""
 
     def test_no_data_labels_simulated(self):
         from mci_world_model.sdk._do_calculus import CausalGraph, DoCalculus
@@ -106,7 +106,14 @@ class TestD6SimulatedBackdoorLabel:
         dc = DoCalculus()
         dc.set_graph(cg)
         result = dc.backdoor_adjustment("X", "Y", Z_set=[])
-        assert result.method == "backdoor_simulated", f"无数据时应标注 backdoor_simulated, 实际 {result.method}"
+        assert result.method == "no_data"
+        assert result.mode == "no_data"
+
+        dc.simulate(n_samples=100, seed=42)
+        result = dc.backdoor_adjustment("X", "Y", Z_set=[])
+        assert result.method == "backdoor"
+        assert result.mode == "simulated"
+        assert result.is_conclusive is False
 
 
 class TestD7EncodeDimensionValidation:

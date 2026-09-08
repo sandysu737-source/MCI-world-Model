@@ -440,13 +440,15 @@ class TestIntervene:
         """NaN 干预值被拒绝。"""
 
         result = wm.intervene(do_x={"X": float("nan")}, target="Y")
-        assert result["status"] == "error"
+        assert result["status"] == "rejected"
+        assert result["reason"] == "non_finite_do_x"
         assert "finite" in result["message"].lower()
 
     def test_inf_intervention_rejected(self, wm):
         """Inf 干预值被拒绝。"""
         result = wm.intervene(do_x={"X": float("inf")}, target="Y")
-        assert result["status"] == "error"
+        assert result["status"] == "rejected"
+        assert result["reason"] == "non_finite_do_x"
 
     def test_intervention_with_edges(self, wm):
         """有因果边时干预执行。"""
@@ -475,7 +477,7 @@ class TestQueryCounterfactual:
         assert isinstance(result, dict)
 
     def test_query_with_edges(self, wm):
-        """有因果边时反事实查询执行。"""
+        """缺少定向证据的关联边被反事实查询显式拒绝。"""
         wm._state.causal_edges = [
             {"cause_idx": 0, "effect_idx": 1, "rho": 0.5, "evidence_count": 3},
         ]
@@ -484,7 +486,8 @@ class TestQueryCounterfactual:
             do_x={"X": 0.0},
             target="Y",
         )
-        assert isinstance(result, dict)
+        assert result["status"] == "rejected"
+        assert result["reason"] == "association_graph_not_causal"
 
 
 # =============================================================================
