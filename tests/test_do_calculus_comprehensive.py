@@ -234,7 +234,7 @@ class TestDoCalculusEdgeCases:
         """无因果图的 DoCalculus。"""
         dc = DoCalculus(None)
         result = dc.estimate_ate("X", "Y")
-        assert result.method == "none"
+        assert result.method == "no_data"
         assert result.note != ""
 
     def test_x_not_in_graph(self):
@@ -298,7 +298,7 @@ class TestDoCalculusEdgeCases:
         result = dc.estimate_ate("X", "X")
         # 单节点图中 X=X，允许直接效应估计（X 在图中）
         assert result is not None
-        assert result.method in ("direct", "rejected")
+        assert result.method == "no_data"
 
 
 # =============================================================================
@@ -463,6 +463,7 @@ class TestInterventionResultExtended:
         """正向效应判定 — 通过 _build_result 设置。"""
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=200, seed=42)
         result = dc.estimate_ate("X", "Y", x_value=2.0, x_baseline=0.0)
         # 大 ATE 应被 _build_result 标记为 positive/large
         d = result.to_dict()
@@ -472,6 +473,7 @@ class TestInterventionResultExtended:
         """负向效应判定 — 通过 _build_result 设置。"""
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=200, seed=42)
         result = dc.estimate_ate("X", "Y", x_value=0.0, x_baseline=2.0)
         d = result.to_dict()
         assert d.get("effect_direction") in ("negative", "neutral")
@@ -512,7 +514,7 @@ class TestDoCalculusAutoMethod:
         dc = DoCalculus(graph=cg)
         result = dc.estimate_ate("X", "Y", method="auto")
         # 有后门调整集 → 应使用 backdoor
-        assert result.method in ("backdoor", "direct", "backdoor_simulated")
+        assert result.method == "no_data"
 
     def test_auto_frontdoor_fallback(self):
         """后门不可用时回退到前门。"""
@@ -522,7 +524,7 @@ class TestDoCalculusAutoMethod:
         )
         dc = DoCalculus(graph=cg)
         result = dc.estimate_ate("X", "Y", method="auto")
-        assert result.method in ("frontdoor", "direct")
+        assert result.method == "no_data"
 
     def test_explicit_method_backdoor(self):
         """显式指定后门方法。"""
@@ -550,7 +552,7 @@ class TestDoCalculusAutoMethod:
         dc = DoCalculus(graph=cg)
         result = dc.estimate_ate("X", "Y", method="direct")
         assert result is not None
-        assert result.method == "direct"
+        assert result.method == "no_data"
 
 
 # =============================================================================
@@ -568,10 +570,12 @@ class TestDoCalculusSimulatedPath:
             edges=[("Z", "X"), ("Z", "Y"), ("X", "Y")],
         )
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=500, seed=42)
         result = dc.estimate_ate("X", "Y", x_value=2.0, x_baseline=0.0)
         assert result is not None
         assert isinstance(result.ate, float)
         assert result.sample_size > 0
+        assert result.mode == "simulated"
 
     def test_frontdoor_simulated_ate(self):
         """模拟数据的前门 ATE。"""
@@ -580,6 +584,7 @@ class TestDoCalculusSimulatedPath:
             edges=[("X", "M"), ("M", "Y")],
         )
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=500, seed=42)
         result = dc.estimate_ate("X", "Y", x_value=2.0, x_baseline=0.0)
         assert result is not None
 
@@ -587,14 +592,17 @@ class TestDoCalculusSimulatedPath:
         """模拟数据的直接效应。"""
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=500, seed=42)
         result = dc.estimate_ate("X", "Y", x_value=2.0, x_baseline=0.0)
         assert result is not None
         assert result.method == "direct"
+        assert result.mode == "simulated"
 
     def test_simulated_confidence_interval(self):
         """模拟数据的置信区间。"""
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=500, seed=42)
         result = dc.estimate_ate("X", "Y", x_value=1.0, x_baseline=0.0)
         ci = result.confidence_interval
         assert ci[0] <= ci[1]  # CI 下界 ≤ 上界
@@ -603,15 +611,16 @@ class TestDoCalculusSimulatedPath:
         """模拟数据的 p-value 范围。"""
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
         dc = DoCalculus(graph=cg, seed=42)
+        dc.simulate(n_samples=500, seed=42)
         result = dc.estimate_ate("X", "Y")
         assert 0.0 <= result.p_value <= 1.0
 
     def test_multiple_seeds_reproducible(self):
         """随机种子可重现。"""
         cg = CausalGraph(nodes=["X", "Y"], edges=[("X", "Y")])
-        result1 = DoCalculus(graph=cg, seed=42).estimate_ate("X", "Y")
-        result2 = DoCalculus(graph=cg, seed=42).estimate_ate("X", "Y")
-        assert result1.ate == pytest.approx(result2.ate)
+        first = DoCalculus(graph=cg, seed=7).simulate(n_samples=500, seed=42, bind=False)
+        second = DoCalculus(graph=cg, seed=8).simulate(n_samples=500, seed=42, bind=False)
+        assert first.dataset_hash == second.dataset_hash
 
 
 # =============================================================================
