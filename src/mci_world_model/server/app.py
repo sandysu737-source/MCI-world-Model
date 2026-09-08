@@ -27,13 +27,15 @@ from typing import Any
 from mci_world_model._logging import setup_logging
 from mci_world_model.server.metrics import metrics
 from mci_world_model.server.security import (
+    Identity,
+    authenticate,
     get_circuit_breaker,
     get_rate_limiter,
     get_trusted_proxies,
     resolve_client_ip,
-    verify_auth,
 )
 from mci_world_model.server.storage import list_diagnoses, load_diagnosis, save_diagnosis
+from mci_world_model.server.validation import RequestLimitError, assert_finite_tree, loads_safe_json
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +49,20 @@ _concurrent_semaphore = threading.BoundedSemaphore(_MAX_CONCURRENT)
 # 请求计数 (用于背压指标)
 _active_requests = 0
 _active_requests_lock = threading.Lock()
+
+
+def reset_runtime_state() -> None:
+    """重置进程级服务状态；供测试或宿主重建应用状态使用。"""
+    from mci_world_model.server.security import reset_security_runtime
+    from mci_world_model.server.storage import reset_storage
+
+    global _ready, _active_requests
+    reset_security_runtime()
+    reset_storage()
+    _ready = False
+    with _active_requests_lock:
+        _active_requests = 0
+    MCIAPIHandler._request_count = 0
 
 
 def _init_engines():
@@ -75,7 +91,18 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         logger.info("%s - %s", self.address_string(), format % args)
 
     def _send_json(self, status: int, data: dict) -> None:
-        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        try:
+            assert_finite_tree(data)
+            body = json.dumps(data, ensure_ascii=False, allow_nan=False).encode("utf-8")
+        except (ValueError, TypeError, OverflowError):
+            logger.error("响应序列化失败: status=%s", status, exc_info=True)
+            metrics.inc_error("response_serialization")
+            body = json.dumps(
+                {"error": "response serialization failed"},
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+            status = 500
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -95,14 +122,31 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         if length > self.MAX_BODY_SIZE:
             raise ValueError(f"请求体过大: {length} > {self.MAX_BODY_SIZE}")
         raw = self.rfile.read(length)
-        return json.loads(raw)
+        return loads_safe_json(raw)
 
     def _validate_params(self, path: str, body: dict) -> None:
         """H9: 请求参数范围校验 — 在路由前执行, 返回 400。"""
+        from mci_world_model.sdk._medical_causal_sdk import MedicalCausalSDK, get_max_batch_queries
+
         if path in ("/api/v1/diagnose", "/api/v1/diagnose/batch"):
             prior = body.get("prior_strength", 0.5)
             if not isinstance(prior, (int, float)) or not 0.0 <= float(prior) <= 1.0:
                 raise ValueError("prior_strength 必须在 [0, 1]")
+            evidence = body.get("evidence", [])
+            if not isinstance(evidence, list) or len(evidence) > MedicalCausalSDK.MAX_EVIDENCE_COUNT:
+                raise RequestLimitError(f"证据数量超过上限 {MedicalCausalSDK.MAX_EVIDENCE_COUNT}")
+        if path == "/api/v1/diagnose/batch":
+            queries = body.get("queries", [])
+            if not isinstance(queries, list):
+                raise ValueError("queries 必须是列表")
+            if len(queries) > get_max_batch_queries():
+                raise RequestLimitError(f"批量查询数量超过上限 {get_max_batch_queries()}")
+            for query in queries:
+                if not isinstance(query, dict):
+                    raise ValueError("批量查询项必须是对象")
+                query_evidence = query.get("evidence", [])
+                if not isinstance(query_evidence, list) or len(query_evidence) > (MedicalCausalSDK.MAX_EVIDENCE_COUNT):
+                    raise RequestLimitError(f"单条查询证据数量超过上限 {MedicalCausalSDK.MAX_EVIDENCE_COUNT}")
         elif path == "/api/v1/energy/what_if":
             boost = body.get("boost", 1.0)
             if not isinstance(boost, (int, float)) or not 0.1 <= float(boost) <= 10.0:
@@ -111,21 +155,23 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
     # 健康检查端点不需要认证
     _PUBLIC_ENDPOINTS = {"/health", "/ready", "/metrics"}
 
-    def _check_security(self) -> bool:
-        """认证 + 限流 + 断路器检查。返回 True 表示通过。"""
+    def _check_security(self) -> tuple[bool, Identity | None]:
+        """认证 + 限流 + 断路器检查。返回服务端身份；None 表示已拒绝。"""
         # H2/H7 修复: 去掉查询串后再判断公开端点
         base_path = self.path.split("?")[0]
         is_public = base_path in self._PUBLIC_ENDPOINTS
+        identity: Identity | None = None
 
         if not is_public:
             # H10 修复: 用缓存的 get_auth_config() 而非每请求 from_env()
             from mci_world_model.server.security import get_auth_config
 
             auth_cfg = get_auth_config()
-            if not verify_auth(self.headers, auth_cfg):
+            identity = authenticate(self.headers, auth_cfg)
+            if identity is None:
                 logger.warning("AUTH FAILED: path=%s", base_path)
                 self._send_json(401, {"error": "unauthorized"})
-                return False
+                return False, None
 
         # 限流
         # H12 修复: K8s/LB 后面用 X-Forwarded-For 取真实 IP
@@ -136,12 +182,13 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         )
         if not get_rate_limiter().allow(client_ip):
             self._send_json(429, {"error": "rate limit exceeded"})
-            return False
+            return False, None
 
-        return True
+        return True, identity
 
     def do_GET(self) -> None:
-        if not self._check_security():
+        allowed, identity = self._check_security()
+        if not allowed:
             return
         t0 = time.time()
         endpoint = self.path
@@ -178,10 +225,12 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api/v1/diagnosis/"):
             # GET /api/v1/diagnosis/{record_id} — 查询已保存的诊断
             record_id = self.path.split("/api/v1/diagnosis/", 1)[1].split("?")[0]
-            if not record_id:
+            if identity is None:
+                self._send_json(403, {"error": "forbidden"})
+            elif not record_id:
                 self._send_json(400, {"error": "missing record_id"})
             else:
-                record = load_diagnosis(record_id)
+                record = load_diagnosis(record_id, identity)
                 if record is not None:
                     self._send_json(200, record)
                 else:
@@ -192,8 +241,11 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
 
             query = parse_qs(urlparse(self.path).query)
             patient_id = query.get("patient_id", [""])[0]
-            keys = list_diagnoses(patient_id)
-            self._send_json(200, {"count": len(keys), "record_ids": keys})
+            if identity is None or patient_id not in identity.patient_ids:
+                self._send_json(403, {"error": "forbidden"})
+            else:
+                keys = list_diagnoses(patient_id, identity)
+                self._send_json(200, {"count": len(keys), "record_ids": keys})
         else:
             self._send_json(404, {"error": "not found", "path": self.path})
 
@@ -203,7 +255,8 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         metrics.observe_latency(safe_endpoint, time.time() - t0)
 
     def do_POST(self) -> None:
-        if not self._check_security():
+        allowed, identity = self._check_security()
+        if not allowed:
             return
         t0 = time.time()
         endpoint = self.path
@@ -240,44 +293,62 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
 
             try:
                 body = self._read_body()
-            except json.JSONDecodeError as e:
-                metrics.inc_error(endpoint)
-                self._send_json(400, {"error": "invalid JSON", "detail": str(e), "trace_id": trace_id})
-                return
             except ValueError as e:
+                logger.warning("请求 JSON 无效 %s [trace=%s]: %s", endpoint, trace_id, e)
                 metrics.inc_error(endpoint)
-                self._send_json(400, {"error": "bad request", "detail": str(e), "trace_id": trace_id})
+                self._send_json(400, {"error": "invalid JSON", "trace_id": trace_id})
                 return
 
             # H9 修复: 参数范围校验 (在路由前, 返回 400 而非 500)
             route = self.path.split("?")[0]
             try:
                 self._validate_params(route, body)
+            except RequestLimitError as e:
+                logger.warning("请求规模超限 %s [trace=%s]: %s", endpoint, trace_id, e)
+                metrics.inc_error(endpoint)
+                self._send_json(
+                    422,
+                    {"error": "payload limit exceeded", "detail": str(e), "trace_id": trace_id},
+                )
+                return
             except ValueError as e:
+                logger.warning("请求参数无效 %s [trace=%s]: %s", endpoint, trace_id, e)
                 metrics.inc_error(endpoint)
                 self._send_json(400, {"error": "invalid parameter", "detail": str(e), "trace_id": trace_id})
                 return
 
             try:
                 if route == "/api/v1/diagnose":
-                    result = self._handle_diagnose(body)
+                    if identity is None or body.get("patient_id", "") not in identity.patient_ids:
+                        self._send_json(403, {"error": "forbidden", "trace_id": trace_id})
+                        return
+                    result = self._handle_diagnose(body, identity)
+                    assert_finite_tree(result)
                     self._send_json(200, result)
                 elif route == "/api/v1/diagnose/batch":
                     result = self._handle_batch_diagnose(body)
+                    assert_finite_tree(result)
                     self._send_json(200, result)
                 elif route == "/api/v1/backdoor":
                     result = self._handle_backdoor(body)
+                    assert_finite_tree(result)
                     self._send_json(200, result)
                 elif route == "/api/v1/energy/what_if":
                     result = self._handle_energy_whatif(body)
+                    assert_finite_tree(result)
                     self._send_json(200, result)
                 else:
                     self._send_json(404, {"error": "not found", "path": self.path})
             except Exception as e:
+                if isinstance(e, (RecursionError, ValueError, TypeError, OverflowError)):
+                    logger.warning("请求处理失败 %s [trace=%s]: %s", self.path, trace_id, e)
+                    metrics.inc_error(endpoint)
+                    self._send_json(400, {"error": "invalid request", "trace_id": trace_id})
+                    return
                 logger.error("API 错误 %s [trace=%s]: %s", self.path, trace_id, e, exc_info=True)
                 metrics.inc_error(endpoint)
                 cb.record_failure()
-                self._send_json(500, {"error": "internal error", "detail": str(e), "trace_id": trace_id})
+                self._send_json(500, {"error": "internal error", "trace_id": trace_id})
             else:
                 cb.record_success()
 
@@ -290,7 +361,7 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
                 _active_requests -= 1
                 metrics.set_gauge("mci_active_requests", float(_active_requests))
 
-    def _handle_diagnose(self, body: dict) -> dict:
+    def _handle_diagnose(self, body: dict, auth_context: Identity) -> dict:
         from mci_world_model.sdk._medical_causal_sdk import (
             ClinicalEvidence,
             MedicalCausalSDK,
@@ -303,7 +374,7 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             raise ValueError("cause 和 effect 不能为空")
 
         sdk = MedicalCausalSDK(patient_id=body.get("patient_id", ""))
-        for ev in body.get("evidence", [])[: MedicalCausalSDK.MAX_EVIDENCE_COUNT]:
+        for ev in body.get("evidence", []):
             sdk.add_evidence(
                 ClinicalEvidence(
                     evidence_id=ev.get("id", ""),
@@ -319,12 +390,15 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             "effect": diag.effect,
             "confidence": diag.confidence,
             "is_conclusive": diag.is_conclusive,
+            "effective_evidence_count": diag.effective_evidence_count,
+            "duplicate_count": diag.duplicate_count,
+            "correlated_count": diag.correlated_count,
             "warnings": diag.warnings,
         }
         # 持久化诊断结果 (状态外置化, 支持多副本共享)
         patient_id = body.get("patient_id", "unknown")
         try:
-            record_id = save_diagnosis(patient_id, result)
+            record_id = save_diagnosis(patient_id, result, auth_context)
             result["record_id"] = record_id
         except Exception:
             logger.warning("诊断结果持久化失败, 不影响响应", exc_info=True)
@@ -345,6 +419,9 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
                     "effect": r.effect,
                     "confidence": r.confidence,
                     "is_conclusive": r.is_conclusive,
+                    "effective_evidence_count": r.effective_evidence_count,
+                    "duplicate_count": r.duplicate_count,
+                    "correlated_count": r.correlated_count,
                 }
                 for r in results
             ],
@@ -364,7 +441,7 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
         for node, values in body.get("data", {}).items():
             data[node] = np.array(values, dtype=np.float64)
         if data:
-            dc.set_data(data)
+            dc.set_data(data, dataset_id=body.get("dataset_id"))
 
         x = body.get("treatment", "")
         y = body.get("outcome", "")
