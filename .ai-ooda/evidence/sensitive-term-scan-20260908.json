@@ -1,0 +1,16 @@
+{
+  "files_scanned": 308,
+  "findings": [],
+  "findings_count": 0,
+  "roots": [
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "docs"
+  ],
+  "source": "MCI产品矩阵敏感术语脱敏发布门禁规则（用户项目记忆，2026-05-28 快照）",
+  "source_sha256": "94b4db0ae5241aa3ba7920a938079b82b22e678fc9dc2583f1e1d6f4720e081c",
+  "status": "pass",
+  "wordlist_sha256": "cbd03856eed5bb93ce1dc7b4a0e7b92da005b8148295a09b5cdea36938f499b5",
+  "wordlist_version": "1.1.0"
+}
