@@ -13,12 +13,27 @@
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict, defaultdict
 
 logger = logging.getLogger(__name__)
 import threading
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
+
+KNOWN_ENDPOINTS: frozenset[str] = frozenset(
+    {
+        "/health",
+        "/ready",
+        "/metrics",
+        "/api/v1/diagnose",
+        "/api/v1/diagnose/batch",
+        "/api/v1/diagnosis/",
+        "/api/v1/backdoor",
+        "/api/v1/energy/what_if",
+    }
+)
+MAX_LABEL_COMBINATIONS = 64
+MAX_EXPOSURE_BYTES = 64 * 1024
 
 
 @dataclass
@@ -58,14 +73,51 @@ class MetricsCollector:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._counters: dict[str, float] = defaultdict(float)
+        self._counters: dict[str, float] = {}
         self._histograms: dict[str, _Histogram] = defaultdict(_Histogram)
         self._gauges: dict[str, float] = {}
+        self._label_rings: dict[str, OrderedDict[str, None]] = {}
+        self._max_label_combinations = MAX_LABEL_COMBINATIONS
         self._start_time = time.time()
+
+    @staticmethod
+    def normalize_endpoint(endpoint: str) -> str:
+        """把路由收敛到固定标签；query string 和动态 ID 不进入指标。"""
+        path = endpoint.split("?", 1)[0]
+        if path in KNOWN_ENDPOINTS:
+            return path
+        if path.startswith("/api/v1/diagnosis/"):
+            return "/api/v1/diagnosis/"
+        return "unmatched"
+
+    @staticmethod
+    def _split_metric_key(key: str) -> tuple[str, str]:
+        base, separator, label = key.partition("{")
+        if not separator:
+            return base, ""
+        return base, label[:-1] if label.endswith("}") else label
+
+    def _admit_label(self, metric_key: str) -> bool:
+        base, label = self._split_metric_key(metric_key)
+        if not label:
+            return True
+        ring = self._label_rings.setdefault(base, OrderedDict())
+        if label in ring:
+            ring.move_to_end(label)
+            return True
+        if len(ring) >= self._max_label_combinations:
+            ring.popitem(last=False)
+            self._counters["metrics_cardinality_dropped_total"] = (
+                self._counters.get("metrics_cardinality_dropped_total", 0.0) + 1.0
+            )
+        ring[label] = None
+        return True
 
     def inc(self, name: str, value: float = 1.0) -> None:
         with self._lock:
-            self._counters[name] += value
+            if not self._admit_label(name):
+                return
+            self._counters[name] = self._counters.get(name, 0.0) + value
 
     def set_gauge(self, name: str, value: float) -> None:
         with self._lock:
@@ -73,22 +125,28 @@ class MetricsCollector:
 
     def observe(self, name: str, value: float) -> None:
         with self._lock:
+            if not self._admit_label(name):
+                return
             self._histograms[name].observe(value)
 
     def inc_request(self, endpoint: str) -> None:
-        self.inc(f'requests_total{{endpoint="{endpoint}"}}')
+        safe_endpoint = self.normalize_endpoint(endpoint)
+        self.inc(f'requests_total{{endpoint="{safe_endpoint}"}}')
 
     def inc_error(self, endpoint: str) -> None:
-        self.inc(f'errors_total{{endpoint="{endpoint}"}}')
+        safe_endpoint = self.normalize_endpoint(endpoint) if endpoint.startswith("/") else endpoint
+        self.inc(f'errors_total{{endpoint="{safe_endpoint}"}}')
 
     def observe_latency(self, endpoint: str, seconds: float) -> None:
-        self.observe(f'request_duration{{endpoint="{endpoint}"}}', seconds)
+        safe_endpoint = self.normalize_endpoint(endpoint)
+        self.observe(f'request_duration{{endpoint="{safe_endpoint}"}}', seconds)
 
     def uptime(self) -> float:
         return time.time() - self._start_time
 
     def expose(self) -> str:
-        """Prometheus text exposition format。"""
+        """渲染有长度上限的 Prometheus text exposition format。"""
+        started_at = time.perf_counter()
         with self._lock:
             lines = []
             # Counters
@@ -118,7 +176,23 @@ class MetricsCollector:
             # Uptime
             lines.append("# TYPE mci_uptime gauge")
             lines.append(f"mci_uptime {self.uptime():.2f}")
-            return "\n".join(lines) + "\n"
+
+        rendered: list[str] = []
+        rendered_bytes = 0
+        truncated = 0
+        for line in lines:
+            line_bytes = len(line.encode("utf-8")) + 1
+            if rendered_bytes + line_bytes > MAX_EXPOSURE_BYTES:
+                truncated += 1
+                continue
+            rendered.append(line)
+            rendered_bytes += line_bytes
+
+        elapsed = time.perf_counter() - started_at
+        if truncated:
+            self.inc("metrics_exposure_truncated_total", float(truncated))
+        self.observe("metrics_exposure_duration_seconds", elapsed)
+        return "\n".join(rendered) + "\n"
 
 
 # 全局单例

@@ -57,14 +57,14 @@ class TestMetricsSystem:
         from mci_world_model.server.metrics import MetricsCollector
 
         m = MetricsCollector()
-        m.inc_request("diagnose")
-        m.inc_request("diagnose")
-        m.inc_error("diagnose")
-        m.observe_latency("diagnose", 0.003)
-        m.observe_latency("diagnose", 0.02)
+        m.inc_request("/api/v1/diagnose")
+        m.inc_request("/api/v1/diagnose")
+        m.inc_error("/api/v1/diagnose")
+        m.observe_latency("/api/v1/diagnose", 0.003)
+        m.observe_latency("/api/v1/diagnose", 0.02)
         out = m.expose()
-        assert 'requests_total{endpoint="diagnose"} 2.0' in out
-        assert 'errors_total{endpoint="diagnose"} 1.0' in out
+        assert 'requests_total{endpoint="/api/v1/diagnose"} 2.0' in out
+        assert 'errors_total{endpoint="/api/v1/diagnose"} 1.0' in out
         assert "request_duration_count" in out
         assert "request_duration_sum" in out
 
