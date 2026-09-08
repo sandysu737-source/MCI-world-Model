@@ -12,42 +12,42 @@
 
 ### 1.1 战略定位
 
-P13 是从"传承"到"造化"的**创造波次**。P12 让因果文明从单节点传承为联邦网络，建立了多系统协作、量子推理和联邦治理的完整体系。然而，联邦中的因果推理仍然是**发现已有规律**——P13 要实现质的飞跃：从发现到**创造**。因果创造引擎让系统具备**发明新因果理论**的能力，自主知识文明让联邦不仅能发现和共享知识，更能**自主产生和传承知识体系**，因果经济体系让因果知识获得**价值度量与交易机制**。正如杜甫所言："造化钟神秀，阴阳割昏晓"——当系统能创造新因果知识、建立知识文明、形成知识经济，"增强层"就从推理工具跃迁为**知识创造引擎**。根据依赖关系图：
+P13 是从"传承"到"造化"的**创造波次**。P12 让因果文明从单节点传承为联邦网络，建立了多系统协作、量子推理和联邦治理的完整体系。然而，联邦中的因果推理仍然是**发现已有规律**——P13 要实现质的飞跃：从发现到**创造**。因果创造引擎让系统具备**发明新因果理论**的能力，自主知识文明让联邦不仅能发现和共享知识，更能**自主产生和传承知识体系**，因果经济体系让因果知识获得**价值度量与交易机制**。正如杜甫所言："造化钟神秀，duality divides dusk and dawn"——当系统能创造新因果知识、建立知识文明、形成知识经济，"增强层"就从推理工具跃迁为**知识创造引擎**。根据依赖关系图：
 
 ```mermaid
 graph TB
     P12_Done[P12完成: 因果联邦+量子推理+联邦治理+v12.0.0] --> P13_Start
-    
+
     subgraph Ch24 [因果创造引擎与自主知识文明 W217-252]
         CreateEngine[因果创造引擎 W217-228]
         KnowledgeCiv[自主知识文明 W229-240]
         CausalEcon[因果经济体系 W241-248]
     end
-    
+
     subgraph Ch23 [量子因果2.0 W217-236]
         Quantum2[量子因果推理2.0 W217-224]
         HybridCompute[混合量子经典计算 W225-232]
         QuantumAdv[量子优势量化 W233-236]
     end
-    
+
     subgraph Ch22 [创造意识 W225-244]
         CreativeConsc[创造因果意识 W225-232]
         AestheticEval[因果美学评估 W233-238]
         CreativeEvo[创造驱动进化 W239-244]
     end
-    
+
     subgraph Ch08 [WMMM创造化 W217-252]
         L10Deep[L10≥20% W217-224]
         L11Explore[L11创造式探索 W225-236]
         L11Valid[L11验证+WMMM刷新 W237-252]
     end
-    
+
     subgraph Ch19 [创造可信 W233-248]
         CreativeTrust[创造可信框架 W233-240]
         NoveltyVerify[新颖性验证 W241-244]
         CreativeAudit[创造性审计 W245-248]
     end
-    
+
     CreateEngine --> KnowledgeCiv
     KnowledgeCiv --> CausalEcon
     Quantum2 --> HybridCompute
@@ -110,8 +110,8 @@ class CausalCreationEngine:
         }
         self._created_theories: list[dict] = []
         self._creation_log: list[dict] = []
-    
-    def create_causal_theory(self, domain: str, 
+
+    def create_causal_theory(self, domain: str,
                               strategy: str = "analogy") -> dict:
         """
         创造新因果理论:
@@ -125,37 +125,37 @@ class CausalCreationEngine:
         """
         # Step 1: 因果空白分析
         gaps = self._analyze_causal_gaps(domain)
-        
+
         # Step 2: 策略执行
         create_fn = self._creation_strategies.get(
             strategy, self._create_by_analogy
         )
         candidates = create_fn(domain, gaps)
-        
+
         # Step 3: 一致性检验
         consistent = [
             c for c in candidates
             if self._check_internal_consistency(c)
         ]
-        
+
         # Step 4: 兼容性检验
         compatible = [
             c for c in consistent
             if self._check_knowledge_compatibility(c, domain)
         ]
-        
+
         # Step 5: 新颖性评估
         for theory in compatible:
             theory["novelty_score"] = self._assess_novelty(theory, domain)
             theory["falsifiability"] = self._design_falsification(theory)
-        
+
         # 排序: 新颖性 + 一致性
         ranked = sorted(
-            compatible, 
+            compatible,
             key=lambda t: t["novelty_score"] * 0.6 + t.get("consistency_score", 0) * 0.4,
             reverse=True
         )
-        
+
         # Step 6: 意识反思 (如果有创造意识)
         if self._consciousness and hasattr(self._consciousness, '_consciousness_state'):
             if self._consciousness._consciousness_state in ["reflective", "autonomous"]:
@@ -164,7 +164,7 @@ class CausalCreationEngine:
                         "reasoning_chain": theory,
                         "type": "creation",
                     })
-        
+
         created = ranked[0] if ranked else None
         if created:
             self._created_theories.append(created)
@@ -176,14 +176,14 @@ class CausalCreationEngine:
                 "n_compatible": len(compatible),
                 "selected_novelty": created["novelty_score"],
             })
-        
+
         return {
             "created_theory": created,
             "n_candidates": len(candidates),
             "creation_strategy": strategy,
             "domain": domain,
         }
-    
+
     def _create_by_analogy(self, domain, gaps):
         """类比创造: 从已知领域迁移因果结构到新领域"""
         theories = []
@@ -194,7 +194,7 @@ class CausalCreationEngine:
                 theory = self._transfer_structure(source, gap, domain)
                 theories.append(theory)
         return theories
-    
+
     def _create_by_composition(self, domain, gaps):
         """组合创造: 组合多个已知因果机制"""
         theories = []
@@ -204,7 +204,7 @@ class CausalCreationEngine:
                 composed = self._compose_mechanisms(m1, m2, domain)
                 theories.append(composed)
         return theories
-    
+
     def _create_by_abstraction(self, domain, gaps):
         """抽象创造: 从具体因果规律抽象出高阶因果原理"""
         theories = []
@@ -214,7 +214,7 @@ class CausalCreationEngine:
             abstracted = self._generalize_constants(law)
             theories.append(abstracted)
         return theories
-    
+
     def _create_by_negation(self, domain, gaps):
         """否定创造: 系统性否定已知假设，寻找替代解释"""
         theories = []
@@ -223,7 +223,7 @@ class CausalCreationEngine:
             negated = self._negate_and_rebuild(assumption, domain)
             theories.append(negated)
         return theories
-    
+
     def _create_by_extrapolation(self, domain, gaps):
         """外推创造: 将因果趋势外推到未知区域"""
         theories = []
@@ -232,19 +232,19 @@ class CausalCreationEngine:
             extrapolated = self._extrapolate_trend(trend, domain)
             theories.append(extrapolated)
         return theories
-    
+
     def _assess_novelty(self, theory, domain):
         """新颖性评估: 与已知知识集合的差异度"""
         known = self._knowledge.get_all_domain_theories(domain)
         if not known:
             return 1.0  # 领域无已知理论 → 最高新颖性
-        
+
         similarities = [
             self._compute_theory_similarity(theory, k) for k in known
         ]
         # 新颖性 = 1 - 最大相似度
         return 1 - max(similarities) if similarities else 1.0
-    
+
     def _design_falsification(self, theory):
         """可证伪性设计: 为理论设计可证伪实验"""
         return {
@@ -265,7 +265,7 @@ class QuantumCausalV2:
         self._error_mitigator = error_mitigator
         self._variational = variational_solver
         self._advantage_registry: dict[str, float] = {}
-    
+
     def variational_causal_effect(self, cause, effect, data,
                                    ansatz_depth: int = 3) -> dict:
         """
@@ -277,31 +277,31 @@ class QuantumCausalV2:
         """
         # 初始化变分参数
         params = np.random.uniform(0, 2*np.pi, ansatz_depth * 2)
-        
+
         # 变分优化循环
         history = []
         for iteration in range(100):
             # 构建参数化电路
             circuit = self._variational.build_ansatz(params, ansatz_depth)
-            
+
             # 量子执行
             result = self._bridge.execute_on_quantum_hardware(circuit, n_shots=4096)
-            
+
             # 误差缓解
             mitigated = self._error_mitigator.mitigate(result)
-            
+
             # 计算因果效应目标函数
             effect_estimate = self._bridge.quantum_to_classical(mitigated)
             cost = self._compute_causal_cost(effect_estimate, data, cause, effect)
-            
+
             history.append({"iteration": iteration, "cost": cost, "params": params.tolist()})
-            
+
             # 经典优化
             params = self._variational.update_params(params, cost)
-            
+
             if cost < 0.01:  # 收敛
                 break
-        
+
         return {
             "causal_effect": effect_estimate,
             "converged": cost < 0.01,
@@ -309,7 +309,7 @@ class QuantumCausalV2:
             "ansatz_depth": ansatz_depth,
             "final_cost": cost,
         }
-    
+
     def quantum_counterfactual(self, factual_data, intervention,
                                 n_shots: int = 8192) -> dict:
         """
@@ -320,20 +320,20 @@ class QuantumCausalV2:
         """
         # 量子编码事实数据
         factual_state = self._encode_data_as_quantum_state(factual_data)
-        
+
         # 量子干预
         intervened_state = self._apply_quantum_intervention(
             factual_state, intervention
         )
-        
+
         # 量子前向传播
         counterfactual_state = self._quantum_forward_propagate(intervened_state)
-        
+
         # 量子测量 → 经典结果
         measurement = self._bridge.execute_on_quantum_hardware(
             counterfactual_state, n_shots
         )
-        
+
         return {
             "factual": factual_data,
             "intervention": intervention,
@@ -361,7 +361,7 @@ class HybridQuantumClassical:
         self._classical = classical_engine
         self._resources = resource_manager
         self._allocation_policy = "adaptive"  # adaptive|quantum_first|classical_first
-    
+
     def hybrid_reason(self, query: dict) -> dict:
         """
         混合推理: 自动选择最优量子/经典策略
@@ -374,7 +374,7 @@ class HybridQuantumClassical:
         complexity = self._assess_complexity(query)
         quantum_advantage = self._predict_quantum_advantage(query, complexity)
         resource_available = self._resources.check_quantum_availability()
-        
+
         if quantum_advantage > 1.2 and resource_available:
             # 量子优先
             quantum_result = self._quantum.reason(query)
@@ -389,7 +389,7 @@ class HybridQuantumClassical:
             if quantum_spot_check:
                 result["quantum_validation"] = quantum_spot_check
             method = "classical_primary"
-        
+
         return {
             "result": result,
             "method": method,
@@ -424,8 +424,8 @@ class CreativeCausalConsciousness:
             "utility": 0.6,         # 实用性驱动
         }
         self._creative_history: list[dict] = []
-    
-    def enter_creative_mode(self, domain: str, 
+
+    def enter_creative_mode(self, domain: str,
                              drive_adjustment: dict = None) -> dict:
         """
         进入创造模式:
@@ -438,26 +438,26 @@ class CreativeCausalConsciousness:
             for key, value in drive_adjustment.items():
                 if key in self._creative_drive:
                     self._creative_drive[key] = value
-        
+
         # 状态转换
         self._creative_state = "exploratory"
-        
+
         # 基于驱动力的创造策略选择
         strategy = self._select_strategy_from_drive()
-        
+
         # 激活创造
         creation_result = self._creation.create_causal_theory(
             domain, strategy
         )
-        
+
         # 创造评估
         evaluation = self._evaluate_creation(creation_result)
-        
+
         if evaluation["quality"] > 0.6:
             self._creative_state = "creative"
         if evaluation["quality"] > 0.8 and evaluation["novelty"] > 0.7:
             self._creative_state = "visionary"
-        
+
         return {
             "creative_state": self._creative_state,
             "strategy_used": strategy,
@@ -465,7 +465,7 @@ class CreativeCausalConsciousness:
             "evaluation": evaluation,
             "creative_drive": self._creative_drive,
         }
-    
+
     def creative_reflect(self, creation_episode: dict) -> dict:
         """
         创造反思: 评估创造过程本身
@@ -483,21 +483,21 @@ class CreativeCausalConsciousness:
         aesthetic = self._aesthetic_evaluation(
             creation_episode.get("created_theory", {})
         )
-        
+
         # 自适应调整
         for key, adjustment in drive_calibration.items():
             if key in self._creative_drive:
                 self._creative_drive[key] = np.clip(
                     self._creative_drive[key] + adjustment, 0, 1
                 )
-        
+
         return {
             "strategy_effectiveness": strategy_effectiveness,
             "drive_calibration": drive_calibration,
             "aesthetic_score": aesthetic["score"],
             "drive_adjusted": self._creative_drive,
         }
-    
+
     def _select_strategy_from_drive(self):
         """根据驱动力选择创造策略"""
         if self._creative_drive["novelty"] > 0.6:
@@ -509,16 +509,16 @@ class CreativeCausalConsciousness:
         if self._creative_drive["curiosity"] > 0.6:
             return "extrapolation"  # 外推创造：探索未知
         return "analogy"  # 默认：类比创造
-    
+
     def _aesthetic_evaluation(self, theory):
         """因果美学评估: 简洁性、对称性、解释力"""
         if not theory:
             return {"score": 0}
-        
+
         simplicity = self._evaluate_simplicity(theory)
         symmetry = self._evaluate_symmetry(theory)
         explanatory_power = self._evaluate_explanatory_power(theory)
-        
+
         score = 0.3 * simplicity + 0.3 * symmetry + 0.4 * explanatory_power
         return {"score": score, "simplicity": simplicity, "symmetry": symmetry, "explanatory_power": explanatory_power}
 ```
@@ -549,7 +549,7 @@ class CreativeCausalConsciousness:
 ```python
 class AutonomousKnowledgeCivilization:
     """自主知识文明 — 因果知识的自主产生、传承与演化"""
-    def __init__(self, creation_engine, federation_protocol, 
+    def __init__(self, creation_engine, federation_protocol,
                  knowledge_repository):
         self._creation = creation_engine
         self._federation = federation_protocol
@@ -562,7 +562,7 @@ class AutonomousKnowledgeCivilization:
             "innovation_rate": 0,
             "heritage_preservation": 0,
         }
-    
+
     def knowledge_generation_cycle(self, domain: str,
                                     n_theories: int = 5) -> dict:
         """
@@ -576,14 +576,14 @@ class AutonomousKnowledgeCivilization:
         """
         # Step 1: 世代评估
         assessment = self._assess_knowledge_state(domain)
-        
+
         # Step 2: 创造循环
         new_theories = []
         for i in range(n_theories):
             theory = self._creation.create_causal_theory(domain)
             if theory["created_theory"]:
                 new_theories.append(theory["created_theory"])
-        
+
         # Step 3: 验证循环 (联邦验证)
         verified = []
         for theory in new_theories:
@@ -596,18 +596,18 @@ class AutonomousKnowledgeCivilization:
                     "theory": theory,
                     "verification": fed_verification,
                 })
-        
+
         # Step 4: 传承循环
         inherited = 0
         for v in verified:
             self._repository.store(v["theory"], domain)
             inherited += 1
-        
+
         # Step 5: 淘汰循环
         falsified = self._repository.check_falsifications(domain)
         for f in falsified:
             self._repository.retire(f, reason="falsified")
-        
+
         # Step 6: 世代记录
         generation = {
             "domain": domain,
@@ -618,12 +618,12 @@ class AutonomousKnowledgeCivilization:
             "assessment": assessment,
         }
         self._knowledge_generations.append(generation)
-        
+
         # 更新文明指标
         self._update_civilization_metrics(generation)
-        
+
         return generation
-    
+
     def knowledge_heritage(self, source_domain: str,
                             target_domain: str) -> dict:
         """
@@ -634,27 +634,27 @@ class AutonomousKnowledgeCivilization:
           4. 传承验证
         """
         source_knowledge = self._repository.export_domain(source_domain)
-        
+
         mapped = self._map_cross_domain_knowledge(
             source_knowledge, target_domain
         )
-        
+
         adapted = self._adapt_to_domain(mapped, target_domain)
-        
+
         verification = self._federation.federated_query({
             "type": "heritage_verification",
             "source": source_domain,
             "target": target_domain,
             "knowledge": adapted,
         })
-        
+
         return {
             "source": source_domain,
             "target": target_domain,
             "n_knowledge_transferred": len(adapted),
             "verification_passed": verification.get("consensus_level", 0) > 0.6,
         }
-    
+
     def _update_civilization_metrics(self, generation):
         """更新文明指标"""
         self._civilization_metrics["knowledge_volume"] = self._repository.total_count()
@@ -687,23 +687,23 @@ class CreativeTrust:
             "untested_hypothesis": 0.40,     # 未检验假设: 低可信
             "contradictory_theory": 0.20,    # 矛盾理论: 极低可信
         }
-    
+
     def assess_creative_trust(self, created_theory: dict) -> dict:
         """评估创造性理论的可信度"""
         # 基础信任评估
         base_trust = self._trust.reason_with_trust(
             created_theory, context={"type": "creative"}
         )
-        
+
         # 新颖性验证
         novelty = self._novelty.verify(created_theory)
-        
+
         # 可证伪性检查
         falsifiability = self._check_falsifiability(created_theory)
-        
+
         # 与已知知识兼容性
         compatibility = self._check_compatibility(created_theory)
-        
+
         # 综合创造信任
         creative_trust = (
             0.3 * base_trust["trust"]["score"] +
@@ -711,10 +711,10 @@ class CreativeTrust:
             0.3 * falsifiability["score"] +
             0.2 * compatibility["score"]
         )
-        
+
         # 分级
         level = self._classify_creative_trust(creative_trust)
-        
+
         return {
             "creative_trust_score": creative_trust,
             "trust_level": level,
@@ -743,7 +743,7 @@ class NoveltyVerifier:
         self._repository = knowledge_repository
         self._threshold = similarity_threshold
         self._verification_cache: dict[str, dict] = {}
-    
+
     def verify(self, theory: dict) -> dict:
         """
         新颖性验证:
@@ -758,19 +758,19 @@ class NoveltyVerifier:
             self._compute_structural_similarity(theory, e)
             for e in existing
         ]
-        
+
         # 预测差异度
         prediction_diff = [
             self._compute_prediction_difference(theory, e)
             for e in existing
         ]
-        
+
         # 综合新颖性
         max_similarity = max(structural_sim) if structural_sim else 0
         min_prediction_diff = min(prediction_diff) if prediction_diff else 1
-        
+
         novelty_confirmed = max_similarity < self._threshold
-        
+
         return {
             "novelty_confirmed": novelty_confirmed,
             "max_structural_similarity": max_similarity,
@@ -812,7 +812,7 @@ class CausalEconomy:
         self._value_model = CausalKnowledgeValueModel()
         self._market = CausalKnowledgeMarket()
         self._transaction_log: list[dict] = []
-    
+
     def value_causal_knowledge(self, theory: dict) -> dict:
         """
         因果知识价值评估:
@@ -826,14 +826,14 @@ class CausalEconomy:
         explanatory_value = self._value_model.explanatory_value(theory)
         operational_value = self._value_model.operational_value(theory)
         demand_value = self._value_model.demand_value(theory)
-        
+
         total_value = (
             0.25 * novelty_value +
             0.30 * explanatory_value +
             0.25 * operational_value +
             0.20 * demand_value
         )
-        
+
         return {
             "total_value": total_value,
             "novelty_value": novelty_value,
@@ -842,7 +842,7 @@ class CausalEconomy:
             "demand_value": demand_value,
             "value_category": self._classify_value(total_value),
         }
-    
+
     def trade_knowledge(self, provider: str, consumer: str,
                          theory: dict) -> dict:
         """
@@ -855,7 +855,7 @@ class CausalEconomy:
         """
         value = self.value_causal_knowledge(theory)
         price = self._market.determine_price(theory, value)
-        
+
         transaction = {
             "transaction_id": self._generate_transaction_id(),
             "provider": provider,
@@ -865,16 +865,16 @@ class CausalEconomy:
             "price": price,
             "timestamp": time.time(),
         }
-        
+
         # 知识传输
         self._federation.send_message(
             "fed_evidence_share",
             {"theory": theory},
             target=consumer
         )
-        
+
         self._transaction_log.append(transaction)
-        
+
         return {
             "transaction": transaction,
             "status": "completed",
