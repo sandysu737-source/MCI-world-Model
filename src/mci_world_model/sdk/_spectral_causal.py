@@ -25,6 +25,7 @@ v3.6.0 新增:
 
 import logging
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -33,6 +34,29 @@ from scipy.sparse import lil_matrix
 from scipy.stats import norm, pearsonr
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class EnergyTypeRule:
+    """版本化能量类型判定规则。"""
+
+    rule_id: str
+    version: str
+    pattern: str
+    energy_type: str
+    priority: int
+    reviewer: str
+
+
+ENERGY_TYPE_RULES: tuple[EnergyTypeRule, ...] = (
+    EnergyTypeRule("growth", "energy-rules-v1", r"生长|发育|康复|growth", "wood", 10, "audit-2026-09-07"),
+    EnergyTypeRule("activation", "energy-rules-v1", r"高温|心率|激活|热|fire|heat", "fire", 10, "audit-2026-09-07"),
+    EnergyTypeRule("stability", "energy-rules-v1", r"稳定|承载|营养|earth|support", "earth", 10, "audit-2026-09-07"),
+    EnergyTypeRule(
+        "constraint", "energy-rules-v1", r"收缩|呼吸|限制|metal|constraint", "metal", 10, "audit-2026-09-07"
+    ),
+    EnergyTypeRule("fluid", "energy-rules-v1", r"血压|体液|循环|水分|water|fluid", "water", 10, "audit-2026-09-07"),
+)
 
 # =============================================================================
 # M1: GaussianDAG — 偏相关系数因果发现 + 能量先验交叉验证
@@ -56,6 +80,7 @@ class GaussianDAG:
 
     # 五行能量原始名称列表
     FIVE_ELEMENTS = ["wood", "fire", "earth", "metal", "water"]
+    ENERGY_TYPE_RULES = ENERGY_TYPE_RULES
 
     def __init__(  # type: ignore
         self,
@@ -104,6 +129,7 @@ class GaussianDAG:
 
         # ── v3.6.0: 参数化模型先验矩阵 ──
         self._parametric_prior: np.ndarray | None = None
+        self.energy_type_rules = self.ENERGY_TYPE_RULES
 
     # -----------------------------------------------------------------
     # v3.5.0: Reflection Prior 注入
@@ -310,10 +336,15 @@ class GaussianDAG:
 
     def _infer_energy_type(self, mem: dict[str, Any]) -> str | None:
         """从记忆中推断能量类型。"""
+        inferred, _rule = self.infer_energy_type_with_rule(mem)
+        return inferred
+
+    def infer_energy_type_with_rule(self, mem: dict[str, Any]) -> tuple[str | None, EnergyTypeRule | None]:
+        """按显式来源、能量总线和版本化规则表推断能量类型。"""
         # 1. 直接标注
         etype = mem.get("energy_type")
         if etype and etype in self.FIVE_ELEMENTS:
-            return etype
+            return etype, None
 
         # 2. 从 energy_bus 节点查找
         if self._energy_bus:
@@ -323,7 +354,7 @@ class GaussianDAG:
                     try:
                         node = self._energy_bus.get_node(f"{prefix}{etype}")
                         if node and mem_id in str(getattr(node, "memory_ids", [])):
-                            return etype
+                            return etype, None
                     except Exception as e:
                         logger.warning(
                             "_infer_energy_type: failed to query energy_bus node %s%s: %s",
@@ -331,12 +362,46 @@ class GaussianDAG:
                             etype,
                             e,
                         )
-
-        # 3. 基于内容的启发式推断 (hash 映射保证一致性)
+        # 3. 基于内容的版本化规则表；禁止 Python hash 参与。
         content = mem.get("content", "")
         if content:
-            idx = hash(content) % 5
-            return self.FIVE_ELEMENTS[idx]
+            for rule in sorted(self.energy_type_rules, key=lambda item: (-item.priority, item.rule_id)):
+                if re.search(rule.pattern, content, flags=re.IGNORECASE):
+                    return rule.energy_type, rule
+
+        return None, None
+
+    def _orientation_for_pair(self, i: int, j: int) -> tuple[int, int, str] | None:
+        """仅根据显式干预、时间先序或专家先验定向。"""
+        mem_a = self.memories[i]
+        mem_b = self.memories[j]
+
+        a_intervened = mem_a.get("interventional") is True
+        b_intervened = mem_b.get("interventional") is True
+        if a_intervened != b_intervened:
+            return (i, j, "orientation_by_intervention") if a_intervened else (j, i, "orientation_by_intervention")
+
+        a_time = mem_a.get("temporal_order")
+        b_time = mem_b.get("temporal_order")
+        if (
+            isinstance(a_time, (int, float))
+            and isinstance(b_time, (int, float))
+            and not isinstance(a_time, bool)
+            and not isinstance(b_time, bool)
+            and a_time != b_time
+        ):
+            return (
+                (i, j, "orientation_by_temporal_order") if a_time < b_time else (j, i, "orientation_by_temporal_order")
+            )
+
+        a_children = {str(value) for value in mem_a.get("causal_children", [])}
+        b_children = {str(value) for value in mem_b.get("causal_children", [])}
+        a_id = str(mem_a.get("id", ""))
+        b_id = str(mem_b.get("id", ""))
+        if b_id in a_children and a_id not in b_children:
+            return i, j, "orientation_by_expert_prior"
+        if a_id in b_children and b_id not in a_children:
+            return j, i, "orientation_by_expert_prior"
 
         return None
 
@@ -365,8 +430,9 @@ class GaussianDAG:
             max_scan: 最大扫描的记忆数 (防止 O(n²) 爆炸, R1 缓解)
 
         Returns:
-            [{"cause_idx", "effect_idx", "rho", "p_value",
-              "confidence", "verdict", "energy_relation"}, ...]
+            [{"source_idx", "target_idx", "cause_idx", "effect_idx", "orientation",
+              "edge_mode", "rho", "p_value", "confidence", "verdict",
+              "energy_relation", "energy_type_rules"}, ...]
             按 confidence 降序排列
         """
         self._ensure_matrix()
@@ -404,6 +470,9 @@ class GaussianDAG:
                 energy_rel = None
                 mem_etype_a = self._infer_energy_type(self.memories[i])
                 mem_etype_b = self._infer_energy_type(self.memories[j])
+                _type_a, rule_a = self.infer_energy_type_with_rule(self.memories[i])
+                _type_b, rule_b = self.infer_energy_type_with_rule(self.memories[j])
+                energy_rules = [rule for rule in (rule_a, rule_b) if rule is not None]
                 if mem_etype_a and mem_etype_b:
                     try:
                         from mci_world_model._sys._energy_relations import (
@@ -415,15 +484,35 @@ class GaussianDAG:
                     except ImportError:
                         logger.debug("能量模块不可用，energy_rel 保持默认值")
 
+                orientation = self._orientation_for_pair(i, j)
+                if orientation is None:
+                    source_idx, target_idx, edge_mode = i, j, "correlation"
+                else:
+                    source_idx, target_idx, edge_mode = orientation
+
                 edges.append(
                     {
-                        "cause_idx": i if rho > 0 else j,
-                        "effect_idx": j if rho > 0 else i,
+                        "source_idx": source_idx,
+                        "target_idx": target_idx,
+                        "cause_idx": source_idx,
+                        "effect_idx": target_idx,
+                        "orientation": "oriented" if orientation is not None else "undirected",
+                        "edge_mode": edge_mode,
                         "rho": round(rho, 4),
                         "p_value": round(p_value, 4),
                         "confidence": round(conf, 4),
                         "verdict": verdict,
                         "energy_relation": energy_rel,
+                        "energy_type_rules": [
+                            {
+                                "rule_id": rule.rule_id,
+                                "version": rule.version,
+                                "energy_type": rule.energy_type,
+                                "priority": rule.priority,
+                                "reviewer": rule.reviewer,
+                            }
+                            for rule in energy_rules
+                        ],
                     }
                 )
 

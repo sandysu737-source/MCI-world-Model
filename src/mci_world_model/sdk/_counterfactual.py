@@ -44,12 +44,15 @@ v3.0.8 新增:
 """
 
 
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 from scipy.stats import norm
+
+from mci_world_model.sdk._do_calculus import ObservationDataset
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +101,11 @@ class CounterfactualResult:
     n_mc_samples: int = 0
     status: str = "ok"
     note: str = ""
+    sem_fit_id: str | None = None
+    fit_error: float | None = None
+    identifiability: str = "unknown"
+    mode: str = "no_data"
+    is_conclusive: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -118,6 +126,11 @@ class CounterfactualResult:
             "n_mc_samples": self.n_mc_samples,
             "status": self.status,
             "note": self.note,
+            "sem_fit_id": self.sem_fit_id,
+            "fit_error": None if self.fit_error is None else round(self.fit_error, 6),
+            "identifiability": self.identifiability,
+            "mode": self.mode,
+            "is_conclusive": self.is_conclusive,
         }
 
     @staticmethod
@@ -133,7 +146,55 @@ class CounterfactualResult:
             target=target,
             status="error",
             note=note,
+            mode="no_data",
+            is_conclusive=False,
         )
+
+
+# =============================================================================
+# SEMFitResult — 可追溯的数据拟合结果
+# =============================================================================
+
+
+@dataclass
+class SEMFitResult:
+    """可追溯的线性 SEM 拟合结果。"""
+
+    dataset_id: str
+    dataset_hash: str
+    fit_method: str
+    seed: int | None
+    coefficients: np.ndarray
+    noise_covariance: np.ndarray
+    fit_metrics: dict[str, Any]
+    constraints: dict[str, Any]
+    node_names: list[str]
+    identifiability: str = "identified"
+
+    @property
+    def fit_id(self) -> str:
+        digest = hashlib.sha256()
+        digest.update(self.dataset_hash.encode("utf-8"))
+        digest.update(self.fit_method.encode("utf-8"))
+        digest.update(str(self.seed or "").encode("utf-8"))
+        digest.update(self.coefficients.tobytes(order="C"))
+        digest.update(self.noise_covariance.tobytes(order="C"))
+        return f"semfit_{digest.hexdigest()[:16]}"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sem_fit_id": self.fit_id,
+            "dataset_id": self.dataset_id,
+            "dataset_hash": self.dataset_hash,
+            "fit_method": self.fit_method,
+            "seed": self.seed,
+            "coefficients": self.coefficients.tolist(),
+            "noise_covariance": self.noise_covariance.tolist(),
+            "fit_metrics": self.fit_metrics,
+            "constraints": self.constraints,
+            "node_names": self.node_names,
+            "identifiability": self.identifiability,
+        }
 
 
 # =============================================================================
@@ -586,10 +647,12 @@ class CounterfactualEngine:
         self,
         sem: StructuralEquationModel,
         node_names: list[str],
+        sem_fit: SEMFitResult | None = None,
     ):
         self._sem = sem
         self._node_names = list(node_names)
         self._node_idx = {name: i for i, name in enumerate(node_names)}
+        self._sem_fit = sem_fit
 
     # -----------------------------------------------------------------
     # 静态工厂: 从 CausalGraph 构建
@@ -601,17 +664,21 @@ class CounterfactualEngine:
         noise_std: float = 0.5,
         activation: str = "linear",
         seed: int | None = None,
+        dataset: ObservationDataset | None = None,
+        ridge_alpha: float = 1e-6,
     ) -> CounterfactualEngine | None:
         """
         从 CausalGraph 构建反事实引擎。
 
-        使用 graph.adjacency 作为 SEM 系数矩阵。
+        使用 graph.adjacency 作为父变量约束；提供 dataset 时从观测拟合系数。
 
         Args:
             graph: CausalGraph 实例 (含 adjacency 矩阵)
             noise_std: SEM 噪声标准差
             activation: 激活函数 — "linear" | "tanh" | "relu" | "sigmoid"
             seed: 随机种子
+            dataset: 线性 SEM 拟合所需的观测数据集
+            ridge_alpha: 岭回归正则强度
 
         Returns:
             CounterfactualEngine 或 None (空图)
@@ -619,8 +686,29 @@ class CounterfactualEngine:
         if graph is None or graph.n_nodes == 0:
             return None
 
+        if not getattr(graph, "is_causal_graph", True):
+            raise ValueError("关联图禁止构建反事实引擎")
+
         if graph.adjacency is None:
             return None
+
+        if dataset is not None:
+            if activation != "linear":
+                raise ValueError("数据拟合 SEM 当前仅支持 linear")
+            sem_fit = CounterfactualEngine._fit_linear_sem(
+                graph,
+                dataset,
+                ridge_alpha=ridge_alpha,
+                seed=seed,
+            )
+            sem = StructuralEquationModel(
+                coefficients=sem_fit.coefficients,
+                node_names=list(graph.nodes),
+                noise_std=float(np.sqrt(np.mean(np.diag(sem_fit.noise_covariance)))),
+                activation=activation,
+                seed=seed,
+            )
+            return CounterfactualEngine(sem, list(graph.nodes), sem_fit)
 
         sem = StructuralEquationModel(
             coefficients=np.array(graph.adjacency, dtype=np.float64),
@@ -629,7 +717,94 @@ class CounterfactualEngine:
             activation=activation,
             seed=seed,
         )
-        return CounterfactualEngine(sem, list(graph.nodes))
+        return CounterfactualEngine(sem, list(graph.nodes), None)
+
+    @staticmethod
+    def _fit_linear_sem(
+        graph: Any,
+        dataset: ObservationDataset,
+        ridge_alpha: float,
+        seed: int | None,
+    ) -> SEMFitResult:
+        """以因果图作为约束，从观测数据拟合线性 SEM。"""
+        if not dataset.is_observed:
+            raise ValueError("反事实 SEM 只接受 observed 数据")
+        if graph.adjacency is None:
+            raise ValueError("因果图缺少邻接约束")
+        if ridge_alpha <= 0:
+            raise ValueError("ridge_alpha 必须为正数")
+        missing = sorted(set(graph.nodes) - set(dataset.values))
+        if missing:
+            raise ValueError(f"观测数据缺少节点: {missing}")
+
+        node_names = list(graph.nodes)
+        n_nodes = len(node_names)
+        values = [np.asarray(dataset.values[name], dtype=np.float64) for name in node_names]
+        if any(values[0].shape != values[i].shape for i in range(1, n_nodes)):
+            raise ValueError("观测变量样本数量不一致")
+        data = np.column_stack(values)
+        if data.ndim != 2 or data.shape[0] < 2 or not np.all(np.isfinite(data)):
+            raise ValueError("观测数据不足或包含非有限值")
+
+        adjacency = np.asarray(graph.adjacency, dtype=np.float64)
+        coefficients = np.zeros((n_nodes, n_nodes), dtype=np.float64)
+        noise_covariance = np.zeros((n_nodes, n_nodes), dtype=np.float64)
+        parent_constraints: dict[str, list[str]] = {}
+        all_residuals: list[np.ndarray] = []
+        all_targets: list[np.ndarray] = []
+        explained_residuals: list[np.ndarray] = []
+        explained_targets: list[np.ndarray] = []
+        underdetermined = False
+
+        for child_idx in range(n_nodes):
+            child = node_names[child_idx]
+            parent_idx = [i for i in range(n_nodes) if adjacency[i, child_idx] != 0]
+            parent_constraints[child] = [node_names[i] for i in parent_idx]
+            target = data[:, child_idx]
+            if not parent_idx:
+                residual = target.copy()
+            else:
+                design = data[:, parent_idx]
+                gram = design.T @ design + ridge_alpha * np.eye(len(parent_idx))
+                rhs = design.T @ target
+                fitted_coefficients = np.linalg.solve(gram, rhs)
+                coefficients[parent_idx, child_idx] = fitted_coefficients
+                residual = target - design @ fitted_coefficients
+                if data.shape[0] <= len(parent_idx):
+                    underdetermined = True
+                explained_residuals.append(residual)
+                explained_targets.append(target)
+            noise_covariance[child_idx, child_idx] = float(np.var(residual))
+            all_residuals.append(residual)
+            all_targets.append(target)
+
+        residual_matrix = np.column_stack(all_residuals)
+        explained_residual_matrix = np.column_stack(explained_residuals or [np.zeros(data.shape[0])])
+        explained_target_matrix = np.column_stack(explained_targets or [np.zeros(data.shape[0])])
+        mse = float(np.mean(residual_matrix**2))
+        residual_energy = float(np.sum(explained_residual_matrix**2))
+        target_energy = float(np.sum((explained_target_matrix - explained_target_matrix.mean(axis=0)) ** 2))
+        r2 = 1.0 - residual_energy / target_energy if target_energy > 0 else 0.0
+        if not np.isfinite(mse) or not np.isfinite(r2):
+            raise ValueError("SEM 拟合结果包含非有限值")
+        identifiability = "underdetermined" if underdetermined else "identified"
+        return SEMFitResult(
+            dataset_id=str(dataset.dataset_id or dataset.dataset_hash),
+            dataset_hash=dataset.dataset_hash,
+            fit_method="ridge_linear_gauss",
+            seed=seed,
+            coefficients=coefficients,
+            noise_covariance=noise_covariance,
+            fit_metrics={
+                "mse": mse,
+                "r2": r2,
+                "n_samples": int(data.shape[0]),
+                "n_parameters": int(np.count_nonzero(coefficients)),
+            },
+            constraints={"parents": parent_constraints, "ridge_alpha": ridge_alpha},
+            node_names=node_names,
+            identifiability=identifiability,
+        )
 
     # -----------------------------------------------------------------
     # 属性
@@ -642,6 +817,10 @@ class CounterfactualEngine:
     @property
     def node_names(self) -> list[str]:
         return self._node_names
+
+    @property
+    def sem_fit(self) -> SEMFitResult | None:
+        return self._sem_fit
 
     # -----------------------------------------------------------------
     # 核心反事实查询
@@ -669,6 +848,13 @@ class CounterfactualEngine:
             CounterfactualResult
         """
         # ── 前置校验 ──
+        if self._sem_fit is None:
+            return CounterfactualResult.empty(
+                evidence=evidence,
+                do_intervention=do_x,
+                target=target,
+                note="no_observation_data",
+            )
         if target not in self._node_idx:
             return CounterfactualResult.empty(
                 evidence=evidence,
@@ -758,6 +944,13 @@ class CounterfactualEngine:
 
         cf_mean = float(np.mean(cf_samples))
         cf_std = float(np.std(cf_samples)) if n_cf_samples > 1 else self._sem.noise_std
+        if not all(np.isfinite(value) for value in (factual_y, cf_mean, cf_std)):
+            return CounterfactualResult.empty(
+                evidence=evidence,
+                do_intervention=do_x,
+                target=target,
+                note="non_finite_counterfactual_result",
+            )
         z_alpha = norm.ppf(0.975)
         ci_95 = (cf_mean - z_alpha * cf_std, cf_mean + z_alpha * cf_std)
 
@@ -791,6 +984,15 @@ class CounterfactualEngine:
             n_mc_samples=n_cf_samples,
             status="ok",
             note=f"method=pearl_three_step, do=({do_desc})",
+            sem_fit_id=self._sem_fit.fit_id if self._sem_fit is not None else None,
+            fit_error=float(self._sem_fit.fit_metrics["mse"]) if self._sem_fit is not None else None,
+            identifiability=self._sem_fit.identifiability if self._sem_fit is not None else "no_fit",
+            mode="fitted_sem_observed",
+            is_conclusive=bool(
+                self._sem_fit is not None
+                and self._sem_fit.identifiability == "identified"
+                and np.isfinite(float(self._sem_fit.fit_metrics["mse"]))
+            ),
         )
 
     # -----------------------------------------------------------------
