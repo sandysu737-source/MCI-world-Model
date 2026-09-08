@@ -50,6 +50,8 @@ from typing import Any
 
 import numpy as np
 
+from mci_world_model.sdk._latent_state import LatentState
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,6 +85,8 @@ class TrueJEPAConfig:
     vicreg_cov_weight: float = 0.04
     lr: float = 0.001
     seed: int = 42
+    variance_floor: float = 0.0001
+    min_effective_rank: float = 1.5
 
 
 # =============================================================================
@@ -264,6 +268,20 @@ class TrueJEPAEncoder:
     def loss_history(self) -> list[float]:
         return list(self._loss_history)
 
+    def latent_state(self, observations: np.ndarray) -> LatentState:
+        """返回带训练状态与坍塌诊断的潜空间契约。"""
+        latent = self.encode(observations)
+        diagnostics = self._latent_diagnostics(latent if latent.ndim == 2 else latent[None, :])
+        is_trained = self._train_steps > 0
+        return LatentState(
+            latent=latent,
+            source="true_jepa",
+            encoder_id=f"true_jepa:{self._config.seed}",
+            is_trained=is_trained,
+            diagnostics=diagnostics,
+            status="ok" if is_trained and not diagnostics["collapse_detected"] else "not_ready",
+        )
+
     # -----------------------------------------------------------------
     # 核心 API
     # -----------------------------------------------------------------
@@ -289,6 +307,8 @@ class TrueJEPAEncoder:
         elif observations.ndim == 2:
             if observations.shape[1] != self._config.obs_dim:
                 raise ValueError(f"观测维度 {observations.shape[1]} 与配置 obs_dim={self._config.obs_dim} 不匹配")
+        if observations.ndim == 2:
+            return self._online_encoder.forward_batch(observations)
         return self._online_encoder.forward(observations)
 
     def encode_target(self, observations: np.ndarray) -> np.ndarray:
@@ -432,9 +452,40 @@ class TrueJEPAEncoder:
             observations = observations.reshape(1, -1)
 
         n = observations.shape[0]
+        if observations.ndim != 2 or not np.all(np.isfinite(observations)):
+            raise ValueError("训练观测必须是有限值的二维数组")
+
         if n < 2:
             logger.warning("观测序列不足 2 条，无法构造训练对")
-            return {"final_loss": 0.0, "n_epochs": 0, "n_pairs": 0}
+            return {
+                "final_loss": 0.0,
+                "n_epochs": 0,
+                "n_pairs": 0,
+                "mode": "latent",
+                "status": "not_ready",
+                "is_successful": False,
+                "latent_variance_min": 0.0,
+                "latent_variance_max": 0.0,
+                "latent_variance_mean": 0.0,
+                "effective_rank": 0.0,
+                "collapse_detected": False,
+            }
+
+        if np.allclose(observations, observations[0]):
+            return {
+                "final_loss": 0.0,
+                "n_epochs": 0,
+                "n_pairs": 0,
+                "mode": "latent",
+                "status": "rejected",
+                "is_successful": False,
+                "latent_variance_min": 0.0,
+                "latent_variance_max": 0.0,
+                "latent_variance_mean": 0.0,
+                "effective_rank": 0.0,
+                "collapse_detected": True,
+                "reason": "constant_input_batch",
+            }
 
         n_pairs = n - 1
         self._loss_history.clear()
@@ -461,11 +512,17 @@ class TrueJEPAEncoder:
             logger.debug("TrueJEPA Epoch %d/%d | Loss: %.6f", epoch + 1, n_epochs, avg_loss)
 
         final_loss = self._loss_history[-1] if self._loss_history else 0.0
+        latent = self.encode(observations)
+        diagnostics = self._latent_diagnostics(latent)
         return {
             "final_loss": round(final_loss, 6),
             "n_epochs": n_epochs,
             "n_pairs": n_pairs,
             "n_params": self.n_params,
+            "mode": "latent",
+            "status": "trained" if not diagnostics["collapse_detected"] else "collapse_detected",
+            "is_successful": not diagnostics["collapse_detected"],
+            **{key: round(value, 8) if isinstance(value, float) else value for key, value in diagnostics.items()},
         }
 
     def train_batch_step(
@@ -648,6 +705,41 @@ class TrueJEPAEncoder:
     def _sync_target(self) -> None:
         """将 online encoder 参数复制到 target encoder。"""
         self._target_encoder.set_params(self._online_encoder.get_params())
+
+    def _latent_diagnostics(self, z_batch: np.ndarray) -> dict[str, Any]:
+        """按 batch 维度计算潜向量方差、有效秩与坍塌判定。"""
+        z_batch = np.asarray(z_batch, dtype=np.float64)
+        if z_batch.ndim != 2:
+            raise ValueError("潜向量诊断必须使用二维 batch 输入")
+        if z_batch.shape[0] < 2:
+            return {
+                "latent_variance_min": 0.0,
+                "latent_variance_max": 0.0,
+                "latent_variance_mean": 0.0,
+                "effective_rank": 0.0,
+                "collapse_detected": False,
+            }
+        centered = z_batch - z_batch.mean(axis=0)
+        variances = np.mean(centered**2, axis=0)
+        singular_values = np.linalg.svd(centered, compute_uv=False)
+        energy = singular_values**2
+        energy_sum = float(np.sum(energy))
+        if energy_sum <= 0:
+            effective_rank = 0.0
+        else:
+            probabilities = energy / energy_sum
+            probabilities = probabilities[probabilities > 0]
+            effective_rank = float(np.exp(-np.sum(probabilities * np.log(probabilities))))
+        collapse_detected = bool(
+            float(np.min(variances)) < self._config.variance_floor or effective_rank < self._config.min_effective_rank
+        )
+        return {
+            "latent_variance_min": float(np.min(variances)),
+            "latent_variance_max": float(np.max(variances)),
+            "latent_variance_mean": float(np.mean(variances)),
+            "effective_rank": effective_rank,
+            "collapse_detected": collapse_detected,
+        }
 
     def _ema_update_target(self) -> None:
         """EMA 更新 target encoder: θ_target = τ * θ_target + (1-τ) * θ_online。"""

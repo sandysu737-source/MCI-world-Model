@@ -22,10 +22,12 @@ MCI World Model v4.6.0 — JEPA Encoder
 
 
 import logging
+import warnings
 from typing import Any
 
 import numpy as np
 
+from mci_world_model.sdk._latent_state import LatentState
 from mci_world_model.sdk._world_model import CausalWorldModelState
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,7 @@ class JEPAEncoder:
         differentiable: bool = False,
         gat_key_dim: int = 16,
         learnable_encoder=None,
+        jepa_mode: str | None = None,
     ):
         """
         Args:
@@ -73,6 +76,29 @@ class JEPAEncoder:
 
         # v5.0.0: 可学习状态编码器
         self._learnable_encoder = learnable_encoder
+        configured_mode = jepa_mode
+        if configured_mode is None and world_model is not None:
+            configured_mode = getattr(world_model, "jepa_mode", None)
+        self._jepa_mode = configured_mode or "latent"
+        if self._jepa_mode not in {"latent", "legacy_graph"}:
+            raise ValueError(f"未知 jepa_mode: {self._jepa_mode}")
+        if self._jepa_mode == "legacy_graph":
+            warnings.warn(
+                "jepa_mode=legacy_graph 仅用于过渡版本；生产路径必须迁移到 latent。",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self._true_jepa_encoder: Any | None = None
+
+    @property
+    def jepa_mode(self) -> str:
+        return self._jepa_mode
+
+    def attach_true_jepa(self, encoder: Any) -> None:
+        """显式注入训练后的 TrueJEPA 编码器。"""
+        if not hasattr(encoder, "latent_state"):
+            raise TypeError("TrueJEPA 编码器必须实现 latent_state()")
+        self._true_jepa_encoder = encoder
 
     @property
     def is_differentiable(self) -> bool:
@@ -87,7 +113,7 @@ class JEPAEncoder:
         memories: list[dict[str, Any]] = None,  # type: ignore
         signals: list[dict[str, Any]] = None,  # type: ignore
         use_parametric: bool = False,
-    ) -> CausalWorldModelState:
+    ) -> LatentState:
         """
         将观测记忆编码为因果世界状态。
 
@@ -101,20 +127,97 @@ class JEPAEncoder:
             use_parametric: 是否启用参数化增强（M2 可微时才生效）
 
         Returns:
-            CausalWorldModelState 潜状态表示
+            LatentState 潜空间状态；legacy_graph 模式附带过渡图状态。
 
         Raises:
             RuntimeError: 如果 world_model 未就绪
         """
+        if self._jepa_mode == "latent":
+            records = signals if signals is not None else memories
+            return self._encode_latent(records if records is not None else [])
+
         if signals is not None:
-            # ── v3.1.0 物理世界路径 ──
-            # v5.0.0: 优先使用可学习编码器
+            graph_state = (
+                self._encode_differentiable_physical(signals)
+                if self._learnable_encoder is not None
+                else self._encode_via_physical_builder(signals)
+            )
+        elif memories is not None:
+            graph_state = self._encode_via_memories(memories, use_parametric)
+        else:
+            graph_state = CausalWorldModelState.empty()
+        return LatentState(
+            latent=np.empty(0, dtype=np.float64),
+            source="legacy_graph",
+            encoder_id=f"jepa_encoder:{id(self)}",
+            is_trained=self._differentiable,
+            diagnostics={"transition_only": True},
+            graph_state=graph_state,
+        )
+
+    def encode_graph(
+        self,
+        memories: list[dict[str, Any]] | None = None,
+        signals: list[dict[str, Any]] | None = None,
+        use_parametric: bool = False,
+    ) -> CausalWorldModelState:
+        """显式保留因果图路径，供 Pearl 前置发现使用。"""
+        if signals is not None:
             if self._learnable_encoder is not None:
                 return self._encode_differentiable_physical(signals)
             return self._encode_via_physical_builder(signals)
-
         if memories is not None:
             return self._encode_via_memories(memories, use_parametric)
+        return CausalWorldModelState.empty()
+
+    def _encode_latent(self, records: list[Any]) -> LatentState:
+        """使用注入的 TrueJEPA 编码数值观测；数据不足时 fail-closed。"""
+        matrix = self._numeric_matrix(records)
+        if matrix is None or self._true_jepa_encoder is None:
+            return LatentState(
+                latent=np.empty(0, dtype=np.float64),
+                source="not_ready",
+                encoder_id=f"jepa_encoder:{id(self)}",
+                is_trained=self._true_jepa_encoder is not None
+                and getattr(self._true_jepa_encoder, "train_steps", 0) > 0,
+                diagnostics={
+                    "reason": "missing_true_jepa" if self._true_jepa_encoder is None else "no_numeric_observations"
+                },
+                status="not_ready",
+            )
+        return self._true_jepa_encoder.latent_state(matrix)
+
+    def _numeric_matrix(self, records: list[Any]) -> np.ndarray | None:
+        """从记忆或信号中提取等长数值观测矩阵。"""
+        if isinstance(records, np.ndarray):
+            if records.ndim != 2 or records.shape[0] == 0 or not np.all(np.isfinite(records)):
+                return None
+            return np.asarray(records, dtype=np.float64)
+        if not records:
+            return None
+        vectors: list[list[float]] = []
+        for record in records:
+            if isinstance(record, dict):
+                if record.get("embedding") is not None:
+                    values = [float(value) for value in record["embedding"]]
+                else:
+                    values = [
+                        float(value)
+                        for key, value in sorted(record.items())
+                        if isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        and key not in {"day", "timestamp"}
+                    ]
+            elif isinstance(record, (int, float)) and not isinstance(record, bool):
+                values = [float(record)]
+            else:
+                return None
+            if not values:
+                return None
+            vectors.append(values)
+        if len({len(vector) for vector in vectors}) != 1:
+            return None
+        return np.asarray(vectors, dtype=np.float64)
 
         return CausalWorldModelState.empty()
 
