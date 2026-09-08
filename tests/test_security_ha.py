@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -15,12 +16,40 @@ pytestmark = pytest.mark.contract
 
 _SERVER_STARTED = False
 _SERVER_PORT = 18100
+_IDENTITY_MAP_PATH = ""
+
+
+def _write_identity_map(api_key: str) -> str:
+    """创建测试身份映射文件，确保测试与生产配置口径一致。"""
+    base = tempfile.mkdtemp(prefix="mci_identity_")
+    path = os.path.join(base, "identity-map.json")
+    key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+    payload = {
+        "version": 1,
+        "identities": {
+            key_hash: {
+                "subject": "test-subject",
+                "tenant_id": "test-tenant",
+                "patient_ids": ["P001"],
+            }
+        },
+    }
+    with open(path, "w", encoding="utf-8") as file:
+        json.dump(payload, file)
+    os.chmod(path, 0o600)
+    os.chmod(base, 0o700)
+    return path
 
 
 def _ensure_server():
     global _SERVER_STARTED
     if not _SERVER_STARTED:
+        global _IDENTITY_MAP_PATH
         os.environ["MCI_API_KEY"] = "secure-test-key"
+        os.environ["MCI_ENV"] = "test"
+        os.environ["MCI_AUTH_DISABLED"] = "false"
+        _IDENTITY_MAP_PATH = _write_identity_map("secure-test-key")
+        os.environ["MCI_IDENTITY_MAP_PATH"] = _IDENTITY_MAP_PATH
         os.environ["MCI_RATE_LIMIT"] = "1000"
         os.environ["MCI_RATE_BURST"] = "1000"
         os.environ["MCI_STORAGE_PATH"] = tempfile.mkdtemp(prefix="mci_test_")
@@ -321,7 +350,7 @@ class TestBackpressure:
         port = sock.getsockname()[1]
         sock.close()
 
-        os.environ["MCI_API_KEY"] = "bp-test-key"
+        os.environ["MCI_API_KEY"] = "secure-test-key"
         os.environ["MCI_RATE_LIMIT"] = "10000"
         os.environ["MCI_RATE_BURST"] = "10000"
         os.environ["MCI_MAX_CONCURRENT"] = "2"
@@ -346,24 +375,6 @@ class TestBackpressure:
         results = []
         threads = []
 
-        def slow_request():
-            """发起一个会被 SDK 处理稍慢的请求。"""
-            try:
-                req = urllib.request.Request(
-                    f"http://127.0.0.1:{port}/api/v1/diagnose",
-                    data=json.dumps(
-                        {
-                            "cause": "A",
-                            "effect": "B",
-                            "prior_strength": 0.5,
-                        }
-                    ).encode(),
-                    headers={"Content-Type": "application/json", "X-API-Key": "bp-test-key"},
-                )
-                urllib.request.urlopen(req, timeout=5)
-            except Exception:
-                pass
-
         for i in range(5):
 
             def one_req(idx=i):
@@ -377,7 +388,7 @@ class TestBackpressure:
                                 "prior_strength": 0.5,
                             }
                         ).encode(),
-                        headers={"Content-Type": "application/json", "X-API-Key": "bp-test-key"},
+                        headers={"Content-Type": "application/json", "X-API-Key": "secure-test-key"},
                     )
                     resp = urllib.request.urlopen(req, timeout=5)
                     results.append(resp.status)

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import tempfile
 import threading
 import time
 import urllib.error
@@ -16,14 +19,40 @@ _SERVER_STARTED = False
 _SERVER_PORT = 18099
 _RATE_PORT = 18101
 _RATE_SERVER_STARTED = False
+_IDENTITY_MAP_PATH = ""
+
+
+def _write_identity_map(api_key: str) -> str:
+    """创建测试身份映射文件，确保测试与生产配置口径一致。"""
+    base = tempfile.mkdtemp(prefix="mci_identity_")
+    path = os.path.join(base, "identity-map.json")
+    key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+    payload = {
+        "version": 1,
+        "identities": {
+            key_hash: {
+                "subject": "test-subject",
+                "tenant_id": "test-tenant",
+                "patient_ids": ["P001"],
+            }
+        },
+    }
+    with open(path, "w", encoding="utf-8") as file:
+        json.dump(payload, file)
+    os.chmod(path, 0o600)
+    os.chmod(base, 0o700)
+    return path
 
 
 def _ensure_server():
     global _SERVER_STARTED
     if not _SERVER_STARTED:
-        import os
-
+        global _IDENTITY_MAP_PATH
         os.environ["MCI_API_KEY"] = "test-key"
+        os.environ["MCI_ENV"] = "test"
+        os.environ["MCI_AUTH_DISABLED"] = "false"
+        _IDENTITY_MAP_PATH = _write_identity_map("test-key")
+        os.environ["MCI_IDENTITY_MAP_PATH"] = _IDENTITY_MAP_PATH
         os.environ["MCI_RATE_LIMIT"] = "1000"
         os.environ["MCI_RATE_BURST"] = "1000"
         # 重置安全单例, 确保 from_env() 重新读取配置
@@ -59,9 +88,10 @@ def _ensure_rate_server():
     """独立低限流 server（限流测试用，避免污染主 server 的限流器）。"""
     global _RATE_SERVER_STARTED
     if not _RATE_SERVER_STARTED:
-        import os
-
         os.environ["MCI_API_KEY"] = "test-key"
+        os.environ["MCI_ENV"] = "test"
+        os.environ["MCI_AUTH_DISABLED"] = "false"
+        os.environ["MCI_IDENTITY_MAP_PATH"] = _IDENTITY_MAP_PATH
         os.environ["MCI_RATE_LIMIT"] = "0.1"
         os.environ["MCI_RATE_BURST"] = "2"
         import mci_world_model.server.security as sec_mod

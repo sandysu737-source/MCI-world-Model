@@ -29,6 +29,8 @@ from mci_world_model.server.metrics import metrics
 from mci_world_model.server.security import (
     get_circuit_breaker,
     get_rate_limiter,
+    get_trusted_proxies,
+    resolve_client_ip,
     verify_auth,
 )
 from mci_world_model.server.storage import list_diagnoses, load_diagnosis, save_diagnosis
@@ -120,22 +122,18 @@ class MCIAPIHandler(BaseHTTPRequestHandler):
             from mci_world_model.server.security import get_auth_config
 
             auth_cfg = get_auth_config()
-            hdrs = dict(self.headers)
-            if not verify_auth(hdrs, auth_cfg):
+            if not verify_auth(self.headers, auth_cfg):
                 logger.warning("AUTH FAILED: path=%s", base_path)
                 self._send_json(401, {"error": "unauthorized"})
                 return False
 
         # 限流
         # H12 修复: K8s/LB 后面用 X-Forwarded-For 取真实 IP
-        fwd = dict(self.headers).get("x-forwarded-for", "")
-        real_ip = dict(self.headers).get("x-real-ip", "")
-        if fwd:
-            client_ip = fwd.split(",")[0].strip()
-        elif real_ip:
-            client_ip = real_ip.strip()
-        else:
-            client_ip = self.client_address[0] if self.client_address else "unknown"
+        client_ip = resolve_client_ip(
+            self.headers,
+            self.client_address[0] if self.client_address else None,
+            get_trusted_proxies(),
+        )
         if not get_rate_limiter().allow(client_ip):
             self._send_json(429, {"error": "rate limit exceeded"})
             return False
