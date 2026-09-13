@@ -20,7 +20,14 @@ MCI World Model v4.3.3 — 新增组件串联测试
 - __repr__()             表示
 """
 
+import importlib.util
+
 import pytest
+
+requires_su_memory = pytest.mark.skipif(
+    importlib.util.find_spec("su_memory") is None,
+    reason="su-memory 为可选依赖，CI 默认不安装",
+)
 
 # =============================================================================
 # Fixture
@@ -1104,6 +1111,7 @@ class TestParametricMemory:
 class TestEnergyFlowPredictor:
     """predict_energy_flow() 测试。"""
 
+    @requires_su_memory
     def test_energy_flow_predict_basic(self, wm):
         """基本五步预测不崩溃。"""
         result = wm.predict_energy_flow(steps=5)
@@ -1112,16 +1120,19 @@ class TestEnergyFlowPredictor:
         assert isinstance(result["flow"], list)
         assert isinstance(result["anomaly_detected"], bool)
 
+    @requires_su_memory
     def test_energy_flow_length(self, wm):
         """输出序列长度 = steps + 1（含当前状态）。"""
         result = wm.predict_energy_flow(steps=3)
         assert len(result["flow"]) == 4  # steps + 1
 
+    @requires_su_memory
     def test_energy_flow_default_steps(self, wm):
         """默认 steps=5。"""
         result = wm.predict_energy_flow()
         assert len(result["flow"]) == 6
 
+    @requires_su_memory
     def test_energy_flow_lazy_init(self, wm):
         """首次调用自动创建 EnergyFlowPredictor + EnergyCore。"""
         assert wm._energy_flow_predictor is None
@@ -1129,6 +1140,7 @@ class TestEnergyFlowPredictor:
         assert wm._energy_flow_predictor is not None
         assert wm._energy_core is not None
 
+    @requires_su_memory
     def test_energy_flow_reuse(self, wm):
         """重复调用复用已有 predictor。"""
         wm.predict_energy_flow()
@@ -1136,6 +1148,7 @@ class TestEnergyFlowPredictor:
         wm.predict_energy_flow(steps=3)
         assert id(wm._energy_flow_predictor) == predictor_id
 
+    @requires_su_memory
     def test_energy_flow_ratios_included(self, wm):
         """返回 current_ratios。"""
         result = wm.predict_energy_flow()

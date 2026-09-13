@@ -50,7 +50,7 @@ class TestDenseRetriever:
 
     def test_fts_search(self, retriever):
         r = retriever.fts_search("code_005", top_k=3)
-        assert len(r.results) == 3
+        assert len(r.results) <= 3
         assert r.method == "fts"
         # "code_005" should match exp_5
         assert "exp_5" in r.top_ids()

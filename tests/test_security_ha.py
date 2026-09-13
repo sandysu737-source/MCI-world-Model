@@ -395,6 +395,7 @@ class TestBackpressure:
                                 "cause": f"C{idx}",
                                 "effect": "E",
                                 "prior_strength": 0.5,
+                                "patient_id": "P001",
                             }
                         ).encode(),
                         headers={"Content-Type": "application/json", "X-API-Key": "secure-test-key"},

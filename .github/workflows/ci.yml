@@ -13,7 +13,6 @@ permissions:
 env:
   PYTHON_VERSION: "3.11"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PIP_NO_CACHE_DIR: "1"
 
 jobs:
   # ===================== Gate 1: Ruff Lint =====================
@@ -31,7 +30,7 @@ jobs:
           cache: "pip"
 
       - name: Install Ruff
-        run: pip install "ruff>=0.6.0"
+        run: pip install "ruff==0.15.17"
 
       - name: Lint
         run: |
@@ -71,6 +70,7 @@ jobs:
   gate-3-test:
     name: "Gate 3 · pytest"
     runs-on: macos-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -88,8 +88,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
-      - name: Install (full)
-        run: pip install -e ".[full]"
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]"
 
       - name: Run Tests (excl. slow)
         if: matrix.python-version != '3.13'
@@ -116,6 +116,13 @@ jobs:
   gate-4-bench:
     name: "Gate 4 · SIGReg Bench Smoke"
     runs-on: macos-latest
+    env:
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,13 +133,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
-      - name: Install (full)
-        run: pip install -e ".[full]"
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]" faiss-cpu
 
       - name: Import Smoke
         run: |
           python -c "
-          from mci_world_model.benchmarks._noise_generator import generate_spectral_noise
+          from benchmarks._noise_generator import NoiseGenerator
           from mci_world_model.sdk import DoCalculus, MCIWorldModel
           from mci_world_model._sys import EnergyCore
           print('All import smoke tests passed.')
@@ -167,12 +174,15 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
-      - name: Install (full)
-        run: pip install -e ".[full]"
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]"
+
+      - name: Install Pytest Timeout
+        run: pip install pytest-timeout
 
       - name: Run BNLearn Benchmark
         run: |
-          PYTHONPATH=${{ github.workspace }}/src pytest benchmarks/bnlearn/ -v --tb=short --timeout=120
+          PYTHONPATH=${{ github.workspace }}/src pytest benchmarks/bnlearn/ -v --tb=short --timeout=240
 
   # ===================== Publish: Tag & Release (main only) =====================
   release:
