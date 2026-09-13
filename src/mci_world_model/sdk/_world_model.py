@@ -67,6 +67,7 @@ from typing import Any
 
 import numpy as np
 
+from mci_world_model.sdk._energy_flow import EnergyFlowMixin, _aggregate_energy_ratios
 from mci_world_model.sdk._world_model_state import (
     CausalWorldModelState,
     TrajectoryStep,
@@ -77,35 +78,10 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["CausalWorldModelState", "TrajectoryStep", "WorkingMemory"]
 
-
-# =============================================================================
-# v3.0.6: 五维能量比率聚合（公共逻辑，供 _world_model + _configurator 复用）
-# =============================================================================
+__all__ += ["_aggregate_energy_ratios"]
 
 
-def _aggregate_energy_ratios(causal_edges: list[dict[str, Any]]) -> dict[str, float] | None:
-    """v3.0.6: 从因果边列表聚合五维能量比率（公共逻辑）。"""
-    if not causal_edges:
-        return None
-    energy_counts: dict[str, int] = {
-        "semantic": 0,
-        "causal": 0,
-        "spacetime": 0,
-        "generative": 0,
-        "trust": 0,
-    }
-    for edge in causal_edges:
-        for key in ("cause_energy", "effect_energy"):
-            e = edge.get(key, "")
-            if e in energy_counts:
-                energy_counts[e] += 1
-    total = sum(energy_counts.values())
-    if total == 0:
-        return None
-    return {k: v / total for k, v in energy_counts.items()}
-
-
-class MCIWorldModel:
+class MCIWorldModel(EnergyFlowMixin):
     """
     MCI World Model v4.6.0 — CEWM 认知增强世界模型。
 
@@ -546,26 +522,6 @@ class MCIWorldModel:
 
             self._agi_protocol = AGIIntegrationProtocol()
         return self._agi_protocol
-
-    # ────────────────────────────────────────────────
-    # v3.0.5: 能量分布提取 + EnergyBus 三层传播
-    # ────────────────────────────────────────────────
-
-    def _extract_energy_ratios(self, state: Any) -> dict[str, float] | None:
-        """
-        v3.0.5: 从因果图状态提取五维能量分布比率。
-
-        委托到公共函数 ``_aggregate_energy_ratios`` 避免逻辑重复。
-
-        Args:
-            state: CausalWorldModelState 实例
-
-        Returns:
-            五维能量比率字典，若 causal_edges 无能量标签返回 None
-        """
-        if not hasattr(state, "causal_edges") or not state.causal_edges:
-            return None
-        return _aggregate_energy_ratios(state.causal_edges)
 
     def _build_energy_bus(self) -> object:
         """
@@ -2099,32 +2055,6 @@ class MCIWorldModel:
             return "operational_retrieval_only"
         return "degraded"
 
-    # ────────────────────────────────────────────────
-    # v3.0.6: 五维覆盖度
-    # ────────────────────────────────────────────────
-
-    def _compute_energy_coverage(self) -> dict[str, Any]:
-        """
-        v3.0.6: 计算五维能量覆盖度。
-
-        从当前因果图状态提取能量分布，计算覆盖评分。
-        coverage_score = 有能量标签(>5%)的维度数 / 5。
-
-        Returns:
-            {"ratios": {...}, "coverage_score": float, "warning": str|None}
-        """
-        energy_ratios = self._extract_energy_ratios(self._state)
-        active_dims = len([v for v in (energy_ratios or {}).values() if v > 0.05])
-        coverage_score = active_dims / 5.0
-        warning = None
-        if coverage_score < 0.6:
-            warning = "能量维度覆盖不足，建议丰富数据源"
-        return {
-            "ratios": energy_ratios or {},
-            "coverage_score": round(coverage_score, 3),
-            "warning": warning,
-        }
-
     def _is_gnn_predictor(self) -> bool:
         """检测是否使用可微 GNN 预测器。"""
         if self._jepa_predictor is None:
@@ -3089,48 +3019,6 @@ class MCIWorldModel:
             "predictions": predictions,
             "probs": probs,
             "n_params": self._parametric_memory.model.n_trainable_params if self._parametric_memory.model else 0,
-        }
-
-    def predict_energy_flow(
-        self,
-        steps: int = 5,
-    ) -> dict[str, Any]:
-        """v4.3.3: 基于五行生克的能量流多步预测。
-
-        闭合 JEPA 在能量维度上的预测盲区，模拟能量在五维空间的流转趋势。
-
-        Args:
-            steps: 预测步数 (默认 5)
-
-        Returns:
-            {"steps": int, "flow": [...], "anomaly_detected": bool, "current_ratios": {...}}
-        """
-        from mci_world_model.sdk._energy_flow_predictor import EnergyFlowPredictor
-
-        if self._energy_flow_predictor is None:
-            if self._energy_core is None:
-                self._get_energy_core()
-            self._energy_flow_predictor = EnergyFlowPredictor(self._energy_core)
-
-        current_ratios = self._compute_energy_coverage()
-        ratios = current_ratios.get("ratios", {})
-        if not ratios:
-            ratios = {
-                "semantic": 0.2,
-                "causal": 0.2,
-                "spacetime": 0.2,
-                "generative": 0.2,
-                "trust": 0.2,
-            }
-
-        flow = self._energy_flow_predictor.predict(ratios, steps=steps)
-        anomaly = self._energy_flow_predictor.detect_anomaly(flow)
-
-        return {
-            "steps": steps,
-            "flow": flow,
-            "anomaly_detected": anomaly,
-            "current_ratios": ratios,
         }
 
     def _cewm_parse_state(self, obs: Any) -> Any:
