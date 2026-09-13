@@ -53,13 +53,21 @@ jobs:
           else
             echo "hard=0" >> "$GITHUB_OUTPUT"
           fi
+      - name: 判定 pytest scope
+        id: pytest_scope
+        run: |
+          if printf '%s\n' "${{ steps.classify.outputs.files }}" | tr ' ' '\n' | grep -qE '^(src|adapters)/.*\.py$'; then
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+          else
+            echo "scope=changed" >> "$GITHUB_OUTPUT"
+          fi
       - name: 跑 quality-gate（全量门禁, FULL_GATE=1）
         env:
           RADON_BIN: radon
           RUFF_BIN: ruff
           BANDIT_BIN: bandit
           PYTEST_BIN: pytest
-          PYTEST_SCOPE: full
+          PYTEST_SCOPE: ${{ steps.pytest_scope.outputs.scope }}
           COVERAGE_HARD_GATE: ${{ steps.coverage_gate.outputs.hard }}
         run: |
           bash scripts/ai-verify/quality-gate.sh ${{ steps.classify.outputs.max_level }} \

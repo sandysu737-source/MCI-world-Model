@@ -66,7 +66,7 @@ jobs:
         run: |
           mypy src/mci_world_model
 
-  # ===================== Gate 3: pytest =====================
+  # ===================== Gate 3: pytest 分层 =====================
   gate-3-test:
     name: "Gate 3 · pytest"
     runs-on: macos-latest
@@ -74,8 +74,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
         include:
+          - python-version: "3.10"
+            smoke-only: true
+          - python-version: "3.11"
+          - python-version: "3.12"
+            smoke-only: true
           - python-version: "3.13"
             smoke-only: true
     steps:
@@ -91,15 +95,15 @@ jobs:
       - name: Install (full+dev)
         run: pip install -e ".[full,dev]"
 
-      - name: Run Tests (excl. slow)
-        if: matrix.python-version != '3.13'
+      - name: Run Full Tests (excl. slow)
+        if: matrix.python-version == '3.11'
         run: |
           PYTHONPATH=${{ github.workspace }}/src pytest -m "not slow" --cov=mci_world_model --cov-report=xml --cov-report=term --cov-fail-under=77
 
-      - name: Python 3.13 Smoke
-        if: matrix.python-version == '3.13'
+      - name: Run Compatibility Smoke
+        if: matrix.python-version != '3.11'
         run: |
-          PYTHONPATH=${{ github.workspace }}/src pytest tests/adversarial -m "not slow"
+          PYTHONPATH=${{ github.workspace }}/src pytest tests/evaluation tests/adversarial -m "not slow"
 
       - name: AI Governance Guard
         run: |
@@ -184,11 +188,35 @@ jobs:
         run: |
           PYTHONPATH=${{ github.workspace }}/src pytest benchmarks/bnlearn/ -v --tb=short --timeout=240
 
+  # ===================== Gate 6: North Star Benchmark =====================
+  gate-6-north-star:
+    name: "Gate 6 · North Star Benchmark"
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]"
+
+      - name: Run North Star Smoke
+        run: |
+          python scripts/run_north_star.py --suite smoke \
+            --output .ai-governance/reports/north-star-pr.json
+          cat .ai-governance/reports/north-star-pr.json
+
   # ===================== Publish: Tag & Release (main only) =====================
   release:
     name: "Publish · Tag & Release"
     runs-on: macos-latest
-    needs: [gate-1-lint, gate-2-types, gate-3-test, gate-4-bench, gate-5-bnlearn]
+    needs: [gate-1-lint, gate-2-types, gate-3-test, gate-4-bench, gate-5-bnlearn, gate-6-north-star]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write

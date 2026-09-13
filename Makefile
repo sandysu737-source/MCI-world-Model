@@ -4,7 +4,7 @@ PYTHON ?= python
 PYTEST  = PYTHONPATH=src $(PYTHON) -m pytest
 RUFF    = ruff
 
-.PHONY: help install test lint format bench clean check all
+.PHONY: help install test lint format bench clean check all bench-north-star-smoke bench-north-star-full
 
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -39,6 +39,14 @@ bench-perf: ## Run performance benchmark
 
 bench-tuebingen: ## Run Tübingen direction benchmark
 	$(PYTEST) benchmarks/real_world/tuebingen_pairs.py -v --tb=short
+
+bench-north-star-smoke: ## Run North Star smoke suite
+	$(PYTHON) scripts/run_north_star.py --suite smoke \
+		--output .ai-governance/reports/north-star-smoke.json
+
+bench-north-star-full: ## Run North Star full suite
+	$(PYTHON) scripts/run_north_star.py --suite full \
+		--output .ai-governance/reports/north-star-full.json
 
 lint: ## Lint with ruff
 	$(RUFF) check src/ tests/ benchmarks/
