@@ -1,0 +1,67 @@
+name: Nightly Full Quality
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-full-quality
+  cancel-in-progress: false
+
+jobs:
+  nightly-full:
+    name: "Nightly · Full Quality Gate"
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]" faiss-cpu
+
+      - name: Static Checks
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy src/mci_world_model
+
+      - name: Run Full Tests
+        run: |
+          PYTHONPATH=${{ github.workspace }}/src pytest \
+            --cov=mci_world_model \
+            --cov-report=xml \
+            --cov-report=term \
+            --cov-fail-under=77
+
+      - name: Run North Star Full
+        run: |
+          python scripts/run_north_star.py --suite full \
+            --output .ai-governance/reports/north-star-nightly.json
+          cat .ai-governance/reports/north-star-nightly.json
+
+      - name: AI Governance Guard
+        run: AI_REVIEW_CI=1 bash scripts/ai-verify/ai-guard.sh
+
+      - name: Upload North Star Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: north-star-nightly
+          path: .ai-governance/reports/north-star-nightly.json
