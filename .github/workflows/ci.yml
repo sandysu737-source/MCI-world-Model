@@ -126,12 +126,12 @@ jobs:
           cache: "pip"
 
       - name: Install (full+dev)
-        run: pip install -e ".[full,dev]"
+        run: pip install -e ".[full,dev]" pytest-timeout
 
       - name: Import Smoke
         run: |
           python -c "
-          from benchmarks._noise_generator import generate_spectral_noise
+          from benchmarks._noise_generator import NoiseGenerator
           from mci_world_model.sdk import DoCalculus, MCIWorldModel
           from mci_world_model._sys import EnergyCore
           print('All import smoke tests passed.')
@@ -168,6 +168,9 @@ jobs:
 
       - name: Install (full+dev)
         run: pip install -e ".[full,dev]"
+
+      - name: Install Pytest Timeout
+        run: pip install pytest-timeout
 
       - name: Run BNLearn Benchmark
         run: |
