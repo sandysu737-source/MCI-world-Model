@@ -70,6 +70,7 @@ jobs:
   gate-3-test:
     name: "Gate 3 · pytest"
     runs-on: macos-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

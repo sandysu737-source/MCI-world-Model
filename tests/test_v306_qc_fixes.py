@@ -421,7 +421,10 @@ class TestVersionSync:
     """P1: pyproject.toml 版本与 __init__.py __version__ 一致。"""
 
     def test_pyproject_matches_init(self):
-        import tomllib
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
 
         import mci_world_model
 

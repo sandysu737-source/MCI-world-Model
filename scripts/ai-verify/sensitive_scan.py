@@ -13,7 +13,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 DEFAULT_EXCLUDES = (
     ".git",

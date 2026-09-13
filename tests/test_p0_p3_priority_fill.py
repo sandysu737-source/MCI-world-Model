@@ -14,11 +14,17 @@ P3: _causal.py — detect_causal_link + CausalEngine 核心方法 (目标 21%→
 
 from __future__ import annotations
 
+import importlib.util
 import tempfile
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+
+requires_su_memory = pytest.mark.skipif(
+    importlib.util.find_spec("su_memory") is None,
+    reason="su-memory 为可选依赖，CI 默认不安装",
+)
 
 # =============================================================================
 # P0: BayesianAugmenter — 数据结构 + 初始化 + 报告 + 持久化
@@ -1835,6 +1841,7 @@ class TestWorkingMemoryWeighted:
 # =============================================================================
 
 
+@requires_su_memory
 class TestWorkingMemoryWithRealCores:
     """P1-EXT-6: WorkingMemory.push/get_recent_weighted with real TemporalCore/EnergyCore"""
 
@@ -1915,6 +1922,7 @@ class TestWorkingMemoryWithRealCores:
 class TestMCIWorldModelLazyInit:
     """P1-EXT-7: MCIWorldModel 惰性获取器 + lite_pro 自动初始化"""
 
+    @requires_su_memory
     def test_get_energy_core_lazy(self):
         """_get_energy_core 惰性创建 EnergyCore"""
         from mci_world_model.sdk._world_model import MCIWorldModel
@@ -1925,6 +1933,7 @@ class TestMCIWorldModelLazyInit:
         assert core is not None
         assert wm._energy_core is core
 
+    @requires_su_memory
     def test_get_temporal_core_lazy(self):
         """_get_temporal_core 惰性创建 TemporalCore"""
         from mci_world_model.sdk._world_model import MCIWorldModel
@@ -1955,6 +1964,7 @@ class TestMCIWorldModelLazyInit:
         assert actor is not None
         assert wm._causal_actor is actor
 
+    @requires_su_memory
     def test_energy_core_idempotent(self):
         """_get_energy_core 幂等：两次调用返回同一实例"""
         from mci_world_model.sdk._world_model import MCIWorldModel
@@ -1964,6 +1974,7 @@ class TestMCIWorldModelLazyInit:
         c2 = wm._get_energy_core()
         assert c1 is c2
 
+    @requires_su_memory
     def test_temporal_core_idempotent(self):
         """_get_temporal_core 幂等"""
         from mci_world_model.sdk._world_model import MCIWorldModel
@@ -2026,6 +2037,7 @@ class TestMCIWorldModelEnergyBus:
         assert ratios["causal"] > 0
         assert abs(sum(ratios.values()) - 1.0) < 1e-9
 
+    @requires_su_memory
     def test_build_energy_bus(self):
         """_build_energy_bus 构建 EnergyBus 并连接边"""
         from mci_world_model.sdk._world_model import CausalWorldModelState, MCIWorldModel
@@ -2039,6 +2051,7 @@ class TestMCIWorldModelEnergyBus:
         bus = wm._build_energy_bus()
         assert bus is not None
 
+    @requires_su_memory
     def test_propagate_energy_handles_missing_api(self):
         """_propagate_energy 优雅处理 EnergyBus API 差异"""
         from mci_world_model.sdk._world_model import CausalWorldModelState, MCIWorldModel
@@ -2054,8 +2067,9 @@ class TestMCIWorldModelEnergyBus:
             result = wm._propagate_energy(steps=2)
             assert isinstance(result, dict)
         except AttributeError:
-            pass  # EnergyBus API 版本差异
+            return None
 
+    @requires_su_memory
     def test_build_energy_bus_no_edges(self):
         """空因果边仍能构建节点"""
         from mci_world_model.sdk._world_model import CausalWorldModelState, MCIWorldModel
