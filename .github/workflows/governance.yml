@@ -45,15 +45,8 @@ jobs:
           cat classify.txt
           MAXL=$(grep '^MAX_LEVEL' classify.txt | tail -1 | grep -oE 'L[012]$')
           echo "max_level=${MAXL:-L2}" >> $GITHUB_OUTPUT
-      - name: 跑 quality-gate（全量门禁, FULL_GATE=1）
+      - name: 判定覆盖率硬门禁
         id: coverage_gate
-        env:
-          RADON_BIN: radon
-          RUFF_BIN: ruff
-          BANDIT_BIN: bandit
-          PYTEST_BIN: pytest
-          PYTEST_SCOPE: full
-          COVERAGE_HARD_GATE: '1'   # CI 侧覆盖率硬阻断
         run: |
           if printf '%s\n' "${{ steps.classify.outputs.files }}" | tr ' ' '\n' | grep -qE '^(src|adapters)/.*\.py$'; then
             echo "hard=1" >> "$GITHUB_OUTPUT"
