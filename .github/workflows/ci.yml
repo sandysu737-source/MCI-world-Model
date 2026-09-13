@@ -115,6 +115,12 @@ jobs:
   gate-4-bench:
     name: "Gate 4 · SIGReg Bench Smoke"
     runs-on: macos-latest
+    env:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,7 +132,7 @@ jobs:
           cache: "pip"
 
       - name: Install (full+dev)
-        run: pip install -e ".[full,dev]" pytest-timeout
+        run: pip install -e ".[full,dev]" faiss-cpu
 
       - name: Import Smoke
         run: |
@@ -156,6 +162,12 @@ jobs:
     name: "Gate 5 · BNLearn Benchmark"
     runs-on: macos-latest
     timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
