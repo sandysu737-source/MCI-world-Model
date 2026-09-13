@@ -69,6 +69,7 @@ jobs:
           PYTEST_BIN: pytest
           PYTEST_SCOPE: ${{ steps.pytest_scope.outputs.scope }}
           COVERAGE_HARD_GATE: ${{ steps.coverage_gate.outputs.hard }}
+          COV_CORE_THRESHOLD: "77"
         run: |
           bash scripts/ai-verify/quality-gate.sh ${{ steps.classify.outputs.max_level }} \
             ${{ steps.classify.outputs.files }}

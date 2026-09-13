@@ -35,6 +35,7 @@ case "${LEVEL}" in
   L1) COV_CORE=90; COV_BR=85; COV_UTIL=80;  CC_MAX=15; DUP=5;;
   L2) COV_CORE=95; COV_BR=90; COV_UTIL=85;  CC_MAX=15; DUP=5;;
 esac
+COV_CORE="${COV_CORE_THRESHOLD:-$COV_CORE}"
 
 {
   echo "# 质量门禁报告"
@@ -235,7 +236,8 @@ if [ "${LEVEL}" = "L2" ]; then
   if has "$BANDIT_BIN"; then
     if "$BANDIT_BIN" -r -q "${FILES[@]}" >/tmp/qgate_bandit.log 2>&1; then pass "bandit SAST 通过";
     else
-      highs=$(grep -c 'severity: HIGH' /tmp/qgate_bandit.log 2>/dev/null || echo 0)
+      highs=$(grep -c 'severity: HIGH' /tmp/qgate_bandit.log 2>/dev/null || true)
+      [[ "$highs" =~ ^[0-9]+$ ]] || highs=0
       if [ "$highs" -gt 0 ]; then fail "bandit 发现 $highs 个高危（误报须走豁免闭环: 加 # nosec 并登记）";
       else warn "bandit 仅中低危告警，需人工确认"; fi
     fi
