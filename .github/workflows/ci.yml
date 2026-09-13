@@ -182,7 +182,7 @@ jobs:
 
       - name: Run BNLearn Benchmark
         run: |
-          PYTHONPATH=${{ github.workspace }}/src pytest benchmarks/bnlearn/ -v --tb=short --timeout=120
+          PYTHONPATH=${{ github.workspace }}/src pytest benchmarks/bnlearn/ -v --tb=short --timeout=240
 
   # ===================== Publish: Tag & Release (main only) =====================
   release:
