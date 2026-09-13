@@ -131,7 +131,7 @@ jobs:
       - name: Import Smoke
         run: |
           python -c "
-          from mci_world_model.benchmarks._noise_generator import generate_spectral_noise
+          from benchmarks._noise_generator import generate_spectral_noise
           from mci_world_model.sdk import DoCalculus, MCIWorldModel
           from mci_world_model._sys import EnergyCore
           print('All import smoke tests passed.')
@@ -166,8 +166,8 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
-      - name: Install (full)
-        run: pip install -e ".[full]"
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]"
 
       - name: Run BNLearn Benchmark
         run: |
