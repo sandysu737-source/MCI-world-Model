@@ -46,6 +46,7 @@ jobs:
           MAXL=$(grep '^MAX_LEVEL' classify.txt | tail -1 | grep -oE 'L[012]$')
           echo "max_level=${MAXL:-L2}" >> $GITHUB_OUTPUT
       - name: 跑 quality-gate（全量门禁, FULL_GATE=1）
+        id: coverage_gate
         env:
           RADON_BIN: radon
           RUFF_BIN: ruff
@@ -53,6 +54,20 @@ jobs:
           PYTEST_BIN: pytest
           PYTEST_SCOPE: full
           COVERAGE_HARD_GATE: '1'   # CI 侧覆盖率硬阻断
+        run: |
+          if printf '%s\n' "${{ steps.classify.outputs.files }}" | tr ' ' '\n' | grep -qE '^(src|adapters)/.*\.py$'; then
+            echo "hard=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "hard=0" >> "$GITHUB_OUTPUT"
+          fi
+      - name: 跑 quality-gate（全量门禁, FULL_GATE=1）
+        env:
+          RADON_BIN: radon
+          RUFF_BIN: ruff
+          BANDIT_BIN: bandit
+          PYTEST_BIN: pytest
+          PYTEST_SCOPE: full
+          COVERAGE_HARD_GATE: ${{ steps.coverage_gate.outputs.hard }}
         run: |
           bash scripts/ai-verify/quality-gate.sh ${{ steps.classify.outputs.max_level }} \
             ${{ steps.classify.outputs.files }}
