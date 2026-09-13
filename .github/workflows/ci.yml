@@ -116,6 +116,7 @@ jobs:
     name: "Gate 4 · SIGReg Bench Smoke"
     runs-on: macos-latest
     env:
+      KMP_DUPLICATE_LIB_OK: "TRUE"
       OMP_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
