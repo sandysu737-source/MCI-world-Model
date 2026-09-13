@@ -30,7 +30,7 @@ jobs:
           cache: "pip"
 
       - name: Install Ruff
-        run: pip install "ruff>=0.6.0"
+        run: pip install "ruff==0.15.17"
 
       - name: Lint
         run: |
@@ -87,8 +87,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
-      - name: Install (full)
-        run: pip install -e ".[full]"
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]"
 
       - name: Run Tests (excl. slow)
         if: matrix.python-version != '3.13'
@@ -125,8 +125,8 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
-      - name: Install (full)
-        run: pip install -e ".[full]"
+      - name: Install (full+dev)
+        run: pip install -e ".[full,dev]"
 
       - name: Import Smoke
         run: |
