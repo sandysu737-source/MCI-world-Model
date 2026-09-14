@@ -78,7 +78,7 @@ class ZvecEmbeddingStore:
 
     def __init__(self, config: EmbeddingStoreConfig | None = None):
         self.config = config or EmbeddingStoreConfig()
-        self._collection = None
+        self._collection: Any | None = None
         self._fallback_storage: list[dict[str, Any]] = []
         self._fallback_vectors: np.ndarray | None = None
 
@@ -92,7 +92,7 @@ class ZvecEmbeddingStore:
         if not _zvec_available:
             return
 
-        os.makedirs(self.config.store_path, exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(self.config.store_path)), exist_ok=True)
 
         # Schema
         try:
@@ -144,7 +144,7 @@ class ZvecEmbeddingStore:
             return 0
 
         # 为每条 QA 对生成向量 (使用确定性 hash 嵌入)
-        docs: list[dict[str, Any]] = []
+        docs: list[Any] = []
         for i, pair in enumerate(qa_pairs):
             cause = str(pair.get("cause_text", ""))
             effect = str(pair.get("effect_text", ""))
@@ -210,10 +210,9 @@ class ZvecEmbeddingStore:
             try:
                 q = _zvec.Query(
                     field_name="vec",
-                    data=qvec.tolist(),
-                    topk=min(topk, 500),
+                    vector=qvec.tolist(),
                 )
-                hits = self._collection.query(q)
+                hits = self._collection.query(q, topk=min(topk, 500))
                 results = []
                 for h in hits:
                     f = h.fields

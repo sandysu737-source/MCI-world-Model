@@ -47,7 +47,7 @@ memory = [
 ]
 # 向量嵌入存储 (Zvec, 阿里开源)
 zvec = [
-    "zvec>=0.5.0",
+    "zvec>=0.7.0",
 ]
 # MLX 小模型训练加速 (Apple Silicon)
 mlx_model = [
@@ -55,7 +55,7 @@ mlx_model = [
 ]
 # 完整小模型 + 向量存储
 small_model = [
-    "zvec>=0.5.0",
+    "zvec>=0.7.0",
     "mlx>=0.5.0",
 ]
 # SIGReg 基准
@@ -70,7 +70,7 @@ full = [
     "matplotlib>=3.7.0",
     "tqdm>=4.65.0",
     "networkx>=3.0",
-    "zvec>=0.5.0",
+    "zvec>=0.7.0",
     "mlx>=0.5.0",
 ]
 # 开发者工具
