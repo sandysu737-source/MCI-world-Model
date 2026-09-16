@@ -1,8 +1,8 @@
 # Governance CI —— 服务端不可绕过的执行点（本地 hook 可绕过，CI 是最终防线）
 # 触发: PR 到 main/master + push 到 main/master
 # 职责:
-#   1. 跑 governance 全量门禁（risk-classify + quality-gate FULL_GATE）
-#   2. L2 代码: 校验 review-token 或 PR approved-reviews-count >= 2
+#   1. 跑 governance 全量门禁（risk-classify + quality-gate）
+#   2. L2 代码: 只校验 PR approved-reviews-count >= 2
 #   3. 失败则阻断合并（配合分支保护规则 status check 必过）
 #
 # 启用: 复制本文件到 .github/workflows/governance.yml
@@ -11,14 +11,13 @@
 name: governance
 on:
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
 
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     permissions:
       contents: read
       pull-requests: read
@@ -30,50 +29,57 @@ jobs:
         with:
           python-version: '3.11'
       - name: 安装工具链
-        run: pip install -e ".[full,dev]" radon bandit
+        run: pip install radon bandit ruff pytest pytest-cov
+      - name: governance 对抗回归（F-1/F-3/F-10/F-14）
+        run: bash scripts/ai-verify/tests/test-anti-evasion.sh
       - name: 跑 risk-classify（风险定级）
         id: classify
         run: |
           # 对 PR 的改动文件定级
+          FILES_FILE=changed-files.txt
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            FILES=$(git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
+            git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD > "$FILES_FILE"
           else
-            FILES=$(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD 2>/dev/null || echo "")
+            git diff --name-only --diff-filter=ACMR HEAD~1 HEAD > "$FILES_FILE" 2>/dev/null || : > "$FILES_FILE"
           fi
-          echo "files=$FILES" >> $GITHUB_OUTPUT
-          bash scripts/ai-verify/risk-classify.sh $FILES > classify.txt 2>&1 || true
+          printf 'files=%s\n' "$(cat "$FILES_FILE")" >> "$GITHUB_OUTPUT"
+          if [ -s "$FILES_FILE" ]; then
+            mapfile -t FILES < "$FILES_FILE"
+            bash scripts/ai-verify/risk-classify.sh "${FILES[@]}" > classify.txt 2>&1 || true
+          else
+            bash scripts/ai-verify/risk-classify.sh > classify.txt 2>&1 || true
+          fi
           cat classify.txt
           MAXL=$(grep '^MAX_LEVEL' classify.txt | tail -1 | grep -oE 'L[012]$')
           echo "max_level=${MAXL:-L2}" >> $GITHUB_OUTPUT
-      - name: 判定覆盖率硬门禁
-        id: coverage_gate
-        run: |
-          if printf '%s\n' "${{ steps.classify.outputs.files }}" | tr ' ' '\n' | grep -qE '^(src|adapters)/.*\.py$'; then
-            echo "hard=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "hard=0" >> "$GITHUB_OUTPUT"
-          fi
-      - name: 判定 pytest scope
-        id: pytest_scope
-        run: |
-          if printf '%s\n' "${{ steps.classify.outputs.files }}" | tr ' ' '\n' | grep -qE '^(src|adapters)/.*\.py$'; then
-            echo "scope=full" >> "$GITHUB_OUTPUT"
-          else
-            echo "scope=changed" >> "$GITHUB_OUTPUT"
-          fi
-      - name: 跑 quality-gate（全量门禁, FULL_GATE=1）
+      - name: 跑 quality-gate（全量门禁）
         env:
           RADON_BIN: radon
           RUFF_BIN: ruff
           BANDIT_BIN: bandit
           PYTEST_BIN: pytest
-          PYTEST_SCOPE: ${{ steps.pytest_scope.outputs.scope }}
-          COVERAGE_HARD_GATE: ${{ steps.coverage_gate.outputs.hard }}
-          COV_CORE_THRESHOLD: "77"
+          PYTEST_SCOPE: full
+          COVERAGE_HARD_GATE: '1'   # CI 侧覆盖率硬阻断
         run: |
-          bash scripts/ai-verify/quality-gate.sh ${{ steps.classify.outputs.max_level }} \
-            ${{ steps.classify.outputs.files }}
-      - name: L2 凭证校验（review-token 或 PR 双人 approve）
+          if [ -s changed-files.txt ]; then
+            mapfile -t FILES < changed-files.txt
+            bash scripts/ai-verify/quality-gate.sh "${{ steps.classify.outputs.max_level }}" "${FILES[@]}"
+          else
+            bash scripts/ai-verify/quality-gate.sh "${{ steps.classify.outputs.max_level }}"
+          fi
+      - name: hook 完整性校验（F-7/P1-G）
+        run: bash scripts/ai-verify/hook-integrity.sh
+      - name: 远端审计留痕（F-19/P2-F）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            classify.txt
+            changed-files.txt
+            .ai-governance/reports/
+          if-no-files-found: warn
+      - name: L2 双人 approve 校验
         if: steps.classify.outputs.max_level == 'L2'
         env:
           GOV_REVIEW_SECRET: ${{ secrets.GOV_REVIEW_SECRET }}
@@ -84,18 +90,15 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # 读 PR 的 approved-reviews-count
             APPROVED=$(gh pr view ${{ github.event.pull_request.number }} \
-              --json reviewDecision,reviews -q '[.reviews[] | select(.state=="APPROVED") | .author.login] | unique | length' 2>/dev/null || echo 0)
+              --json reviewDecision,reviews -q '[.reviews[] | select(.state=="APPROVED" and ((.author.typename // .author.__typename // "") != "Bot")) | .author.login] | unique | length' 2>/dev/null || echo 0)
             echo "PR approved count: $APPROVED"
           fi
-          # 校验 commit message 里的 review-token（格式: AI_REVIEW_TOKEN=L2:...|sig）
-          TOKEN=$(git log -1 --pretty=%B | grep -oE 'AI_REVIEW_TOKEN=\S+' | cut -d= -f2 || echo "")
-          if [ -n "$TOKEN" ] && [ -n "$GOV_REVIEW_SECRET" ]; then
-            bash scripts/ai-verify/review-token.sh verify "$TOKEN" HEAD && exit 0
-          fi
-          if [ "$APPROVED" -ge 0 ]; then
-            echo "✅ L2: 单人仓库授权模式（当前 approved=$APPROVED）"
+          # F-2(P0-E): 已删除 review-token 短路——本地 token 只作本地放行凭证,
+          # CI 一律以 PR approved-reviews-count>=2 为准, 防单人持钥绕过双人评审。
+          if [ "$APPROVED" -ge 2 ]; then
+            echo "✅ L2: PR 双人 approve ($APPROVED≥2)"
             exit 0
           fi
-          echo "🛑 L2 高风险代码: 需 review-token(第二人签发) 或 PR approved-reviews-count≥2"
-          echo "   当前 approved=$APPROVED, token=${TOKEN:+有但校验失败}${TOKEN:-无}"
+          echo "🛑 L2 高风险代码: 需 PR approved-reviews-count≥2"
+          echo "   当前 approved=$APPROVED (本地签发的 AI_REVIEW_TOKEN 不被 CI 认可)"
           exit 1
