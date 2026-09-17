@@ -6,8 +6,13 @@
 set -o pipefail
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
-KIT_GUARD_DIR="${AI_ENG_KIT:-$HOME/qoder m5pro/_ai-eng-kit}/governance"
-[ -d "$KIT_GUARD_DIR" ] || KIT_GUARD_DIR="$(dirname "$0")"
+# F-1(P0-A): 固化 kit 路径, 忽略 AI_ENG_KIT 环境变量, 防伪造 kit 劫持门禁（fail-closed）
+unset AI_ENG_KIT
+KIT_GUARD_DIR="$HOME/qoder m5pro/_ai-eng-kit/governance"
+if [ ! -d "$KIT_GUARD_DIR" ]; then
+  printf '\033[1m[ai-guard]\033[0m ERROR: governance kit 不存在: %s（fail-closed, 禁止放行）\n' "$KIT_GUARD_DIR" >&2
+  exit 1
+fi
 
 say(){ printf '\033[1m[ai-guard]\033[0m %s\n' "$1"; }
 REPORT_DIR=".ai-governance/reports"
@@ -17,6 +22,13 @@ SUMMARY="$REPORT_DIR/$TS-guard.md"
 
 STAGED="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
 [ -z "$STAGED" ] && { say "无暂存改动，跳过"; exit 0; }
+
+# 暂存文件转数组（macOS bash 3.2 兼容，不用 mapfile），显式传给定级/门禁，
+# 避免无参调用时 risk-classify 把工作区未暂存改动也纳入定级（pre-commit 只审本次提交内容）
+STAGE_FILES=()
+while IFS= read -r _f; do [ -n "$_f" ] && STAGE_FILES+=("$_f"); done <<EOF
+$STAGED
+EOF
 
 DIFF_LINES=$(git diff --cached 2>/dev/null | wc -l | tr -dc '0-9')
 [ -z "$DIFF_LINES" ] && DIFF_LINES=0
@@ -37,8 +49,8 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF" ]; then
   exit 1
 fi
 
-# ---------- 2. 风险定级（让 risk-classify 自扫暂存区，无需传文件） ----------
-CLASSIFY_OUT="$(bash "$KIT_GUARD_DIR/risk-classify.sh" 2>/dev/null || true)"
+# ---------- 2. 风险定级（显式传暂存文件，仅审本次提交内容） ----------
+CLASSIFY_OUT="$(bash "$KIT_GUARD_DIR/risk-classify.sh" "${STAGE_FILES[@]}" 2>/dev/null || true)"
 LEVEL_TAG="$(printf '%s\n' "$CLASSIFY_OUT" | grep '^MAX_LEVEL' | tail -1 | grep -oE 'L[012]$')"
 [ -z "$LEVEL_TAG" ] && LEVEL_TAG=L2
 LEVEL="${LEVEL_TAG#L}"
@@ -61,7 +73,7 @@ done
 
 # ---------- 4. 质量门禁 ----------
 GATE_LOG="$REPORT_DIR/$TS-gate-$LEVEL_TAG.md"
-if bash "$KIT_GUARD_DIR/quality-gate.sh" "$LEVEL_TAG" >> "$GATE_LOG" 2>&1; then
+if bash "$KIT_GUARD_DIR/quality-gate.sh" "$LEVEL_TAG" "${STAGE_FILES[@]}" >> "$GATE_LOG" 2>&1; then
   GATE_RC=0
 else
   GATE_RC=$?
@@ -69,13 +81,27 @@ fi
 if [ "$GATE_RC" -ne 0 ]; then
   say "❌ 质量门禁未通过（$LEVEL_TAG），详见 $GATE_LOG"
   echo "**❌ 质量门禁未通过** → $(basename "$GATE_LOG")" >> "$SUMMARY"
-  # MAX_RETRY 实现：同一暂存内容累计失败次数，超限转人工（AI 应停止重试）
+  # MAX_RETRY 实现：同一暂存内容累计失败次数，超限转人工（AI 应停止重试）。
+  # F-17(P2-C): 计数移出项目 .ai-governance；损坏/非数字时阻断，不能重置。
   MAX_RETRY="${MAX_RETRY:-3}"
   DIFF_HASH="$(git diff --cached 2>/dev/null | shasum -a 256 | cut -c1-16)"
   [ -z "$DIFF_HASH" ] && DIFF_HASH="unknown"
-  RETRY_FILE="$REPORT_DIR/.retry-$DIFF_HASH"
+  RETRY_STORE="$HOME/.ai-eng-kit/retry"
+  if ! mkdir -p "$RETRY_STORE" 2>/dev/null; then
+    say "🛑 无法创建全局重试计数目录: $RETRY_STORE（fail-closed）"
+    exit 1
+  fi
+  RETRY_FILE="$RETRY_STORE/.retry-$DIFF_HASH"
   retry=0
-  [ -f "$RETRY_FILE" ] && retry="$(cat "$RETRY_FILE" 2>/dev/null || echo 0)"
+  if [ -f "$RETRY_FILE" ]; then
+    retry="$(cat "$RETRY_FILE" 2>/dev/null || true)"
+    case "$retry" in
+      ''|*[!0-9]*)
+        say "🛑 重试计数损坏或被篡改: $RETRY_FILE（fail-closed）"
+        exit 1
+        ;;
+    esac
+  fi
   retry=$((retry+1))
   echo "$retry" > "$RETRY_FILE"
   # 清理 7 天前的重试记录
@@ -122,6 +148,20 @@ case "$LEVEL_TAG" in
         echo "**🛑 L2 阻断(token invalid)**" >> "$SUMMARY"
         exit 1
       fi
+    fi
+    # 单人团队负责人显式确认通道（H-05-19 选项 1，D-04 修订）：
+    # 仅由负责人在会话中明示授权后携带；AI 不得自行设置。summary 落
+    # confirmed=owner-explicit 留痕；push 后 CI 硬词扫描仍为最终防线。
+    if [ "${AI_REVIEW_CONFIRMED:-0}" = "1" ]; then
+      say "⚠️  L2 owner-explicit 确认放行（单人治理 H-05-19，非第二人 review）"
+      echo "**⚠️ L2 放行(owner-explicit confirm)**" >> "$SUMMARY"
+      exit 0
+    fi
+    # F-1(P0-C): AI_REVIEW_CI=1 仅在真实 CI 环境（GITHUB_ACTIONS=true）生效, 本地设值一律拒绝
+    if [ "${AI_REVIEW_CI:-0}" = "1" ] && [ "${GITHUB_ACTIONS:-false}" != "true" ]; then
+      say "🛑 AI_REVIEW_CI=1 仅允许在 CI 环境（GITHUB_ACTIONS=true）使用, 本地禁止——疑似门禁绕过"
+      echo "**🛑 L2 阻断(AI_REVIEW_CI 滥用, 非CI环境)**" >> "$SUMMARY"
+      exit 1
     fi
     # CI 环境: 本地不阻断, 由 CI 服务端做最终校验(读 PR review count)
     if [ "${AI_REVIEW_CI:-0}" = "1" ]; then
