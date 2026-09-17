@@ -12,9 +12,17 @@ cd "$ROOT"
 L2_PATH_RE='(payment|refund|settle|auth|login|webhook|alipay|wechatpay|wxpay|credential)'
 # 硬词：任意出现即 L2（词边界，误报低）
 L2_SYM_HARD_RE='\b(payment|refund|settle|auth|login|webhook|alipay|wechatpay|wxpay)\b'
+# 文档类真实密钥模式（H-05-13 v4 C8）：只拦"疑似真实密钥"，不拦行文提及。
+# 通用硬词集面向代码语义（支付/鉴权处理），不含 secret/key——文档粘贴真实
+# 密钥会漏报；此处按密钥形态识别（sk-/ghp_/AKIA/JWT/私钥/长值赋值），
+# 占位符（<token>/xxx/示例）长度不足不命中，避免 8-27 EVAL-RUNBOOK 误报。
+L2_DOC_SECRET_RE='(BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{16,}|AIza[0-9A-Za-z_-]{30,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|(SECRET|PASSWORD|API[_-]?KEY|TOKEN|PASSWD)[[:space:]]*[=:][[:space:]]*[A-Za-z0-9/+=_-]{16,})'
 # 软词：需定义性出现(def/class/import/from 行)，排除 order_by 等通用用法
+# dsh_poc 危险 import 模式（C1/H-05-16）：仅命中 import/from 行，避免普通变量名
+# （calibration.py 的 order 排序变量）误伤；白名单=目录 + 无危险 import + 无硬词。
+DSH_POC_DANGER_IMPORT_RE='^[[:space:]]*(import|from)[[:space:]]+[A-Za-z0-9_.]*(payment|order|auth|user|permission|crypto|requests|httpx|aiohttp|axios|redis)'
 L2_SYM_SOFT_RE='(^|[[:space:]])(def|class|import|from)[[:space:]].{0,40}\b(order|permission|token|crypto|encrypt|decrypt)[a-zA-Z_]*\b'
-L2_CONFIG_RE='(\.env$|docker-compose|\.github/workflows/|/migrations/.*\.py$|alembic/versions/.*\.py$)'
+L2_CONFIG_RE='(\.env$|docker-compose|\.github/workflows/|/migrations/.*\.py$|alembic/versions/.*\.py$|\.ai-coverage-threshold$|\.ai-governance/|/scripts/ai-verify/|_ai-eng-kit/)'
 L0_PATH_RE='(^|/)(utils|helpers|scripts|tests|test|__tests__|spec)/|^.*(_test|\.test|\.spec)\.(py|ts|tsx|js)$'
 DANGER_IMPORT_RE='\b(payment|order|auth|user|permission|crypto)\b|db\.session|db\.sessionmaker|\b(redis|httpx|requests|aiohttp|axios)\b|fetch\('
 
@@ -54,6 +62,20 @@ classify_one() {
   if [[ "$low" =~ $L2_PATH_RE ]]; then
     printf 'L2\t%s\t路径命中高风险域: %s\n' "$f" "${BASH_REMATCH[1]}"; return; fi
 
+  # 文档类（.md/.txt/.rst/.docx）：描述性文本，无执行面；但真实密钥检测
+  # 保留拦截位（H-05-13 v4 C8 修正）：文档粘贴真实密钥/私钥仍须 L2 人工
+  # 确认，不得静默放行；行文提及 token/auth 流程（非密钥形态）降 L1（避免
+  # 8-27 EVAL-RUNBOOK/H-05-12 被硬词误定 L2 阻塞提交）。人工确认通道 =
+  # L2 token 签发或 CI PR 双人复核（ai-guard.sh L2 分支）。
+  case "$f" in
+    *.md|*.txt|*.rst|*.docx|LICENSE*|CHANGELOG*)
+      if grep -qiE "$L2_DOC_SECRET_RE" "$f" 2>/dev/null; then
+        printf 'L2\t%s\t文档疑似包含真实密钥(如为占位示例，人工确认后 token 放行)\n' "$f"
+        return
+      fi
+      printf 'L1\t%s\t文档/说明类(描述性文本，L1)\n' "$f"; return;;
+  esac
+
   # 硬词任意出现即 L2（即便在测试目录，含真实支付/鉴权符号也要审）
   if grep -qiE "$L2_SYM_HARD_RE" "$f" 2>/dev/null; then
     printf 'L2\t%s\t符号命中高风险域(硬词)\n' "$f"; return; fi
@@ -66,12 +88,21 @@ classify_one() {
   if grep -qiE "$L2_SYM_SOFT_RE" "$f" 2>/dev/null; then
     printf 'L2\t%s\t符号命中高风险域(软词定义)\n' "$f"; return; fi
 
+  # dsh_poc 纯评测工具白名单（C1/H-05-16 第一性原理）：纯统计/重放/盲评工具被
+  # "生产分支保守"误定 L2（无支付/鉴权/用户数据/网络出口面）。双重保障：上方
+  # 硬词/软词规则优先（runner.py 含 auth 语义→L2 不回退）；此处再拦危险 import
+  # 与 db.session 用法（白名单仅放行真正无风险面的工具）。
+  if [[ "$f" == *"/services/ai_engine/dsh_poc/"* ]] && \
+     ! grep -qiE "$DSH_POC_DANGER_IMPORT_RE" "$f" 2>/dev/null && \
+     ! grep -qE 'db\.session|db\.sessionmaker' "$f" 2>/dev/null; then
+    printf 'L1\t%s\tdsh_poc 纯评测工具白名单(无危险 import/凭据面)\n' "$f"; return; fi
+
   if grep -nqE '(@router|@app\.route|@command|@click|app\.(get|post|put|delete)\()' "$f" 2>/dev/null; then
     printf 'L1\t%s\t含路由/命令入口\n' "$f"; return; fi
 
   # 文档/说明类: 即便生产分支也只到 L1(不强制双人Review文档)
   case "$f" in
-    *.md|*.txt|*.rst|*.json|*.yaml|*.yml|*.toml|LICENSE*|CHANGELOG*)
+    *.md|*.txt|*.rst|*.json|*.yaml|*.yml|*.toml|*.docx|LICENSE*|CHANGELOG*)
       printf 'L1\t%s\t配置/文档类(生产分支L1)\n' "$f"; return;;
   esac
   if [ "$PROD_BRANCH" = "1" ]; then

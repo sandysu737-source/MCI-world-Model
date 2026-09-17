@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# L2 review-token 签发与校验（不可伪造：需 HMAC 密钥 + 第二人签发）
+# L2 review-token 签发与校验（H-05-16/17 审计后双语义修订）
 #
-# 用法1 签发(第二人执行): review-token.sh issue <reviewer> [commit-ish]
+# 语义（H-05-19）：多人群组 = 第二人签发（HMAC 共享密钥 + reviewer≠提交者）；
+# 单人团队 = owner-confirmed（负责人显式确认，token 仅作留痕，非第二人证明）。
+# 单人治理的正式通道为 ai-guard.sh 的 AI_REVIEW_CONFIRMED=1（H-05-19 选项 1）。
+#
+# 用法1 签发: review-token.sh issue <reviewer> [commit-ish]
 #   读取 GOV_REVIEW_SECRET 环境变量(团队共享密钥), 输出 token
 # 用法2 校验(ai-guard 内部): review-token.sh verify <token> <commit-ish>
 #
-# 安全模型:
-#   - 密钥不在仓库里, 由团队通过 1Password/内部门户分发, 每个开发者持有
-#   - 第二人 review 后用自己持有的密钥签发 token, 提交者把它放进 AI_REVIEW_TOKEN
-#   - 本地 hook 校验签名有效 + commit 匹配 → 才放行 L2
-#   - 单人无法伪造: 自己有密钥能签, 但 token 要求 reviewer != 提交者(由 CI 强制)
-#   - 最终不可绕过点在 CI: CI 用服务端密钥重新校验 + 检查 PR approved-reviews-count>=2
+# 安全模型（H-05-16 T1-T5 实锤后修正）:
+#   - 共享 HMAC 密钥下签名只证明"某持钥者"，reviewer 为自报字段——**不能**作为
+#     第二人 review 的不可伪造证明；多人群组场景须配合 CI reviewer≠提交者比对
+#     （governance.yml G1）与 PR 双人 approve。
+#   - 单人团队：token 仅作签发留痕，权威来源 = 负责人显式确认。
+#   - 最终防线在 CI: 硬词扫描 + token 校验 + PR approved-reviews-count>=2。
 set -o pipefail
 
 SECRET="${GOV_REVIEW_SECRET:-}"
@@ -33,15 +37,21 @@ case "$cmd" in
     reviewer="${1:?用法: issue <reviewer> [commit-ish]}"
     commit="${2:-HEAD}"
     commit="${commit:-HEAD}"
-    short="$(git rev-parse --short "$commit" 2>/dev/null || echo "$commit")"
-    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
-    payload="L2:${branch}:${short}:${reviewer}"
+    # 注意: $(cmd || echo fallback) 在 cmd 有 stdout 但退出非0时会拼接污染(unborn分支实测),
+    # 故改为先取输出再判空。
+    short="$(git rev-parse --short "$commit" 2>/dev/null)"
+    [ -z "$short" ] && short="unborn"
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    [ -z "$branch" ] && branch="unborn"
+    # F-3(P0-D): 绑定本次暂存内容 hash, 签发后偷换暂存即失效
+    staged="$(git diff --cached 2>/dev/null | shasum -a 256 | cut -c1-16)"
+    payload="L2:${branch}:${short}:${staged}:${reviewer}"
     sig="$(hmac "$SECRET" "$payload")"
     token="${payload}|${sig}"
     echo "$token"
     echo "  → 提交者使用: AI_REVIEW_TOKEN='$token' git commit ..." >&2
     ;;
-  verify)
+verify)
     token="${1:?用法: verify <token> [commit-ish]}"
     commit="${2:-HEAD}"
     payload="${token%|*}"
@@ -57,9 +67,14 @@ case "$cmd" in
     # payload 格式 L2:branch:short:reviewer, commit 是第3段
     token_branch="$(printf '%s' "$payload" | cut -d: -f2)"
     token_short="$(printf '%s' "$payload" | cut -d: -f3)"
-    cur_short="$(git rev-parse --short "$commit" 2>/dev/null || echo "")"
+    cur_short="$(git rev-parse --short "$commit" 2>/dev/null)"
     if [ -n "$cur_short" ] && [ "$token_short" != "$cur_short" ]; then
       echo "invalid: token 绑定的提交($token_short)与当前($cur_short)不符"; exit 1; fi
+    # F-3(P0-D): 校验暂存内容 hash, 防签发后偷换（旧4段格式token因段位错位自然失效, 需重新签发）
+    staged_now="$(git diff --cached 2>/dev/null | shasum -a 256 | cut -c1-16)"
+    token_staged="$(printf '%s' "$payload" | cut -d: -f4)"
+    if [ "$token_staged" != "$staged_now" ]; then
+      echo "invalid: token 绑定的暂存内容与当前不符(暂存已变更, 需重新签发)"; exit 1; fi
     echo "valid: $payload"
     exit 0
     ;;
