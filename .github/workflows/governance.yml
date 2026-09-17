@@ -2,7 +2,7 @@
 # 触发: PR 到 main/master + push 到 main/master
 # 职责:
 #   1. 跑 governance 全量门禁（risk-classify + quality-gate）
-#   2. L2 代码: 校验 PR approved-reviews-count；单人模式可用所有者显式批准指纹
+#   2. L2 代码: 只校验 PR approved-reviews-count >= 2
 #   3. 失败则阻断合并（配合分支保护规则 status check 必过）
 #
 # 启用: 复制本文件到 .github/workflows/governance.yml
@@ -18,11 +18,6 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    env:
-      # 单人项目显式授权模式；多人协作时必须上调为 2。
-      GOV_MIN_APPROVALS: '1'
-      # 单人模式审计指纹：只有仓库所有者本人可在 PR 正文确认，且须与当前 PR/日期绑定。
-      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-09-17:PR14'
     permissions:
       contents: read
       pull-requests: read
@@ -47,7 +42,6 @@ jobs:
           else
             git diff --name-only --diff-filter=ACMR HEAD~1 HEAD > "$FILES_FILE" 2>/dev/null || : > "$FILES_FILE"
           fi
-          printf 'files=%s\n' "$(tr '\n' ' ' < "$FILES_FILE")" >> "$GITHUB_OUTPUT"
           if [ -s "$FILES_FILE" ]; then
             mapfile -t FILES < "$FILES_FILE"
             bash scripts/ai-verify/risk-classify.sh "${FILES[@]}" > classify.txt 2>&1 || true
@@ -58,24 +52,13 @@ jobs:
           MAXL=$(grep '^MAX_LEVEL' classify.txt | tail -1 | grep -oE 'L[012]$')
           echo "max_level=${MAXL:-L2}" >> $GITHUB_OUTPUT
       - name: 跑 quality-gate（全量门禁）
-        id: quality_scope
-        run: |
-          if grep -qE '^(src|adapters)/.*\.py$' changed-files.txt; then
-            echo "scope=full" >> "$GITHUB_OUTPUT"
-            echo "hard=1" >> "$GITHUB_OUTPUT"
-          else
-            # 纯治理/文档改动不使用业务源码覆盖率作代理指标，由对抗套件兜底。
-            echo "scope=changed" >> "$GITHUB_OUTPUT"
-            echo "hard=0" >> "$GITHUB_OUTPUT"
-          fi
-      - name: 跑 quality-gate（按变更面执行）
         env:
           RADON_BIN: radon
           RUFF_BIN: ruff
           BANDIT_BIN: bandit
           PYTEST_BIN: pytest
-          PYTEST_SCOPE: ${{ steps.quality_scope.outputs.scope }}
-          COVERAGE_HARD_GATE: ${{ steps.quality_scope.outputs.hard }}
+          PYTEST_SCOPE: full
+          COVERAGE_HARD_GATE: '1'   # CI 侧覆盖率硬阻断
         run: |
           if [ -s changed-files.txt ]; then
             mapfile -t FILES < changed-files.txt
@@ -103,28 +86,18 @@ jobs:
         run: |
           set -e
           APPROVED=0
-          OWNER_EXPLICIT_APPROVED=false
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # 读 PR 的 approved-reviews-count 与所有者显式批准指纹
+            # 读 PR 的 approved-reviews-count
             APPROVED=$(gh pr view ${{ github.event.pull_request.number }} \
-              --json reviewDecision,reviews,body -q '[.reviews[] | select(.state=="APPROVED" and ((.author.typename // .author.__typename // "") != "Bot")) | .author.login] | unique | length' 2>/dev/null || echo 0)
-            PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body 2>/dev/null || printf '')
-            if [ "${{ github.repository_owner }}" = "${{ github.event.pull_request.user.login }}" ] && \
-               printf '%s' "$PR_BODY" | grep -Fqx "$GOV_OWNER_APPROVAL_MARKER"; then
-              OWNER_EXPLICIT_APPROVED=true
-            fi
+              --json reviewDecision,reviews -q '[.reviews[] | select(.state=="APPROVED" and ((.author.typename // .author.__typename // "") != "Bot")) | .author.login] | unique | length' 2>/dev/null || echo 0)
             echo "PR approved count: $APPROVED"
-            echo "Owner explicit approval marker: $OWNER_EXPLICIT_APPROVED"
           fi
-          # F-2(P0-E): review-token 不作为 CI 审批凭证；仅在单人模式下允许仓库所有者
-          # 通过正文指纹完成显式授权，避免 GitHub 禁止作者自审造成的治理死锁。
-          if [ "$OWNER_EXPLICIT_APPROVED" = true ]; then
-            APPROVED=$((APPROVED > 1 ? APPROVED : 1))
-          fi
-          if [ "$APPROVED" -ge "$GOV_MIN_APPROVALS" ]; then
-            echo "✅ L2: PR approve 符合单人项目授权（$APPROVED≥$GOV_MIN_APPROVALS）"
+          # F-2(P0-E): 已删除 review-token 短路——本地 token 只作本地放行凭证,
+          # CI 一律以 PR approved-reviews-count>=2 为准, 防单人持钥绕过双人评审。
+          if [ "$APPROVED" -ge 2 ]; then
+            echo "✅ L2: PR 双人 approve ($APPROVED≥2)"
             exit 0
           fi
-          echo "🛑 L2 高风险代码: 需 PR approved-reviews-count≥$GOV_MIN_APPROVALS"
+          echo "🛑 L2 高风险代码: 需 PR approved-reviews-count≥2"
           echo "   当前 approved=$APPROVED (本地签发的 AI_REVIEW_TOKEN 不被 CI 认可)"
           exit 1
