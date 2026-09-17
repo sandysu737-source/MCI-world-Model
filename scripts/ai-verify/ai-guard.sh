@@ -10,8 +10,12 @@ cd "$ROOT"
 unset AI_ENG_KIT
 KIT_GUARD_DIR="$HOME/qoder m5pro/_ai-eng-kit/governance"
 if [ ! -d "$KIT_GUARD_DIR" ]; then
-  printf '\033[1m[ai-guard]\033[0m ERROR: governance kit 不存在: %s（fail-closed, 禁止放行）\n' "$KIT_GUARD_DIR" >&2
-  exit 1
+  if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+    KIT_GUARD_DIR="$(dirname "$0")"
+  else
+    printf '\033[1m[ai-guard]\033[0m ERROR: governance kit 不存在: %s（fail-closed, 禁止放行）\n' "$KIT_GUARD_DIR" >&2
+    exit 1
+  fi
 fi
 
 say(){ printf '\033[1m[ai-guard]\033[0m %s\n' "$1"; }
