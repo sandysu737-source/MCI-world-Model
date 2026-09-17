@@ -69,7 +69,11 @@ verify_tool_bin(){
     bin="$resolved"
   fi
   if [ ! -x "$bin" ]; then fail "$name 不存在或不可执行: $bin"; return; fi
-  local v; v="$("$bin" --version 2>/dev/null | head -1)"
+  local probe_dir v
+  probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/tool-probe.XXXXXX")"
+  v="$(cd "$probe_dir" && "$bin" --version 2>/dev/null)"
+  rm -rf "$probe_dir"
+  v="${v%%$'\n'*}"
   [ -z "$v" ] && fail "$name 无法输出 --version, 疑似伪造二进制: $bin"
 }
 verify_tool_bin RADON_BIN
