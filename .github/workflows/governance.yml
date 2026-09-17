@@ -45,7 +45,7 @@ jobs:
           else
             git diff --name-only --diff-filter=ACMR HEAD~1 HEAD > "$FILES_FILE" 2>/dev/null || : > "$FILES_FILE"
           fi
-          printf 'files=%s\n' "$(cat "$FILES_FILE")" >> "$GITHUB_OUTPUT"
+          printf 'files=%s\n' "$(tr '\n' ' ' < "$FILES_FILE")" >> "$GITHUB_OUTPUT"
           if [ -s "$FILES_FILE" ]; then
             mapfile -t FILES < "$FILES_FILE"
             bash scripts/ai-verify/risk-classify.sh "${FILES[@]}" > classify.txt 2>&1 || true
