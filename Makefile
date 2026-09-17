@@ -37,6 +37,9 @@ bench-sota: ## Run SOTA comparison
 bench-perf: ## Run performance benchmark
 	$(PYTEST) benchmarks/test_performance_bench.py -v --tb=short
 
+bench-compare: ## Compare benchmarks with 50% regression gate
+	$(PYTEST) benchmarks/ -m benchmark --benchmark-compare --benchmark-compare-fail=min:50%
+
 bench-tuebingen: ## Run Tübingen direction benchmark
 	$(PYTEST) benchmarks/real_world/tuebingen_pairs.py -v --tb=short
 
