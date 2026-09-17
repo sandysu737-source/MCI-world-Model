@@ -191,10 +191,9 @@ timer = "perf_counter"
 # 回归门禁: CI 中自动对比 baseline 并报告 >50% 劣化
 # 保存: pytest benchmarks/ -m benchmark --benchmark-save=baseline
 # 对比: pytest benchmarks/ -m benchmark --benchmark-compare
-# 失败: pytest benchmarks/ -m benchmark --benchmark-compare --benchmark-compare-fail=min:50%
+# 失败: make bench-compare（阈值在 Makefile 命令行传入）
 # 跳过: BENCHMARK_SKIP=true pytest benchmarks/ -m benchmark
 compare = ["baseline"]
-compare_fail = ["min:50%"]
 
 [tool.coverage.run]
 source = ["mci_world_model"]
