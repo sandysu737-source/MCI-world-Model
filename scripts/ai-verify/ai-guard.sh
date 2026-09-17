@@ -8,20 +8,25 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
 # F-1(P0-A): 固化 kit 路径, 忽略 AI_ENG_KIT 环境变量, 防伪造 kit 劫持门禁（fail-closed）
 unset AI_ENG_KIT
-KIT_GUARD_DIR="$HOME/qoder m5pro/_ai-eng-kit/governance"
+say(){ printf '\033[1m[ai-guard]\033[0m %s\n' "$1"; }
+
+STAGED="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
+[ -z "$STAGED" ] && { say "无暂存改动，跳过"; exit 0; }
+
+if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+  KIT_GUARD_DIR="$ROOT/scripts/ai-verify"
+else
+  KIT_GUARD_DIR="$HOME/qoder m5pro/_ai-eng-kit/governance"
+fi
 if [ ! -d "$KIT_GUARD_DIR" ]; then
   printf '\033[1m[ai-guard]\033[0m ERROR: governance kit 不存在: %s（fail-closed, 禁止放行）\n' "$KIT_GUARD_DIR" >&2
   exit 1
 fi
 
-say(){ printf '\033[1m[ai-guard]\033[0m %s\n' "$1"; }
 REPORT_DIR=".ai-governance/reports"
 mkdir -p "$REPORT_DIR"
 TS="$(date +%Y%m%d-%H%M%S)"
 SUMMARY="$REPORT_DIR/$TS-guard.md"
-
-STAGED="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
-[ -z "$STAGED" ] && { say "无暂存改动，跳过"; exit 0; }
 
 # 暂存文件转数组（macOS bash 3.2 兼容，不用 mapfile），显式传给定级/门禁，
 # 避免无参调用时 risk-classify 把工作区未暂存改动也纳入定级（pre-commit 只审本次提交内容）
