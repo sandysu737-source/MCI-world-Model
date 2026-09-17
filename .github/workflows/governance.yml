@@ -30,30 +30,6 @@ jobs:
           python-version: '3.11'
       - name: 安装工具链
         run: pip install radon bandit ruff pytest pytest-cov
-      - name: RADON runner diagnostic
-        continue-on-error: true
-        run: |
-          set +e
-          echo "PATH=$PATH"
-          command -v radon || true
-          RADON_PATH="$(command -v radon 2>/dev/null || true)"
-          if [ -n "$RADON_PATH" ]; then
-            ls -l "$RADON_PATH"
-            file "$RADON_PATH"
-            head -1 "$RADON_PATH"
-          fi
-          radon --version >/tmp/radon-direct.out 2>/tmp/radon-direct.err; echo "direct_rc=$?"
-          echo "--- direct stdout ---"; cat /tmp/radon-direct.out
-          echo "--- direct stderr ---"; cat /tmp/radon-direct.err
-          python -m radon --version >/tmp/radon-module.out 2>/tmp/radon-module.err; echo "module_rc=$?"
-          echo "--- module stdout ---"; cat /tmp/radon-module.out
-          echo "--- module stderr ---"; cat /tmp/radon-module.err
-          python - <<'PY'
-          import sys, radon, importlib.metadata
-          print("python", sys.version)
-          print("radon_module", radon.__file__)
-          print("radon_version", importlib.metadata.version("radon"))
-          PY
       - name: governance 对抗回归（F-1/F-3/F-10/F-14）
         run: bash scripts/ai-verify/tests/test-anti-evasion.sh
       - name: 跑 risk-classify（风险定级）
