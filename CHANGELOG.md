@@ -11,6 +11,7 @@
 
 ### Changed
 
+- `memory` 可选依赖锁定为 `su-memory>=4.4.1,<4.5`，与上游 V4.4.1 兼容证据口径一致。
 - `DoCalculus` 引入 `ObservationDataset` 数据契约，区分 `observed`、`simulated` 和 `no_data`；无数据不再用因果图静默模拟。
 - 干预结果新增 `do_x`、`estimator`、`mode`、`dataset_hash`、`seed` 和 `is_conclusive` 证据字段。
 - 世界模型单变量干预统一校验 `do_x`；多变量干预在闭式实现前返回 `unsupported/422`。

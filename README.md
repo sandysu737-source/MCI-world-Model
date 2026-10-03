@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org)
 [![Version](https://img.shields.io/badge/version-4.6.0-brightgreen)](https://github.com/sandysu737-source/mci-world-model/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Memor-Engine](https://img.shields.io/badge/su--memory--sdk-%3E%3D3.5.1-blue)](https://github.com/sandysu737-source/su-memory-sdk)
+[![Memor-Engine](https://img.shields.io/badge/su--memory--sdk-%3E%3D4.4.1%2C%3C4.5-blue)](https://github.com/sandysu737-source/su-memory-sdk)
 
 > **因果世界模型引擎** — Pearl 三层 + JEPA 世界建模 + 能量中心
 
@@ -20,11 +20,11 @@ MCI World Model 是一款**独立运行的因果世界模型引擎**，定位为
 - ✅ **能量中心** — 三才合一（天 / 地 / 人）统一信息建模
 - ✅ **JEPA 世界建模** — 纯 NumPy / PyTorch 可微世界预测器
 
-**与记忆引擎（su-memory-sdk V3.5.1）的关系**：
+**与记忆引擎（su-memory-sdk V4.4.1）的关系**：
 
 | 项目 | 角色 | 版本 |
 |------|------|------|
-| **su-memory-sdk** | 记忆引擎（短期 / 长期 / 检索） | V3.5.1 |
+| **su-memory-sdk** | 记忆引擎（短期 / 长期 / 检索） | V4.4.1 |
 | **MCI World Model** | 世界模型（因果推理 / 干预 / 反事实） | v4.6.0 |
 
 > 📌 本项目从 **su-memory-sdk** 分离为独立仓库，当前版本 **v4.6.0**
@@ -276,7 +276,7 @@ MIT License — 详见 [LICENSE](LICENSE) 文件
 
 ## 🙏 致谢
 
-- 世界模型能力来自 [su-memory-sdk](https://github.com/sandysu737-source/su-memory-sdk) 项目（V3.6.0+ 分离）
+- 世界模型能力来自 [su-memory-sdk](https://github.com/sandysu737-source/su-memory-sdk) 项目（当前兼容 V4.4.1）
 - 底层依赖：[NumPy](https://numpy.org/) + [SciPy](https://scipy.org/)（核心 CPU）
 - 可选依赖：[PyTorch](https://pytorch.org/) + [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/)（JEPA GNN 加速）
 

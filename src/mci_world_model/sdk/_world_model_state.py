@@ -14,6 +14,13 @@ __all__ = ["CausalWorldModelState", "TrajectoryStep", "WorkingMemory"]
 logger = logging.getLogger(__name__)
 
 
+def _monthly_cycle_index(year: int, month: int) -> int:
+    """把年月映射到可验证的 60 月周期索引。"""
+    if not 1 <= month <= 12:
+        raise ValueError(f"month 必须在 1-12，当前为 {month}")
+    return (year * 12 + month - 1) % 60
+
+
 # =============================================================================
 # CausalWorldModelState
 # =============================================================================
@@ -425,9 +432,11 @@ class WorkingMemory:
 
         if step.stem_branch_code is None and self._temporal_core is not None:
             now = datetime.now()
+            # 六十月周期：同一 cycle_index 取干支余数，天然满足同奇偶约束。
+            cycle_index = _monthly_cycle_index(now.year, now.month)
             step.stem_branch_code = self._temporal_core.create_code(  # type: ignore[attr-defined]
-                stem_idx=now.year % 10,
-                branch_idx=now.month - 1,
+                stem_idx=cycle_index % 10,
+                branch_idx=cycle_index % 12,
             )
 
         if step.energy_state is None and self._energy_core is not None:
