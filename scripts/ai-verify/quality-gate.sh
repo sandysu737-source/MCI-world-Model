@@ -442,8 +442,14 @@ PYCOV
       fi
     fi
   else
-    # 测试失败：硬阻断（测试不过绝不能放行）
-    warn "pytest 失败（见 /tmp/qgate_pytest.log, scope=$scope；pre-commit stash 可能导致假阳性, CI 做最终验证）"
+    # F-21(P0-G): 测试失败必须与覆盖率阈值同口径——hard=1（CI 与本地默认）硬阻断，
+    # 仅显式 COVERAGE_HARD_GATE=0 时降级为警告（用于 pre-commit stash 造成的假阳性诊断）。
+    # 背景：PR #14 将此处由 fail 降为 warn，导致 CI 门禁可放行失败测试；注释仍写"硬阻断"。
+    if [ "$hard" = "1" ]; then
+      fail "pytest 失败（见 /tmp/qgate_pytest.log, scope=$scope；测试不过不得放行）"
+    else
+      warn "pytest 失败（见 /tmp/qgate_pytest.log, scope=$scope；COVERAGE_HARD_GATE=0 降级为警告，CI 做最终验证）"
+    fi
   fi
 }
 run_coverage
