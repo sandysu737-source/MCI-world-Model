@@ -22,7 +22,7 @@ jobs:
       # 单人项目显式授权模式；多人协作时必须上调为 2。
       GOV_MIN_APPROVALS: '1'
       # 单人模式审计指纹：只有仓库所有者本人可在 PR 正文确认，且须与当前 PR/日期绑定。
-      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-10-03:PR19'
+      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-10-03:PR21'
     permissions:
       contents: read
       pull-requests: read
