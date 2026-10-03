@@ -43,7 +43,7 @@ jepa = [
 # su-memory 能量核心 (EnergyCore/TemporalCore/EnergyBus)
 # 通过 PYTHONPATH 引用同仓库源码: export PYTHONPATH="../su-memory-sdk/src:$PYTHONPATH"
 memory = [
-    "su-memory>=3.5.0",
+    "su-memory>=4.4.1,<4.5",
 ]
 # 向量嵌入存储 (Zvec, 阿里开源)
 zvec = [

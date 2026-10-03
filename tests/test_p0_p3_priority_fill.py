@@ -1858,6 +1858,7 @@ class TestWorkingMemoryWithRealCores:
         wm.push(step)
         assert step.stem_branch_code is not None
         assert hasattr(step.stem_branch_code, "cycle_index")
+        assert step.stem_branch_code.stem.value % 2 == step.stem_branch_code.branch.value % 2
 
     def test_push_with_energy_core_injection(self):
         """注入真实 EnergyCore 后 push 自动生成 energy_state"""
@@ -1900,7 +1901,7 @@ class TestWorkingMemoryWithRealCores:
         tc = wm._temporal_core
         state = CausalWorldModelState()
         for i in range(4):
-            code = tc.create_code((i + 1) % 10, (i + 2) % 12)
+            code = tc.create_code(i % 10, i % 12)
             step = TrajectoryStep(state=state, step_index=i, stem_branch_code=code, temporal_weight=float(i + 1))
             wm.push(step)
         result = wm.get_recent_weighted(2)
