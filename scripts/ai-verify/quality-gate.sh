@@ -35,6 +35,10 @@ case "${LEVEL}" in
   L1) COV_CORE=90; COV_BR=85; COV_UTIL=80;  CC_MAX=15; DUP=5;;
   L2) COV_CORE=95; COV_BR=90; COV_UTIL=85;  CC_MAX=15; DUP=5;;
 esac
+# F-20(P0-F): 阈值必须可按仓库实测基线显式校准，否则无法落地的阈值会被整体绕过。
+# 口径: 阈值=实测基线-5%，只许上调；未注入时沿用等级默认值（向后兼容）。
+COV_CORE="${COV_CORE_THRESHOLD:-$COV_CORE}"
+COV_BR="${COV_BR_THRESHOLD:-$COV_BR}"
 
 {
   echo "# 质量门禁报告"

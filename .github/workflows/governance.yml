@@ -22,7 +22,7 @@ jobs:
       # 单人项目显式授权模式；多人协作时必须上调为 2。
       GOV_MIN_APPROVALS: '1'
       # 单人模式审计指纹：只有仓库所有者本人可在 PR 正文确认，且须与当前 PR/日期绑定。
-      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-09-17:PR14'
+      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-10-03:PR19'
     permissions:
       contents: read
       pull-requests: read
@@ -34,7 +34,8 @@ jobs:
         with:
           python-version: '3.11'
       - name: 安装工具链
-        run: pip install radon bandit ruff pytest pytest-cov
+        # F-20(P0-F): 覆盖率门禁需要可运行测试环境，仅装工具会导致 pytest 无法收集（缺 numpy 等运行时依赖）
+        run: pip install -e ".[full,dev]" radon bandit
       - name: governance 对抗回归（F-1/F-3/F-10/F-14）
         run: bash scripts/ai-verify/tests/test-anti-evasion.sh
       - name: 跑 risk-classify（风险定级）
@@ -76,6 +77,9 @@ jobs:
           PYTEST_BIN: pytest
           PYTEST_SCOPE: ${{ steps.quality_scope.outputs.scope }}
           COVERAGE_HARD_GATE: ${{ steps.quality_scope.outputs.hard }}
+          # F-20(P0-F): 由仓库实测基线校准（pyproject fail_under=77；行78%/分支66.3% 实测于 2026-10-03）
+          COV_CORE_THRESHOLD: "77"
+          COV_BR_THRESHOLD: "61"
         run: |
           if [ -s changed-files.txt ]; then
             mapfile -t FILES < changed-files.txt
