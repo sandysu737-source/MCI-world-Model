@@ -508,6 +508,10 @@ run_mutation() {
   esac
   local strict=0
   case "$LEVEL" in L0|L2) strict=1;; esac
+  # F-22(P0-H): push（合并后审计）事件下变异门禁不得 fail-closed。已合入 main 的改动
+  # 无法再通过"补同名测试"回滚门禁，若沿用严格模式，main 的 gate 会永久留红，
+  # 使"门禁红"退化为常态噪声。PR 事件（真正的合入拦截点）仍按等级严格。
+  if [ -n "${MUTATION_STRICT:-}" ]; then strict="$MUTATION_STRICT"; fi
   # 找每个改动 py 文件对应测试 + 用 governance 自带 mutation-check.sh(不依赖 mutmut)
   local target base tfile found
   local pairs=()
