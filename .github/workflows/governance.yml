@@ -22,7 +22,7 @@ jobs:
       # 单人项目显式授权模式；多人协作时必须上调为 2。
       GOV_MIN_APPROVALS: '1'
       # 单人模式审计指纹：只有仓库所有者本人可在 PR 正文确认，且须与当前 PR/日期绑定。
-      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-10-03:PR21'
+      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-10-04:PR22'
     permissions:
       contents: read
       pull-requests: read
@@ -69,6 +69,13 @@ jobs:
             echo "scope=changed" >> "$GITHUB_OUTPUT"
             echo "hard=0" >> "$GITHUB_OUTPUT"
           fi
+          # F-22(P0-H): push 为合并后审计（无 PR 可审批、已合入改动无法回滚门禁），
+          # 变异门禁降级为警告；PR 事件仍是严格的合入拦截点。
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "mutation_strict=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "mutation_strict=1" >> "$GITHUB_OUTPUT"
+          fi
       - name: 跑 quality-gate（按变更面执行）
         env:
           RADON_BIN: radon
@@ -80,6 +87,7 @@ jobs:
           # F-20(P0-F): 由仓库实测基线校准（pyproject fail_under=77；行78%/分支66.3% 实测于 2026-10-03）
           COV_CORE_THRESHOLD: "77"
           COV_BR_THRESHOLD: "61"
+          MUTATION_STRICT: ${{ steps.quality_scope.outputs.mutation_strict }}
         run: |
           if [ -s changed-files.txt ]; then
             mapfile -t FILES < changed-files.txt
@@ -100,7 +108,9 @@ jobs:
             .ai-governance/reports/
           if-no-files-found: warn
       - name: L2 双人 approve 校验
-        if: steps.classify.outputs.max_level == 'L2'
+        # F-22(P0-H): push 事件没有 PR 可读 approved-reviews-count，必然 approved=0；
+        # 审批是"合入前"的拦截点，只在 PR 事件执行，push 作为合并后审计留痕。
+        if: steps.classify.outputs.max_level == 'L2' && github.event_name == 'pull_request'
         env:
           GOV_REVIEW_SECRET: ${{ secrets.GOV_REVIEW_SECRET }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
