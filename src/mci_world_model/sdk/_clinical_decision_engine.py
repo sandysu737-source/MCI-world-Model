@@ -157,7 +157,7 @@ class ClinicalDecisionEngine:
 
     与 su-memory-sdk 的边界：
         本引擎是无状态编排层，不持久化决策结果。
-        如需跨调用记忆（经验复用/案例库），通过 adapters/su_memory_bridge.py 对接。
+        如需跨调用记忆（经验复用/案例库），走 mci_sdk.su_memory_compat.create_full_client。
     """
 
     def __init__(
