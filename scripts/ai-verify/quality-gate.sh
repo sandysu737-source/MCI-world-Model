@@ -513,10 +513,18 @@ run_mutation() {
   # 使"门禁红"退化为常态噪声。PR 事件（真正的合入拦截点）仍按等级严格。
   if [ -n "${MUTATION_STRICT:-}" ]; then strict="$MUTATION_STRICT"; fi
   # 找每个改动 py 文件对应测试 + 用 governance 自带 mutation-check.sh(不依赖 mutmut)
-  local target base tfile found
+  local target base tfile found eligible=0
   local pairs=()
   for target in "${py_files[@]}"; do
     base="${target##*/}"; base="${base%.py}"
+    # F-23b(P0-J): 测试文件自身不需要"同名测试"——它本身就是测试，执行即验证。
+    # 旧口径把 tests/test_x.py 当成"无对应测试的 py 文件"，在 PR（MUTATION_STRICT=1，
+    # 即真正的合入拦截点）下 fail-closed，使"只改测试"这一最常见的合法改动必然红灯
+    # （误报型红灯，与 F-23 同源：CI run 37449296630 / PR #27 governance=failure）。
+    case "$base" in
+      test_*|*_test) continue;;
+    esac
+    eligible=$((eligible+1))
     tfile=""
     for cand in "backend" "." "./backend"; do
       found="$(find "$cand" -path '*/tests/*' -name "test_${base}.py" 2>/dev/null | head -1)"
@@ -533,8 +541,11 @@ run_mutation() {
     pairs+=("$target|$tfile")
   done
   if [ "${#pairs[@]}" -eq 0 ]; then
-    if [ "$strict" = "1" ] && [ "${#py_files[@]}" -gt 0 ]; then
+    if [ "$strict" = "1" ] && [ "$eligible" -gt 0 ]; then
       fail "所有改动 py 文件均无对应测试,变异门禁无法验证(L0/L2 fail-closed)"
+    fi
+    if [ "$eligible" -eq 0 ] && [ "${#py_files[@]}" -gt 0 ]; then
+      say "改动的 py 文件均为测试文件,变异门禁无适用对象(测试文件不需要同名测试)"
     fi
     return
   fi

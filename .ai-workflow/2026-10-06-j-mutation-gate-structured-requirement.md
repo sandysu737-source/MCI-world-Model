@@ -36,6 +36,17 @@
 2. Python ≥3.12 把 f-string 拆成 `FSTRING_START/MIDDLE/END`，仅匹配 `STRING` 会漏排除 f-string 字面量。
 3. `->` 被 `>` 规则命中后变成 `-<`，语法不成立却被计为"杀死"，虚高分数。
 
+## 4b. F-23b：测试文件不参与"同名测试"配对（同一环内一并修复）
+
+- 现象（实测）：PR #27 的 `governance` run `37449296630` = failure，日志为
+  `❌ 改动文件 test_p03_metrics 无对应测试,变异门禁无法验证(L0/L2 fail-closed)`。
+- 根因：`quality-gate.sh` 把 `tests/test_*.py` 也当作"需要同名测试的 py 文件"，
+  而它们的同名测试永远是 `tests/test_test_*.py`（不存在）→ 在 PR 事件（`MUTATION_STRICT=1`，
+  即真正的合入拦截点）必然 fail-closed → "只改测试"这一最常见合法改动必然红灯。
+- 修复：`test_*`/`*_test` 基名不参与配对，且 fail-closed 只在**存在非测试 py 文件**时触发；
+  改动的 py 全是测试文件时打印说明后跳过变异门禁（不空转、不误报）。
+- 反削弱控制：源码文件缺同名测试仍然 fail-closed（对抗套件用例7 双向断言，PASS=7）。
+
 ## 5. 边界条件
 
 - 源文件不在 git 仓库内 / 无改动行 → 回退全文件（不得空转成 `N/A`）。
@@ -63,6 +74,7 @@
 | `a << 2` 样本（`<` 变异破坏语法） | 有效变异 = 1 且 语法破坏跳过 = 1 |
 | `p03_metrics.py` + `tests/test_p03_metrics.py` | ≥80%（本环补 4 条边界/契约测试后实测 100%） |
 | 3.11 / 3.13 变异器 | 同一文件同分数（本环实测一致） |
+| 只改 `tests/test_*.py`（MUTATION_STRICT=1） | 不再 fail-closed；源码文件缺同名测试仍 fail-closed（对抗套件用例7） |
 
 ## 9. 验证命令
 
