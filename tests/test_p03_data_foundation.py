@@ -113,6 +113,13 @@ def test_load_windows_creates_patient_level_split(tmp_path: Path) -> None:
     assert split.stats.out_of_order_count == 1
     assert np.isfinite(split.train_inputs).all()
     assert np.isfinite(split.test_targets).all()
+    # P0-A: window→patient 映射必须与窗口数一致，且落到声明的患者集合内
+    assert len(split.train_window_subjects) == split.train_inputs.shape[0]
+    assert len(split.test_window_subjects) == split.test_inputs.shape[0]
+    assert set(split.train_window_subjects) <= set(split.train_subject_ids)
+    assert set(split.test_window_subjects) <= set(split.test_subject_ids)
+    assert set(split.test_window_subjects) == set(split.test_subject_ids)
+    assert len(set(split.test_window_subjects)) == split.stats.n_test_subjects
 
 
 def test_load_windows_is_reproducible(tmp_path: Path) -> None:
