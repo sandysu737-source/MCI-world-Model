@@ -2,7 +2,8 @@
 # 触发: PR 到 main/master + push 到 main/master
 # 职责:
 #   1. 跑 governance 全量门禁（risk-classify + quality-gate）
-#   2. L2 代码: 校验 PR approved-reviews-count；单人模式可用所有者显式批准指纹
+#   2. L2 代码: 校验 PR approved-reviews-count；单人模式用所有者当日显式批准指纹
+#      （OWNER-APPROVED:PR<PR号>:<Asia/Shanghai YYYY-MM-DD>，绑定当前 PR 与当日，不可跨 PR/跨日重放）
 #   3. 失败则阻断合并（配合分支保护规则 status check 必过）
 #
 # 启用: 复制本文件到 .github/workflows/governance.yml
@@ -21,8 +22,9 @@ jobs:
     env:
       # 单人项目显式授权模式；多人协作时必须上调为 2。
       GOV_MIN_APPROVALS: '1'
-      # 单人模式审计指纹：只有仓库所有者本人可在 PR 正文确认，且须与当前 PR/日期绑定。
-      GOV_OWNER_APPROVAL_MARKER: 'OWNER-APPROVED:2026-10-04:PR22'
+      # F-24(治理 K): 单人模式审计指纹前缀；期望值 = 前缀 + ':PR<PR号>:<北京时间当日日期>'，
+      # 由 owner-approval-marker.sh 运行时拼接。禁止在仓库中固化字面量（固化即可跨 PR/跨日重放）。
+      GOV_OWNER_APPROVAL_PREFIX: 'OWNER-APPROVED'
     permissions:
       contents: read
       pull-requests: read
@@ -40,6 +42,7 @@ jobs:
         run: |
           bash scripts/ai-verify/tests/test-anti-evasion.sh
           bash scripts/ai-verify/tests/test-mutation-skip.sh
+          bash scripts/ai-verify/tests/test-owner-approval-marker.sh
       - name: 跑 risk-classify（风险定级）
         id: classify
         run: |
@@ -63,7 +66,9 @@ jobs:
       - name: 跑 quality-gate（全量门禁）
         id: quality_scope
         run: |
-          if grep -qE '^(src|adapters)/.*\.py$' changed-files.txt; then
+          # F-24(治理 H): benchmarks/** 属生产性研究代码（P0-3b 结论由其实测产出），
+          # 不得落入"仅警告"通道；与 src/adapters 同口径跑全量覆盖率硬门禁。
+          if grep -qE '^(src|adapters|benchmarks)/.*\.py$' changed-files.txt; then
             echo "scope=full" >> "$GITHUB_OUTPUT"
             echo "hard=1" >> "$GITHUB_OUTPUT"
           else
@@ -125,8 +130,13 @@ jobs:
             APPROVED=$(gh pr view ${{ github.event.pull_request.number }} \
               --json reviewDecision,reviews,body -q '[.reviews[] | select(.state=="APPROVED" and ((.author.typename // .author.__typename // "") != "Bot")) | .author.login] | unique | length' 2>/dev/null || echo 0)
             PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body 2>/dev/null || printf '')
+            # F-24(治理 K): 期望指纹绑定"当前 PR 号 + 北京时间当日"，消除跨 PR/跨日重放；
+            # 生成逻辑与回归测试同源（scripts/ai-verify/owner-approval-marker.sh）。
+            # 注意：此处只做比较，绝不打印期望值本体（防日志泄漏导致自满足）。
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            EXPECTED_MARKER="$(bash scripts/ai-verify/owner-approval-marker.sh "$PR_NUMBER")"
             if [ "${{ github.repository_owner }}" = "${{ github.event.pull_request.user.login }}" ] && \
-               printf '%s' "$PR_BODY" | grep -Fqx "$GOV_OWNER_APPROVAL_MARKER"; then
+               printf '%s' "$PR_BODY" | grep -Fqx "$EXPECTED_MARKER"; then
               OWNER_EXPLICIT_APPROVED=true
             fi
             echo "PR approved count: $APPROVED"
@@ -143,4 +153,6 @@ jobs:
           fi
           echo "🛑 L2 高风险代码: 需 PR approved-reviews-count≥$GOV_MIN_APPROVALS"
           echo "   当前 approved=$APPROVED (本地签发的 AI_REVIEW_TOKEN 不被 CI 认可)"
+          echo "   单人模式: 请由仓库所有者本人在 PR 正文单独一行填写当日指纹"
+          echo "   格式: ${GOV_OWNER_APPROVAL_PREFIX}:PR${PR_NUMBER:-<PR号>}:<YYYY-MM-DD>（北京时间，可用 TZ=Asia/Shanghai date +%F 生成）"
           exit 1
