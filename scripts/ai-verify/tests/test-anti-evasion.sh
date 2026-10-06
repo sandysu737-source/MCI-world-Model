@@ -149,6 +149,32 @@ git -C "$r6" add security_scan.py
 ( cd "$r6" && bash "$QG" L2 security_scan.py >/dev/null 2>&1 )
 expect_block "裸 nosec" $? "（修复F-14: 必须 TICKET+登记）"
 
+say "用例7: 测试文件不触发\"无同名测试\"fail-closed，源码文件仍然 fail-closed（F-23b/P0-J）"
+r7="$(new_repo)"
+mkdir -p "$r7/tests"
+cat > "$r7/tests/test_only.py" <<'EOF'
+def test_ok() -> None:
+    assert True
+EOF
+cat > "$r7/app_logic.py" <<'EOF'
+def add(a, b):
+    return a + b
+EOF
+git -C "$r7" add tests/test_only.py app_logic.py
+# a) 只改测试文件：不得再出现"改动文件 test_only 无对应测试"的 fail-closed
+out7a="$( cd "$r7" && MUTATION_STRICT=1 bash "$QG" L2 tests/test_only.py 2>&1 )"
+# b) 对照：改源码且无同名测试仍必须 fail-closed（规则未被削弱）
+out7b="$( cd "$r7" && MUTATION_STRICT=1 bash "$QG" L2 app_logic.py 2>&1 )"
+if printf '%s' "$out7a" | grep -q '无对应测试'; then
+  say "❌ FAIL  测试文件仍被当作\"无对应测试的 py 文件\" fail-closed"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out7a" | tail -8
+elif ! printf '%s' "$out7b" | grep -q '无对应测试'; then
+  say "❌ FAIL  源码文件缺失同名测试时未 fail-closed（规则被削弱）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out7b" | tail -8
+else
+  say "✅ PASS  测试文件放行、源码文件仍 fail-closed"; PASS=$((PASS+1))
+fi
+
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
 say "汇总: PASS=$PASS FAIL=$FAIL SKIP=$SKIP"
