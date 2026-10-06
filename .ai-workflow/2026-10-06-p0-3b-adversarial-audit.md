@@ -188,3 +188,31 @@ gh run view 37408628879 --log | grep -E "\[gate\]|MAX_LEVEL"
 ```
 
 > 探针以 `.ai-workflow/` 入库（该目录受全局 gitignore 保护，需 `git add -f`），使审计与后续修复环可复跑同一口径。
+
+## 8. 整改落地结果（2026-10-06 P0-3b-fix 环回写）
+
+> 本节是整改后的回写：**§5 的状态列以本节为准**。口径定义与契约变更见
+> `.ai-workflow/2026-10-06-p0-3b-fix-structured-requirement.md`；J1/J2 见 PR #27。
+> §5 文末"当前 main 状态：`e0d942e` push governance = failure"已由 J2 + F-22 修复（PR #27）取代。
+
+| 编号 | 状态 | 实测证据（可复跑） |
+|---|---|---|
+| P0-A | 已闭环 | 患者级 block bootstrap；`2026-10-06-p0-3b-fix-p0a-verify.py`：H0 误报 8.00%、覆盖 92.00%（窗口级对照 36.50% / 63.50%）；缺映射/长度不一致 fail-closed 测试 |
+| P0-B | 已闭环 | `dataset_manifest` 绑定（version/sha256/authorization/n_subjects/source）；缺绑定或任一字段不合法 → `not_run`，`passed` 不可达；探针 a 探针4 实测 `source='mimic'` → `not_run` |
+| P1-C | 已闭环 | 主判据改尺度归一化 MAE + 多数体征守卫（>=4/7）；5/7 劣化反例 → `not_run`；探针 a 探针3 旧口径 `passed` → 现 `failed` |
+| P2-D | 已闭环 | 分块按 gather 元素量；`2026-10-06-p0-3b-fix-p2d-verify.py`：N=100k/2000 次 → **0.69s / 100.1MB**（旧 8.2–8.9s / 360MB） |
+| P2-E | 已闭环 | `passed` 门槛 ≥20 窗口且 ≥5 患者；低门槛反例 `not_run`；探针 b 探针7：N=5 误报 19.33% |
+| P2-F | 已闭环 | 相对 MAE 分母下限 = 体征可行范围跨度 × 1%；目标量级 1e-8 → `null` |
+| P3-G | 已闭环 | `n_resamples` 接受 `numbers.Integral`（`np.int64` 与 `int` 等价），bool 仍非法 |
+| J1 | 已闭环（PR #27） | 4 条边界测试补齐；仓库副本 `p03_metrics.py` 变异 10/10 = 100% ≥ 80% |
+| J2 | 已闭环（PR #27） | `mutation-check.sh` 偏移量/注解/f-string/语法破坏型口径修正 + 回归测试；push 事件变异门禁降级为警告（F-22） |
+| J3 | 待开环 | 仓库副本已同步 = kit 2026-09-30 版 + 两项修复；kit 副本同步需负责人授权（共享套件跨项目） |
+| H | 待开环 | `benchmarks/**` 仍走 warn 通道 |
+| I | 待开环 | 本地钩子覆盖率阈值注入（kit F-20） |
+| K | 待开环 | L2 审批指纹未与当前 PR/日期绑定（可重放）；建议按 PR 号 + 日期动态生成 |
+
+### 8.1 探针适配说明
+
+审计探针 a/b 原本构造"窗口级"split；P0-A 之后缺 window→patient 映射会 fail-closed，
+故两探针的 `mk_split` 已补齐映射（默认 `per_patient=1` 保持原"窗口独立"口径，探针8/b 用 `per_patient=4`）。
+这意味着两探针**现在测的是修复后口径**，修复前数字以本报告 §3 的历史记录为准。

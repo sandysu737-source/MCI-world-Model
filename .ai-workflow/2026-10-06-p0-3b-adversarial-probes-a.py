@@ -1,6 +1,9 @@
 """P0-3b 评估器对抗性探针：试图证伪指标口径、统计口径与防伪声明。
 
 只读脚本，不修改仓库；所有结论以本文件输出为准。
+
+> 2026-10-06 P0-3b-fix 环：P0-A 之后评估器强制要求 window→patient 映射（缺映射 fail-closed），
+> 本探针的 `mk_split` 已补齐映射（默认 per_patient=1，保持"窗口独立"的原始口径）。
 """
 
 from __future__ import annotations
@@ -22,12 +25,15 @@ BASE = np.array([80.0, 120.0, 80.0, 98.0, 16.0, 36.8, 15.0])
 H = 3
 
 
-def mk_split(n_windows: int, horizon: int = H, n_subjects: int = 4) -> P03WindowSplit:
+def mk_split(n_windows: int, horizon: int = H, per_patient: int = 1) -> P03WindowSplit:
+    """默认每窗口一个患者（per_patient=1）：患者级重采样与窗口级等价，保持原口径。"""
     inputs = np.tile(BASE, (n_windows, 4, 1))
     targets = np.tile(BASE, (n_windows, horizon, 1))
+    subjects = tuple(f"p{index // per_patient}" for index in range(n_windows))
+    n_patients = len(set(subjects))
     stats = P03PipelineStats(
         n_rows=10 * n_windows,
-        n_subjects=n_subjects,
+        n_subjects=n_patients,
         n_windows=n_windows,
         missing_ratio=0.0,
         imputed_ratio=0.0,
@@ -35,10 +41,10 @@ def mk_split(n_windows: int, horizon: int = H, n_subjects: int = 4) -> P03Window
         duplicate_count=0,
         out_of_order_count=0,
         dropped_short_subjects=0,
-        n_train_subjects=n_subjects // 2,
-        n_test_subjects=n_subjects - n_subjects // 2,
+        n_train_subjects=1,
+        n_test_subjects=n_patients,
     )
-    return P03WindowSplit(inputs, targets, inputs, targets, ("tr-a",), ("te-a",), stats)
+    return P03WindowSplit(inputs, targets, inputs, targets, ("tr-a",), ("te-a",), stats, subjects, subjects)
 
 
 class ErrPred:
@@ -67,7 +73,15 @@ def probe_h0_and_coverage(trials: int = 300, n_windows: int = 20, clustered: boo
                     diff[p * per_patient + w] = patient_effect + rng.normal(0.0, 0.2, (H, N_V))
             a = 1.0 + diff / 2.0
             b = 1.0 - diff / 2.0
-        report = compare_models(ErrPred(a), ErrPred(b), mk_split(n_windows), seed=7, n_resamples=600, source="mimic")
+        per_patient = n_windows // 10 if clustered else 1
+        report = compare_models(
+            ErrPred(a),
+            ErrPred(b),
+            mk_split(n_windows, per_patient=per_patient),
+            seed=7,
+            n_resamples=600,
+            source="mimic",
+        )
         test = report.statistical_test
         fpr += int(test.significant)
         cover += int(test.ci95_low <= 0.0 <= test.ci95_high)
@@ -78,7 +92,7 @@ print("== 探针1：H0 误报率与 95% CI 覆盖率（窗口独立，N=20，300
 fpr, cover = probe_h0_and_coverage()
 print(f"  significant 比例 = {fpr / 300:.3%}（期望≈5%）；CI 覆盖 0 的比例 = {cover / 300:.2%}（期望≈95%）")
 
-print("== 探针2：窗口按患者聚类（10 患者 × 4 窗口，患者级差异效应）==")
+print("== 探针2：窗口按患者聚类（10 患者 × 4 窗口 + 正确映射，患者级差异效应）==")
 fpr_c, cover_c = probe_h0_and_coverage(trials=200, n_windows=40, clustered=True)
 print(f"  significant 比例 = {fpr_c / 200:.3%}（期望≈5%）；CI 覆盖 0 的比例 = {cover_c / 200:.2%}（期望≈95%）")
 
@@ -147,7 +161,15 @@ ro_inputs = np.tile(BASE, (8, 4, 1))
 ro_inputs.flags.writeable = False
 sp = mk_split(8)
 sp_ro = P03WindowSplit(
-    ro_inputs, sp.train_targets, ro_inputs, sp.test_targets, sp.train_subject_ids, sp.test_subject_ids, sp.stats
+    ro_inputs,
+    sp.train_targets,
+    ro_inputs,
+    sp.test_targets,
+    sp.train_subject_ids,
+    sp.test_subject_ids,
+    sp.stats,
+    sp.train_window_subjects,
+    sp.test_window_subjects,
 )
 try:
     before = ro_inputs.copy()
@@ -175,6 +197,8 @@ tiny_split = P03WindowSplit(
     tiny.train_subject_ids,
     tiny.test_subject_ids,
     tiny.stats,
+    tiny.train_window_subjects,
+    tiny.test_window_subjects,
 )
 m = evaluate_model(ErrPred(np.ones((8, H, N_V))), tiny_split, name="tiny")
 edge.append(("目标量级 1e-8 的 relative_mae", f"hr={m.to_dict()['relative_mae']['hr']}"))
@@ -182,7 +206,8 @@ for name, result in edge:
     print(f"  {name}: {result}")
 
 print("== 探针6：大窗口量内存/耗时（N=100000, n_resamples=2000）==")
-big = mk_split(100_000)
+# 大窗口量探针：每患者 200 窗口（500 患者），避免 10 万"患者"把簇重采样变成压力测试
+big = mk_split(100_000, per_patient=200)
 errors = np.ones((100_000, H, N_V))
 tracemalloc.start()
 start = time.perf_counter()
