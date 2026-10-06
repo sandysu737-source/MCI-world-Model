@@ -526,10 +526,23 @@ run_mutation() {
     esac
     eligible=$((eligible+1))
     tfile=""
-    for cand in "backend" "." "./backend"; do
-      found="$(find "$cand" -path '*/tests/*' -name "test_${base}.py" 2>/dev/null | head -1)"
-      [ -n "$found" ] && { tfile="$found"; break; }
+    # F-25(治理 L): 解析顺序 = 覆盖率上下文映射（.ai-governance/test-map.tsv）→ 同名启发式。
+    # 解析器独立成脚本以便单测；解析器缺失时回退旧口径（不放松 fail-closed 语义）。
+    local resolver="" relt
+    for cand in "$(dirname "$0")/resolve-mutation-test.sh" "$PWD/scripts/ai-verify/resolve-mutation-test.sh"; do
+      [ -f "$cand" ] && { resolver="$cand"; break; }
     done
+    relt="${target#"$ROOT/"}"; relt="${relt#./}"
+    if [ -n "$resolver" ]; then
+      tfile="$(bash "$resolver" "$relt" 2>/tmp/qgate_mut_resolve.log || true)"
+      if [ -n "$tfile" ]; then say "测试解析: $relt -> $tfile"
+      elif [ -s /tmp/qgate_mut_resolve.log ]; then say "测试解析提示: $(tail -1 /tmp/qgate_mut_resolve.log)"; fi
+    else
+      for cand in "backend" "." "./backend"; do
+        found="$(find "$cand" -path '*/tests/*' -name "test_${base}.py" 2>/dev/null | head -1)"
+        [ -n "$found" ] && { tfile="$found"; break; }
+      done
+    fi
     if [ -z "$tfile" ]; then
       if [ "$strict" = "1" ]; then
         fail "改动文件 $base 无对应测试,变异门禁无法验证(L0/L2 fail-closed)"
