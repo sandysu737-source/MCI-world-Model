@@ -1,4 +1,8 @@
-"""P0-3b 对抗性探针之二：样本量敏感性、聚类修复可行性与接口可得性。"""
+"""P0-3b 对抗性探针之二：样本量敏感性、聚类修复可行性与接口可得性。
+
+> 2026-10-06 P0-3b-fix 环：评估器已强制 window→patient 映射（缺映射 fail-closed），
+> 本探针的 `mk_split` 已补齐映射；探针8 用 per_patient=4 对齐"10 患者 × 4 窗口"。
+"""
 
 from __future__ import annotations
 
@@ -20,12 +24,15 @@ class ErrPred:
         return BASE - self.errors
 
 
-def mk_split(n_windows: int) -> P03WindowSplit:
+def mk_split(n_windows: int, per_patient: int = 1) -> P03WindowSplit:
+    """默认每窗口一个患者（窗口独立口径）；探针8 传 per_patient=4。"""
     inputs = np.tile(BASE, (n_windows, 4, 1))
     targets = np.tile(BASE, (n_windows, H, 1))
+    subjects = tuple(f"p{index // per_patient}" for index in range(n_windows))
+    n_patients = len(set(subjects))
     stats = P03PipelineStats(
         n_rows=10 * n_windows,
-        n_subjects=12,
+        n_subjects=n_patients,
         n_windows=n_windows,
         missing_ratio=0.0,
         imputed_ratio=0.0,
@@ -33,10 +40,10 @@ def mk_split(n_windows: int) -> P03WindowSplit:
         duplicate_count=0,
         out_of_order_count=0,
         dropped_short_subjects=0,
-        n_train_subjects=6,
-        n_test_subjects=6,
+        n_train_subjects=1,
+        n_test_subjects=n_patients,
     )
-    return P03WindowSplit(inputs, targets, inputs, targets, ("tr",), ("te",), stats)
+    return P03WindowSplit(inputs, targets, inputs, targets, ("tr",), ("te",), stats, subjects, subjects)
 
 
 def clustered_errors(rng: np.random.Generator, n_patients: int, per_patient: int):
@@ -87,13 +94,13 @@ fpr_window = fpr_block = cover_window = cover_block = 0
 for t in range(trials):
     rng = np.random.default_rng(90_000 + t)
     a, b, diff = clustered_errors(rng, 10, 4)
-    rep = compare_models(ErrPred(a), ErrPred(b), mk_split(40), seed=7, n_resamples=600, source="mimic")
+    rep = compare_models(ErrPred(a), ErrPred(b), mk_split(40, per_patient=4), seed=7, n_resamples=600, source="mimic")
     fpr_window += int(rep.statistical_test.significant)
     cover_window += int(rep.statistical_test.ci95_low <= 0.0 <= rep.statistical_test.ci95_high)
     sig, lo, hi = block_bootstrap_significant(a, b, diff, 10, 4, np.random.default_rng(7))
     fpr_block += int(sig)
     cover_block += int(lo <= 0.0 <= hi)
-print(f"  窗口级（现状）: significant={fpr_window / trials:.2%} CI覆盖0={cover_window / trials:.2%}")
+print(f"  评估器（P0-A 后，患者级）: significant={fpr_window / trials:.2%} CI覆盖0={cover_window / trials:.2%}")
 print(f"  患者级 block  : significant={fpr_block / trials:.2%} CI覆盖0={cover_block / trials:.2%}")
 
 print("== 探针9：P03WindowSplit 是否暴露 window→patient 映射 ==")

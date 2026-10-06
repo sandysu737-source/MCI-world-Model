@@ -76,6 +76,9 @@ class P03WindowSplit:
         train_subject_ids: 训练患者标识，仅用于管道内泄漏检查。
         test_subject_ids: 测试患者标识，仅用于管道内泄漏检查。
         stats: 聚合统计。
+        train_window_subjects: 逐窗口的训练患者标识，长度等于 ``train_inputs`` 的窗口数
+            （P0-A：评估器的重采样单位必须能回到患者，缺此映射无法做患者级 bootstrap）。
+        test_window_subjects: 逐窗口的测试患者标识，长度等于 ``test_inputs`` 的窗口数。
     """
 
     train_inputs: np.ndarray
@@ -85,6 +88,8 @@ class P03WindowSplit:
     train_subject_ids: tuple[str, ...]
     test_subject_ids: tuple[str, ...]
     stats: P03PipelineStats
+    train_window_subjects: tuple[str, ...] = ()
+    test_window_subjects: tuple[str, ...] = ()
 
 
 @dataclass
@@ -276,14 +281,18 @@ def load_windows(manifest: P03Manifest) -> P03WindowSplit:
     train_targets: list[np.ndarray] = []
     test_inputs: list[np.ndarray] = []
     test_targets: list[np.ndarray] = []
+    train_window_subjects: list[str] = []
+    test_window_subjects: list[str] = []
     for subject_id in train_subjects:
         inputs, targets = _window_subject(cleaned[subject_id], manifest)
         train_inputs.append(inputs)
         train_targets.append(targets)
+        train_window_subjects.extend([subject_id] * int(inputs.shape[0]))
     for subject_id in test_subjects:
         inputs, targets = _window_subject(cleaned[subject_id], manifest)
         test_inputs.append(inputs)
         test_targets.append(targets)
+        test_window_subjects.extend([subject_id] * int(inputs.shape[0]))
 
     train_inputs_arr = np.concatenate(train_inputs, axis=0)
     train_targets_arr = np.concatenate(train_targets, axis=0)
@@ -322,4 +331,6 @@ def load_windows(manifest: P03Manifest) -> P03WindowSplit:
         train_subject_ids=tuple(train_subjects),
         test_subject_ids=tuple(test_subjects),
         stats=stats,
+        train_window_subjects=tuple(train_window_subjects),
+        test_window_subjects=tuple(test_window_subjects),
     )

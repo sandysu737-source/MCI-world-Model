@@ -15,6 +15,8 @@ MAE / relative MAE / direction accuracy / constraint violation rate 按（步长
 
 from __future__ import annotations
 
+import numbers
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -33,9 +35,32 @@ DEFAULT_N_RESAMPLES = 2000
 DEFAULT_ALPHA = 0.05
 
 DIRECTION_EPSILON = 1e-9
-RELATIVE_MAE_EPSILON = 1e-9
+
+# P2-F: relative MAE 的分母下限不再用统一常量，而是按体征临床尺度（可行范围跨度的 1%）
+# 确定。旧口径（统一 1e-9）在目标量级远低于临床尺度时仍会算出 1e9 量级的伪精度。
+RELATIVE_MAE_MIN_SCALE_FRACTION = 0.01
+VITAL_ERROR_SCALES: tuple[float, ...] = tuple(
+    float(VITAL_FEASIBLE_RANGES[VARIABLE_KEY_TO_VITAL[key]][1] - VITAL_FEASIBLE_RANGES[VARIABLE_KEY_TO_VITAL[key]][0])
+    for key in VITAL_KEYS
+)
+_SCALE_ARRAY = np.asarray(VITAL_ERROR_SCALES, dtype=np.float64)
+_RELATIVE_MAE_MIN_DENOMINATORS = _SCALE_ARRAY * RELATIVE_MAE_MIN_SCALE_FRACTION
+
+# P1-C: 主判据改为尺度归一化 MAE，并加"多数体征劣化"守卫（7 个体征中 >= 4 个劣化）。
+SCALE_NORMALIZED_MAE = "scale_normalized_mae"
+MIN_DETERIORATED_VITALS_FOR_GUARD = 4
+
+# P2-E: 只有达到最小样本门槛（测试窗口 >= 20、测试患者 >= 5）才允许产出 passed。
+MIN_PASSED_TEST_WINDOWS = 20
+MIN_PASSED_TEST_PATIENTS = 5
+
+# P0-B: 数据集清单绑定（version/sha256/authorization）——结论必须可追溯到授权数据。
+_SHA256_HEX = re.compile(r"^[0-9a-fA-F]{64}$")
 # bootstrap 索引矩阵分块上限，避免 (n_resamples, n_windows) 一次性物化
-_BOOTSTRAP_INDEX_BUDGET = 5_000_000
+# P2-D: 分块预算按"gather 元素量"计，而不是只数索引个数。旧口径只限制索引矩阵大小，
+# 但 `values[indices]` 会实拷贝 (chunk, N, V) 的浮点数组，N=1e5 时峰值内存可达数百 MB。
+# 现在每个分块处理的浮点元素总量有上界（2e6 ≈ 16MB float64）。
+_BOOTSTRAP_GATHER_ELEMENTS = 2_000_000
 
 SPLIT_STRATEGY = "patient_holdout"
 MIMIC_SOURCE = "mimic"
@@ -60,15 +85,69 @@ DIFFERENCE_DIRECTION = "baseline_minus_jepa"
 
 LIMITATION_DIRECTION = "direction_accuracy 以输入窗口末步为参照，目标无变化的样本被剔除"
 LIMITATION_RAW_PREDICTION = "constraint_violation_rate 基于 clip 之前的原始预测"
-LIMITATION_BOOTSTRAP_UNIT = "bootstrap 以窗口为重采样单位，未按患者聚类，患者内相关性未建模可能低估 CI 宽度"
+LIMITATION_BOOTSTRAP_UNIT = "bootstrap 以患者为整簇重采样单位；患者数过少时 CI 仍不稳定"
 LIMITATION_P_VALUE = "p 值为百分位 bootstrap 近似，未对 7 个体征做多重比较校正"
 LIMITATION_EMPTY_WINDOWS = "测试窗口为 0：未产生任何指标，禁止据此判定验证通过"
 LIMITATION_TOO_FEW_WINDOWS = "测试窗口少于 2：bootstrap CI 与显著性未定义"
 LIMITATION_SOURCE_UNKNOWN = "source 不是 mimic：即使 JEPA 显著更优也不判定 passed"
+LIMITATION_MANIFEST_MISSING = "缺少 dataset_manifest 绑定：结论无法追溯到授权数据，passed 不可达"
+LIMITATION_MANIFEST_INVALID = "dataset_manifest 校验失败（{reason}）：passed 不可达"
+LIMITATION_INSUFFICIENT_SAMPLE = (
+    "测试样本低于 passed 门槛（需测试窗口 >= {min_windows} 且测试患者 >= {min_patients}，"
+    "当前 {n_windows} 窗口 / {n_patients} 患者）：不判定 passed"
+)
+LIMITATION_MAJORITY_VITAL_DETERIORATION = (
+    "多数体征相对劣化（{n_deteriorated} / 7，>= {threshold} 即触发守卫）：主判据不足以判定 passed"
+)
 
 
 class P03MetricsError(ValueError):
     """评估输入违反数据契约（编程错误，直接抛出）。"""
+
+
+@dataclass(frozen=True)
+class P03DatasetManifest:
+    """授权数据集清单：``passed`` 结论只能绑定到带版本/哈希/授权凭据的数据集。
+
+    P0-B：``source`` 字符串是调用方自述，不构成证据；只有显式传入且校验通过的
+    manifest 才允许产出 ``passed``，否则报告状态降为 ``not_run``。
+    """
+
+    version: str
+    sha256: str
+    authorization: str
+    n_subjects: int
+    source: str = MIMIC_SOURCE
+
+    def to_dict(self) -> dict[str, Any]:
+        """序列化为聚合字典（不含任何患者级内容）。"""
+        return {
+            "version": self.version,
+            "sha256": self.sha256,
+            "authorization": self.authorization,
+            "n_subjects": int(self.n_subjects),
+            "source": self.source,
+        }
+
+
+def _manifest_error(manifest: P03DatasetManifest | None, *, source: str | None, n_test_patients: int) -> str | None:
+    """校验 manifest 绑定；返回错误原因（None 表示校验通过）。"""
+    if manifest is None:
+        return "manifest 缺失"
+    if not isinstance(manifest.version, str) or not manifest.version.strip():
+        return "version 为空"
+    if not isinstance(manifest.sha256, str) or _SHA256_HEX.fullmatch(manifest.sha256) is None:
+        return "sha256 不是 64 位十六进制"
+    if not isinstance(manifest.authorization, str) or not manifest.authorization.strip():
+        return "authorization 为空"
+    n_subjects = manifest.n_subjects
+    if isinstance(n_subjects, bool) or not isinstance(n_subjects, numbers.Integral) or int(n_subjects) < 1:
+        return "n_subjects 必须是 >= 1 的整数"
+    if int(n_subjects) < n_test_patients:
+        return f"n_subjects({int(n_subjects)}) 小于测试患者数({n_test_patients})"
+    if source is None or manifest.source != source:
+        return f"manifest.source({manifest.source!r}) 与报告 source({source!r}) 不一致"
+    return None
 
 
 def _json_scalar(value: float) -> float | None:
@@ -90,7 +169,8 @@ def _per_vital_series(values: np.ndarray) -> dict[str, list[float | None]]:
 def _validate_options(name: str, n_resamples: int, alpha: float) -> None:
     if not isinstance(name, str) or not name.strip():
         raise P03MetricsError("模型名称不能为空")
-    if not isinstance(n_resamples, int) or isinstance(n_resamples, bool) or n_resamples < 2:
+    # P3-G: 接受 numbers.Integral（含 np.int64），但 bool 仍非法；失败信息不变。
+    if isinstance(n_resamples, bool) or not isinstance(n_resamples, numbers.Integral) or int(n_resamples) < 2:
         raise P03MetricsError(f"n_resamples 必须是 >= 2 的整数，收到 {n_resamples!r}")
     if not isinstance(alpha, float) or not 0.0 < alpha < 1.0:
         raise P03MetricsError(f"alpha 必须位于 (0, 1) 区间，收到 {alpha!r}")
@@ -109,6 +189,19 @@ def _validate_split(split: P03WindowSplit) -> None:
         raise P03MetricsError("历史窗口与预测步长都必须 >= 1")
     if not np.isfinite(inputs).all() or not np.isfinite(targets).all():
         raise P03MetricsError("测试输入或目标包含 NaN/Inf，请先修复上游管道")
+    # P0-A: 结论必须绑定独立单元。没有 window→patient 映射就无法按患者重采样，
+    # 只能退化成窗口级 bootstrap（会低估 CI、放大假阳性）→ 直接 fail-closed。
+    if inputs.shape[0] > 0:
+        window_subjects = split.test_window_subjects
+        if not window_subjects:
+            raise P03MetricsError(
+                "缺少 window→patient 映射（test_window_subjects），无法按患者整簇重采样；"
+                "请使用 P0-3a 管道产出的 P03WindowSplit"
+            )
+        if len(window_subjects) != inputs.shape[0]:
+            raise P03MetricsError(
+                f"window→patient 映射长度 {len(window_subjects)} 与测试窗口数 {inputs.shape[0]} 不一致"
+            )
 
 
 def _call_predictor(model: Any, inputs: np.ndarray, expected_shape: tuple[int, ...]) -> np.ndarray:
@@ -129,7 +222,12 @@ def _call_predictor(model: Any, inputs: np.ndarray, expected_shape: tuple[int, .
 
 
 def _relative_mae(error: np.ndarray, mean_abs_target: np.ndarray) -> np.ndarray:
-    denominator = np.where(mean_abs_target >= RELATIVE_MAE_EPSILON, mean_abs_target, np.nan)
+    """相对 MAE；分母低于该体征临床尺度下限（可行范围跨度的 1%）时视为未定义 → ``null``。
+
+    P2-F：阈值按体征尺度确定（如 temp 0.09、hr 2.0），目标量级 1e-8 这类
+    "远低于临床尺度"的输入不再产出 1e9 量级的伪精度。
+    """
+    denominator = np.where(mean_abs_target >= _RELATIVE_MAE_MIN_DENOMINATORS, mean_abs_target, np.nan)
     with np.errstate(invalid="ignore", divide="ignore"):
         return error / denominator
 
@@ -160,15 +258,44 @@ def _constraint_violation_rate(predictions: np.ndarray) -> np.ndarray:
     return rates
 
 
-def _bootstrap_mean_replicates(values: np.ndarray, rng: np.random.Generator, n_resamples: int) -> np.ndarray:
-    """按第一个轴（窗口）重采样求均值，返回 ``(n_resamples, *values.shape[1:])``。"""
-    n_units = int(values.shape[0])
-    chunk = max(1, _BOOTSTRAP_INDEX_BUDGET // max(n_units, 1))
+def _bootstrap_cluster_replicates(
+    values: np.ndarray,
+    window_subjects: tuple[str, ...],
+    rng: np.random.Generator,
+    n_resamples: int,
+) -> np.ndarray:
+    """按患者整簇重采样（block bootstrap）求均值，``(n_resamples, *values.shape[1:])``。
+
+    P0-A：统计单元是窗口，但独立单元是患者——同一患者的窗口高度相关，按窗口独立重采样会
+    低估 CI 宽度、放大假阳性。这里以患者为簇整块重采样。
+
+    实现上先按簇聚合「求和 / 计数」，再对簇做有放回抽样后合并（``sum(簇和) / sum(簇窗口数)``），
+    与"把被抽中患者的窗口 gather 起来求均值"完全等价，但内存只与簇数相关，不会随窗口数爆掉。
+    """
+    values = np.asarray(values, dtype=np.float64)
+    n_windows = int(values.shape[0])
+    if n_windows == 0:
+        raise P03MetricsError("无法对空窗口做 bootstrap")
+    if len(window_subjects) != n_windows:
+        raise P03MetricsError(f"window→patient 映射长度 {len(window_subjects)} 与窗口数 {n_windows} 不一致")
+    rest = values.shape[1:]
+    flat = values.reshape(n_windows, -1)
+    _labels, inverse = np.unique(np.asarray(window_subjects, dtype=object), return_inverse=True)
+    inverse = np.asarray(inverse, dtype=np.int64)
+    n_clusters = int(inverse.max()) + 1 if n_windows else 0
+    cluster_sums = np.zeros((n_clusters, flat.shape[1]), dtype=np.float64)
+    cluster_counts = np.zeros(n_clusters, dtype=np.float64)
+    np.add.at(cluster_sums, inverse, flat)
+    np.add.at(cluster_counts, inverse, 1.0)
+    per_replicate = max(1, n_clusters * flat.shape[1])
+    chunk = max(1, _BOOTSTRAP_GATHER_ELEMENTS // per_replicate)
     replicates: list[np.ndarray] = []
     for start in range(0, n_resamples, chunk):
         size = min(chunk, n_resamples - start)
-        indices = rng.integers(0, n_units, size=(size, n_units))
-        replicates.append(values[indices].mean(axis=1))
+        picks = rng.integers(0, n_clusters, size=(size, n_clusters))
+        totals = cluster_sums[picks].sum(axis=1)
+        weights = cluster_counts[picks].sum(axis=1)
+        replicates.append((totals / np.maximum(weights, 1.0)[:, None]).reshape((size, *rest)))
     return np.concatenate(replicates, axis=0)
 
 
@@ -310,9 +437,11 @@ class P03StatisticalTest:
     interpretation: str
     per_vital: dict[str, dict[str, Any]]
     method: str = PAIRED_BOOTSTRAP
-    metric: str = "mae"
+    metric: str = SCALE_NORMALIZED_MAE
     direction: str = DIFFERENCE_DIRECTION
     note: str | None = None
+    n_deteriorated_vitals: int = 0
+    deteriorated_vitals: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为聚合字典。"""
@@ -328,6 +457,8 @@ class P03StatisticalTest:
             "p_value": _json_scalar(self.p_value),
             "significant": self.significant,
             "interpretation": self.interpretation,
+            "n_deteriorated_vitals": self.n_deteriorated_vitals,
+            "deteriorated_vitals": list(self.deteriorated_vitals),
             "per_vital": self.per_vital,
             "note": self.note,
         }
@@ -346,14 +477,22 @@ class P03Report:
     models: dict[str, P03ModelMetrics]
     statistical_test: P03StatisticalTest
     limitations: tuple[str, ...]
-    metric: str = "mae"
+    dataset_manifest: P03DatasetManifest | None = None
+    metric: str = SCALE_NORMALIZED_MAE
+
+    @property
+    def n_deteriorated_vitals(self) -> int:
+        """相对劣化的体征数（P1-C 守卫的可读入口）。"""
+        return self.statistical_test.n_deteriorated_vitals
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为只含聚合结果的字典。"""
         return {
             "status": self.status,
             "metric": self.metric,
+            "n_deteriorated_vitals": self.n_deteriorated_vitals,
             "source": self.source,
+            "dataset_manifest": None if self.dataset_manifest is None else self.dataset_manifest.to_dict(),
             "split": dict(self.split_summary),
             "models": {name: metrics.to_dict() for name, metrics in self.models.items()},
             "statistical_test": self.statistical_test.to_dict(),
@@ -366,11 +505,18 @@ class P03Report:
 
 @dataclass(frozen=True)
 class _EvalOutcome:
-    """内部使用：公开指标 + 逐窗口误差（禁止外泄患者级内容）。"""
+    """内部使用：公开指标 + 逐窗口误差（禁止外泄患者级内容）。
+
+    ``*_normalized`` 系列是 P1-C 的尺度归一化误差（误差 / 体征可行范围跨度），
+    仅用于主判据与劣化守卫，不进入对外报告。
+    """
 
     metrics: P03ModelMetrics
     window_overall_error: np.ndarray | None
     window_vital_error: np.ndarray | None
+    window_normalized_error: np.ndarray | None = None
+    window_vital_normalized: np.ndarray | None = None
+    vital_normalized_error: np.ndarray | None = None
 
 
 def _evaluate(
@@ -383,6 +529,7 @@ def _evaluate(
     alpha: float,
 ) -> _EvalOutcome:
     _validate_options(name, n_resamples, alpha)
+    n_resamples = int(n_resamples)
     _validate_split(split)
     targets = np.asarray(split.test_targets, dtype=np.float64)
     inputs = np.asarray(split.test_inputs, dtype=np.float64)
@@ -438,8 +585,16 @@ def _evaluate(
 
     window_overall_error = error.mean(axis=(1, 2))
     window_vital_error = error.mean(axis=1)
+    # P1-C: 主判据改用尺度归一化误差——原始单位 MAE 被 hr/sbp 等大数值体征主导，
+    # 会掩盖 gcs/temp 等小尺度但临床关键体征的劣化。
+    window_vital_normalized = window_vital_error / _SCALE_ARRAY
+    window_normalized_error = window_vital_normalized.mean(axis=1)
+    vital_normalized_error = window_vital_normalized.mean(axis=0)
     rng = np.random.default_rng(seed)
-    ci_low, ci_high = _ci_bounds(_bootstrap_mean_replicates(window_vital_error, rng, n_resamples), alpha)
+    ci_low, ci_high = _ci_bounds(
+        _bootstrap_cluster_replicates(window_vital_error, split.test_window_subjects, rng, n_resamples),
+        alpha,
+    )
 
     metrics = P03ModelMetrics(
         model_name=name,
@@ -463,7 +618,14 @@ def _evaluate(
         failure_reason=None,
         limitations=base_limitations,
     )
-    return _EvalOutcome(metrics, window_overall_error, window_vital_error)
+    return _EvalOutcome(
+        metrics,
+        window_overall_error,
+        window_vital_error,
+        window_normalized_error,
+        window_vital_normalized,
+        vital_normalized_error,
+    )
 
 
 def evaluate_model(
@@ -501,6 +663,7 @@ def _split_summary(split: P03WindowSplit) -> dict[str, Any]:
         "n_test_subjects": int(split.stats.n_test_subjects),
         "n_train_windows": int(np.asarray(split.train_inputs).shape[0]),
         "n_test_windows": int(np.asarray(split.test_inputs).shape[0]),
+        "n_test_patients": len(set(split.test_window_subjects)),
     }
 
 
@@ -530,6 +693,7 @@ def _blank_statistical_test(
 def _paired_bootstrap_test(
     jepa_outcome: _EvalOutcome,
     baseline_outcome: _EvalOutcome,
+    window_subjects: tuple[str, ...],
     *,
     seed: int,
     n_resamples: int,
@@ -537,9 +701,22 @@ def _paired_bootstrap_test(
 ) -> P03StatisticalTest:
     jepa_window = jepa_outcome.window_overall_error
     baseline_window = baseline_outcome.window_overall_error
-    jepa_vital = jepa_outcome.window_vital_error
-    baseline_vital = baseline_outcome.window_vital_error
-    if jepa_window is None or baseline_window is None or jepa_vital is None or baseline_vital is None:
+    jepa_normalized = jepa_outcome.window_normalized_error
+    baseline_normalized = baseline_outcome.window_normalized_error
+    jepa_vital_normalized = jepa_outcome.window_vital_normalized
+    baseline_vital_normalized = baseline_outcome.window_vital_normalized
+    jepa_vital_mean = jepa_outcome.vital_normalized_error
+    baseline_vital_mean = baseline_outcome.vital_normalized_error
+    if (
+        jepa_window is None
+        or baseline_window is None
+        or jepa_normalized is None
+        or baseline_normalized is None
+        or jepa_vital_normalized is None
+        or baseline_vital_normalized is None
+        or jepa_vital_mean is None
+        or baseline_vital_mean is None
+    ):
         raise P03MetricsError("两个模型缺少逐窗口误差，无法配对")
     if jepa_window.shape != baseline_window.shape:
         raise P03MetricsError("两个模型的测试窗口数不一致，无法配对")
@@ -547,11 +724,16 @@ def _paired_bootstrap_test(
     if n_windows < 2:
         return _blank_statistical_test(seed=seed, n_resamples=n_resamples, alpha=alpha, note=LIMITATION_TOO_FEW_WINDOWS)
 
-    difference = baseline_window - jepa_window
-    difference_vital = baseline_vital - jepa_vital
+    # P1-C：主判据是"尺度归一化 MAE"的配对差（baseline - jepa，>0 表示 JEPA 更优），
+    # 并统计相对劣化的体征（守卫用：>= 4/7 劣化时 passed 不可达）。
+    difference = baseline_normalized - jepa_normalized
+    difference_vital = baseline_vital_normalized - jepa_vital_normalized
+    deteriorated_vitals = tuple(
+        key for index, key in enumerate(VITAL_KEYS) if not jepa_vital_mean[index] < baseline_vital_mean[index]
+    )
     rng = np.random.default_rng(seed)
-    replicates = _bootstrap_mean_replicates(difference, rng, n_resamples)
-    vital_replicates = _bootstrap_mean_replicates(difference_vital, rng, n_resamples)
+    replicates = _bootstrap_cluster_replicates(difference, window_subjects, rng, n_resamples)
+    vital_replicates = _bootstrap_cluster_replicates(difference_vital, window_subjects, rng, n_resamples)
 
     mean_difference = float(difference.mean())
     ci_low_array, ci_high_array = _ci_bounds(replicates, alpha)
@@ -577,6 +759,9 @@ def _paired_bootstrap_test(
             "ci95": [_json_scalar(vital_low[index]), _json_scalar(vital_high[index])],
             "p_value": _json_scalar(vital_p[index]),
             "significant": vital_significant,
+            "normalized_mae_jepa": _json_scalar(jepa_vital_mean[index]),
+            "normalized_mae_baseline": _json_scalar(baseline_vital_mean[index]),
+            "worse": key in deteriorated_vitals,
         }
 
     return P03StatisticalTest(
@@ -590,6 +775,8 @@ def _paired_bootstrap_test(
         significant=significant,
         interpretation=interpretation,
         per_vital=per_vital,
+        n_deteriorated_vitals=len(deteriorated_vitals),
+        deteriorated_vitals=deteriorated_vitals,
     )
 
 
@@ -602,14 +789,22 @@ def compare_models(
     n_resamples: int = DEFAULT_N_RESAMPLES,
     alpha: float = DEFAULT_ALPHA,
     source: str | None = None,
+    dataset_manifest: P03DatasetManifest | None = None,
     jepa_name: str = "jepa_clinical_bridge",
     baseline_name: str = "clinical_dynamics_baseline",
 ) -> P03Report:
     """在同一 split 上配对比较 JEPA 与基线，输出聚合报告。
 
-    差值为 ``baseline_mae - jepa_mae``，>0 表示 JEPA 更优。报告状态映射：
-    ``failed``（任一模型失败）/ ``not_run``（无测试窗口）/ ``degraded``（降级数据源）/
-    ``passed``（``source="mimic"`` 且 JEPA 显著更优）/ 其余为 ``failed``。
+    主判据是**尺度归一化 MAE**（误差 / 体征可行范围跨度）的配对差
+    ``baseline_normalized - jepa_normalized``，>0 表示 JEPA 更优。报告状态映射：
+    ``failed``（任一模型失败）/ ``not_run``（无测试窗口，或未通过 pass 守卫）/
+    ``degraded``（降级数据源）/ ``passed``（同时满足：JEPA 显著更优、``source="mimic"``、
+    manifest 绑定校验通过、样本达门槛、无多数体征劣化）/ 其余为 ``failed``。
+
+    P0-B：``source`` 只是调用方自述，``passed`` 必须额外绑定 ``dataset_manifest``
+    （version / sha256 / authorization / n_subjects），缺失或不匹配时 ``passed`` 不可达。
+    P2-E：``passed`` 还要求测试窗口 >= 20 且测试患者 >= 5。
+    P1-C：7 个体征中 >= 4 个相对劣化时，``passed`` 不可达。
 
     Args:
         jepa: JEPA 侧数组级预测器。
@@ -619,6 +814,7 @@ def compare_models(
         n_resamples: bootstrap 重采样次数。
         alpha: 显著性水平。
         source: 数据源标识；``degraded_synthetic`` 时报告降级，不写 ``passed``。
+        dataset_manifest: 授权数据集清单；缺失/不匹配时 ``passed`` 不可达（P0-B）。
         jepa_name: JEPA 模型报告键。
         baseline_name: 基线模型报告键。
 
@@ -627,6 +823,7 @@ def compare_models(
     """
     jepa_outcome = _evaluate(jepa, split, name=jepa_name, seed=seed, n_resamples=n_resamples, alpha=alpha)
     baseline_outcome = _evaluate(baseline, split, name=baseline_name, seed=seed, n_resamples=n_resamples, alpha=alpha)
+    n_resamples = int(n_resamples)
     models = {jepa_name: jepa_outcome.metrics, baseline_name: baseline_outcome.metrics}
     limitations: list[str] = [LIMITATION_BOOTSTRAP_UNIT, LIMITATION_P_VALUE]
     for outcome in (jepa_outcome, baseline_outcome):
@@ -655,12 +852,46 @@ def compare_models(
         status = REPORT_STATUS_NOT_RUN
     else:
         statistical_test = _paired_bootstrap_test(
-            jepa_outcome, baseline_outcome, seed=seed, n_resamples=n_resamples, alpha=alpha
+            jepa_outcome,
+            baseline_outcome,
+            split.test_window_subjects,
+            seed=seed,
+            n_resamples=n_resamples,
+            alpha=alpha,
         )
+        n_windows = int(np.asarray(split.test_inputs).shape[0])
+        n_test_patients = len(set(split.test_window_subjects))
+        # P0-B / P1-C / P2-E：passed 必须同时通过"清单绑定 + 样本门槛 + 劣化守卫"。
+        blockers: list[str] = []
+        manifest_error = _manifest_error(dataset_manifest, source=source, n_test_patients=n_test_patients)
+        if dataset_manifest is None:
+            blockers.append(LIMITATION_MANIFEST_MISSING)
+        elif manifest_error is not None:
+            blockers.append(LIMITATION_MANIFEST_INVALID.format(reason=manifest_error))
+        if n_windows < MIN_PASSED_TEST_WINDOWS or n_test_patients < MIN_PASSED_TEST_PATIENTS:
+            blockers.append(
+                LIMITATION_INSUFFICIENT_SAMPLE.format(
+                    min_windows=MIN_PASSED_TEST_WINDOWS,
+                    min_patients=MIN_PASSED_TEST_PATIENTS,
+                    n_windows=n_windows,
+                    n_patients=n_test_patients,
+                )
+            )
+        if statistical_test.n_deteriorated_vitals >= MIN_DETERIORATED_VITALS_FOR_GUARD:
+            blockers.append(
+                LIMITATION_MAJORITY_VITAL_DETERIORATION.format(
+                    n_deteriorated=statistical_test.n_deteriorated_vitals,
+                    threshold=MIN_DETERIORATED_VITALS_FOR_GUARD,
+                )
+            )
         if source == DEGRADED_SOURCE:
             status = REPORT_STATUS_DEGRADED
         elif statistical_test.interpretation == INTERPRETATION_JEPA_BETTER and source == MIMIC_SOURCE:
-            status = REPORT_STATUS_PASSED
+            if blockers:
+                status = REPORT_STATUS_NOT_RUN
+                ordered_limitations = (*ordered_limitations, *blockers)
+            else:
+                status = REPORT_STATUS_PASSED
         else:
             status = REPORT_STATUS_FAILED
             if statistical_test.interpretation == INTERPRETATION_JEPA_BETTER:
@@ -679,4 +910,5 @@ def compare_models(
         models=models,
         statistical_test=statistical_test,
         limitations=ordered_limitations,
+        dataset_manifest=dataset_manifest,
     )
