@@ -107,3 +107,16 @@ PYTHONPATH="$PWD:$PWD/src:../su-memory-sdk/src" PYTHON_BIN=.venv/bin/python \
 
 > 台账 046/047 已在 PR #26 的提交 `34dfca4` 中以 `open` 建条；本环的验证证据在 PR #26 合并后回填为 `written/verified`
 > （避免与 #26 冲突而在两处分叉编辑同一行）。
+
+## 12. 本轮新发现 K：L2 审批指纹未与"当前 PR/日期"绑定（可重放）
+
+- 现象：本环 PR #27 因改动 `.sh`/`.yml` 被定级 **L2**，`governance` 的「L2 双人 approve 校验」步骤要求
+  `approved-reviews-count >= 1` 或 PR 正文含所有者授权指纹 → 当前 `approved=0` → **failure**（run `37449586927`）。
+- 证据：`.github/workflows/governance.yml:25` 的 `GOV_OWNER_APPROVAL_MARKER` 是**固定字面量**
+  `OWNER-APPROVED:2026-10-04:PR22`，而同文件 `:8-9` 的注释写明该指纹"须与当前 PR/日期绑定"。
+- 判断：字面量与注释不一致 → 同一串指纹可被此后任意 PR 复用（重放），"与 PR/日期绑定"实际未生效；
+  同时单人模式下所有者无法自审，若不改 PR 正文，任何 L2 PR 都会停在红（可预期、但需人工动作）。
+- 影响：① 指纹可重放 → 授权留痕的**唯一性**不足；② 每次 L2 PR 都要人工改正文，容易被"顺手复制旧指纹"绕过。
+- 建议整改（K，待开环）：把 marker 改为**按 PR 号/日期动态生成**（如 `OWNER-APPROVED:<date>:PR<number>`，
+  由 workflow 用 `github.event.pull_request.number` 与当前日期拼接后校验），或在 PR 模板中给出当日可复制的正确串。
+- 本环处置：不改 workflow 的审批口径（避免"自己给自己发授权"），由负责人在 PR #27 正文补当日指纹完成授权。
