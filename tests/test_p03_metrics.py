@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 
 import numpy as np
 import pytest
 
 from benchmarks.real_world.p03_metrics import (
+    DEFAULT_N_RESAMPLES,
+    DEFAULT_SEED,
     INTERPRETATION_BASELINE_BETTER,
     INTERPRETATION_JEPA_BETTER,
     INTERPRETATION_NO_DIFFERENCE,
     MODEL_STATUS_EVALUATED,
     MODEL_STATUS_FAILED,
     MODEL_STATUS_NOT_RUN,
+    RELATIVE_MAE_EPSILON,
     REPORT_STATUS_DEGRADED,
     REPORT_STATUS_FAILED,
     REPORT_STATUS_NOT_RUN,
@@ -328,3 +332,50 @@ def test_report_leaks_no_patient_identifiers() -> None:
         assert identifier not in serialized
     assert "charttime" not in serialized
     assert set(payload["models"]) == {"jepa_clinical_bridge", "clinical_dynamics_baseline"}
+
+
+# ---- J1（OODA-20261006-047）：变异门禁暴露的 4 处边界/契约盲区 ----
+# 这些断言按结构化需求 §参数/§指标口径 的既有契约写成，用于让变异门禁的
+# 红灯指向"真实盲区"而非脚本口径问题（不可杀变异不应被计入分母）。
+
+
+def test_relative_mae_uses_denominator_at_epsilon_boundary() -> None:
+    """目标幅度恰为 `RELATIVE_MAE_EPSILON` 时仍按分母计算（`>=` 边界，不是 `null`）。"""
+    tiny = np.full((1, HORIZON, N_VITAL_KEYS), RELATIVE_MAE_EPSILON)
+    flat_zero = np.zeros((1, HORIZON, N_VITAL_KEYS))
+    split = _with_targets(_split(n_windows=1), tiny)
+
+    payload = evaluate_model(_TargetPredictor(flat_zero), split, name="eps-boundary").to_dict()
+
+    assert payload["relative_mae"]["hr"] == pytest.approx(1.0)
+    assert payload["relative_mae_per_step"]["hr"] == pytest.approx([1.0] * HORIZON)
+
+
+def test_zero_difference_bootstrap_p_value_is_one() -> None:
+    """全零配对差值 → 双侧百分位 p 值为 1（零方差边界，不得退化为 0）。"""
+    split = _split()
+    report = compare_models(
+        _TargetPredictor(split.test_targets),
+        _TargetPredictor(split.test_targets),
+        split,
+        seed=5,
+        n_resamples=200,
+    )
+
+    assert report.statistical_test.mean_difference == pytest.approx(0.0)
+    assert report.statistical_test.p_value == pytest.approx(1.0)
+    assert report.statistical_test.significant is False
+
+
+def test_model_metrics_is_immutable() -> None:
+    """`P03ModelMetrics` 必须冻结：报告对象不允许被下游就地改写。"""
+    metrics = evaluate_model(_OffsetPredictor(0.5), _split(), name="frozen")
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        metrics.status = "tampered"  # type: ignore[misc]
+
+
+def test_default_constants_match_documented_contract() -> None:
+    """默认 seed / 重采样次数是对外契约（结构化需求 §参数），不得静默变更。"""
+    assert DEFAULT_SEED == 42
+    assert DEFAULT_N_RESAMPLES == 2000
