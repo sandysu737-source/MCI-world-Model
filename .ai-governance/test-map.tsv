@@ -1,7 +1,7 @@
 # 由 scripts/ai-verify/test-map-gen.py 生成，请勿手工编辑
 # 源: pytest -m "not slow" --cov=mci_world_model --cov=benchmarks --cov=adapters --cov-context=test
 #     + coverage json --show-contexts
-# 生成时间: 2026-10-07T03:33:26+08:00  提交: 7275e8a
+# 生成时间: 2026-10-07T03:40:23+08:00  提交: dde75b3
 # 格式: <repo 相对源文件>\t<测试目标>\t<覆盖该文件的行数>
 benchmarks/causal_standard/causalbench_adapter.py	tests/test_causal_standard.py	546
 benchmarks/causal_standard/tuebingen_adapter.py	tests/test_causal_standard.py	306
@@ -218,3 +218,5 @@ src/mci_world_model/server/security.py	tests/test_security_ha.py	848
 src/mci_world_model/server/storage.py	tests/test_security_ha.py	328
 src/mci_world_model/server/validation.py	tests/test_security_ha.py	291
 src/mci_world_model/world_model.py	tests/test_imports.py	2
+# --- 以下为手工条目（生成器保留，勿删）---
+scripts/ai-verify/test-map-gen.py	tests/test_ai_verify_governance_tools.py	0

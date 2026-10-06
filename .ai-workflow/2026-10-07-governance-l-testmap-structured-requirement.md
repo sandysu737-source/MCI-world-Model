@@ -88,32 +88,37 @@
 
 **已知后果（不视为缺陷）**：27 个"无任何测试上下文且无同名测试"的文件在新口径下会 `fail-closed`（含 `adapters/mci_huan_bridge.py`、`adapters/zvec_bridge.py` —— 台账 `OODA-20261004-040` 已记录为未接线死代码）。正确处置是补测试或按死代码清理，**不得**通过放宽门禁或加豁免白名单绕过。
 
-## 14. 本轮补充：变异门禁的适用范围与一处新发现
+## 14. 本轮补充（含一次 CI 回环修正）
 
-### 14.1 适用范围收敛为"代码根目录"（本轮实测后补充）
+### 14.1 治理工具的测试来源：手工映射区 + 真实单测（替代"范围收敛"）
 
-`pytest testpaths=tests`，`scripts/**` 等治理工具不可能在同名/映射口径下提供 pytest 测试（本环新增的 `scripts/ai-verify/test-map-gen.py` 即为实例：它没有也无法有 `tests/test_test-map-gen.py`）。若不收敛范围，L 修好后本环自身与所有治理工具 PR 都会结构性 `fail-closed`。
+**一次被 CI 拦下的错误做法（记录为教训）**：曾试图把变异门禁的"改动文件必须有可解析测试"收敛为只适用于 `src/adapters/benchmarks`，理由是 `pytest testpaths=tests` 下 `scripts/**` 无法提供测试。CI 的既有契约测试 `test-anti-evasion.sh` 用例3/用例7 立刻判红（临时仓库中的 `auth_helper.py`、`app_logic.py` 不再 fail-closed）——这正是该对抗套件的价值。已撤销该放宽。
 
-故 `quality-gate.sh` 的变异门禁新增一条显式边界：**只有 `src/`、`adapters/`、`benchmarks/` 下的改动文件要求"可解析测试"**；其余（`scripts/**`、仓库根等）跳过并留痕：
+**最终做法（不放宽任何 fail-closed）**：
+1. 新增 `tests/test_ai_verify_governance_tools.py`（9 项 pytest）：context 归一化、映射筛选口径（top-1 / 前缀 / `__init__` / 非测试 context）、CLI 错误路径、输出目录自动创建、手工区保留、`__main__` 端到端。
+2. 生成器支持**手工条目区**（`# --- 以下为手工条目（生成器保留，勿删）---` 之后的行原样保留），用于覆盖率不测量的路径：
+   `scripts/ai-verify/test-map-gen.py → tests/test_ai_verify_governance_tools.py`。
+3. 该工具走与源码完全相同的变异门禁：`quality-gate.sh L0 scripts/ai-verify/test-map-gen.py` → `测试解析: … -> tests/test_ai_verify_governance_tools.py`；整文件口径 **3/3 = 100% ≥ 80%**。
 
-```
-[gate] 改动的 py 文件均非代码根目录(src/adapters/benchmarks),变异门禁不适用(治理工具由对抗套件验证)
-```
+### 14.2 新发现：无有效变异时门禁空转（登记待开环，本环不修）
 
-治理工具的正确性由 `scripts/ai-verify/tests/test-*.sh` 对抗套件承担（本环新增 2 个测试文件、12 项断言）。这不是放宽代码根目录的 `fail-closed`：`src|adapters|benchmarks` 下"既无映射又无同名测试"的文件仍然红灯（本轮 27 个）。
+本地实测：`quality-gate.sh L0 src/mci_world_model/_sys/_c1.py` → `[mut] 未产生有效变异` / `MUTATION_SCORE=N/A` → 退出码 0 → 门禁**通过**。即"映射命中的文件若没有可变异的语法位点，变异门禁会静默空转"。
 
-### 14.2 新发现：无有效变异时门禁空转（登记为待开环，本环不修）
-
-本地实测（本环 dry-run）：`quality-gate.sh L0 src/mci_world_model/_sys/_c1.py` → `[mut] 未产生有效变异` / `MUTATION_SCORE=N/A` → 退出码 0 → 门禁 **通过**。即"映射命中的文件若没有可变异的语法位点，变异门禁会静默空转"。
-
-- 这是 `mutation-check.sh` 既有语义（`MUTATION_SCORE=N/A` 视为 0 个有效变异→放行），**不是** M2 引入；
+- 属 `mutation-check.sh` 既有语义（`N/A` 视为 0 个有效变异 → 放行），**不是** M2 引入；
 - 与 M2 的组合效应：映射到"纯声明/类型文件"时门禁形同虚设；
-- 处置建议（待开环评估，不在本环修，避免两个根因混在一个环里）：`N/A` 在 L0/L2 严格模式下应至少产出**显式警告并要求人工确认**，或改判 `fail-closed`（需先量化会新增多少红灯）。
+- 处置建议（待开环，避免与 L 混在一个环里）：`N/A` 在 L0/L2 严格模式下至少产出显式警告并要求人工确认，或改判 `fail-closed`（需先量化会新增多少红灯）。
 
-## 15. 本环本地验证（dry-run 证据）
+### 14.3 教训（已登记）：本地跑对抗套件必须 `GITHUB_ACTIONS=true`
 
-| 命令（本地、PATH 前置 .venv/bin） | 结果 |
+`ai-guard.sh:11-19`：本机存在 `~/qoder m5pro/_ai-eng-kit/governance/` 时使用 **kit 副本**，CI 才回退到**仓库副本**。因此本地不设 `GITHUB_ACTIONS=true` 时，对抗套件验证的是 kit 脚本而非本仓库改动 —— 本轮"范围收敛"改动本地 7/7 通过、CI 立刻 2 项失败，根因即此（与 `OODA-20261006-048`「同一套脚本 ≠ 同一份文件」同源，属同类问题第二次出现）。
+
+## 15. 本环本地验证（dry-run 证据，`GITHUB_ACTIONS=true` 同源口径）
+
+| 命令 | 结果 |
 |---|---|
-| `quality-gate.sh L0 scripts/ai-verify/test-map-gen.py` | `改动的 py 文件均非代码根目录…变异门禁不适用` → 通过（治理工具不误红） |
-| `quality-gate.sh L0 src/mci_world_model/_sys/_c1.py` | `测试解析: src/mci_world_model/_sys/_c1.py -> tests/test_foundation_types.py`；变异 `N/A`（见 §14.2） |
+| `quality-gate.sh L0 scripts/ai-verify/test-map-gen.py` | `测试解析: … -> tests/test_ai_verify_governance_tools.py`；`变异测试通过(test-map-gen: 100% ≥ 80%)` |
 | `quality-gate.sh L2 benchmarks/real_world/p03_metrics.py` | `测试解析: … -> tests/test_p03_metrics.py`；`变异测试通过(p03_metrics: 100% ≥ 80%)`；bandit SAST 通过 |
+| `quality-gate.sh L0 src/mci_world_model/_sys/_c1.py` | `测试解析: … -> tests/test_foundation_types.py`；变异 `N/A`（见 §14.2） |
+| `mutation-check.sh scripts/ai-verify/test-map-gen.py`（`MUTATION_SCOPE=all`） | 杀死 3 / 存活 0 / 有效 3 = **100%** |
+| 对抗套件（`GITHUB_ACTIONS=true`，仓库副本） | `test-anti-evasion.sh` 7/7；`test-mutation-skip.sh` 全通过；`test-owner-approval-marker.sh` 10/10；`test-risk-branch.sh` 7/7；`test-mutation-map.sh` 5/5 |
+| 新增 pytest 单测 | `tests/test_ai_verify_governance_tools.py` 9 passed |

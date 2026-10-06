@@ -513,18 +513,11 @@ run_mutation() {
   # 使"门禁红"退化为常态噪声。PR 事件（真正的合入拦截点）仍按等级严格。
   if [ -n "${MUTATION_STRICT:-}" ]; then strict="$MUTATION_STRICT"; fi
   # 找每个改动 py 文件对应测试 + 用 governance 自带 mutation-check.sh(不依赖 mutmut)
-  local target base tfile found eligible=0 nonroot=0
+  local target base tfile found eligible=0
   local pairs=()
   for target in "${py_files[@]}"; do
     base="${target##*/}"; base="${base%.py}"
-    # F-25(治理 L): "改动文件必须有可解析测试"只适用于代码根目录。pytest testpaths=tests，
-    # scripts/** 等治理工具无法在同名/映射口径下提供测试，其验证由 scripts/ai-verify/tests
-    # 对抗套件承担；此处显式排除并留痕，避免结构性红灯（不放松代码根目录的 fail-closed）。
     relt="${target#"$ROOT/"}"; relt="${relt#./}"
-    case "$relt" in
-      src/*|adapters/*|benchmarks/*) ;;
-      *) nonroot=$((nonroot+1)); continue;;
-    esac
     # F-23b(P0-J): 测试文件自身不需要"同名测试"——它本身就是测试，执行即验证。
     # 旧口径把 tests/test_x.py 当成"无对应测试的 py 文件"，在 PR（MUTATION_STRICT=1，
     # 即真正的合入拦截点）下 fail-closed，使"只改测试"这一最常见的合法改动必然红灯
@@ -565,11 +558,7 @@ run_mutation() {
       fail "所有改动 py 文件均无对应测试,变异门禁无法验证(L0/L2 fail-closed)"
     fi
     if [ "$eligible" -eq 0 ] && [ "${#py_files[@]}" -gt 0 ]; then
-      if [ "$nonroot" -eq "${#py_files[@]}" ]; then
-        say "改动的 py 文件均非代码根目录(src/adapters/benchmarks),变异门禁不适用(治理工具由对抗套件验证)"
-      else
-        say "改动的 py 文件均为测试文件,变异门禁无适用对象(测试文件不需要同名测试)"
-      fi
+      say "改动的 py 文件均为测试文件,变异门禁无适用对象(测试文件不需要同名测试)"
     fi
     return
   fi

@@ -12,6 +12,9 @@
     只取"覆盖该文件执行行数最多"的 top-1 测试文件（控制变异门禁耗时）；
     context 形如 ``tests/test_x.py::test_y``，归一到测试文件路径；
     session 级 context（空串、``pytest``）不计入；只收录 src/adapters/benchmarks 下的源文件。
+手工条目: 输出文件中 ``MANUAL_MARKER`` 之后的行由人工维护（生成器原样保留），
+    用于覆盖率不测量的路径（如 ``scripts/ai-verify/*.py``），其测试目标必须真实存在。
+
 用法: test-map-gen.py <coverage.json> [输出路径] [--root <仓库根>] [--sha <提交>]
 退出码: 0=成功 2=输入非法
 """
@@ -26,6 +29,8 @@ import pathlib
 import sys
 
 SOURCE_PREFIXES = ("src/", "adapters/", "benchmarks/")
+# 手工条目区起始标记：生成器不覆盖其后的行（用于 scripts/** 等覆盖率不测量的治理工具）
+MANUAL_MARKER = "# --- 以下为手工条目（生成器保留，勿删）---"
 IGNORED_CONTEXTS = {"", "pytest"}
 
 
@@ -41,7 +46,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def normalize_context(context: str) -> str:
     """``tests/test_x.py::test_y[param]`` → ``tests/test_x.py``"""
-    return context.split("::", 1)[0].strip()
+    return context.partition("::")[0].strip()
 
 
 def build_map(files: dict) -> dict[str, tuple[str, int]]:
@@ -102,9 +107,16 @@ def main(argv: list[str]) -> int:
     out = pathlib.Path(args.output)
     if not out.is_absolute():
         out = root / out
+    manual: list[str] = []
+    if out.is_file():
+        prev = out.read_text(encoding="utf-8").splitlines()
+        if MANUAL_MARKER in prev:
+            manual = prev[prev.index(MANUAL_MARKER) + 1 :]
+    lines.append(MANUAL_MARKER)
+    lines.extend(manual)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"已写入 {out}（{len(mapping)} 条映射 / {len(files)} 个覆盖文件）")
+    print(f"已写入 {out}（{len(mapping)} 条映射 / {len(files)} 个覆盖文件 / 手工 {len(manual)} 行）")
     return 0
 
 
