@@ -28,6 +28,8 @@
 | P2-E | 中 | 小样本下 bootstrap 反保守，`passed` 无最小样本门槛 | N=5/10/20/50 → 误报 **16%/9.5%/9%/7%** |
 | P2-F | 中 | `relative_mae` 的 `1e-9` 守卫过小，产出荒谬值而非 `null` | 目标量级 1e-8 → `7.9e9` |
 | P3-G | 低 | `n_resamples` 只接受 Python `int` | `np.int64(100)` 抛 `P03MetricsError` |
+| J（治理） | 严重 | 合并后 main push 门禁红灯：变异分数 44% < 80%，且红灯由**门禁脚本 skip 口径失效**（注释/f-string 位点被计分）放大 | run `37443625783`；本地复跑同分；3.11/3.13/3.14 落点实测一致 |
+| J3（治理） | 中 | 同一门禁存在两份实现：本地用 kit 副本、CI 用仓库副本，口径分叉 | `diff scripts/ai-verify/mutation-check.sh _ai-eng-kit/governance/mutation-check.sh`；`ai-guard.sh:11` + `quality-gate.sh:543` |
 | H（治理） | 中 | 非 `src|adapters` 改动走 `scope=changed, hard=0`，覆盖率仅 warn；变异门禁默认未启用 | CI gate 输出「门禁通过（含警告）」 |
 | I（治理） | 低 | 本次两提交以 `SKIP=ai-guard` 落地，台账 041 未记录该例外与替代证据 | 见 §5 整改条目 |
 
@@ -86,6 +88,48 @@
 - 整改：接受 `int | np.integer`（`numbers.Integral`），失败信息不变。
 - 验收：`np.int64` 与 `int` 行为一致（新增测试）。
 
+### J 治理：main push 门禁红灯 —— 变异分数 44%，且阈值结构性不可达（同类问题第二次出现）
+
+- 现象：PR #25 合并后，`e0d942e` 的 push `governance` 运行 **failure**。
+- 证据（run `37443625783`）：`[gate] 运行变异测试(覆盖 1 个文件, 阈值≥80%)` → `❌ 变异分数 p03_metrics: 44% < 80%(L2 逻辑缺陷未被测试捕获,需补测试)` → `门禁未通过（等级 L2）`。
+- 本地复跑同一脚本（`bash scripts/ai-verify/mutation-check.sh benchmarks/real_world/p03_metrics.py tests/test_p03_metrics.py .venv/bin/pytest`）：`杀死 4 / 存活 5 / 有效变异 9`，分数 44%，存活项与 CI 完全一致。
+- 精确变异落点（用带 `diff -u` 的探针复现，非推断）：
+
+| 规则 | 仓库副本（修正前）落点 | 性质 |
+|---|---|---|
+| `>=` 变 `>` | `p03_metrics.py:94` 的 **f-string 错误消息** | 等效变异（无行为变化，不可杀） |
+| `>` 变 `<` | `p03_metrics.py:58` 的 **注释** | 等效变异（不可杀） |
+| `<=` 变 `<` | `p03_metrics.py:183` `replicates <= 0.0` | 真盲区（零方差边界未测） |
+| `True`→`False` | `p03_metrics.py:233` `@dataclass(frozen=True)` | 真盲区（不可变性未测） |
+| `42`→`(42+1)` | `p03_metrics.py:31` `DEFAULT_SEED` | 真盲区（默认值未测） |
+
+- **根因修正（本轮实测推翻上一版结论）**：等效变异不是 Python 3.14 的 f-string 分词造成的偶发问题，主因是 `mutation-check.sh:53-54,110-111` 的**偏移量重复计换行**——`sum(len(l)+1 for l in src.splitlines(True)[:row-1])` 中 `splitlines(True)` 已保留 `\n`，再 `+1` 使排除区间整体后移 `(row-1)` 个字符，注释与 f-string 位点实际未被排除。该 bug **与 Python 版本无关**：CI 的 3.11 命中同一落点（实测 3.11 / 3.13 / 3.14 落点一致）。次要因素才是 Python ≥3.12 把 f-string 切成 `FSTRING_START/MIDDLE/END`（仅匹配 `STRING` 的白名单漏排除）；第三项是"变异后语法不成立"的变异（如 `->`→`-<`）被计为**杀死**，虚高分数。
+- 修正后的落点（偏移量改对 + f-string 整段排除，3.11 / 3.13 / 3.14 **完全一致**）：
+
+| 规则 | 修正后落点 | 性质 |
+|---|---|---|
+| `>=` 变 `>` | `p03_metrics.py:132` `mean_abs_target >= RELATIVE_MAE_EPSILON` | 真盲区（`==` 边界未测） |
+| `>` 变 `<` | `p03_metrics.py:74` 返回箭头 `->` | 语法破坏型（不应计分） |
+| `<=` 变 `<` | `p03_metrics.py:183` `replicates <= 0.0` | 真盲区（零方差边界未测） |
+| `True`→`False` | `p03_metrics.py:233` `@dataclass(frozen=True)` | 真盲区（不可变性未测） |
+| `None`→`0` | `p03_metrics.py:74` 返回注解 `float \| None` | 等效（文件含 `from __future__ import annotations`，注解不参与运行） |
+| `42`→`(42+1)` | `p03_metrics.py:31` `DEFAULT_SEED` | 真盲区（默认值未测） |
+
+- 计分口径实测（同一文件 + 同一测试套件）：仓库副本修正前 **44%**（4/9）；仓库副本仅修偏移量后 **44%**（4/9，落点变化但真盲区仍存活）；kit 副本 **60%**（6/10，已修偏移量/`->`/注解，未处理 f-string）→ **改脚本本身不等于清红灯**，必须同时补测试。
+- 算术（修正后）：有效变异 9 项中 4 项已杀、4 项真盲区（补测试可杀）、1 项等效（注解，PEP 563 下不可观察）→ 补齐后 **8/9 = 88% ≥ 80%**（若同时排除等效注解变异则 8/8 = 100%）。**上一版"上限 77%、必然红"的结论随之修正**：main 红灯可由"修工具 + 补测试"清掉，不需要放松门禁口径。
+- 根因（治理面，仍然成立）：变异门禁只在 L0/L2 生效，而 `benchmarks/**` 在 **push 到 main** 时才被保守定为 L2 → 质量信号只出现在"已合入、无法回滚"的事件上，PR 事件反而看不到。
+- 影响：main 常红 → 推送/夜间审计被噪声淹没；同时掩盖真实测试盲区（4 项）。
+- 整改：**J1**（P0-3b-fix 环）补 4 条边界/契约测试（`>=` 的 `==` 边界、零方差 p 值、dataclass 不可变、默认常量）；**J2**（治理环）修 `mutation-check.sh`（偏移量、f-string 整段排除、"语法破坏型变异不计分"）；**J3**（治理环）统一仓库副本与 kit 副本口径。验收：仓库副本 `mutation-check.sh` ≥80% 且 main push 运行 success（**不通过放松门禁口径换绿灯**）。
+- 大环触发：与 038 同根、第二次出现 → 按 OODA「同一根因 30 天内重踩」条款当日内开大环复盘，本报告作为材料。
+
+### J3 治理：同一门禁存在两份实现，本机与 CI 口径分叉
+
+- 证据：`scripts/ai-verify/mutation-check.sh`（仓库副本，2026-09-18，154 行）与 `~/qoder m5pro/_ai-eng-kit/governance/mutation-check.sh`（kit 副本，2026-09-30，229 行）`diff` 不同；kit 副本已有偏移量修正、`->` 排除、注解区间排除与 `MUTATION_SCOPE`（改动行过滤），仓库副本三者皆无；两份**都**未处理 Python ≥3.12 的 f-string 分词。
+- 调用链：本地 pre-commit → `scripts/ai-verify/ai-guard.sh:11` 固定 `KIT_GUARD_DIR` → kit `quality-gate.sh:543` **优先** kit 的 `mutation-check.sh`；CI → 直接跑仓库 `quality-gate.sh`，`KIT_GUARD_DIR` 未设 → 落到仓库副本。
+- 判断：CI 与本地各自计分，本地看到 60% 时 CI 可能是 44%（或相反）——与 `OODA-20261006-045`（kit 缺 F-20 阈值注入）同源：**"同一套脚本"≠"同一份文件"**。置信度高（两份文件可 diff，调用链可读）。
+- 整改（J3）：指定单一权威源并同步另一侧；补回归测试锁定 skip 口径（注释/字符串/f-string/注解位点不计分）。验收：两份 `mutation-check.sh` 对同一文件给出同一分数。
+- 影响：门禁结论在本机与 CI 之间不可互推，"本地绿 = CI 绿"的假设不成立。
+
 ### H 治理：CI 门禁对非源码改动是 warn 不是 fail
 
 - 现象：`.github/workflows/governance.yml` 仅在改动命中 `^(src|adapters)/.*\.py$` 时设 `scope=full, hard=1`，否则 `scope=changed, hard=0`（注释：纯治理/文档改动不用业务覆盖率作代理指标）。
@@ -122,8 +166,12 @@
 | P3-G | `n_resamples` 接受 `numbers.Integral` | Codex | 2026-10-08 | `np.int64` 与 `int` 等价 | open |
 | H | `benchmarks/**` 纳入 `scope=full`（或强制标注含警告通过） | Codex | 待开环 | 改动 `benchmarks/**` 时 CI 输出 `scope=full` | open |
 | I | kit 副本同步 F-20 阈值注入 或 落 `.ai-coverage-threshold`（L2） | Codex | 待开环 | 本地组合法提交无需 `SKIP=ai-guard` | open |
+| J1 | 补 4 条边界/契约测试（`>=` 的 `==` 边界、零方差 p 值、dataclass 不可变、默认常量） | Codex | 2026-10-08 | 仓库副本 `mutation-check.sh` 这 4 处变异全部被杀 → ≥80% | open |
+| J2 | 修 `mutation-check.sh`：偏移量重复计换行、f-string 整段排除、语法破坏型变异不计分 | Codex | 当日开环（大环触发） | 3.11/3.13/3.14 落点一致；注释/f-string/`->` 位点不再计分（回归测试锁定） | open |
+| J3 | 统一仓库副本与 kit 副本口径（指定单一权威源并同步） | Codex | 待开环 | 两份 `mutation-check.sh` 对同一文件给出同一分数 | open |
 
-> 整改落地方式：P0/P1/P2/P3 合并为一个 `codex/p0-3b-fix` 环（先 P0-3a 映射扩展，再评估器修复）；H、I 各自单独开环，不混改。
+> 整改落地方式：P0/P1/P2/P3 + J1 合并为一个 `codex/p0-3b-fix` 环（先 P0-3a 映射扩展，再评估器修复）；J2（工具与 push 口径）、H、I 各自单独开环，不混改。
+> **当前 main 状态**：`e0d942e` 的 push `governance` = failure（变异门禁），属已知红灯，J2 闭环前推送运行不会转绿。
 
 ## 6. 未纳入本次整改的残留
 
