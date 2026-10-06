@@ -66,7 +66,9 @@ jobs:
       - name: 跑 quality-gate（全量门禁）
         id: quality_scope
         run: |
-          if grep -qE '^(src|adapters)/.*\.py$' changed-files.txt; then
+          # F-24(治理 H): benchmarks/** 属生产性研究代码（P0-3b 结论由其实测产出），
+          # 不得落入"仅警告"通道；与 src/adapters 同口径跑全量覆盖率硬门禁。
+          if grep -qE '^(src|adapters|benchmarks)/.*\.py$' changed-files.txt; then
             echo "scope=full" >> "$GITHUB_OUTPUT"
             echo "hard=1" >> "$GITHUB_OUTPUT"
           else
