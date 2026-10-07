@@ -43,8 +43,14 @@ jobs:
           bash scripts/ai-verify/tests/test-anti-evasion.sh
           bash scripts/ai-verify/tests/test-mutation-skip.sh
           bash scripts/ai-verify/tests/test-owner-approval-marker.sh
+          bash scripts/ai-verify/tests/test-risk-branch.sh
+          bash scripts/ai-verify/tests/test-mutation-map.sh
       - name: 跑 risk-classify（风险定级）
         id: classify
+        env:
+          # F-25(治理 L): PR 事件 checkout 为 detached HEAD，须显式传入目标分支；
+          # 否则业务代码只按非生产分支定级（L1），PR 侧拦截弱于 push 侧。
+          RISK_BRANCH: ${{ github.base_ref || github.ref_name }}
         run: |
           # 对 PR 的改动文件定级
           FILES_FILE=changed-files.txt

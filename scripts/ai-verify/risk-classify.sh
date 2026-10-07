@@ -26,7 +26,18 @@ L2_CONFIG_RE='(\.env$|docker-compose|\.github/workflows/|/migrations/.*\.py$|ale
 L0_PATH_RE='(^|/)(utils|helpers|scripts|tests|test|__tests__|spec)/|^.*(_test|\.test|\.spec)\.(py|ts|tsx|js)$'
 DANGER_IMPORT_RE='\b(payment|order|auth|user|permission|crypto)\b|db\.session|db\.sessionmaker|\b(redis|httpx|requests|aiohttp|axios)\b|fetch\('
 
-BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+# F-25(治理 L): CI 的 PR 事件 checkout 出的是 detached HEAD（分支名 "HEAD"），
+# 只看 HEAD 名称会把业务代码按非生产分支定级（L1），使 PR 侧拦截弱于 push 侧。
+# 故允许显式传入目标分支（CI: RISK_BRANCH=${github.base_ref}），并在此处留警告保证可追溯。
+if [ -n "${RISK_BRANCH:-}" ]; then
+  BRANCH="$RISK_BRANCH"
+else
+  BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+  case "$BRANCH" in
+    HEAD|unknown)
+      echo "risk-classify: 警告: detached HEAD 且未设置 RISK_BRANCH，按非生产分支口径定级" >&2;;
+  esac
+fi
 case "$BRANCH" in
   main|master|prod|production|release/*) PROD_BRANCH=1;;
   *) PROD_BRANCH=0;;
