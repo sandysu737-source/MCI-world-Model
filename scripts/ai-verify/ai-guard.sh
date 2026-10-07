@@ -24,7 +24,9 @@ mkdir -p "$REPORT_DIR"
 TS="$(date +%Y%m%d-%H%M%S)"
 SUMMARY="$REPORT_DIR/$TS-guard.md"
 
-STAGED="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
+# F-26（大环复盘 2026-10-08，M2b）：定级必须看见删除类改动（--diff-filter 含 D），
+# 否则「只删测试文件」在本地完全不可见 —— 与 risk-classify 的「删除即放行」盲区同源。
+STAGED="$(git diff --cached --name-only --diff-filter=ACMRD 2>/dev/null)"
 [ -z "$STAGED" ] && { say "无暂存改动，跳过"; exit 0; }
 
 # 暂存文件转数组（macOS bash 3.2 兼容，不用 mapfile），显式传给定级/门禁，
@@ -32,6 +34,12 @@ STAGED="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
 STAGE_FILES=()
 while IFS= read -r _f; do [ -n "$_f" ] && STAGE_FILES+=("$_f"); done <<EOF
 $STAGED
+EOF
+
+# 文件级门禁集合：排除已删除文件（无内容可查），与定级集合分开
+GATE_FILES=()
+while IFS= read -r _f; do [ -n "$_f" ] && GATE_FILES+=("$_f"); done <<EOF
+$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
 EOF
 
 DIFF_LINES=$(git diff --cached 2>/dev/null | wc -l | tr -dc '0-9')
@@ -77,7 +85,12 @@ done
 
 # ---------- 4. 质量门禁 ----------
 GATE_LOG="$REPORT_DIR/$TS-gate-$LEVEL_TAG.md"
-if bash "$KIT_GUARD_DIR/quality-gate.sh" "$LEVEL_TAG" "${STAGE_FILES[@]}" >> "$GATE_LOG" 2>&1; then
+if [ "${#GATE_FILES[@]}" -eq 0 ]; then
+  # 仅删除提交：无剩余文件可查，跳过文件级门禁（删除本身已按 L2/L1 定级）
+  say "本次提交仅含删除，跳过文件级质量门禁"
+  { echo "- 仅删除提交：文件级门禁跳过（无剩余文件）"; } > "$GATE_LOG"
+  GATE_RC=0
+elif bash "$KIT_GUARD_DIR/quality-gate.sh" "$LEVEL_TAG" "${GATE_FILES[@]}" >> "$GATE_LOG" 2>&1; then
   GATE_RC=0
 else
   GATE_RC=$?
