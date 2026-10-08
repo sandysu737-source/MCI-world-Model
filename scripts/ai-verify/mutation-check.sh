@@ -3,17 +3,14 @@
 # 原理: 对源文件逐条应用典型变异(运算符翻转/常量变更),跑测试
 #   测试仍 PASS = 变异存活 = 测试覆盖有洞; FAIL = 变异被杀 = 测试有效
 #   变异分数 = 被杀 / 有效变异总数 × 100%
-# F-23(P0-J): 计分口径修正。本仓库副本 = kit 2026-09-30 版 + 两项修复：
+# F-23(P0-J) 回灌（2026-10-08，源自 mci-world-model 窗口），两项：
 #   ① f-string 整段不计分：Python ≥3.12 把 f-string 拆成 FSTRING_START/MIDDLE/END，
 #      只匹配 STRING 会漏排除其字面量里的运算符文本 → 同一文件在 3.11 与 3.13/3.14 落点不同。
 #   ② 语法破坏型变异不计分：`->` 变 `-<` 之类变异后无法 `ast.parse`，不构成"测试有效性"
 #      证据，计为杀死会虚高分数（apply_mut 退出码 3 = 跳过，汇总里单独计数）。
-#   历史根因（kit 版已修、本仓库副本此前落后一个版本）：排除区间偏移量重复计换行
-#   （`splitlines(True)` 已含 `\n` 又 `+1`），使注释/字符串白名单整体前移而失效 ——
-#   与 Python 版本无关，CI 3.11 同样命中。
-# 跳过区间口径: 注释 / 字符串 / f-string 整段 / 类型注解区域 / 返回箭头 `->`。
 # 用法: mutation-check.sh <源文件> <测试目标> [pytest前缀]
 # 退出码: 0=达标 1=不达标 2=环境错误
+set -o pipefail
 SRC="${1:?用法: mutation-check.sh <源文件> <测试> [pytest]}"
 TESTS="${2:?缺测试目标}"
 PYTEST="${3:-pytest}"
@@ -33,11 +30,16 @@ echo "[mut] 基准通过 ✓"
 cp "$SRC" "$SRC.mutorig"
 trap 'cp "$SRC.mutorig" "$SRC" 2>/dev/null; rm -f "$SRC.mutorig"' EXIT
 
-# 变异范围只取 staged diff 的改动行，避免历史大文件掩盖本次逻辑盲区；
-# 无差异（CI 干净检出）或差异不含代码行时回退全文件，防 0 变异点让门禁空转
+# 变异范围只取「本次改动」的行，避免历史大文件掩盖本次逻辑盲区；
+# 无差异（CI 干净检出）或差异不含代码行时回退全文件，防 0 变异点让门禁空转。
+# 行号口径（OODA-20261007-103）：apply_mut 变异的是**工作区磁盘文件**、基准与变异
+# 后的测试也跑在该文件上，故行号必须取自 `git diff HEAD`（工作区 vs HEAD）。历史实现
+# 优先取 `git diff --cached`，当索引停留在旧的 `git add` 快照（典型：pre-commit 失败后
+# 改了代码但未重新 add）时行号整体错位，变异点全部落空 → 输出 MUTATION_SCORE=N/A 且被
+# quality-gate 记 pass，属静默空转（改完代码不重新 add 等于门禁在验旧版）。
 MUTATION_SCOPE="${MUTATION_SCOPE:-changed}"
 CHANGED_LINES_FILE="$(mktemp)"
-trap 'cp "$SRC.mutorig" "$SRC" 2>/dev/null; rm -f "$SRC.mutorig" "$CHANGED_LINES_FILE" "$CHANGED_LINES_FILE.diff"' EXIT
+trap 'cp "$SRC.mutorig" "$SRC" 2>/dev/null; rm -f "$SRC.mutorig" "$CHANGED_LINES_FILE" "$CHANGED_LINES_FILE.diff" "$CHANGED_LINES_FILE.cached.diff"' EXIT
 if [ "$MUTATION_SCOPE" = "all" ]; then
   echo "[mut] 变异范围: 全文件（显式 MUTATION_SCOPE=all）"
 elif [ "$MUTATION_SCOPE" = "changed" ]; then
@@ -47,12 +49,16 @@ elif [ "$MUTATION_SCOPE" = "changed" ]; then
     exit 2
   fi
   SRC_REL="$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$SRC" "$SRC_ROOT")"
-  git -C "$SRC_ROOT" diff --cached -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.diff" || {
-    echo "ERROR: 无法读取 staged diff" >&2
+  git -C "$SRC_ROOT" diff HEAD -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.diff" || {
+    echo "ERROR: 无法读取 worktree diff" >&2
     exit 2
   }
-  if [ ! -s "$CHANGED_LINES_FILE.diff" ]; then
-    git -C "$SRC_ROOT" diff HEAD -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.diff"
+  # 索引与工作区不一致（staged ≠ 磁盘）时显式告警：本次提交内容 ≠ 实际被变异/测试的文件。
+  # 此时门禁结果虽为真，但验的不是将要入库的版本，提交前必须重新 `git add`。
+  git -C "$SRC_ROOT" diff --cached -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.cached.diff" 2>/dev/null || true
+  if [ -s "$CHANGED_LINES_FILE.cached.diff" ] \
+     && ! cmp -s "$CHANGED_LINES_FILE.cached.diff" "$CHANGED_LINES_FILE.diff"; then
+    echo "[mut] 警告: 索引与工作区不一致（staged ≠ 磁盘）——行号已按工作区文件取；提交前请重新 git add"
   fi
   "$PY" - "$CHANGED_LINES_FILE.diff" "$CHANGED_LINES_FILE" <<'PYLINES'
 import re, sys
@@ -68,6 +74,17 @@ if not changed:
 with open(sys.argv[2], "w", encoding="utf-8") as f:
     f.write("\n".join(map(str, sorted(changed))))
 PYLINES
+  if [ -s "$CHANGED_LINES_FILE.diff" ] && [ ! -s "$CHANGED_LINES_FILE" ]; then
+    # 纯删除变更（diff 非空，但所有 hunk 的新文件侧计数为 0）：新文件里没有可变异
+    # 的新增行 → 合法 N/A，**不得**回退全文件。
+    # 口径（OODA-20261007-124）：回退全文件会把「本次未改动的历史代码」的覆盖盲区
+    # 记成这次变更的分数——基准测试明明通过、日志却报「测试套件有覆盖盲区」，属
+    # 治理报告里的假结论（假红），也与 104「N/A 是合法结果」的口径相冲突。
+    # 删除类变更的有效性由「基准测试仍通过」（上方已跑）+ 架构/回归门禁承担。
+    echo "[mut] 变异范围: 纯删除变更（新文件侧无可变异行）"
+    echo "[mut] 说明: 删除类变更无新增可执行行 → N/A（基准测试已通过）；非『行号未命中』"
+    echo "MUTATION_SCORE=N/A"; exit 0
+  fi
   if [ -s "$CHANGED_LINES_FILE" ]; then
     # 注意: 单行改动集无结尾换行, wc -l 会少算 1 行, 故用非空行计数
     echo "[mut] 变异范围: 改动行 $(tr -s ' \n' '\n' < "$CHANGED_LINES_FILE" | grep -c .) 行"
@@ -75,7 +92,7 @@ PYLINES
     # 无差异（如 CI 干净检出）或差异不含代码行：删除白名单文件 →
     # apply_mut 以 allowed=None 走全文件，避免 MUTATION_SCORE=N/A 的静默空转
     rm -f "$CHANGED_LINES_FILE"
-    echo "[mut] 变异范围: 无可定位改动行 → 回退全文件"
+    echo "[mut] 变异范围: 无差异 → 回退全文件"
   fi
 else
   echo "ERROR: MUTATION_SCOPE 仅支持 changed/all" >&2
@@ -247,7 +264,12 @@ for m in "${MUTS[@]}"; do
 done
 
 if [ "$applied" -eq 0 ]; then
-  echo "[mut] 未产生有效变异"; echo "MUTATION_SCORE=N/A"; exit 0
+  # N/A 语义显式化（OODA-20261007-103②）：「改动行内没有可定位的变异算子」与
+  # 「未定位到变异点（行号口径错误）」是两件事，不能共用同一个绿。前者不阻断，
+  # 后者自 2026-10-07 起由上面的「索引/工作区不一致」告警 + 工作区行号口径消除。
+  echo "[mut] 未产生有效变异"
+  echo "[mut] 说明: 改动行内无 fitting 变异算子（0 个候选），本条无可变逻辑；非『行号未命中』"
+  echo "MUTATION_SCORE=N/A"; exit 0
 fi
 score=$((killed * 100 / applied))
 echo "[mut] 杀死 $killed / 存活 $survived / 有效变异 $applied / 语法破坏跳过 $skipped"

@@ -38,13 +38,17 @@ jobs:
       - name: 安装工具链
         # F-20(P0-F): 覆盖率门禁需要可运行测试环境，仅装工具会导致 pytest 无法收集（缺 numpy 等运行时依赖）
         run: pip install -e ".[full,dev]" radon bandit
-      - name: governance 对抗回归（F-1/F-3/F-10/F-14/F-23）
+      - name: governance 对抗回归（F-1/F-3/F-10/F-14/F-23/F-25）
         run: |
           bash scripts/ai-verify/tests/test-anti-evasion.sh
           bash scripts/ai-verify/tests/test-mutation-skip.sh
           bash scripts/ai-verify/tests/test-owner-approval-marker.sh
           bash scripts/ai-verify/tests/test-risk-branch.sh
           bash scripts/ai-verify/tests/test-mutation-map.sh
+          # M3（大环复盘 2026-10-08）：门禁引擎双载体一致性 —— 仓库副本被静默改动或与 kit
+          # 分叉即变红（CI 无 kit 时仍校验副本 hash 与行为回归）
+          bash scripts/ai-verify/tests/test-guard-parity.sh
+          bash scripts/ai-verify/tests/test-mutation-check-annotations.sh
       - name: 跑 risk-classify（风险定级）
         id: classify
         env:
