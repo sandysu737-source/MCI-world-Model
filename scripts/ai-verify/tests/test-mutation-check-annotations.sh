@@ -243,6 +243,132 @@ else
   fi
 fi
 
+
+# ---------- M5(OODA-20261007-053): N/A 显式裁决（原因码 + 严格模式人工确认） ----------
+# 缺陷背景：`MUTATION_SCORE=N/A`（改动行内 0 个 fitting 变异算子）曾被 quality-gate 的旧正则
+#   `[0-9NA]+` 截成 "N"，渲染成假分数「N% ≥ 80%」；「无变异可评」被静默贴上达标证书。
+#   量化（2026-10-09）：受约束文件 26/300 任何改动必落 N/A，近 40 提交 15 个改动单元中 5 个落 N/A
+#   → 不 fail-closed（只会制造假红），改为显式原因码 + L0/L2 转人工确认。
+say "T10: N/A 的显式裁决（原因码 + 人工确认通道，不得静默记达标）"
+
+# T10a 引擎层：无可评变异（T8b 同一样本）必须携带机器可读原因码
+if printf '%s' "$out8b" | grep -qx 'MUTATION_NA_REASON=no-operator-in-changed-lines'; then
+  ok "T10a 无可评变异输出原因码 no-operator-in-changed-lines"
+else
+  no "T10a 无可评变异缺机器可读原因码（无法区分合法 N/A 与静默放行）" "$out8b"
+fi
+
+# T10b 引擎层：纯删除变更（新文件侧无新增行）→ 专用原因码，且不得回落全文件
+# 注意：macOS 的 /tmp 是 /private/tmp 的符号链接，夹具必须取物理路径（pwd -P），
+# 否则 mutation-check 的 `relpath` 与 git 的 toplevel 不同源，diff 读不到 → 假 SKIP。
+T_REAL="$(cd "$t" && pwd -P)"
+DEL="$T_REAL/delrepo"
+mkdir -p "$DEL"
+git -C "$DEL" init -q
+git -C "$DEL" config user.email anno@example.com
+git -C "$DEL" config user.name anno
+cat > "$DEL/del_only.py" <<'EOF'
+def total(a):
+    unused = 0
+    return a
+EOF
+cat > "$DEL/test_del_only.py" <<'EOF'
+from del_only import total
+
+
+def test_total():
+    assert total(1) == 1
+EOF
+git -C "$DEL" add -A
+git -C "$DEL" commit -qm base
+cat > "$DEL/del_only.py" <<'EOF'
+def total(a):
+    return a
+EOF
+out10b="$( cd "$DEL" && SRC_PATH="$DEL/del_only.py" SNAP_DIR="$t" PYTHONUTF8=1 \
+  PYTHON_BIN="${PYTHON_BIN:-}" MUTATION_SCOPE=changed \
+  bash "$MUT" "$DEL/del_only.py" "$DEL/test_del_only.py" "$t/wpytest.sh" 2>&1 )"
+if printf '%s' "$out10b" | grep -qx 'MUTATION_NA_REASON=pure-delete'; then
+  ok "T10b 纯删除变更输出专用原因码 pure-delete"
+else
+  no "T10b 纯删除变更未输出 pure-delete（合法 N/A 不得回落全文件）" "$out10b"
+fi
+if printf '%s' "$out10b" | grep -q '纯删除变更'; then
+  ok "T10b-2 纯删除变更保留语义说明"
+else
+  no "T10b-2 纯删除变更缺语义说明" "$out10b"
+fi
+
+# T10c/T10d 门控层：严格（L0/L2 合入拦截点）必须转人工确认，非严格（push 审计）不阻断
+GATE="$KIT_DIR/quality-gate.sh"
+if [ ! -f "$GATE" ]; then
+  skip "T10c 缺 $GATE，跳过门控层行为验证"
+elif ! command -v radon >/dev/null 2>&1 || ! command -v ruff >/dev/null 2>&1 \
+  || ! command -v bandit >/dev/null 2>&1; then
+  skip "T10c 缺 radon/ruff/bandit，跳过门控层行为验证"
+else
+  GF="$t/gatefix"
+  mkdir -p "$GF/tests"
+  git -C "$GF" init -q
+  git -C "$GF" config user.email gate@example.com
+  git -C "$GF" config user.name gate
+  cat > "$GF/pyproject.toml" <<'EOF'
+[tool.pytest.ini_options]
+pythonpath = ["."]
+EOF
+  cat > "$GF/na_mod.py" <<'EOF'
+"""声明类模块：无可评变异（T10c 夹具）。"""
+
+from enum import Enum
+
+
+class Cat(Enum):
+    """分类枚举。"""
+
+    A = "a"
+    B = "b"
+EOF
+  cat > "$GF/tests/test_na_mod.py" <<'EOF'
+from na_mod import Cat
+
+
+def test_cat():
+    assert Cat.A.value == "a"
+EOF
+  git -C "$GF" add -A
+  git -C "$GF" commit -qm base
+  out10c="$( cd "$GF" && PYTHONUTF8=1 PYTHON_BIN="${PYTHON_BIN:-}" \
+    MUTATION_STRICT=1 COVERAGE_HARD_GATE=0 PYTEST_SCOPE=changed \
+    bash "$GATE" L2 na_mod.py 2>&1 )"
+  rc10c=$?
+  if printf '%s' "$out10c" | grep -q '工具完整性校验未通过'; then
+    skip "T10c 本机工具完整性校验未通过（环境问题，非回归）"
+  elif [ "$rc10c" -ne 0 ]; then
+    no "T10c 严格模式 N/A 不应硬阻断（期望 rc=0，转人工确认；fail-closed 会制造假红）" "$out10c"
+  elif printf '%s' "$out10c" | grep -q '原因=no-operator-in-changed-lines' \
+    && printf '%s' "$out10c" | grep -q '不得记为达标'; then
+    ok "T10c 严格模式 N/A 显式转人工确认（原因码可见，非达标）"
+  else
+    no "T10c 严格模式 N/A 未显式标注（疑似静默记达标）" "$out10c"
+  fi
+  # T10d 仅在门控实现了 MUTATION_STRICT 降级开关时断言（能力探测，非实现文字断言）。
+  #   该开关目前只在仓库副本（F-22/push 合并后审计降级）；kit 源尚未回灌该开关，
+  #   其自带 CI 模板也未注入 → kit 自检只覆盖严格口径，降级口径待 M6 统一。
+  if ! grep -q 'MUTATION_STRICT' "$GATE"; then
+    skip "T10d 该门控未实现 MUTATION_STRICT 降级开关（kit 源待回灌），跳过降级口径断言"
+  else
+    out10d="$( cd "$GF" && PYTHONUTF8=1 PYTHON_BIN="${PYTHON_BIN:-}" \
+      MUTATION_STRICT=0 COVERAGE_HARD_GATE=0 PYTEST_SCOPE=changed \
+      bash "$GATE" L2 na_mod.py 2>&1 )"
+    rc10d=$?
+    if [ "$rc10d" -eq 0 ] && printf '%s' "$out10d" | grep -q 'push 合并后审计不阻断'; then
+      ok "T10d 非严格（push 审计）N/A 与 PR 拦截口径区分"
+    else
+      no "T10d 非严格模式 N/A 口径异常" "$out10d"
+    fi
+  fi
+fi
+
 echo
 say "汇总: PASS=$PASS FAIL=$FAIL SKIP=$SKIP"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1
