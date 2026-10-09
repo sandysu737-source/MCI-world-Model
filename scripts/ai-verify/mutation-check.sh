@@ -83,6 +83,10 @@ PYLINES
     # 删除类变更的有效性由「基准测试仍通过」（上方已跑）+ 架构/回归门禁承担。
     echo "[mut] 变异范围: 纯删除变更（新文件侧无可变异行）"
     echo "[mut] 说明: 删除类变更无新增可执行行 → N/A（基准测试已通过）；非『行号未命中』"
+    # M5(OODA-20261007-053): N/A 必须携带机器可读原因码，供 quality-gate 判定
+    # 「合法无可评变异」与「静默放行」；人工确认通道据此可追溯（不再依赖中文散文解析）。
+    echo "MUTATION_NA_REASON=pure-delete"
+    echo "MUTATION_NA_LINES=0"
     echo "MUTATION_SCORE=N/A"; exit 0
   fi
   if [ -s "$CHANGED_LINES_FILE" ]; then
@@ -269,6 +273,15 @@ if [ "$applied" -eq 0 ]; then
   # 后者自 2026-10-07 起由上面的「索引/工作区不一致」告警 + 工作区行号口径消除。
   echo "[mut] 未产生有效变异"
   echo "[mut] 说明: 改动行内无 fitting 变异算子（0 个候选），本条无可变逻辑；非『行号未命中』"
+  # M5(OODA-20261007-053): 同 pure-delete，原因码 + 变异范围行数一并输出。
+  # 量化（2026-10-09）：受约束文件 26/300 任何改动必落 N/A；近 40 提交 15 个改动单元
+  # 中 5 个落 N/A → 该通道是常态路径，不是边角，必须显式可追溯。
+  echo "MUTATION_NA_REASON=no-operator-in-changed-lines"
+  if [ -s "$CHANGED_LINES_FILE" ]; then
+    echo "MUTATION_NA_LINES=$(tr -s ' \n' '\n' < "$CHANGED_LINES_FILE" | grep -c .)"
+  else
+    echo "MUTATION_NA_LINES=all"
+  fi
   echo "MUTATION_SCORE=N/A"; exit 0
 fi
 score=$((killed * 100 / applied))

@@ -23,7 +23,10 @@ MUT_KIT="$KIT_DIR/mutation-check.sh"
 #   RISK_BRANCH、F-20 阈值 env），引擎 hash 随之升级
 # 2026-10-07（OODA-20261007-103）：行号口径由 `git diff --cached` 改为 `git diff HEAD`
 # （工作区 vs HEAD），并新增「索引与工作区不一致」告警
-EXPECTED_MUTATION_ENGINE_SHA="c160884edb7ba5c750c48bea8785085b26af01ce3a92b286a6a6b9fa37a52d51"
+# 2026-10-09（M5 / OODA-20261007-053）：mutation-check 输出 N/A 机器可读原因码
+#   （MUTATION_NA_REASON=pure-delete|no-operator-in-changed-lines），供 quality-gate
+#   区分「合法无可评变异」与「静默放行」并在严格模式转人工确认。引擎 hash 同步升级。
+EXPECTED_MUTATION_ENGINE_SHA="7712c58e4cda3614b7c10465cc769fb6db87c0b42ce7141238c5d8e1e0071a63"
 
 PASS=0; FAIL=0
 say(){ printf '\033[1m[parity]\033[0m %s\n' "$1"; }

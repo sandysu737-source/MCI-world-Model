@@ -585,7 +585,7 @@ run_mutation() {
   local pybin="${PYTHON_BIN:-python3}"
   local abs_src abs_tst
   local hard="${MUTATION_HARD_GATE:-1}"
-  local rc overall_rc=0 pair ms
+  local rc overall_rc=0 pair ms na_total=0
   for pair in "${pairs[@]}"; do
     target="${pair%%|*}"; tfile="${pair#*|}"
     base="${target##*/}"; base="${base%.py}"
@@ -601,8 +601,23 @@ run_mutation() {
     rc=$?
     cd "$ROOT"
     [ "$rc" -ne 0 ] && overall_rc=1
-    ms="$(grep -oE 'MUTATION_SCORE=[0-9NA]+' /tmp/qgate_mut.log | cut -d= -f2)"
-    if [ "$rc" -eq 0 ]; then
+    # M5(OODA-20261007-053): `MUTATION_SCORE=N/A`（改动行内 0 个 fitting 变异算子）不是
+    # 「达标」。旧正则 `[0-9NA]+` 把 "N/A" 截成 "N"，日志被渲染成假分数「N% ≥ 80%」——
+    # 等于给「无变异可评」贴了一张不存在的达标证书（假绿）。现改为：取值保留 N/A，
+    # 读取 mutation-check 的机器可读原因码，并在严格模式（L0/L2＝合入拦截点）转人工确认。
+    # 不 fail-closed：量化（2026-10-09）显示受约束文件 26/300 任何改动必落 N/A、近 40 提交
+    # 15 个改动单元中 5 个落 N/A —— fail-closed 只会制造假红，使「门禁红」退化为常态噪声。
+    ms="$(grep -oE 'MUTATION_SCORE=[0-9NA/]+' /tmp/qgate_mut.log | cut -d= -f2)"
+    na_reason="$(grep -oE 'MUTATION_NA_REASON=[a-z0-9-]+' /tmp/qgate_mut.log | head -1 | cut -d= -f2)"
+    na_lines="$(grep -oE 'MUTATION_NA_LINES=[a-z0-9]+' /tmp/qgate_mut.log | head -1 | cut -d= -f2)"
+    if [ "$rc" -eq 0 ] && { [ "$ms" = "N/A" ] || [ -z "$ms" ]; }; then
+      na_total=$((na_total+1))
+      if [ "$strict" = "1" ]; then
+        warn "变异测试无可评变异($base: N/A, 原因=${na_reason:-unknown}, 变异范围=${na_lines:-?}) —— L0/L2 不得记为达标，需人工确认改动确无逻辑语义（声明/重导出/纯删除/注解类）"
+      else
+        say "变异测试无可评变异($base: N/A, 原因=${na_reason:-unknown}, 变异范围=${na_lines:-?})，push 合并后审计不阻断"
+      fi
+    elif [ "$rc" -eq 0 ]; then
       pass "变异测试通过($base: ${ms}% ≥ ${MUTMIN}%, L0 可免逐行审核的科学依据)"
     elif [ "$rc" -eq 1 ]; then
       if [ "$hard" = "1" ]; then
@@ -620,6 +635,13 @@ run_mutation() {
       fi
     fi
   done
+  if [ "$na_total" -gt 0 ]; then
+    if [ "$strict" = "1" ]; then
+      warn "变异门禁 N/A 覆盖 ${na_total}/${#pairs[@]} 个文件（无可评变异，已转人工确认；不阻断≠达标）"
+    else
+      say "变异门禁 N/A 覆盖 ${na_total}/${#pairs[@]} 个文件（无可评变异，push 审计不阻断）"
+    fi
+  fi
   export PATH="$savedpath"
   return "$overall_rc"
 }
