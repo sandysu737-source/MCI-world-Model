@@ -8,14 +8,52 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
 # F-1(P0-A): 固化 kit 路径, 忽略 AI_ENG_KIT 环境变量, 防伪造 kit 劫持门禁（fail-closed）
 unset AI_ENG_KIT
+# M4(OODA-20261008-055): 门禁引擎默认取**仓库副本** —— 本地与 CI 从此同源同口径。
+# 旧口径「本地用 kit 副本 / CI 用仓库副本」使本地结论与 CI 结论不可互推（045/048/052 同源），
+# 且 kit 副本落后于仓库时会凭空制造本地红灯。跨项目统一升级或 kit 回归时才切 kit：
+# 显式开关 AI_ENG_GUARD_USE_KIT=1；kit 路径仍固定（不接受任意路径），故不引入新的劫持面。
+SELF_GUARD_DIR="$(cd "$(dirname "$0")" && pwd)"
 KIT_GUARD_DIR="$HOME/qoder m5pro/_ai-eng-kit/governance"
-if [ ! -d "$KIT_GUARD_DIR" ]; then
-  if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
-    KIT_GUARD_DIR="$(dirname "$0")"
+GUARD_DIR="$SELF_GUARD_DIR"
+if [ "${AI_ENG_GUARD_USE_KIT:-0}" = "1" ]; then
+  if [ -d "$KIT_GUARD_DIR" ]; then
+    GUARD_DIR="$KIT_GUARD_DIR"
+    printf '\033[1m[ai-guard]\033[0m 引擎载体: kit（显式开关 AI_ENG_GUARD_USE_KIT=1）\n'
   else
-    printf '\033[1m[ai-guard]\033[0m ERROR: governance kit 不存在: %s（fail-closed, 禁止放行）\n' "$KIT_GUARD_DIR" >&2
+    printf '\033[1m[ai-guard]\033[0m ERROR: 显式请求 kit 载体但不存在: %s（fail-closed, 禁止放行）\n' "$KIT_GUARD_DIR" >&2
     exit 1
   fi
+else
+  printf '\033[1m[ai-guard]\033[0m 引擎载体: 仓库副本 %s\n' "$GUARD_DIR"
+fi
+if [ ! -f "$GUARD_DIR/quality-gate.sh" ] || [ ! -f "$GUARD_DIR/risk-classify.sh" ]; then
+  printf '\033[1m[ai-guard]\033[0m ERROR: 载体不完整（缺 quality-gate.sh/risk-classify.sh）: %s（fail-closed）\n' "$GUARD_DIR" >&2
+  exit 1
+fi
+# 双载体分叉告警（不 fail-closed；硬门禁由 CI 的 test-guard-parity.sh 承担）：
+# 分叉时打印同步方向，避免「同名不同源」再次静默发生（045/048/052 同源缺陷）。
+_guard_sha(){ (sha256sum "$1" 2>/dev/null || shasum -a 256 "$1") | cut -d' ' -f1; }
+if [ -d "$KIT_GUARD_DIR" ]; then
+  for _pf in mutation-check.sh risk-classify.sh; do
+    if [ -f "$SELF_GUARD_DIR/$_pf" ] && [ -f "$KIT_GUARD_DIR/$_pf" ] \
+       && [ "$(_guard_sha "$SELF_GUARD_DIR/$_pf")" != "$(_guard_sha "$KIT_GUARD_DIR/$_pf")" ]; then
+      printf '\033[1m[ai-guard]\033[0m ⚠️  双载体分叉: %s（仓库 %s ≠ kit %s）\n' \
+        "$_pf" "$(_guard_sha "$SELF_GUARD_DIR/$_pf" | cut -c1-12)" "$(_guard_sha "$KIT_GUARD_DIR/$_pf" | cut -c1-12)"
+      printf '            同步方向: 单源=kit → 白名单受控同步（sync-governance.sh 覆盖式同步会抹掉仓库侧增量，见 M6）\n'
+    fi
+  done
+fi
+# M4 ③: 本机工具口径统一指向仓内 .venv。PATH 上的同名工具可能来自其它环境（实测 miniforge 的
+# radon 包装器无法输出 --version → 被「工具完整性校验」判「疑似伪造二进制」fail-closed），
+# 会让「本地红」与代码无关。已显式设置的环境变量优先，不被覆盖。
+if [ -d "$ROOT/.venv/bin" ]; then
+  for _spec in RADON_BIN:radon RUFF_BIN:ruff PYTEST_BIN:pytest PYTHON_BIN:python; do
+    _n="${_spec%%:*}"; _b="${_spec#*:}"
+    eval "_cur=\${$_n:-}"
+    if [ -z "$_cur" ] && [ -x "$ROOT/.venv/bin/$_b" ]; then
+      eval "export $_n=\"\$ROOT/.venv/bin/$_b\""
+    fi
+  done
 fi
 
 say(){ printf '\033[1m[ai-guard]\033[0m %s\n' "$1"; }
@@ -62,7 +100,7 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF" ]; then
 fi
 
 # ---------- 2. 风险定级（显式传暂存文件，仅审本次提交内容） ----------
-CLASSIFY_OUT="$(bash "$KIT_GUARD_DIR/risk-classify.sh" "${STAGE_FILES[@]}" 2>/dev/null || true)"
+CLASSIFY_OUT="$(bash "$GUARD_DIR/risk-classify.sh" "${STAGE_FILES[@]}" 2>/dev/null || true)"
 LEVEL_TAG="$(printf '%s\n' "$CLASSIFY_OUT" | grep '^MAX_LEVEL' | tail -1 | grep -oE 'L[012]$')"
 [ -z "$LEVEL_TAG" ] && LEVEL_TAG=L2
 LEVEL="${LEVEL_TAG#L}"
@@ -90,7 +128,7 @@ if [ "${#GATE_FILES[@]}" -eq 0 ]; then
   say "本次提交仅含删除，跳过文件级质量门禁"
   { echo "- 仅删除提交：文件级门禁跳过（无剩余文件）"; } > "$GATE_LOG"
   GATE_RC=0
-elif bash "$KIT_GUARD_DIR/quality-gate.sh" "$LEVEL_TAG" "${GATE_FILES[@]}" >> "$GATE_LOG" 2>&1; then
+elif bash "$GUARD_DIR/quality-gate.sh" "$LEVEL_TAG" "${GATE_FILES[@]}" >> "$GATE_LOG" 2>&1; then
   GATE_RC=0
 else
   GATE_RC=$?
@@ -155,7 +193,7 @@ case "$LEVEL_TAG" in
     # L2 凭证: review-token(不可伪造, 需第二人签发) 或 CI 模式跳过本地(AI_REVIEW_CI=1留给CI校验)
     TOKEN="${AI_REVIEW_TOKEN:-}"
     if [ -n "$TOKEN" ]; then
-      if bash "$KIT_GUARD_DIR/review-token.sh" verify "$TOKEN" HEAD >/tmp/gov_token.log 2>&1; then
+      if bash "$GUARD_DIR/review-token.sh" verify "$TOKEN" HEAD >/tmp/gov_token.log 2>&1; then
         reviewer="$(grep -oE 'valid: .*' /tmp/gov_token.log | sed 's/.*://;s/ *$//')"
         say "⚠️  L2 review-token 有效(reviewer: $reviewer)，允许提交；CI 仍会复核 PR approved-reviews-count"
         echo "**⚠️ L2 放行(review-token valid, reviewer=$reviewer)**" >> "$SUMMARY"
