@@ -303,6 +303,116 @@ fi
 say "用例7: 门禁引擎双载体一致性（kit↔repo 同源同步; OODA-20260930-002）"
 if bash "$KIT_DIR/tests/test-guard-parity.sh"; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); fi
 
+say "用例9: 门禁引擎载体策略（M4/OODA-20261008-055: 默认仓库副本, 显式开关才用 kit）"
+r9="$(new_repo)"
+cat > "$r9/sql_lower.py" <<'EOF'
+def query(uid):
+    return f"select * from users where id={uid}"
+EOF
+git -C "$r9" add sql_lower.py
+# 把 kit 副本的门禁换成「永远放行」桩：默认口径若仍走仓库副本，则恶意样例必须仍被判红
+cp "$KIT_DEST/quality-gate.sh" "$TROOT/qg.kit.bak"
+printf '#!/usr/bin/env bash\necho "[stub] kit 门禁放行"\nexit 0\n' > "$KIT_DEST/quality-gate.sh"
+( cd "$r9" && bash "$AI_GUARD" >"$TROOT/case9a.log" 2>&1 )
+rc9a=$?
+# 判别口径: kit 桩的输出被 ai-guard 重定向进 GATE_LOG，故用「门禁结论」判别载体——
+# 默认（仓库副本）→ 恶意样例被判「质量门禁未通过」；桩生效时则不会出现该结论。
+if [ "$rc9a" -ne 0 ] && grep -q '质量门禁未通过' "$TROOT/case9a.log"; then
+  say "✅ PASS  用例9a 默认使用仓库副本（kit 桩放行未被采纳）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例9a 默认口径未使用仓库副本 rc=$rc9a"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case9a.log"
+fi
+# 9b: 显式开关 AI_ENG_GUARD_USE_KIT=1 → 切到 kit 副本（桩生效即证明开关真实可用）
+( cd "$r9" && AI_ENG_GUARD_USE_KIT=1 bash "$AI_GUARD" >"$TROOT/case9b.log" 2>&1 )
+rc9b=$?
+if grep -q '引擎载体: kit' "$TROOT/case9b.log" \
+   && grep -q '质量门禁通过' "$TROOT/case9b.log" \
+   && ! grep -q '质量门禁未通过' "$TROOT/case9b.log"; then
+  say "✅ PASS  用例9b 显式开关切到 kit 载体（放行桩生效, rc=${rc9b}）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例9b 显式开关未切到 kit 载体"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case9b.log"
+fi
+cp "$TROOT/qg.kit.bak" "$KIT_DEST/quality-gate.sh"
+# 9c: 显式开关 + kit 缺失 → fail-closed（不得静默回退仓库副本）
+EMPTYHOME="$TROOT/emptyhome"
+mkdir -p "$EMPTYHOME"
+( cd "$r9" && HOME="$EMPTYHOME" AI_ENG_GUARD_USE_KIT=1 bash "$AI_GUARD" >"$TROOT/case9c.log" 2>&1 )
+rc9c=$?
+if [ "$rc9c" -ne 0 ] && grep -q '显式请求 kit 载体但不存在' "$TROOT/case9c.log"; then
+  say "✅ PASS  用例9c 显式请求 kit 但缺失 → fail-closed"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例9c kit 缺失未 fail-closed rc=$rc9c"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case9c.log"
+fi
+# 9d: 双载体分叉必须告警（同名不同源再次静默发生 = 045/048/052 同源缺陷）
+printf '# divergent\n' >> "$KIT_DEST/risk-classify.sh"
+( cd "$r9" && bash "$AI_GUARD" >"$TROOT/case9d.log" 2>&1 )
+cp "$KIT_DIR/risk-classify.sh" "$KIT_DEST/risk-classify.sh"
+if grep -q '双载体分叉' "$TROOT/case9d.log"; then
+  say "✅ PASS  用例9d 双载体分叉告警可见"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例9d 分叉无告警（分叉会再次静默）"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case9d.log"
+fi
+
+say "用例10: 覆盖率口径（M4/OODA-20261008-055: 阈值文件权威 + 变更面自动口径）"
+r10="$(new_repo)"
+mkdir -p "$r10/src" "$r10/tests"
+cat > "$r10/pyproject.toml" <<'EOF'
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["covmod"]
+EOF
+cat > "$r10/src/covmod.py" <<'EOF'
+def f(x):
+    if x:
+        return 1
+    return 0
+EOF
+cat > "$r10/tests/test_covmod.py" <<'EOF'
+from covmod import f
+
+
+def test_f():
+    assert f(1) == 1
+EOF
+# 10a: src/ 变更 → 自动 full 口径 → 阈值文件取代等级默认值（L2 默认 95/90）
+printf '50 tests covmod\nbranch 7\n' > "$r10/.ai-coverage-threshold"
+git -C "$r10" add -A
+out10a="$( cd "$r10" && bash "$QG" L2 src/covmod.py 2>&1 )"
+if printf '%s' "$out10a" | grep -q '核心≥50% 分支=50.0% ≥7%' \
+   && printf '%s' "$out10a" | grep -q 'scope=full'; then
+  say "✅ PASS  用例10a src 变更走全量真门禁且阈值文件生效（50/7）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例10a 阈值文件未被采纳或口径非 full"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out10a" | tail -8
+fi
+# 10b: 分支下限高于实测 → 必须判红（证明 branch 行参与判定而非装饰）
+printf '50 tests covmod\nbranch 100\n' > "$r10/.ai-coverage-threshold"
+( cd "$r10" && bash "$QG" L2 src/covmod.py >"$TROOT/case10b.log" 2>&1 )
+rc10b=$?
+if [ "${rc10b}" -ne 0 ] && grep -q '分支覆盖率' "$TROOT/case10b.log"; then
+  say "✅ PASS  用例10b branch 行参与判定（下限 100 时判红）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例10b branch 行未参与判定 rc=${rc10b}"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case10b.log"
+fi
+# 10c: 非 src 变更 → 自动 changed 口径（不跑全量覆盖率；旧口径下本地合法文档提交要跑全量 ~60min）
+printf 'note\n' > "$r10/note.md"
+git -C "$r10" add note.md
+( cd "$r10" && bash "$QG" L1 note.md >"$TROOT/case10c.log" 2>&1 )
+rc10c=$?
+if [ "${rc10c}" -eq 0 ] && grep -q '覆盖率口径(自动): scope=changed' "$TROOT/case10c.log"; then
+  say "✅ PASS  用例10c 非 src 变更自动降为 changed 口径（本地门禁可用）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例10c 自动口径未生效 rc=${rc10c}"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case10c.log"
+fi
+
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
 say "汇总: PASS=$PASS FAIL=$FAIL SKIP=$SKIP"
