@@ -39,7 +39,7 @@ trap 'cp "$SRC.mutorig" "$SRC" 2>/dev/null; rm -f "$SRC.mutorig"' EXIT
 # quality-gate 记 pass，属静默空转（改完代码不重新 add 等于门禁在验旧版）。
 MUTATION_SCOPE="${MUTATION_SCOPE:-changed}"
 CHANGED_LINES_FILE="$(mktemp)"
-trap 'cp "$SRC.mutorig" "$SRC" 2>/dev/null; rm -f "$SRC.mutorig" "$CHANGED_LINES_FILE" "$CHANGED_LINES_FILE.diff" "$CHANGED_LINES_FILE.cached.diff"' EXIT
+trap 'cp "$SRC.mutorig" "$SRC" 2>/dev/null; rm -f "$SRC.mutorig" "$CHANGED_LINES_FILE" "$CHANGED_LINES_FILE.point" "$CHANGED_LINES_FILE.diff" "$CHANGED_LINES_FILE.cached.diff"' EXIT
 if [ "$MUTATION_SCOPE" = "all" ]; then
   echo "[mut] 变异范围: 全文件（显式 MUTATION_SCOPE=all）"
 elif [ "$MUTATION_SCOPE" = "changed" ]; then
@@ -49,10 +49,29 @@ elif [ "$MUTATION_SCOPE" = "changed" ]; then
     exit 2
   fi
   SRC_REL="$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$SRC" "$SRC_ROOT")"
+  # M6(OODA-20261009-WAVE1-347): 波次/CI 模式下的行号口径。
+  # 门禁在「干净检出」场景（CI 与 local-ci 都是）无 worktree diff → 旧逻辑回退全文件，
+  # 于是「历史大文件里本次未改动的逻辑」的覆盖盲区被记成本次分数（实测 backend/utils.py 0%、
+  # finance_modules_api.py 10%，而本波次真正新增的代码 100%）→ 属假红，且让波次门禁不可达。
+  # 口径: 调用方（quality-gate 由 local-ci/CI 传入 GATE_DIFF_BASE）显式给出基线时，
+  # 行号取 `基线..HEAD` 的 diff —— 与 complexity 检查「只查改动函数」同源，
+  # 度量的是**本次交付自己的改动行**。未给出基线时行为不变（worktree diff + 全文件兜底）。
+  if [ -n "${MUTATION_DIFF_BASE:-}" ]; then
+    if ! git -C "$SRC_ROOT" rev-parse --verify --quiet "${MUTATION_DIFF_BASE}^{commit}" >/dev/null; then
+      echo "ERROR: MUTATION_DIFF_BASE 不是有效提交: $MUTATION_DIFF_BASE" >&2
+      exit 2
+    fi
+    git -C "$SRC_ROOT" diff "${MUTATION_DIFF_BASE}..HEAD" -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.diff" || {
+      echo "ERROR: 无法读取波次 diff（$MUTATION_DIFF_BASE..HEAD）" >&2
+      exit 2
+    }
+    echo "[mut] 变异范围基线: ${MUTATION_DIFF_BASE}..HEAD（波次/CI 模式，行号按本次交付的改动行取）"
+  else
   git -C "$SRC_ROOT" diff HEAD -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.diff" || {
     echo "ERROR: 无法读取 worktree diff" >&2
     exit 2
   }
+  fi
   # 索引与工作区不一致（staged ≠ 磁盘）时显式告警：本次提交内容 ≠ 实际被变异/测试的文件。
   # 此时门禁结果虽为真，但验的不是将要入库的版本，提交前必须重新 `git add`。
   git -C "$SRC_ROOT" diff --cached -U0 -- "$SRC_REL" > "$CHANGED_LINES_FILE.cached.diff" 2>/dev/null || true
@@ -107,9 +126,13 @@ fi
 # 跳过区间: 字符串/注释(tokenize) + 类型注解区域(ast) + 返回箭头 ->。
 # 普通规则与整数+1 共用同一段跳过/匹配逻辑, 避免两套偏移算法漂移。
 apply_mut(){
-  "$PY" - "$SRC" "$2" "$3" "$CHANGED_LINES_FILE" <<'PYMUT'
+  # 第 5 参：变异点行号落盘文件（OODA-20261009-WAVE1-348）。
+  # 旧输出只给「存活: 布尔 True→False」这类描述、不给行号 → 存活点不可直接定位，只能人工反查
+  # （本波次实测：9 个存活点里 6 个需反查）。加行号后存活点可直接跳到源行。
+  "$PY" - "$SRC" "$2" "$3" "$CHANGED_LINES_FILE" "$CHANGED_LINES_FILE.point" <<'PYMUT'
 import sys, re, tokenize, io, ast
-path, pat, rep, lines_file = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+path, pat, rep, lines_file, point_file = (sys.argv[1], sys.argv[2], sys.argv[3],
+                                          sys.argv[4], sys.argv[5])
 code = open(path, encoding="utf-8").read()
 try:
     _raw = open(lines_file, encoding="utf-8").read().split()
@@ -211,6 +234,7 @@ except re.error:
         idx = code.find(pat, idx + 1)
     if idx == -1:
         sys.exit(2)
+    mut_pos = idx
     new = code[:idx] + rep + code[idx + len(pat):]
 else:
     m = rx.search(code)
@@ -225,6 +249,7 @@ else:
             sub = m.expand(rep)
         except (re.error, ValueError):
             sub = rep
+    mut_pos = m.start()
     new = code[:m.start()] + sub + code[m.end():]
 if new == code:
     sys.exit(2)
@@ -233,6 +258,9 @@ try:
     ast.parse(new)
 except SyntaxError:
     sys.exit(3)
+# 变异点行号：1-based，供调用方在存活/杀死明细里直接定位源行
+with open(point_file, "w", encoding="utf-8") as fh:
+    fh.write(str(code.count("\n", 0, mut_pos) + 1))
 open(path, "w", encoding="utf-8").write(new)
 PYMUT
 }
@@ -260,8 +288,9 @@ for m in "${MUTS[@]}"; do
   [ "$rc" -ne 0 ] && continue
   diff -q "$SRC.mutorig" "$SRC" >/dev/null 2>&1 && continue
   applied=$((applied+1))
+  mut_line="$(cat "$CHANGED_LINES_FILE.point" 2>/dev/null || echo "?")"
   if sh -c "$PYTEST -x -q --no-header \"$TESTS\"" >/tmp/mut_run.log 2>&1; then
-    survived=$((survived+1)); surv_list="$surv_list\n  - 存活: $desc"
+    survived=$((survived+1)); surv_list="$surv_list\n  - 存活: $desc (行 $mut_line)"
   else
     killed=$((killed+1))
   fi
