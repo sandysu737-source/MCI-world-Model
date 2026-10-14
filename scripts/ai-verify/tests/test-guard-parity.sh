@@ -26,7 +26,10 @@ MUT_KIT="$KIT_DIR/mutation-check.sh"
 # 2026-10-09（M5 / OODA-20261007-053）：mutation-check 输出 N/A 机器可读原因码
 #   （MUTATION_NA_REASON=pure-delete|no-operator-in-changed-lines），供 quality-gate
 #   区分「合法无可评变异」与「静默放行」并在严格模式转人工确认。引擎 hash 同步升级。
-EXPECTED_MUTATION_ENGINE_SHA="7712c58e4cda3614b7c10465cc769fb6db87c0b42ce7141238c5d8e1e0071a63"
+# 2026-10-10（OODA-20261009-125 / -20261010-005）：跨仓载体对齐试点——由 kit 同步
+#   mutation-check.sh（294→323 行，33+/4-；新增注解跳过/范围限定合并与 N/A 原因码），
+#   引擎 hash 同步升级；本仓为首个试点仓，其余 5 仓在试点通过后分批放量。
+EXPECTED_MUTATION_ENGINE_SHA="8a15d9f401dcfa4dce5fb642733d0dc7c43d80278f67371375c85647f4cc6425"
 
 PASS=0; FAIL=0
 say(){ printf '\033[1m[parity]\033[0m %s\n' "$1"; }

@@ -365,12 +365,45 @@ run_coverage() {
   if ! has "$PYTEST_BIN"; then tool_missing "未安装 pytest，覆盖率门禁无法执行（设 PYTEST_BIN）"; return; fi
   # 真门禁模式：仓库根 .ai-coverage-threshold 存在即启用
   # 格式: <阈值%> <测试目录> <cov源1> [cov源2...]（阈值=实测基线-5%，只许上调）
-  if [ -f "$ROOT/.ai-coverage-threshold" ]; then
+  # M4 ④(OODA-20261008-055): 未显式指定时，按**与 CI 同一规则**自动判定覆盖范围与强度
+  # （CI 的 quality_scope：改动面含 src|adapters|benchmarks 的 .py → full+硬阻断，否则 changed+转人工确认）。
+  # 旧口径本地恒为 full+硬阻断：任何合法提交都要跑全量覆盖率（实测本机 ~60min）→ 本地门禁实际不可用，
+  # 只能靠 SKIP=ai-guard，等于没有本地拦截；且阈值模式还绕过了 scope，使 CI 的纯文档 PR 也被迫全量。
+  # 显式传 PYTEST_SCOPE / COVERAGE_HARD_GATE 时一律以显式值为准（CI 工作流即属此路径，行为不变）。
+  local hard="${COVERAGE_HARD_GATE:-}"
+  local scope="${PYTEST_SCOPE:-}"
+  if [ -z "$hard" ] || [ -z "$scope" ]; then
+    local _full=0 _f _rel
+    if [ "${#FILES[@]}" -eq 0 ]; then _full=1; fi
+    for _f in "${FILES[@]}"; do
+      _rel="${_f#"$ROOT/"}"; _rel="${_rel#./}"
+      case "$_rel" in
+        .|src/*|adapters/*|benchmarks/*) _full=1;;
+      esac
+    done
+    [ -z "$scope" ] && { if [ "$_full" = "1" ]; then scope=full; else scope=changed; fi; }
+    [ -z "$hard" ] && { if [ "$_full" = "1" ]; then hard=1; else hard=0; fi; }
+    say "覆盖率口径(自动): scope=${scope} hard=${hard}（规则同 CI quality_scope；改动面 $_full=全量）"
+  fi
+  # 真门禁模式（阈值 = 仓库基线、恒硬阻断）只在 full 口径下启用：
+  # changed 口径跑的是"改动文件的映射测试"子集，用全仓阈值判定无意义（会造出假红），
+  # 交由下方映射路径处理（hard=0 时转人工确认）。
+  if [ "$scope" = "full" ] && [ -f "$ROOT/.ai-coverage-threshold" ]; then
     local spec threshold testdir sources
     spec=$(grep -v '^[[:space:]]*#' "$ROOT/.ai-coverage-threshold" | head -1)
     threshold=$(echo "$spec" | awk '{print $1}')
     testdir=$(echo "$spec" | awk '{print $2}')
     sources=$(echo "$spec" | cut -s -d' ' -f3-)
+    # M4(OODA-20261008-055): 项目 branch floor，与 kit F-20 口径对齐。
+    # 缺该行时本地按风险等级默认值取分支阈值（L2=90%），而 CI 注入 COV_BR_THRESHOLD=61
+    # → 同一份代码「本地红 / CI 绿」，本地结论不能作为 CI 结论的近似（045/048/052/055 同源）。
+    local bspec
+    bspec=$(grep -E '^[[:space:]]*branch[[:space:]]+[0-9]+([.][0-9]+)?[[:space:]]*$' "$ROOT/.ai-coverage-threshold" | head -1 | awk '{print $2}')
+    [ -n "$bspec" ] && COV_BR="$bspec"
+    # 报告头写的是等级默认值，真门禁模式以文件为准 → 显式登记"实际生效阈值"，
+    # 避免报告自述与判定口径不一致（同 M5「不得代报不存在的分数」）。
+    say "阈值来源: .ai-coverage-threshold（核心≥${threshold}% 分支≥${COV_BR}%，测试目录 ${testdir}）"
+    echo "- 阈值(实际): 核心覆盖≥${threshold}% 分支≥${COV_BR}%（来源 .ai-coverage-threshold）" >> "$REPORT"
     local cov_args=() s
     for s in $sources; do cov_args+=("--cov=$s"); done
     if (cd "$cfgdir" && "$PYTEST_BIN" "$testdir" -q "${cov_args[@]}" --cov-branch \
@@ -398,8 +431,7 @@ PYCOV
   fi
   # 在配置目录跑测试（cwd 不变，用 pytest 的 rootdir 推断）
   # F-16(P1-D): 本地默认与 CI 相同（full + 硬阻断），显式降低强度只用于诊断。
-  local hard="${COVERAGE_HARD_GATE:-1}"
-  local scope="${PYTEST_SCOPE:-full}"
+  # hard/scope 已在上方统一解析（M4 ④ 自动口径或显式注入）。
   local pytest_args=()
   if [ "$scope" = "changed" ]; then
     # 为每个改动源文件找对应测试: <path>/<mod>.py -> tests/**/test_<mod>.py
