@@ -582,7 +582,10 @@ PYCOV
   if (cd "$cfgdir" && "$PYTEST_BIN" "${pytest_args[@]}" -q --cov --cov-branch \
     --cov-report=term-missing --cov-report=json:"$COV_JSON" >"$PYTEST_LOG" 2>&1); then
     local cov; cov=$(grep -E '^TOTAL' "$PYTEST_LOG" | tail -1 | grep -oE '[0-9]+%' | head -1 | tr -d '%')
-    if [ -n "$cov" ] && [ "$cov" -lt "${COV_CORE}" ] 2>/dev/null; then
+    # R1-3（A-1）：读数缺失时**不得**落进「通过」分支——「无数 → 绿」与「0% → 绿」同属静默降级。
+    if [ -z "$cov" ]; then
+      warn "覆盖率读数缺失（日志无 TOTAL 行，见 ${PYTEST_LOG}）→ 不作为通过依据"
+    elif [ "$cov" -lt "${COV_CORE}" ] 2>/dev/null; then
       if [ "$hard" = "1" ]; then fail "覆盖率 ${cov}% < 阈值 ${COV_CORE}%（等级 ${LEVEL}）"
       else warn "覆盖率 ${cov}% < 阈值 ${COV_CORE}%（默认警告；COVERAGE_HARD_GATE=1 硬阻断）"; fi
     else
@@ -613,6 +616,88 @@ PYCOV
   fi
 }
 run_coverage
+
+# ---------- 4.4 治理脚本覆盖率换量尺（A-1 ／ 台账 OODA-20261015-018、-020；R1-2a） ----------
+# 背景（实测）：`scripts/ai-verify/**` 的用例以 **subprocess** 方式调用被测脚本，进程内覆盖率
+# **结构性**取不到数据 ⇒ 该路径读数恒 0.00%，而 scope=changed 对「0% < 阈值」只 warn，
+# 于是形成「报 0% 却放行」。修法：改动面触及该路径时，用 COVERAGE_PROCESS_START ＋ PYTHONPATH
+# 注入**自包含** sitecustomize 钩子（不改动 venv、不依赖任何 .pth），令子进程自采集后 combine 出读数。
+# 判据：**不新增阈值**（既不收紧也不放宽既有门禁），只关闭静默。四态显式：
+#   采到读数（被测语句 > 0）⇒ 打印读数 ＋ pass；
+#   采不到读数／0 语句 ⇒ **fail**（I3：禁止以「0%」冒充结论）；
+#   未触及该路径／无映射用例 ⇒ 打印**显式**「不适用（原因）」行，不留空、不冒绿。
+run_gov_cov() {
+  gov_say(){ say "治理覆盖率判据: $1"; echo "- 治理覆盖率判据: $1" >> "$REPORT"; }
+  # 与 run_coverage 同口径：L0 不启用（其边界本就不含逻辑改动，见 OODA §3 L0 边界）
+  if [ "${LEVEL}" = "L0" ]; then
+    gov_say "不适用（L0 不强制覆盖率门禁）"
+    return 0
+  fi
+  local face=() rel f base
+  for f in "${FILES[@]}"; do
+    rel="${f#"$ROOT/"}"; rel="${rel#./}"
+    case "$rel" in scripts/ai-verify/*.py) face+=("$rel");; esac
+  done
+  if [ "${#face[@]}" -eq 0 ]; then
+    gov_say "不适用（本次改动面未触及 scripts/ai-verify/**.py）"
+    return 0
+  fi
+  local tmods=() t
+  for rel in "${face[@]}"; do
+    base="${rel##*/}"; base="${base%.py}"
+    [ "$base" = "__init__" ] && continue
+    while IFS= read -r t; do tmods+=("$t"); done < <(find "$ROOT" -path '*/tests/*' -name "test_${base}.py" 2>/dev/null | grep -vE '/\.venv|/vendor/|/node_modules/|/site-packages/')
+  done
+  if [ "${#tmods[@]}" -eq 0 ]; then
+    gov_say "不适用（无映射用例：请补 tests/**/test_<mod>.py）"
+    warn "治理脚本改动（scripts/ai-verify/**.py）无映射用例，覆盖率无法采集 → 转人工确认"
+    return 0
+  fi
+  local py="${PYTHON_BIN:-python3}"
+  if ! "$py" -c 'import coverage' >/dev/null 2>&1; then
+    gov_say "不适用（解释器缺 coverage 模块）"
+    tool_missing "治理覆盖率采集需要 coverage 模块（${py} -m pip install coverage）"
+    return 0
+  fi
+  local tmp hook rcfile data clog line stmts covp
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/qgate-govcov.XXXXXX")" || { warn "无法创建临时目录，治理覆盖率转人工确认"; return 0; }
+  hook="$tmp/hook"; mkdir -p "$hook"
+  printf '%s\n' \
+    'import os' \
+    'if os.getenv("COVERAGE_PROCESS_START"):' \
+    '    try:' \
+    '        import coverage' \
+    '        coverage.process_startup()' \
+    '    except Exception:' \
+    '        pass' > "$hook/sitecustomize.py"
+  rcfile="$tmp/coveragerc"; data="$tmp/.coverage"; clog="$tmp/pytest.log"
+  # source 必须写**绝对路径**：用例以 `subprocess.run(..., cwd=tmp_path)` 调被测脚本，
+  # 相对 source 在被测进程的 cwd 下解析不到 ⇒ 采数为 0（实测：绝对 62% vs 相对 38%，
+  # 且单例调用时相对口径直接掉到 0%）。
+  printf '[run]\nsource = %s/scripts/ai-verify\nparallel = true\ndata_file = %s\n' "$ROOT" "$data" > "$rcfile"
+  local targs=()
+  for t in "${tmods[@]}"; do targs+=("${t#"$ROOT/"}"); done
+  # `-o addopts=`：多仓在 addopts 里写死全局 --cov-fail-under（只跑子集必假红）；本次只采数据，
+  # 阈值判定仍归上方 run_coverage，避免「换量尺」被误读为「换阈值」。
+  if ! ( cd "$ROOT" && COVERAGE_PROCESS_START="$rcfile" COVERAGE_FILE="$data" \
+        PYTHONPATH="$hook${PYTHONPATH:+:$PYTHONPATH}" \
+        "$PYTEST_BIN" -o addopts= -q -p no:cacheprovider "${targs[@]}" ) >"$clog" 2>&1; then
+    gov_say "未通过（映射用例失败，无读数：${targs[*]}）"
+    fail "治理脚本映射用例未通过（${targs[*]}，日志 ${clog}）"
+    return 0
+  fi
+  ( cd "$ROOT" && "$py" -m coverage combine --data-file="$data" ) >/dev/null 2>&1
+  line="$( cd "$ROOT" && "$py" -m coverage report --data-file="$data" --include='*/scripts/ai-verify/*' 2>/dev/null | awk '$1=="TOTAL"{print}' )"
+  stmts="$(printf '%s' "$line" | awk '{print $2}')"; covp="$(printf '%s' "$line" | awk '{print $4}')"
+  if [ -z "${line:-}" ] || [ -z "${stmts:-}" ] || [ "${stmts:-0}" -le 0 ] 2>/dev/null; then
+    gov_say "❌ 未采到读数（scripts/ai-verify/**）"
+    fail "治理覆盖率读数缺失（scripts/ai-verify/** 无数据）：采集链路或用例路径失效，禁止以 0% 冒充结论（日志 ${clog}）"
+    return 0
+  fi
+  echo "- 治理覆盖率判据: ${covp:-?}（scripts/ai-verify/** 实测 ${stmts} 语句；口径＝COVERAGE_PROCESS_START ＋ sitecustomize 子进程采集；日志 ${clog}）" >> "$REPORT"
+  pass "治理覆盖率读数（scripts/ai-verify/**）: ${covp:-?}（${stmts} 语句）"
+}
+run_gov_cov
 
 # ---------- 4.5 AI Eval 回归（L5；改动触及 AI 模块时触发） ----------
 # 触发路径＝本组织各仓的 AI 面：`backend/ai_agent/**`、`backend/ai_eval/**`（题库本身），
