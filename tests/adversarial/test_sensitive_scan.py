@@ -252,3 +252,64 @@ def test_scan_defaults_to_roots_scope_not_tracked(tmp_path: Path) -> None:
 
     assert payload["scope"] == "roots"
     assert [f["path"] for f in payload["findings"]] == ["untracked.md"]
+
+
+def _baseline(path: Path, value: str) -> Path:
+    path.write_text(
+        "\n".join(["# 棘轮基线（测试夹具）", "# 规则：上升阻断／下降提示／相等通过", value, ""]),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_baseline_ratchet_blocks_increase(tmp_path: Path) -> None:
+    """棘轮的核心判据：命中数高于基线必须阻断——否则「新增泄漏」可以天天入库。
+
+    动机（OODA-20261015-AIGUARD-ADVVAUDIT-018 / A-2）：非阻断审计没有基线，
+    就无法区分「存量债」与「新增泄漏」，也就永远不会下降。
+    """
+    (tmp_path / "release.md").write_text("secret-term\n", encoding="utf-8")
+
+    result = _run(
+        tmp_path,
+        ".",
+        "--wordlist",
+        str(_wordlist(tmp_path / "terms.toml")),
+        "--baseline",
+        str(_baseline(tmp_path / "baseline.txt", "0")),
+    )
+
+    assert result.returncode == 1
+    assert "ratchet=increase" in result.stdout
+    assert "基线" in result.stderr
+
+
+def test_baseline_ratchet_registered_debt_passes_and_decrease_hints(tmp_path: Path) -> None:
+    """存量债不阻断（相等通过）；下降只提示、不自动改基线（人工下调并留痕）。"""
+    (tmp_path / "release.md").write_text("secret-term\n", encoding="utf-8")
+    wordlist = str(_wordlist(tmp_path / "terms.toml"))
+
+    hold = _run(tmp_path, ".", "--wordlist", wordlist, "--baseline", str(_baseline(tmp_path / "b1.txt", "1")))
+    assert hold.returncode == 0
+    assert "ratchet=hold" in hold.stdout
+
+    decrease = _run(tmp_path, ".", "--wordlist", wordlist, "--baseline", str(_baseline(tmp_path / "b2.txt", "5")))
+    assert decrease.returncode == 0
+    assert "ratchet=decrease" in decrease.stdout
+    assert "下调" in decrease.stderr
+
+
+def test_baseline_malformed_or_missing_fails_closed(tmp_path: Path) -> None:
+    """基线件畸形（多值/非整数/缺失）一律 fail-closed——基线不可信时不得放行。"""
+    (tmp_path / "release.md").write_text("safe\n", encoding="utf-8")
+    wordlist = str(_wordlist(tmp_path / "terms.toml"))
+
+    two_values = _run(
+        tmp_path, ".", "--wordlist", wordlist, "--baseline", str(_baseline(tmp_path / "multi.txt", "1\n2"))
+    )
+    assert two_values.returncode == 2
+    assert "fail-closed" in two_values.stderr
+
+    missing = _run(tmp_path, ".", "--wordlist", wordlist, "--baseline", str(tmp_path / "nope.txt"))
+    assert missing.returncode == 2
+    assert "fail-closed" in missing.stderr

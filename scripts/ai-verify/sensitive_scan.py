@@ -220,6 +220,28 @@ def _categories(wordlist_path: Path):
     return data["categories"]
 
 
+def read_baseline(path: Path) -> int:
+    """基线件只允许「注释行 + 恰一个整数」；缺失、多值或非整数一律 fail-closed。
+
+    动机（A-2 棘轮）：非阻断的审计没有基线就无法区分「存量债」与「新增泄漏」，
+    也就永远不会下降。基线只记一个数——数字本身不是敏感面，故可入库。
+    """
+    values = [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    if len(values) != 1:
+        raise ValueError(f"基线件须恰有一个整数（当前 {len(values)} 个非注释行）")
+    try:
+        number = int(values[0])
+    except ValueError as exc:
+        raise ValueError(f"基线值非整数: {values[0]!r}") from exc
+    if number < 0:
+        raise ValueError(f"基线值不可为负: {number}")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("roots", nargs="*", type=Path, help="要扫描的文件或目录")
@@ -234,6 +256,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path(__file__).with_name("sensitive-terms.toml"),
     )
     parser.add_argument("--report", type=Path, help="JSON 报告输出路径")
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        help="棘轮基线件（只允许「注释 + 一个整数」，现 52）。"
+        "findings > 基线 ⇒ rc=1（新增泄漏，阻断）；findings < 基线 ⇒ rc=0 且提示下调；相等 ⇒ rc=0。",
+    )
     parser.add_argument(
         "--exclude",
         action="append",
@@ -266,14 +294,43 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
         print(f"fail-closed: {error}", file=sys.stderr)
         return 2
+    baseline: int | None = None
+    if args.baseline is not None:
+        try:
+            baseline = read_baseline(args.baseline)
+        except (OSError, ValueError) as error:
+            print(f"fail-closed: 基线不可读: {error}", file=sys.stderr)
+            return 2
+        result["baseline"] = baseline
     if args.report is not None:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(
             json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    print(f"status={result['status']} files={result['files_scanned']} findings={result['findings_count']}")
-    return 0 if result["status"] == "pass" else 1
+    summary = f"status={result['status']} files={result['files_scanned']} findings={result['findings_count']}"
+    if baseline is None:
+        print(summary)
+        return 0 if result["status"] == "pass" else 1
+    # 棘轮（A-2）：存量债不阻断，新增泄漏阻断，下降必须人工下调基线（不自动改文件）
+    count = int(result["findings_count"])
+    if count > baseline:
+        print(f"{summary} baseline={baseline} ratchet=increase")
+        print(
+            f"新增敏感面命中 {count - baseline} 条（{count} > 基线 {baseline}）："
+            "请脱敏，或在白名单件中显式登记（含 reason/owner/过期日）",
+            file=sys.stderr,
+        )
+        return 1
+    if count < baseline:
+        print(f"{summary} baseline={baseline} ratchet=decrease")
+        print(
+            f"存量已降低（{count} < 基线 {baseline}）：请下调基线件并在提交信息留痕",
+            file=sys.stderr,
+        )
+        return 0
+    print(f"{summary} baseline={baseline} ratchet=hold")
+    return 0
 
 
 if __name__ == "__main__":
