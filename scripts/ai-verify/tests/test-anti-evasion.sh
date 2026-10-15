@@ -6,7 +6,7 @@
 # 用例7-13 见文内（含用例13 超大 diff 载体同步豁免的四向边界）
 # 用例14 摩擦预算回归 / 用例15 U1 工具运行时不变式（I-tools，同名变量不得异义/异环境）
 # 用例16 shell 可移植性：$VAR 紧邻非 ASCII（值会被吞字节，消息失真）
-# 用例17 mutation-check 双向合并接口（含 17c 含空格单目标整串生效）
+# 用例17 mutation-check 双向合并接口（17c 整串生效 ／ 17d 歧义可见）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 AI_GUARD_LEGACY=0
@@ -743,6 +743,26 @@ else
   printf '%s\n' "$out17c" | tail -5
 fi
 rm -rf "${r17c%/dir with space}"
+
+# 用例17d: 解析歧义必须**可见**（B-2 / OODA-20261015-AIGUARD-ADVVAUDIT-018）
+# 与 17c 配对：17c 保「正确解析」（整串生效），17d 保「错误可见」。
+# 现状：含空格但**不存在**的单目标路径会被按空白切分——切分本身可接受（最终由 pytest
+# fail-closed），但**不得静默**：必须打印「已按 N 个目标切分」。同时反向断言：
+# 不含空白的单目标不得出现该提示（不得把正常路径也刷成噪声）。
+r17d="$(mktemp -d)"
+printf 'def f(x):\n    return x\n' > "$r17d/target.py"
+out17d="$( cd "$r17d" && MUTATION_SCOPE=all MUTATION_LOCK=0 \
+  bash "$MC" "$r17d/target.py" "$r17d/dir with space/test_x.py" 2>&1 )"; rc17d=$?
+out17d_neg="$( cd "$r17d" && MUTATION_SCOPE=all MUTATION_LOCK=0 \
+  bash "$MC" "$r17d/target.py" "$r17d/target.py" 2>&1 )"
+if printf '%s' "$out17d" | grep -qE '已按 [0-9]+ 个目标切分' \
+   && ! printf '%s' "$out17d_neg" | grep -q '个目标切分'; then
+  say "✅ PASS  用例17d 解析歧义被显式提示且正常路径不刷噪声"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例17d 含空格目标被静默切分 或 正常路径被误提示（rc=${rc17d}）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out17d" | tail -5
+fi
+rm -rf "$r17d"
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"

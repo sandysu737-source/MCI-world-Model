@@ -44,7 +44,7 @@ MUT_KIT="$KIT_DIR/mutation-check.sh"
 # 2026-10-15（U6 订正）：本常量**不再是无条件硬断言**。它只在外层锚缺席（CI 无 kit）时兜底；
 #   历史问题＝它与用例名「双载体一致性（kit↔repo）」不符，kit 每次合法演进都造成各仓假红，
 #   已被人工补钉至少 3 次（a6c41e3 / 002cf84 / 337f9cc 一类）。真正的锚见断言①②。
-EXPECTED_MUTATION_ENGINE_SHA="beace25a9863ba78feb1c34e7bb8046739f88e017f24eaa441c8472019e00d0e"
+EXPECTED_MUTATION_ENGINE_SHA="f5b33b22f08d25d4ff8e619068548ea0e8863570bb9469456851838f6d23eb91"
 # 维护规则：本常量 = kit 单源**当前**引擎 hash（与 kit-baseline.tsv 同源同义），只服务
 # 「CI 无 kit」这一条通道；有 kit 时判定锚是 kit 本身（断言②），字面量陈旧仅告警（④）。
 

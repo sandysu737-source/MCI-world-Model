@@ -206,8 +206,15 @@ elif os.path.exists(raw):
     # 绝对路径按空白切开会把一条路径劈成两条（2026-10-15 实证：门禁报 `no tests ran in 0.00s`）。
     print(raw)
 else:
-    # 多目标且非逗号形态：按空白（shlex）切分，保留 su-memory 原语义
-    for token in shlex.split(raw):
+    # 多目标且非逗号形态：按空白（shlex）切分，保留 su-memory 原语义。
+    # 歧义可见化（B-2 / OODA-20261015-AIGUARD-ADVVAUDIT-018）：含空格的单目标绝对路径
+    # 若在当前 CWD 下不存在，会落到这里被切开——错误最终由 pytest 报「找不到文件」
+    # （可见但归因成本高：本轮为此卡了三轮）。故**切分结果打到 stderr**，让歧义一眼可见；
+    # 切分规则与判据一律不变。
+    tokens = shlex.split(raw)
+    if len(tokens) > 1:
+        print("[mut] 提示: 目标串含空白且非既有路径，已按 %d 个目标切分: %s" % (len(tokens), " ".join(tokens)), file=sys.stderr)
+    for token in tokens:
         print(token)')" || return 1
   selected_tests=()
   while IFS= read -r _t; do [ -n "$_t" ] && selected_tests+=("$_t"); done <<< "$parsed"
