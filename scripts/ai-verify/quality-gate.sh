@@ -22,6 +22,19 @@ MUT_LOG="$GATE_TMP_DIR/qgate_mut.log"
 RADON_BIN="${RADON_BIN:-radon}"
 RUFF_BIN="${RUFF_BIN:-ruff}"
 PYTEST_BIN="${PYTEST_BIN:-pytest}"
+# U1（2026-10-15）工具运行时口径 —— 不变式 I-tools：pytest 与 python 必须同属一个解释器环境。
+# 判据是「同 bin 目录」，**不是**「字符串相等」：同一 venv 的 pytest 与 python 必然不等，
+# 用字符串相等会把自己人当外人拦掉（实证 su-memory-sdk 20261015-170802-gate-L2.md ——
+# 该仓以 PYTEST_BIN 表示「运行 pytest 的解释器」，与 kit 的「pytest 可执行文件」同名异义）。
+# 只设了其中一个时**对称派生**另一个，避免「半套注入」自己制造不一致。
+if [ -z "${PYTHON_BIN:-}" ]; then
+  case "${PYTEST_BIN:-}" in
+    */*) _pbd="$(dirname "$PYTEST_BIN")"
+         for _c in python python3; do
+           [ -x "$_pbd/$_c" ] && { PYTHON_BIN="$_pbd/$_c"; break; }
+         done ;;
+  esac
+fi
 BANDIT_BIN="${BANDIT_BIN:-bandit}"
 # JS 静态检查：ESLint 走「治理配置」（零依赖核心规则），避免依赖项目本地 npm 配置
 # 背景：纯 JS 的 L2 改动此前因缺 eslint/配置必然 fail-closed（台账 OODA-20261003-002）
@@ -124,6 +137,20 @@ verify_tool_bin RADON_BIN
 verify_tool_bin RUFF_BIN
 verify_tool_bin BANDIT_BIN
 verify_tool_bin PYTEST_BIN
+
+# U1 不变式校验（同环境）：仅当两侧都是**显式路径**时才可判定归属
+# （PATH 上的裸命令名无从判定环境，不误报）。
+runtime_env_conflict(){
+  local _pb="$1" _py="$2" _a _b
+  case "$_pb" in */*) ;; *) return 1;; esac
+  case "$_py" in */*) ;; *) return 1;; esac
+  _a="$(cd "$(dirname "$_pb")" 2>/dev/null && pwd -P)" || return 1
+  _b="$(cd "$(dirname "$_py")" 2>/dev/null && pwd -P)" || return 1
+  [ "$_a" != "$_b" ]
+}
+if [ -n "${PYTHON_BIN:-}" ] && runtime_env_conflict "$PYTEST_BIN" "$PYTHON_BIN"; then
+  fail "工具运行时不一致: pytest 与 python 不同环境（PYTEST_BIN=$PYTEST_BIN / PYTHON_BIN=$PYTHON_BIN）；请让两者同属一个 venv"
+fi
 tool_missing(){
   if [ "$LEVEL" = "L2" ]; then fail "$1（L2 fail-closed）"; else warn "$1"; fi
 }

@@ -110,16 +110,45 @@ if [ "$GUARD_SNAPSHOT_OK" -ne 1 ]; then
   printf '\033[1m[ai-guard]\033[0m 本次为基础设施错误，不计入门禁失败次数，请稍后重试。\n' >&2
   exit 1
 fi
-# M4 ③: 工具口径统一指向仓内 .venv（显式环境变量优先）
-if [ -d "$ROOT/.venv/bin" ]; then
+# M4 ③ / U1: 工具口径统一指向仓内 .venv（显式环境变量优先；注入必须**对称**）
+# U1（2026-10-15）不变式 I-tools：PYTEST_BIN 与 PYTHON_BIN 必须同属一个解释器环境。
+# 只注入 pytest 不注入 python，等于基础层自己制造「运行时不一致」，最终表现为
+# 仓内门禁假红（实证 su-memory-sdk .ai-governance/reports/20261015-170802-gate-L2.md）。
+# 故把「对称注入 + 显式变量优先」抽成单一函数，供 §3 多布局探测复用（I3 单一维护源）。
+pin_venv_tools(){   # $1=venv 的 bin 目录
+  local _bindir="$1" _spec _n _b _cur
+  [ -d "$_bindir" ] || return 0
   for _spec in RADON_BIN:radon RUFF_BIN:ruff PYTEST_BIN:pytest PYTHON_BIN:python; do
     _n="${_spec%%:*}"; _b="${_spec#*:}"
     eval "_cur=\${$_n:-}"
-    if [ -z "$_cur" ] && [ -x "$ROOT/.venv/bin/$_b" ]; then
-      eval "export $_n=\"\$ROOT/.venv/bin/$_b\""
+    if [ -z "$_cur" ] && [ -x "$_bindir/$_b" ]; then
+      eval "export $_n=\"\$_bindir/$_b\""
     fi
   done
-fi
+}
+# U1（2026-10-15）「半套显式」补全：显式环境变量以**组**为单位生效。
+# 实证（OODA-20261015-AIGUARD-KITSYNC-011）：开发者全局 export PYTEST_BIN=<系统 pytest>
+# 而仓库另有 venv 时，旧逻辑只把 PYTHON_BIN 指向 venv → 基础层**自己**造出
+# 「pytest 与 python 不同环境」，L2 直接红。正确语义：先把半套显式补成全套
+# （从已显式者的 bin 目录取同环境伙伴），再用仓库 venv 补剩余空缺。
+pin_tool_env_pair(){
+  local _pd _c
+  if [ -n "${PYTEST_BIN:-}" ] && [ -z "${PYTHON_BIN:-}" ]; then
+    case "$PYTEST_BIN" in */?*)
+      _pd="$(dirname "$PYTEST_BIN")"
+      for _c in python python3; do
+        [ -x "$_pd/$_c" ] && { export PYTHON_BIN="$_pd/$_c"; break; }
+      done ;;
+    esac
+  elif [ -n "${PYTHON_BIN:-}" ] && [ -z "${PYTEST_BIN:-}" ]; then
+    case "$PYTHON_BIN" in */?*)
+      _pd="$(dirname "$PYTHON_BIN")"
+      [ -x "$_pd/pytest" ] && export PYTEST_BIN="$_pd/pytest" ;;
+    esac
+  fi
+}
+pin_tool_env_pair
+pin_venv_tools "$ROOT/.venv/bin"
 
 mkdir -p "$REPORT_DIR"
 SUMMARY="$REPORT_DIR/$TS-guard.md"
@@ -200,13 +229,14 @@ printf '%s\n' "$CLASSIFY_OUT" >> "$SUMMARY"
 echo '```' >> "$SUMMARY"
 say "风险定级: $LEVEL_TAG"
 
-# ---------- 3. venv 工具自动探测 ----------
+# ---------- 3. venv 工具自动探测（多布局；与 M4 ③ 同一函数，显式环境变量优先） ----------
+# U1：本块原先无条件覆盖 RADON/RUFF/BANDIT/PYTEST，且**不含** PYTHON_BIN —— 既踩掉
+# 显式环境变量，又制造 pytest/python 半套注入。改为复用 pin_venv_tools（对称 + 显式优先）。
+pin_tool_env_pair
 for vd in "backend/.venv/bin" ".venv/bin" "venv/bin"; do
   if [ -d "$ROOT/$vd" ]; then
-    [ -x "$ROOT/$vd/radon" ]  && export RADON_BIN="$ROOT/$vd/radon"
-    [ -x "$ROOT/$vd/ruff" ]   && export RUFF_BIN="$ROOT/$vd/ruff"
-    [ -x "$ROOT/$vd/bandit" ] && export BANDIT_BIN="$ROOT/$vd/bandit"
-    [ -x "$ROOT/$vd/pytest" ] && export PYTEST_BIN="$ROOT/$vd/pytest"
+    [ -x "$ROOT/$vd/bandit" ] && [ -z "${BANDIT_BIN:-}" ] && export BANDIT_BIN="$ROOT/$vd/bandit"
+    pin_venv_tools "$ROOT/$vd"
     break
   fi
 done

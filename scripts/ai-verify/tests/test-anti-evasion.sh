@@ -4,6 +4,7 @@
 # 用例1 假kit劫持 / 用例2 工具替换+token / 用例3 AI_REVIEW_CI滥用 / 用例4 token偷换
 # 用例5 SQL/SessionLocal/空catch实际命中 / 用例6 nosec豁免闭环
 # 用例7-13 见文内（含用例13 超大 diff 载体同步豁免的四向边界）
+# 用例14 摩擦预算回归 / 用例15 U1 工具运行时不变式（I-tools，同名变量不得异义/异环境）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 AI_GUARD_LEGACY=0
@@ -583,6 +584,68 @@ else
   printf '%s\n' "$out14" | tail -8
 fi
 
+
+
+# ── 用例15: U1 工具运行时不变式（I-tools）——同名变量不得异义／异环境 ────────────────
+# 背景（OODA-20261015-011）：su-memory-sdk 以 PYTEST_BIN 表示「运行 pytest 的解释器」，
+# kit 表示「pytest 可执行文件」——**同一键两种语义**；该仓又以「字符串不等」判「不一致」，
+# 于是 kit 的**同环境**注入（.venv/bin/pytest ＋ .venv/bin/python）被自己人拦掉，
+# 直接把一个能提交的仓变成提交不了的仓（实证 20261015-170802-gate-L2.md）。
+# 不变式: pytest 与 python 必须**同属一个解释器环境**；判据是「同 bin 目录」，不是字符串相等。
+venv_x="$TROOT/venv-x"; venv_y="$TROOT/venv-y"
+mkdir -p "$venv_x" "$venv_y"
+for _vd in "$venv_x" "$venv_y"; do
+  printf '#!/bin/sh\necho pytest 9.9.9\n' > "$_vd/pytest"
+  printf '#!/bin/sh\necho Python 3.11\n' > "$_vd/python"
+  chmod +x "$_vd/pytest" "$_vd/python"
+done
+r15="$(new_repo)"
+mkdir -p "$r15/scripts/ai-verify" "$r15/tests"
+cp "$SYNC_SRC/quality-gate.sh" "$r15/scripts/ai-verify/quality-gate.sh"
+printf '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n' > "$r15/pyproject.toml"
+git -C "$r15" add -A >/dev/null 2>&1; git -C "$r15" commit -qm case15 >/dev/null 2>&1
+# 15a: 异环境（pytest 在 X、python 在 Y）⇒ 必须 fail-closed
+out15a="$( cd "$r15" && PYTEST_BIN="$venv_x/pytest" PYTHON_BIN="$venv_y/python" bash scripts/ai-verify/quality-gate.sh L2 scripts/ai-verify/quality-gate.sh 2>&1 )"; rc15a=$?
+if [ "$rc15a" -ne 0 ] && printf '%s' "$out15a" | grep -q '工具运行时不一致'; then
+  say "✅ PASS  用例15a 异环境 pytest/python 被 fail-closed 拦截 (rc=$rc15a)"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例15a 异环境未被拦截 rc=$rc15a"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out15a" | tail -8
+fi
+# 15b: 同环境（同一 venv 的 pytest ＋ python，字符串必然不等）⇒ 不得误报
+out15b="$( cd "$r15" && PYTEST_BIN="$venv_x/pytest" PYTHON_BIN="$venv_x/python" bash scripts/ai-verify/quality-gate.sh L2 scripts/ai-verify/quality-gate.sh 2>&1 )"
+if ! printf '%s' "$out15b" | grep -q '工具运行时不一致' \
+   && ! printf '%s' "$out15b" | grep -q '工具完整性校验未通过'; then
+  say "✅ PASS  用例15b 同环境注入未被误报（越过工具校验阶段）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例15b 同环境被误判为不一致（同名异义假红回归）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out15b" | tail -8
+fi
+# 15d/15e: 「半套显式」必须被补全为同环境一组（OODA-20261015-AIGUARD-KITSYNC-011）
+# 实证：开发者全局 export PYTEST_BIN=<系统 pytest> ＋ 仓库另有 venv 时，旧逻辑把
+# PYTHON_BIN 指向 venv ⇒ 基础层自己造出「运行时不一致」，9 仓 L2 提交被自己拦下。
+PAIR_FN="$(awk '/^pin_tool_env_pair\(\)\{/,/^\}/' "$SYNC_SRC/ai-guard.sh")"
+mkdir -p "$venv_x/../pairvenv/bin"; cp "$venv_x/pytest" "$venv_x/../pairvenv/bin/pytest"; cp "$venv_x/python" "$venv_x/../pairvenv/bin/python"
+chmod +x "$venv_x/../pairvenv/bin/pytest" "$venv_x/../pairvenv/bin/python"
+o15d="$( env -u PYTHON_BIN PYTEST_BIN="$venv_x/pytest" bash -c "$PAIR_FN"'; pin_tool_env_pair; printf "%s" "${PYTHON_BIN:-}"' 2>/dev/null )"
+if [ "$o15d" = "$venv_x/python" ]; then
+  say "✅ PASS  用例15d 只显式 PYTEST_BIN ⇒ 派生同环境 python（不再自造不一致）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例15d 半套显式未补全（got=${o15d:-空}）"; FAIL=$((FAIL+1))
+fi
+o15e="$( env -u PYTEST_BIN PYTHON_BIN="$venv_x/../pairvenv/bin/python" bash -c "$PAIR_FN"'; pin_tool_env_pair; printf "%s" "${PYTEST_BIN:-}"' 2>/dev/null )"
+if [ "$o15e" = "$venv_x/../pairvenv/bin/pytest" ]; then
+  say "✅ PASS  用例15e 只显式 PYTHON_BIN ⇒ 派生同 venv pytest"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例15e 反向补全失败（got=${o15e:-空}）"; FAIL=$((FAIL+1))
+fi
+# 15c: 裸命令名（PATH 解析）⇒ 无从判定归属，不得误报
+out15c="$( cd "$r15" && PYTEST_BIN=pytest bash scripts/ai-verify/quality-gate.sh L2 scripts/ai-verify/quality-gate.sh 2>&1 )"
+if ! printf '%s' "$out15c" | grep -q '工具运行时不一致'; then
+  say "✅ PASS  用例15c 裸命令名不触发环境判定（不误报）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例15c 裸命令名被误判"; FAIL=$((FAIL+1))
+fi
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
