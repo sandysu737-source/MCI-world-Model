@@ -109,7 +109,15 @@ verify_tool_bin(){
     bin="$resolved"
   fi
   if [ ! -x "$bin" ]; then fail "$name 不存在或不可执行: $bin"; return; fi
-  local v; v="$("$bin" --version 2>/dev/null | head -1)"
+  # M6c 回环修复（2026-10-15，CI run 38697626731）：kit 版直接在工作区根探测
+  # `--version`，在 CI 上 radon 探测为空 → 误判「疑似伪造二进制」fail-closed。
+  # 恢复本仓既有实现：① 在临时目录内探测（隔离 cwd 依赖）；② 不用管道 + head
+  # （避免 pipefail/SIGPIPE 交互），改由 bash 截首行。
+  local probe_dir v
+  probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/tool-probe.XXXXXX")"
+  v="$(cd "$probe_dir" && "$bin" --version 2>/dev/null)"
+  rm -rf "$probe_dir"
+  v="${v%%$'\n'*}"
   [ -z "$v" ] && fail "$name 无法输出 --version, 疑似伪造二进制: $bin"
 }
 verify_tool_bin RADON_BIN
