@@ -559,6 +559,31 @@ else
 fi
 
 
+# ── 用例14: 摩擦预算回归（1-2h）——纯 shell 载体批次不得触发 Python 全量覆盖率 ─────────
+# 实证（OODA-20261015-011）：ai-weight 一次 ai-guard+review-token 的 L2 提交实测 ≈140 s，
+# 其报表 20261015-160923-gate-L2.md 显示「tests 全量 核心≥56% 分支=44.1%」。
+# 复现同一调用（已同步的 kit 载体）实测 1.45 s、scope=changed。
+# 判定：140 s 属**旧载体**行为（该报表无「阈值来源」/「覆盖率口径」两行 ⇒ 非新版口径），
+# 已由 1-1a 载体同步消解。本用例防「全量口径被重新引入」这一摩擦回归。
+r14="$(new_repo)"
+mkdir -p "$r14/scripts/ai-verify"
+cp "$SYNC_SRC/quality-gate.sh" "$r14/scripts/ai-verify/quality-gate.sh"
+cp "$SYNC_SRC/mutation-check.sh" "$r14/scripts/ai-verify/mutation-check.sh"
+cp "$SYNC_SRC/risk-classify.sh" "$r14/scripts/ai-verify/risk-classify.sh"
+printf '60\ttests\tsrc\n' > "$r14/.ai-coverage-threshold"
+# 复现真实仓形态：有 pytest 配置（否则门禁在「无测试配置」处提前返回，测不到口径判定）
+printf '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n' > "$r14/pyproject.toml"
+mkdir -p "$r14/tests"
+out14="$( cd "$r14" && PYTHON_BIN="${PYTHON_BIN:-python3}" bash scripts/ai-verify/quality-gate.sh L2 scripts/ai-verify/ai-guard.sh scripts/ai-verify/review-token.sh 2>&1 )"
+if printf '%s' "$out14" | grep -q 'scope=changed' \
+   && ! printf '%s' "$out14" | grep -q '全量'; then
+  say "✅ PASS  用例14 纯 shell 载体批次走 changed 口径（未触发全量覆盖率，摩擦预算未回归）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例14 纯 shell 批次触发全量覆盖率（1-2h 摩擦回归）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out14" | tail -8
+fi
+
+
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
 say "汇总: PASS=$PASS FAIL=$FAIL SKIP=$SKIP"
