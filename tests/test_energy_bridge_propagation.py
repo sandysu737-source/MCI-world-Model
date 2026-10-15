@@ -39,7 +39,7 @@ class TestPropagationMode:
         assert spread < 0.01, f"稳态模式应有均匀 delta, spread={spread}"
 
     def test_generation_direction_positive(self, bridge):
-        """相生: 增强 src 应使其所生目标 (tgt) 增加。
+        """enhance: 增强 src 应使其所生目标 (tgt) 增加。
 
         ENERGY_ENHANCE: semantic→causal, 增强 semantic 应使 causal delta>0。
         """
@@ -89,7 +89,7 @@ class TestPropagationMode:
 
 
 class TestMechanismClassification:
-    """机制分类 (相生/相克/间接) 正确性。"""
+    """机制分类 (enhance/suppress/间接) 正确性。"""
 
     def test_generated_target_marked_enhance(self, bridge):
         """被生目标应标注 enhance。"""

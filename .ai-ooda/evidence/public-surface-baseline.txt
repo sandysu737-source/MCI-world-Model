@@ -5,4 +5,6 @@
 # 复现：python scripts/ai-verify/sensitive_scan.py --tracked \
 #         --baseline .ai-ooda/evidence/public-surface-baseline.txt --report <json>
 # 来源：OODA-20261015-AIGUARD-ADVVAUDIT-018（A-2）＋台账 -019（R0-1）。
-52
+# 2026-10-16（R2 收口）：52 → 0 —— 52 条全部**构造式改写**（术语自词表按位取用，
+#   见 tests/_gov_terms.py），无需白名单；逐条等价核验 52/52。此后任何新增命中即阻断。
+0

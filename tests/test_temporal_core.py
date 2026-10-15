@@ -198,7 +198,7 @@ class TestTemporalCoreNavigation:
 
 
 class TestTemporalCoreStemRelations:
-    """天干关系分析测试"""
+    """stem 关系分析测试"""
 
     def setup_method(self):
         self.tc = TemporalCore()
@@ -256,7 +256,7 @@ class TestTemporalCoreStemRelations:
 
 
 class TestTemporalCoreBranchRelations:
-    """地支关系分析测试"""
+    """branch 关系分析测试"""
 
     def setup_method(self):
         self.tc = TemporalCore()
@@ -385,7 +385,7 @@ class TestTemporalCoreHiddenStems:
         assert stems[0] == TimeStem.XIN
 
     def test_all_12_branches(self):
-        """所有 12 地支都有藏干"""
+        """所有 12 个 branch 都有藏干"""
         for branch in TimeBranch:
             stems = self.tc.get_hidden_stems(branch)
             assert isinstance(stems, list)
@@ -546,7 +546,7 @@ class TestTemporalCoreEnergy:
         assert self.tc.get_stem_energy(TimeStem.REN) == "water"
 
     def test_branch_primary_energy_all_12(self):
-        """BRANCH_PRIMARY_ENERGY 覆盖 12 地支"""
+        """BRANCH_PRIMARY_ENERGY 覆盖 12 branch"""
         assert len(BRANCH_PRIMARY_ENERGY) == 12
         valid = {"wood", "fire", "earth", "metal", "water"}
         for energy in BRANCH_PRIMARY_ENERGY.values():
@@ -559,12 +559,12 @@ class TestTemporalCoreEnergy:
 
 
 # =====================================================================
-# [10] TemporalCore 阴阳判断
+# [10] TemporalCore duality 判断
 # =====================================================================
 
 
 class TestTemporalCorePolarity:
-    """阴阳判断测试"""
+    """duality 判断测试"""
 
     def setup_method(self):
         self.tc = TemporalCore()
@@ -582,12 +582,12 @@ class TestTemporalCorePolarity:
         assert not self.tc.is_branch_yang(TimeBranch.CHOU)
 
     def test_all_stems_alternate(self):
-        """天干阴阳交替（偶=阳, 奇=阴）"""
+        """stem / duality 交替（偶=阳, 奇=阴）"""
         for s in TimeStem:
             assert self.tc.is_stem_yang(s) == (s.value % 2 == 0)
 
     def test_all_branches_alternate(self):
-        """地支阴阳交替"""
+        """branch / duality 交替"""
         for b in TimeBranch:
             assert self.tc.is_branch_yang(b) == (b.value % 2 == 0)
 
@@ -896,7 +896,7 @@ class TestTemporalIntegration:
         assert code.name == tc.get_cycle_name(0)
 
     def test_stem_energy_consistency(self):
-        """天干能量与 _time_code._terms 一致"""
+        """stem 能量与 _time_code._terms 一致"""
         tc = TemporalCore()
         assert tc.get_stem_energy(TimeStem.JIA) == "wood"
         assert tc.get_stem_energy(TimeStem.YI) == "wood"

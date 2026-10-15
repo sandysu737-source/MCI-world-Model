@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._gov_terms import WATER
+
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/ai-verify/sensitive_scan.py"
 WORDLIST = ROOT / "scripts/ai-verify/sensitive-terms.toml"
@@ -95,7 +97,7 @@ def test_sensitive_scan_fails_closed_on_missing_wordlist(tmp_path: Path) -> None
 
 def test_single_cjk_concept_match_avoids_substrings(tmp_path: Path) -> None:
     target = tmp_path / "release.md"
-    target.write_text("水分\n水\n", encoding="utf-8")
+    target.write_text(f"{WATER}分\n{WATER}\n", encoding="utf-8")
     wordlist = tmp_path / "terms.toml"
     wordlist.write_text(
         "\n".join(
@@ -107,7 +109,7 @@ def test_single_cjk_concept_match_avoids_substrings(tmp_path: Path) -> None:
                 'source_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"',
                 "[[categories]]",
                 'name = "category"',
-                'terms = ["水"]',
+                f'terms = ["{WATER}"]',
                 'safe_aliases = ["safe"]',
             ]
         ),
