@@ -148,10 +148,45 @@ MAX_DIFF=${MAX_DIFF_LINES:-800}
 } > "$SUMMARY"
 
 # ---------- 1. 超大 diff 拦截 ----------
+# 判据本义：阻断「单次不可评审的大 blob」。diff 行数只是它的**代理量**（OODA v1.3.1 §5）。
+# 对「治理载体同步」批次，评审对象在上游 kit，本仓动作是机械可验证的分发，
+# 正确判据是「能否机械证明本批 = kit 单源同步」，而非行数。
+# 豁免唯一通道（无环境变量、无开关，任一条不满足即维持硬拦截 ⇒ fail-closed）：
+#   ① 引擎载体不是 kit 自身（kit 是评审点，kit 内不豁免）；
+#   ② kit 载体目录存在；
+#   ③ 本批**全部**暂存文件都落在 scripts/ai-verify/ 下，且 kit 存在同相对路径文件；
+#   ④ 每件文件的**暂存对象**与 kit 对应文件 sha256 完全一致。
+# 反滥用：想走此通道必须先把内容落进 kit（kit 侧另有独立门禁与评审），
+# 仓内私自改一行即 sha256 不符 ⇒ 照旧硬拦截。禁止用 MAX_DIFF_LINES 放宽（审计已定性的绕过面）。
+CARRIER_SYNC_PROOF=""
 if [ "$DIFF_LINES" -gt "$MAX_DIFF" ]; then
-  say "❌ 暂存改动 $DIFF_LINES 行 > ${MAX_DIFF}，疑似 Vibe Coding，拆分后提交"
-  echo "**❌ 超大 diff 拦截**" >> "$SUMMARY"
-  exit 1
+  if [ "$SELF_GUARD_DIR" != "$KIT_GUARD_DIR" ] && [ -d "$KIT_GUARD_DIR" ]; then
+    _all_sync=1; _n_sync=0
+    for _f in "${STAGE_FILES[@]}"; do
+      case "$_f" in
+        scripts/ai-verify/*) _rel="${_f#scripts/ai-verify/}" ;;
+        *) _all_sync=0; break ;;
+      esac
+      _kf="$KIT_GUARD_DIR/$_rel"
+      [ -f "$_kf" ] || { _all_sync=0; break; }
+      _stage_sha="$(git show ":$_f" 2>/dev/null | (sha256sum 2>/dev/null || shasum -a 256) | cut -d' ' -f1)"
+      [ -n "$_stage_sha" ] && [ "$_stage_sha" = "$(_guard_sha "$_kf")" ] || { _all_sync=0; break; }
+      _n_sync=$((_n_sync + 1))
+    done
+    if [ "$_all_sync" = "1" ] && [ "$_n_sync" -gt 0 ]; then
+      CARRIER_SYNC_PROOF="kit 单源同步豁免：${_n_sync} 件载体暂存内容与 kit 逐件 sha256 一致"
+    fi
+  fi
+  if [ -z "$CARRIER_SYNC_PROOF" ]; then
+    say "❌ 暂存改动 $DIFF_LINES 行 > ${MAX_DIFF}，疑似 Vibe Coding，拆分后提交"
+    echo "**❌ 超大 diff 拦截**" >> "$SUMMARY"
+    echo "- 说明：非 kit 单源同步批次，行数判据全额生效" >> "$SUMMARY"
+    exit 1
+  fi
+  say "⚠️  暂存改动 $DIFF_LINES 行 > ${MAX_DIFF} ⇒ ${CARRIER_SYNC_PROOF}"
+  echo "**⚠️ 超大 diff：kit 单源同步豁免**" >> "$SUMMARY"
+  echo "- 证据：${CARRIER_SYNC_PROOF}" >> "$SUMMARY"
+  echo "- 判据：内容可机械证明为上游 kit 分发，非新增未评审逻辑" >> "$SUMMARY"
 fi
 
 # ---------- 2. 风险定级（显式传暂存文件，仅审本次提交内容） ----------

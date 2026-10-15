@@ -3,10 +3,16 @@
 # 用途: 任何 governance 脚本改动必须先跑本套件；攻击被拦截(rc=1)才 PASS。
 # 用例1 假kit劫持 / 用例2 工具替换+token / 用例3 AI_REVIEW_CI滥用 / 用例4 token偷换
 # 用例5 SQL/SessionLocal/空catch实际命中 / 用例6 nosec豁免闭环
+# 用例7-13 见文内（含用例13 超大 diff 载体同步豁免的四向边界）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+AI_GUARD_LEGACY=0
 if [ -f "$KIT_DIR/ai-guard-governance.sh" ]; then
+  # 迁移期陷阱（2026-10-15 实证：儿童平台套件 20/6，6 项全因本回退选中旧守卫）。
+  # 保留回退以兼容老安装，但必须**显式告警**——否则「本仓仍有未归档的 legacy 载体」
+  # 会被静默测试，结论既不代表 kit 单源、也不代表在用的守卫（I3 载体唯一）。
   AI_GUARD="$KIT_DIR/ai-guard-governance.sh"
+  AI_GUARD_LEGACY=1
 else
   AI_GUARD="$KIT_DIR/ai-guard.sh"
 fi
@@ -15,6 +21,10 @@ QG="$KIT_DIR/quality-gate.sh"
 PASS=0; FAIL=0; SKIP=0
 
 say(){ printf '\033[1m[adv-test]\033[0m %s\n' "$1"; }
+if [ "$AI_GUARD_LEGACY" = "1" ]; then
+  say "⚠️  被测引擎 = legacy 载体 ai-guard-governance.sh（kit 单源无此文件）"
+  say "    ⇒ 本套件结论**不代表** kit 单源行为；请归档该残件后复跑（I3 载体唯一）"
+fi
 
 # R2.1: 临时资源统一放入本次运行独占的 TROOT（临时 HOME、kit 副本、测试仓库、用例日志）。
 # 顺序: TROOT 创建成功 → 立即注册 trap cleanup EXIT → 再执行 mkdir/复制/hash 校验,
@@ -488,6 +498,66 @@ else
   say "❌ FAIL  用例12b 空暂存降级异常 rc=$rc12b"; FAIL=$((FAIL+1))
   printf '%s\n' "$out12b" | tail -6
 fi
+
+# ── 用例13: 超大 diff 判据的**载体同步豁免**（OODA-20261015-009）────────────────
+# 判据本义是阻断「不可评审的大 blob」；对「载体同步」批次，评审对象在上游 kit，
+# 本仓动作是机械可验证的分发。故豁免必须 fail-closed 且可机械证明：
+#   13a 全批均为治理载体且逐件与 kit 字节一致 ⇒ 放行（记豁免证据）
+#   13b 任一字节漂移                        ⇒ 原硬拦截仍生效
+#   13c 混入非载体文件                      ⇒ 原硬拦截仍生效
+#   13d 引擎载体为 kit 自身时                ⇒ 不豁免（kit 是评审点）
+# 守卫内 kit 路径硬编码为 $HOME/qoder m5pro/_ai-eng-kit/governance；套件已 export HOME=$THOME，
+# 且 KIT_DEST 是该路径下的可信 kit 副本（启动时逐件 hash 校验）= 守卫实际解析到的锚。
+SYNC_SRC="$KIT_DEST"
+r13="$(new_repo)"
+mkdir -p "$r13/scripts/ai-verify"
+for _c in ai-guard quality-gate risk-classify mutation-check review-token hook-integrity; do
+  cp "$SYNC_SRC/$_c.sh" "$r13/scripts/ai-verify/$_c.sh"
+done
+git -C "$r13" add scripts/ai-verify/quality-gate.sh
+n13="$(git -C "$r13" diff --cached | wc -l | tr -dc '0-9')"
+out13a="$( cd "$r13" && HOME="$THOME" bash scripts/ai-verify/ai-guard.sh 2>&1 )"
+if printf '%s' "$out13a" | grep -q 'kit 单源同步豁免' \
+   && ! printf '%s' "$out13a" | grep -q '疑似 Vibe Coding'; then
+  say "✅ PASS  用例13a ${n13} 行载体同步豁免命中且未硬拦截"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例13a 载体同步豁免未生效（${n13} 行）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out13a" | tail -8
+fi
+# 13b: 单字节漂移（追加一行注释）→ sha 不符 ⇒ 必须回到硬拦截
+printf '\n# drift\n' >> "$r13/scripts/ai-verify/quality-gate.sh"
+git -C "$r13" add scripts/ai-verify/quality-gate.sh
+out13b="$( cd "$r13" && HOME="$THOME" bash scripts/ai-verify/ai-guard.sh 2>&1 )"; rc13b=$?
+if [ "$rc13b" -ne 0 ] && printf '%s' "$out13b" | grep -q '疑似 Vibe Coding'; then
+  say "✅ PASS  用例13b 单字节漂移仍被硬拦截 (rc=$rc13b)"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例13b 漂移内容被误豁免 rc=$rc13b"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out13b" | tail -8
+fi
+# 13c: 恢复字节一致，但混入一个非载体文件 → 全批条件不成立 ⇒ 硬拦截
+git -C "$r13" checkout -q -- scripts/ai-verify/quality-gate.sh 2>/dev/null || true
+cp "$SYNC_SRC/quality-gate.sh" "$r13/scripts/ai-verify/quality-gate.sh"
+git -C "$r13" add scripts/ai-verify/quality-gate.sh
+printf 'note\n' > "$r13/NOTES.md"
+git -C "$r13" add NOTES.md
+out13c="$( cd "$r13" && HOME="$THOME" bash scripts/ai-verify/ai-guard.sh 2>&1 )"; rc13c=$?
+if [ "$rc13c" -ne 0 ] && printf '%s' "$out13c" | grep -q '疑似 Vibe Coding'; then
+  say "✅ PASS  用例13c 混入非载体文件仍被硬拦截 (rc=$rc13c)"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例13c 混批被误豁免 rc=$rc13c"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out13c" | tail -8
+fi
+# 13d: 引擎载体 = kit 自身（SELF==KIT）⇒ 不豁免，kit 内不得自证
+git -C "$r13" reset -q HEAD -- NOTES.md
+git -C "$r13" add scripts/ai-verify/quality-gate.sh
+out13d="$( cd "$r13" && HOME="$THOME" bash "$KIT_DEST/ai-guard.sh" 2>&1 )"; rc13d=$?
+if [ "$rc13d" -ne 0 ] && printf '%s' "$out13d" | grep -q '疑似 Vibe Coding'; then
+  say "✅ PASS  用例13d kit 自检模式不豁免 (rc=$rc13d)"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例13d kit 内被误豁免 rc=$rc13d"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out13d" | tail -8
+fi
+
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
