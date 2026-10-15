@@ -15,6 +15,16 @@
 #     （governance.yml G1）与 PR 双人 approve。
 #   - 单人团队：token 仅作签发留痕，权威来源 = 负责人显式确认。
 #   - 最终防线在 CI: 硬词扫描 + token 校验 + PR approved-reviews-count>=2。
+#
+# F-3 暂存绑定的 CI 兼容（2026-10-09，OODA-20261009-WAVE1-353）：
+#   F-3 把令牌绑定到签发时 `git diff --cached` 的内容 hash，防「签发后偷换暂存」。
+#   但 CI 的干净检出里 `git diff --cached` 恒为空 ⇒ 硬比较会拒签**一切**本地合法令牌，
+#   使 CI 的 token 通道永久失效——那是「静默削弱既有控制」，不可接受。
+#   故显式降级规则：**当前暂存为空 ⇒ 无内容可偷换 ⇒ 跳过绑定比较，但打印告警行**；
+#   暂存非空时一律硬比较（本地 pre-commit 恒为非空，保护不变）。
+#   残余（本文件不负责）：`git commit --only <paths>`/`--no-verify` 这类不把内容放进
+#   索引的路径，会让「暂存为空」成为事实，从而绕过绑定；这属索引式 pre-commit 的
+#   通用盲区（同时绕过整个门禁），须由钩子侧「工作区 vs HEAD」比对单独覆盖。
 set -o pipefail
 
 SECRET="${GOV_REVIEW_SECRET:-}"
@@ -32,6 +42,9 @@ hmac() {
   printf '%s' "$2" | openssl dgst -sha256 -hmac "$1" 2>/dev/null | awk '{print $NF}'
 }
 
+# 空暂存的内容 hash（动态计算，避免硬编码漂移）
+EMPTY_STAGED_HASH="$(printf '' | shasum -a 256 | cut -c1-16)"
+
 case "$cmd" in
   issue)
     reviewer="${1:?用法: issue <reviewer> [commit-ish]}"
@@ -45,6 +58,9 @@ case "$cmd" in
     [ -z "$branch" ] && branch="unborn"
     # F-3(P0-D): 绑定本次暂存内容 hash, 签发后偷换暂存即失效
     staged="$(git diff --cached 2>/dev/null | shasum -a 256 | cut -c1-16)"
+    if [ "$staged" = "$EMPTY_STAGED_HASH" ]; then
+      echo "警告: 签发时暂存区为空（无内容可绑定）；该令牌只在空暂存场景（如 CI）通过校验。" >&2
+    fi
     payload="L2:${branch}:${short}:${staged}:${reviewer}"
     sig="$(hmac "$SECRET" "$payload")"
     token="${payload}|${sig}"
@@ -74,7 +90,12 @@ verify)
     staged_now="$(git diff --cached 2>/dev/null | shasum -a 256 | cut -c1-16)"
     token_staged="$(printf '%s' "$payload" | cut -d: -f4)"
     if [ "$token_staged" != "$staged_now" ]; then
-      echo "invalid: token 绑定的暂存内容与当前不符(暂存已变更, 需重新签发)"; exit 1; fi
+      if [ "$staged_now" = "$EMPTY_STAGED_HASH" ]; then
+        echo "warning: 当前暂存区为空（CI/干净检出），跳过暂存绑定校验（无内容可偷换，F-3 本次降级）" >&2
+      else
+        echo "invalid: token 绑定的暂存内容与当前不符(暂存已变更, 需重新签发)"; exit 1
+      fi
+    fi
     echo "valid: $payload"
     exit 0
     ;;
