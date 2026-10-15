@@ -149,7 +149,8 @@ runtime_env_conflict(){
   [ "$_a" != "$_b" ]
 }
 if [ -n "${PYTHON_BIN:-}" ] && runtime_env_conflict "$PYTEST_BIN" "$PYTHON_BIN"; then
-  fail "工具运行时不一致: pytest 与 python 不同环境（PYTEST_BIN=$PYTEST_BIN / PYTHON_BIN=$PYTHON_BIN）；请让两者同属一个 venv"
+  fail "工具运行时不一致: pytest 与 python 不同环境（PYTEST_BIN=${PYTEST_BIN} / PYTHON_BIN=${PYTHON_BIN}）"
+  fail "  请让两者同属一个 venv：或只设 PYTHON_BIN，或只设 PYTEST_BIN（门禁会派生同环境伙伴）"
 fi
 tool_missing(){
   if [ "$LEVEL" = "L2" ]; then fail "$1（L2 fail-closed）"; else warn "$1"; fi

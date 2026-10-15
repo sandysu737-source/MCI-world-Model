@@ -5,6 +5,7 @@
 # 用例5 SQL/SessionLocal/空catch实际命中 / 用例6 nosec豁免闭环
 # 用例7-13 见文内（含用例13 超大 diff 载体同步豁免的四向边界）
 # 用例14 摩擦预算回归 / 用例15 U1 工具运行时不变式（I-tools，同名变量不得异义/异环境）
+# 用例16 shell 可移植性：$VAR 紧邻非 ASCII（值会被吞字节，消息失真）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 AI_GUARD_LEGACY=0
@@ -645,6 +646,21 @@ if ! printf '%s' "$out15c" | grep -q '工具运行时不一致'; then
   say "✅ PASS  用例15c 裸命令名不触发环境判定（不误报）"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例15c 裸命令名被误判"; FAIL=$((FAIL+1))
+fi
+
+
+# ── 用例16: shell 可移植性 —— `$VAR` 紧邻非 ASCII ─────────────────────────────────
+# 实证（OODA-20261015-AIGUARD-KITSYNC-011）：`PYTHON_BIN=$PYTHON_BIN）` 这种写法在
+# 本机 bash 下把变量名的解析越过多字节字符边界，**整个变量值被吞掉**——门禁报出
+# 「PYTHON_BIN=）」而看不到真实值，定位成本极高；且属静默失真（不报错、只错内容）。
+# 该缺陷此前只有 hospital 仓自查（其 pre-commit 有同名检查），属基础层应固化项。
+bad16="$(LC_ALL=C grep -n '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$SYNC_SRC"/*.sh 2>/dev/null \
+          | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' || true)"
+if [ -z "$bad16" ]; then
+  say "✅ PASS  用例16 治理脚本无「\$VAR 紧邻非 ASCII」写法"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例16 发现 \$VAR 紧邻非 ASCII（值会被吞字节）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$bad16" | head -10
 fi
 
 echo
