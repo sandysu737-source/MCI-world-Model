@@ -109,7 +109,11 @@ fi
 
 # 3) 行为回归（沙箱 git 仓库，不触碰真实仓库）
 PYBIN="${PYTHON_BIN:-$(command -v python3 || true)}"
+# `command -v` 结果可能含空格（本工作区所有项目路径形如 `/Users/mac/qoder m5pro/<仓>/…`）。
+# 该值随后被**拼进一个字符串**交给 mutation-check（其内 shlex 二次切分）⇒ 必须显式单引号化，
+# 否则会被切成 `/Users/mac/qoder` 并当作命令执行（2026-10-16 实证：6 条行为判据连坐 FAIL）。
 PYTESTBIN="$(command -v pytest || true)"
+PYTEST_PREFIX="'$PYTESTBIN' --override-ini=addopts= -p no:cacheprovider"
 if [ -z "$PYBIN" ] || [ -z "$PYTESTBIN" ]; then
   say "ℹ️  SKIP  缺少 python3/pytest，跳过行为回归"
 else
@@ -148,7 +152,7 @@ EOF
 
   # 引擎固定走仓库副本；pytest 前缀显式清空 addopts，避免继承真实仓库配置
   run_engine(){ ( cd "$SANDBOX" && PYTHON_BIN="$PYBIN" MUTATION_MIN=80 \
-    bash "$MUT_REPO" sample.py test_sample.py "$PYTESTBIN --override-ini=addopts= -p no:cacheprovider" 2>&1 ); }
+    bash "$MUT_REPO" sample.py test_sample.py "$PYTEST_PREFIX" 2>&1 ); }
 
   # 用例A: 无任何差异（等价 CI 干净检出）→ 回退全文件，产出真实分数而非 N/A
   out_a="$(run_engine)"
@@ -164,7 +168,7 @@ EOF
 
   # 用例D: 显式 MUTATION_SCOPE=all → 全文件变异，不得因空白名单文件空转
   out_d="$( cd "$SANDBOX" && MUTATION_SCOPE=all PYTHON_BIN="$PYBIN" MUTATION_MIN=80 \
-    bash "$MUT_REPO" sample.py test_sample.py "$PYTESTBIN --override-ini=addopts= -p no:cacheprovider" 2>&1 )"
+    bash "$MUT_REPO" sample.py test_sample.py "$PYTEST_PREFIX" 2>&1 )"
   if printf '%s' "$out_d" | grep -q '全文件（显式 MUTATION_SCOPE=all）' \
     && printf '%s' "$out_d" | grep -q 'MUTATION_SCORE=100'; then
     say "✅ PASS  显式 all 模式全文件变异（未空转成 N/A）"
