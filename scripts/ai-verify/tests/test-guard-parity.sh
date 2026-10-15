@@ -14,10 +14,22 @@
 set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-MUT_REPO="$ROOT/scripts/ai-verify/mutation-check.sh"
 KIT_DIR="${AI_ENG_KIT_GUARD_DIR:-$HOME/qoder m5pro/_ai-eng-kit/governance}"
+
+# ── 载体定位（K-10 修复，2026-10-15）──────────────────────────────────────────
+# 原实现写死 $ROOT/scripts/ai-verify/mutation-check.sh ⇒ 在 kit 内必报「缺少仓库副本」
+# 并 exit 2，使纪律「改 governance 脚本先跑本套件」在**权威源不可执行**（套件是仓锚定的）。
+# 现口径：仓副本优先；无 scripts/ai-verify/ 但存在 governance/ ⇒ kit 自检模式。
+KIT_SELF=0
+if [ -f "$ROOT/scripts/ai-verify/mutation-check.sh" ]; then
+  MUT_REPO="$ROOT/scripts/ai-verify/mutation-check.sh"
+elif [ -f "$ROOT/governance/mutation-check.sh" ]; then
+  MUT_REPO="$ROOT/governance/mutation-check.sh"
+  KIT_SELF=1
+  [ -n "${AI_ENG_KIT_GUARD_DIR:-}" ] || KIT_DIR="$ROOT/governance"
+fi
 MUT_KIT="$KIT_DIR/mutation-check.sh"
-# 期望值：以 kit 为源同步后的引擎 hash；引擎升级必须先改 kit 再同步并更新此值
+# 期望值：以 kit 为源同步后的引擎 hash 字面量（历史遗产，见下方断言③的口径订正）
 # 2026-10-07（OODA-20261007-124）：纯删除变更显式判 N/A，不再回退全文件（消假红）
 # 2026-10-08（kit 7e02432）：回灌 mci-world-model 三项修复（F-23 f-string/语法破坏跳过、
 #   RISK_BRANCH、F-20 阈值 env），引擎 hash 随之升级
@@ -29,31 +41,44 @@ MUT_KIT="$KIT_DIR/mutation-check.sh"
 # 2026-10-09（M6 / OODA-20261009-WAVE1-348）：门禁认波次基线（GATE_DIFF_BASE /
 #   MUTATION_DIFF_BASE）+ 变异存活点带行号（kit 381345f）。该提交漏更新本期望值，
 #   致 parity 套件假红（期望 7712c58e ≠ 引擎 8a15d9f4），此处补钉为回灌后引擎 hash。
-# 2026-10-15（M6c）：kit 源该常量在回灌后未同步更新（仍指 8a15d9f401dc，属其自身遗留），
-#   本仓按「期望值 = 实际采用引擎 hash」钉为 1b81e3da；kit 侧待回灌修正。
+# 2026-10-15（U6 订正）：本常量**不再是无条件硬断言**。它只在外层锚缺席（CI 无 kit）时兜底；
+#   历史问题＝它与用例名「双载体一致性（kit↔repo）」不符，kit 每次合法演进都造成各仓假红，
+#   已被人工补钉至少 3 次（a6c41e3 / 002cf84 / 337f9cc 一类）。真正的锚见断言①②。
 EXPECTED_MUTATION_ENGINE_SHA="1b81e3da23c673ef8e231889926ed0586bed4a2ba3cb54251049e9b6575d3beb"
+# 维护规则：本常量 = kit 单源**当前**引擎 hash（与 kit-baseline.tsv 同源同义），只服务
+# 「CI 无 kit」这一条通道；有 kit 时判定锚是 kit 本身（断言②），字面量陈旧仅告警（④）。
 
-PASS=0; FAIL=0
+PASS=0; FAIL=0; SKIP=0; WARN=0
 say(){ printf '\033[1m[parity]\033[0m %s\n' "$1"; }
 sha(){ (sha256sum "$1" 2>/dev/null || shasum -a 256 "$1") | cut -d' ' -f1; }
+pin_from_baseline(){
+  [ -f "$KIT_DIR/kit-baseline.tsv" ] || return 1
+  awk -F'\t' '$1=="mutation-check.sh"{print $2; exit}' "$KIT_DIR/kit-baseline.tsv"
+}
 
 if [ ! -f "$MUT_REPO" ]; then
-  say "❌ ERROR 缺少仓库副本: $MUT_REPO"
+  say "❌ ERROR 缺少载体（scripts/ai-verify/ 与 governance/ 均无 mutation-check.sh）: $ROOT"
   exit 2
 fi
-
-# 1) 仓库副本未被静默改动
 repo_sha="$(sha "$MUT_REPO")"
-if [ "$repo_sha" = "$EXPECTED_MUTATION_ENGINE_SHA" ]; then
-  say "✅ PASS  仓库副本 hash 与记录一致（$(printf '%s' "$repo_sha" | cut -c1-16)）"
-  PASS=$((PASS+1))
-else
-  say "❌ FAIL  仓库副本与记录 hash 不一致：$repo_sha ≠ $EXPECTED_MUTATION_ENGINE_SHA"
-  say "         引擎升级：先改 kit 源 → bash _ai-eng-kit/sync-governance.sh <项目> → 更新本常量"
-  FAIL=$((FAIL+1))
+
+# ① kit 自检模式的锚：kit 基线表。kit 载体的任何改动都必须**显式 re-anchor**，不得静默。
+if [ "$KIT_SELF" -eq 1 ]; then
+  pin="$(pin_from_baseline || true)"
+  if [ -z "$pin" ]; then
+    say "❌ FAIL  kit 自检模式缺基线锚: $KIT_DIR/kit-baseline.tsv（先跑 check-kit-parity.py --write-baseline）"
+    FAIL=$((FAIL+1))
+  elif [ "$repo_sha" = "$pin" ]; then
+    say "✅ PASS  kit 载体与基线一致（$(printf '%s' "$repo_sha" | cut -c1-16)）"
+    PASS=$((PASS+1))
+  else
+    say "❌ FAIL  kit 载体与基线不一致：$repo_sha ≠ $pin"
+    say "         若为有意升级：先改 kit 源 → 复算 → check-kit-parity.py --write-baseline → 再回灌各仓"
+    FAIL=$((FAIL+1))
+  fi
 fi
 
-# 2) kit↔repo 双载体一致（本地有 kit 才比对；CI 无 kit 跳过）
+# ② kit↔repo 双载体一致（本地有 kit 才比对）。这是用例名的本义，也是硬断言。
 if [ -f "$MUT_KIT" ]; then
   kit_sha="$(sha "$MUT_KIT")"
   if [ "$kit_sha" = "$repo_sha" ]; then
@@ -64,7 +89,22 @@ if [ -f "$MUT_KIT" ]; then
     FAIL=$((FAIL+1))
   fi
 else
-  say "ℹ️  SKIP  未发现 kit（CI 环境），跳过双载体字节比对"
+  # ③ 无 kit（CI）：字面量是唯一外部锚，保留硬断言——CI 仍能拦住「副本被静默改动」。
+  if [ "$repo_sha" = "$EXPECTED_MUTATION_ENGINE_SHA" ]; then
+    say "✅ PASS  仓库副本 hash 与记录一致（$(printf '%s' "$repo_sha" | cut -c1-16)）"
+    PASS=$((PASS+1))
+  else
+    say "❌ FAIL  仓库副本与记录 hash 不一致：$repo_sha ≠ $EXPECTED_MUTATION_ENGINE_SHA"
+    say "         引擎升级：先改 kit 源 → bash _ai-eng-kit/sync-governance.sh <项目> → 更新本常量"
+    FAIL=$((FAIL+1))
+  fi
+fi
+
+# ④ 钉值滞后只告警：有 kit 时锚已是 kit 本身，字面量陈旧不再制造假红（U6）。
+if [ -f "$MUT_KIT" ] && [ "$repo_sha" = "$(sha "$MUT_KIT")" ] \
+   && [ "$repo_sha" != "$EXPECTED_MUTATION_ENGINE_SHA" ]; then
+  say "⚠️  WARN  字面量钉值滞后（repo=$(printf '%s' "$repo_sha" | cut -c1-16) vs 常量=$(printf '%s' "$EXPECTED_MUTATION_ENGINE_SHA" | cut -c1-16)）；有 kit 时不影响判定，建议顺手更新"
+  WARN=$((WARN+1))
 fi
 
 # 3) 行为回归（沙箱 git 仓库，不触碰真实仓库）
@@ -251,5 +291,5 @@ PYDEL
 fi
 
 echo
-say "汇总: PASS=$PASS FAIL=$FAIL"
+say "汇总: PASS=$PASS FAIL=$FAIL WARN=$WARN"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1
