@@ -87,6 +87,39 @@ if [ -f "$HOOK" ] && git -C "$ROOT" ls-files --error-unmatch "$HOOK_REL" >/dev/n
   [ "$FAIL" -eq 0 ] && exit 0 || exit 1
 fi
 
+# 1-4b（OODA-20261015-011）：manager 委派模式（husky 实证 mci-huan）。
+# 现象：core.hooksPath=web/.husky/_ 指向**管理器生成目录**（不入库），而 .git/hooks/ 被 git 整体忽略，
+#   scripts/ai-verify/hooks/pre-commit 也不是生效面 ⇒ 拿生成目录与入库副本比对**必然报红**，
+#   但真实门禁链是「git → husky shim → **入库的** web/.husky/pre-commit → ai-guard」。
+# 判据（fail-closed）：生效钩子不入库时，必须能在其父目录找到**入库**的用户钩子，且该钩子调用 ai-guard；
+#   找不到就报红——「红」与「门禁不在」是两件事，但两者都必须说清原因。
+if [ -f "$HOOK" ] && ! git -C "$ROOT" ls-files --error-unmatch "$HOOK_REL" >/dev/null 2>&1; then
+  _hp="${HOOKS_SETTING%/}"
+  case "$_hp" in /*) _deleg_dir="$(dirname "$_hp")";; *) _deleg_dir="$ROOT/$(dirname "$_hp")";; esac
+  DELEG="$_deleg_dir/pre-commit"
+  DELEG_REL="${DELEG#"$ROOT"/}"
+  # 判据取 **HEAD**（1-4c）：委派钩子的「调用 ai-guard」必须是**已提交**的事实，
+  # 否则「工作区改了但没提交」会被读成门禁在位（mci-huan 实证：web/.husky/pre-commit 的
+  # ai-guard 调用当时只在工作区，HEAD 里没有 ⇒ 提交态下门禁并未接线）。
+  if [ -f "$DELEG" ] && git -C "$ROOT" ls-files --error-unmatch "$DELEG_REL" >/dev/null 2>&1; then
+    _deleg_head="$(git -C "$ROOT" show "HEAD:$DELEG_REL" 2>/dev/null || true)"
+    if printf '%s' "$_deleg_head" | grep -q 'scripts/ai-verify/ai-guard.sh'; then
+      say "✅ manager 委派模式：生效钩子由管理器生成（不入库），入库的 ${DELEG_REL} 调用 ai-guard（门禁在位，按 HEAD 判定）"
+      say "ℹ️  ${HOOK_REL} 由管理器生成、不入库，不作为基准；${DELEG_REL} 随 git 分发"
+      exit 0
+    fi
+    if grep -q 'scripts/ai-verify/ai-guard.sh' "$DELEG" 2>/dev/null; then
+      say "❌ ${DELEG_REL} 的 ai-guard 调用**只在工作区、未提交** ⇒ 提交态下门禁未接线（1-4c：未提交的接线不计在位）"
+      say "    修法：提交 ${DELEG_REL}（该改动即接线本身）"
+      exit 1
+    fi
+  fi
+  say "❌ 生效钩子不入库，且未找到调用 ai-guard 的入库委派钩子（fail-closed，不得静默放行）"
+  say "    生效钩子: ${HOOK_REL}（不入库）"
+  say "    已查委派: ${DELEG_REL}$( [ -f "$DELEG" ] || printf '（不存在）' )"
+  exit 1
+fi
+
 if [ ! -f "$IN_REPO" ]; then
   # 框架模式（pre-commit 生成 .git/hooks/pre-commit）：无入库副本可哈希比对，
   # 改为校验「框架 hook 仍在位」+「配置仍声明必需治理钩子」，防静默卸载/删钩子。
