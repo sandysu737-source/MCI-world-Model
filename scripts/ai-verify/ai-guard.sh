@@ -333,12 +333,13 @@ case "$LEVEL_TAG" in
     exit 0
     ;;
   L2)
-    # L2 凭证: review-token(不可伪造, 需第二人签发) 或 CI 模式跳过本地(AI_REVIEW_CI=1留给CI校验)
+    # L2 凭证（0-1 语义订正）: review-token 只证明「某持钥者签过」，**不是**第二人独立复核，也非不可伪造；
+    # owner 自证的正式通道是下方 AI_REVIEW_CONFIRMED=1。AI_REVIEW_CI=1 留给 CI 侧校验。
     TOKEN="${AI_REVIEW_TOKEN:-}"
     if [ -n "$TOKEN" ]; then
       if bash "$GUARD_DIR/review-token.sh" verify "$TOKEN" HEAD >${TMPDIR:-/tmp}/gov_token.log 2>&1; then
         reviewer="$(grep -oE 'valid: .*' ${TMPDIR:-/tmp}/gov_token.log | sed 's/.*://;s/ *$//')"
-        say "⚠️  L2 review-token 有效(reviewer: $reviewer)，允许提交；CI 仍会复核 PR approved-reviews-count"
+        say "⚠️  L2 review-token 有效(reviewer: $reviewer)，允许提交（该 token 为留痕凭证，非独立复核证明）"
         echo "**⚠️ L2 放行(review-token valid, reviewer=$reviewer)**" >> "$SUMMARY"
         mark_l2_pass review-token "$reviewer"
         exit 0
@@ -371,7 +372,7 @@ case "$LEVEL_TAG" in
     fi
     say "🛑 L2 高风险：阻断提交。"
     say "   放行方式(任一):"
-    say "   1. 第二人 review 后签发 token: GOV_REVIEW_SECRET=xxx bash review-token.sh issue <reviewer>"
+    say "   1. 签发 token（需确有第二持钥人；非 env 来源要求交互终端，无人值守会被拒）: bash review-token.sh issue <reviewer>"
     say "      然后: AI_REVIEW_TOKEN='<token>' git commit ..."
     say "   2. 推到远端, 由 CI 校验 PR approved-reviews-count>=2"
     echo "**🛑 L2 阻断(待双人Review token)**" >> "$SUMMARY"

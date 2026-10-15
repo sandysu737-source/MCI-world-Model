@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
-# L2 review-token 签发与校验（H-05-16/17 审计后双语义修订）
+# L2 review-token 签发与校验
 #
-# 语义（H-05-19）：多人群组 = 第二人签发（HMAC 共享密钥 + reviewer≠提交者）；
-# 单人团队 = owner-confirmed（负责人显式确认，token 仅作留痕，非第二人证明）。
-# 单人治理的正式通道为 ai-guard.sh 的 AI_REVIEW_CONFIRMED=1（H-05-19 选项 1）。
+# 语义（0-1 修订，OODA-20261014-AIGUARD-FPAUDIT-003）：**本机 token 通道不是"第二人 review"**。
+#   HMAC 共享密钥 + reviewer 自报字段，签发者即持钥者；在"单操作者 + 同一台机 + 同一个用户"
+#   的拓扑下（本工作区实况），持钥者与提交者是同一主体 ⇒ 该 token 只证明"某持钥者签过"，
+#   不构成独立复核，**不得当作"第二人已看过"的证据使用**。
+#   实测依据：finance 仓 76 个 L2 放行标记 100% 为 `basis=owner-explicit`；历史提交中
+#   `AI_REVIEW_TOKEN=` 出现 0 次 ⇒ 该通道从未被使用；且密钥曾明文写在 `~/.zshrc`
+#   （本机每个 shell 都继承）⇒ 原来的"零摩擦签发"连留痕价值都很低。
+#   L2 的正式通道是 ai-guard.sh 的 `AI_REVIEW_CONFIRMED=1`（owner 显式确认，非第二人）。
+#   若**确有**第二主体（团队多人、各自持有不同密钥），此通道才有独立复核含义；本文件不假设其存在。
 #
 # 用法1 签发: review-token.sh issue <reviewer> [commit-ish]
-#   读取 GOV_REVIEW_SECRET 环境变量(团队共享密钥), 输出 token
+#   密钥来源见下方「密钥来源」段；非 env 来源的签发**要求交互终端**（0-1 门禁），
+#   以阻断无人值守进程冒充"第二人"自签。
 # 用法2 校验(ai-guard 内部): review-token.sh verify <token> <commit-ish>
 #
 # 安全模型（H-05-16 T1-T5 实锤后修正）:
 #   - 共享 HMAC 密钥下签名只证明"某持钥者"，reviewer 为自报字段——**不能**作为
 #     第二人 review 的不可伪造证明；多人群组场景须配合 CI reviewer≠提交者比对
-#     （governance.yml G1）与 PR 双人 approve。
+#     （governance.yml G1）与 PR 双人 approve——注意 CI 当前**不可用**（计费停摆，近 100 次 run 中
+#     97 次失败），故该「配合」在本机不成立，不得据此认为已有独立复核（0-1 订正）。
 #   - 单人团队：token 仅作签发留痕，权威来源 = 负责人显式确认。
 #   - 最终防线在 CI: 硬词扫描 + token 校验 + PR approved-reviews-count>=2。
 #
@@ -27,12 +35,42 @@
 #   通用盲区（同时绕过整个门禁），须由钩子侧「工作区 vs HEAD」比对单独覆盖。
 set -o pipefail
 
-SECRET="${GOV_REVIEW_SECRET:-}"
+# ---------- 密钥来源（0-1）----------
+# 旧实现只认环境变量；而 `~/.zshrc` 曾 `export GOV_REVIEW_SECRET=...` ⇒ **本机每个 shell
+# （含每个 AI 会话）的环境里都躺着这把密钥**，签发零摩擦，token 的"独立复核"语义随之落空。
+# 现行顺序（第一个命中者胜出），并把「来源」作为是否允许无人值守签发的判据：
+#   ① 环境变量 GOV_REVIEW_SECRET —— 显式注入（CI Secrets / 测试夹具）⇒ 允许非交互签发
+#   ② macOS Keychain 服务 ai-guard-gov-review —— 本机管理员持有 ⇒ 签发需交互
+#   ③ ~/.config/ai-guard/gov-review.secret（0600）—— 离线兜底 ⇒ 签发需交互
+# 如实声明残余：同一用户下的任意进程仍可读 Keychain/该文件并自行计算 HMAC ⇒ 本机制提高的是
+# "顺手绕过"的成本，**不是**不可伪造性（见 ai-guard 优化计划书 §1.4 的拓扑论证）。
+KEYCHAIN_SERVICE="ai-guard-gov-review"
+SECRET_FILE="${GOV_REVIEW_SECRET_FILE:-$HOME/.config/ai-guard/gov-review.secret}"
+TOKEN_LOG="${GOV_TOKEN_LOG:-.ai-governance/reports/token-issue.log}"
+SECRET=""; SECRET_SRC=""
+if [ -n "${GOV_REVIEW_SECRET:-}" ]; then
+  SECRET="$GOV_REVIEW_SECRET"; SECRET_SRC="env"
+elif command -v security >/dev/null 2>&1 \
+     && SECRET="$(security find-generic-password -s "$KEYCHAIN_SERVICE" -w 2>/dev/null)" \
+     && [ -n "$SECRET" ]; then
+  SECRET_SRC="keychain"
+elif [ -f "$SECRET_FILE" ]; then
+  SECRET="$(tr -d '\r\n' < "$SECRET_FILE" 2>/dev/null)"
+  [ -n "$SECRET" ] && SECRET_SRC="file"
+fi
 if [ -z "$SECRET" ]; then
-  echo "ERROR: 未设置 GOV_REVIEW_SECRET 环境变量" >&2
-  echo "  团队密钥由管理员分发; 个人签发需持有密钥" >&2
+  echo "ERROR: 未找到 review 密钥（顺序: GOV_REVIEW_SECRET 环境变量 → Keychain(${KEYCHAIN_SERVICE}) → ${SECRET_FILE}）" >&2
+  echo "  管理员分发路径: security add-generic-password -s ${KEYCHAIN_SERVICE} -a \$USER -w <密钥>" >&2
   exit 2
 fi
+
+# 签发留痕（0-1）：成功与拒绝都落一行，供事后审计（文件位于 .ai-governance/reports/，已 gitignore）
+_log_issue(){
+  mkdir -p "$(dirname "$TOKEN_LOG")" 2>/dev/null || true
+  printf '%s %s src=%s tty=%s reviewer=%s ctx=%s\n' \
+    "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$1" "${SECRET_SRC:-none}" \
+    "$([ -t 0 ] && echo tty || echo no-tty)" "$2" "${3:-}" >> "$TOKEN_LOG" 2>/dev/null || true
+}
 
 cmd="${1:-verify}"
 shift || true
@@ -48,6 +86,17 @@ EMPTY_STAGED_HASH="$(printf '' | shasum -a 256 | cut -c1-16)"
 case "$cmd" in
   issue)
     reviewer="${1:?用法: issue <reviewer> [commit-ish]}"
+    # 0-1 门禁：密钥由环境变量**显式**注入（CI/测试夹具）时不限；其余来源（Keychain/文件）
+    # 要求**交互终端**（stdin 为 TTY），否则拒绝并留痕——阻断无人值守进程自签"复核人"令牌。
+    # 只查 stdin 不查 stderr：`2>file` / `| tee` 这类正常用法不该被误伤（可用性优先于更严的门）。
+    if [ "$SECRET_SRC" != "env" ] && [ ! -t 0 ]; then
+      _log_issue DENIED "$reviewer" "unattended(src=${SECRET_SRC})"
+      echo "🛑 拒绝签发：非交互环境（stdin 非 TTY）且密钥来源=${SECRET_SRC}" >&2
+      echo "   本门禁用于阻断无人值守进程冒充『复核人』签发 L2 令牌。" >&2
+      echo "   授权场景（CI/自动化）请由管理员显式注入环境变量：" >&2
+      echo "     GOV_REVIEW_SECRET=xxx bash review-token.sh issue <reviewer>" >&2
+      exit 3
+    fi
     commit="${2:-HEAD}"
     commit="${commit:-HEAD}"
     # 注意: $(cmd || echo fallback) 在 cmd 有 stdout 但退出非0时会拼接污染(unborn分支实测),
@@ -64,8 +113,10 @@ case "$cmd" in
     payload="L2:${branch}:${short}:${staged}:${reviewer}"
     sig="$(hmac "$SECRET" "$payload")"
     token="${payload}|${sig}"
+    _log_issue GRANTED "$reviewer" "branch=${branch} commit=${short}"
     echo "$token"
     echo "  → 提交者使用: AI_REVIEW_TOKEN='$token' git commit ..." >&2
+    echo "  ⚠️  该 token 只证明「持钥者签过」，不是独立复核证据（0-1 语义订正）。" >&2
     ;;
 verify)
     token="${1:?用法: verify <token> [commit-ish]}"
