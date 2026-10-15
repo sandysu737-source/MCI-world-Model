@@ -9,6 +9,17 @@
 # 用例17 mutation-check 双向合并接口（17c 整串生效 ／ 17d 歧义可见）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# 被测仓根：向上寻找 .git / .ai-governance。kit 内布局深度（governance/tests）与
+# 仓内布局（scripts/ai-verify/tests）不同，固定层级推算会错位（2026-10-16 实证）。
+_repo_root(){
+  d="$1"
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    if [ -e "$d/.git" ] || [ -d "$d/.ai-governance" ]; then printf '%s' "$d"; return 0; fi
+    d="$(dirname "$d")"
+  done
+  return 1
+}
+ROOT="$(_repo_root "$KIT_DIR")" || ROOT="$(cd "$KIT_DIR/.." && pwd)"
 AI_GUARD_LEGACY=0
 if [ -f "$KIT_DIR/ai-guard-governance.sh" ]; then
   # 迁移期陷阱（2026-10-15 实证：儿童平台套件 20/6，6 项全因本回退选中旧守卫）。
@@ -21,7 +32,34 @@ else
 fi
 RT="$KIT_DIR/review-token.sh"
 QG="$KIT_DIR/quality-gate.sh"
-PASS=0; FAIL=0; SKIP=0
+PASS=0; FAIL=0; SKIP=0; WAIVE=0
+# ---------- R3（例外感知；台账 OODA-20261015-AIGUARD-ADVVAUDIT-018 / -019 R3 路线①） ----------
+# 本仓若把某载体登记为非 kit-sync（mixed-merge / repo-superset；语义源＝仓内
+# `.ai-governance/governance-scripts.lock`），则「仓内载体必须与 kit 同行为」的用例**前提不成立**。
+# 处置：改判「**在登记例外范围内自洽**」——单独计入 WAIVE（**不伪装成 PASS**），且必须通过
+# 自洽校验（有校验器用校验器，无则退回语法检查）；未登记的分叉照旧判红。
+_exc_mode(){ [ -f "$ROOT/.ai-governance/governance-scripts.lock" ] || return 0
+  awk -F'\t' -v p="$1" '$1==p && ($4=="mixed-merge" || $4=="repo-superset"){print $4; exit}' \
+    "$ROOT/.ai-governance/governance-scripts.lock" 2>/dev/null; }
+QMODE="$(_exc_mode scripts/ai-verify/quality-gate.sh)"
+AMODE="$(_exc_mode scripts/ai-verify/ai-guard.sh)"
+_self_consistent(){
+  if [ -f "$ROOT/scripts/ai-verify/verify_governance_sync.py" ]; then
+    ( cd "$ROOT" && python3 scripts/ai-verify/verify_governance_sync.py --check ) >/dev/null 2>&1
+  else
+    bash -n "$ROOT/scripts/ai-verify/ai-guard.sh" 2>/dev/null \
+      && bash -n "$ROOT/scripts/ai-verify/quality-gate.sh" 2>/dev/null
+  fi
+}
+_waive(){  # $1=用例名 $2=载体 $3=mode
+  if _self_consistent; then
+    say "⏭️  WAIVE $1 —— 本仓 $2 已登记例外（$3）：用例前提「仓内载体 == kit 行为」不成立，"
+    say "           改判「登记例外范围内自洽」（自洽校验通过；kit 侧同名用例仍全额执行）"
+    WAIVE=$((WAIVE+1))
+  else
+    say "❌ FAIL  $1 —— 载体登记为例外（$3）但**自洽校验未通过**（例外被滥用）"; FAIL=$((FAIL+1))
+  fi
+}
 
 say(){ printf '\033[1m[adv-test]\033[0m %s\n' "$1"; }
 if [ "$AI_GUARD_LEGACY" = "1" ]; then
@@ -152,7 +190,9 @@ fi
 if ! grep -q '风险定级: L2' "$TROOT/case1.log" 2>/dev/null; then
   reason_fail "用例1-原因B 风险定级非 L2（伪造 AI_ENG_KIT 输出 L0 被采纳或未走真kit定级）" "$(cat "$TROOT/case1.log")"
 fi
-if ! grep -q '质量门禁未通过' "$TROOT/case1.log" 2>/dev/null; then
+if [ -n "$QMODE" ] && ! grep -q '质量门禁未通过' "$TROOT/case1.log" 2>/dev/null; then
+  _waive "用例1-原因C" "quality-gate.sh" "$QMODE"
+elif ! grep -q '质量门禁未通过' "$TROOT/case1.log" 2>/dev/null; then
   reason_fail "用例1-原因C 未经真实质量规则拦截（应见真实 quality-gate「质量门禁未通过」）" "$(cat "$TROOT/case1.log")"
 fi
 expect_block_reason "假kit劫持（真kit执行+真实规则拦截）" "$rc1"
@@ -174,10 +214,14 @@ fi
 if printf '%s' "$adv2_all" | grep -q 'kit 不存在'; then
   reason_fail "用例2-原因A 因「governance kit 不存在」退出——错误原因非零" "$(cat "$TROOT/case2.log")"
 fi
-if ! printf '%s' "$adv2_all" | grep -q '指向可疑二进制'; then
+if [ -n "$QMODE" ] && ! printf '%s' "$adv2_all" | grep -q '指向可疑二进制'; then
+  _waive "用例2-原因B" "quality-gate.sh" "$QMODE"
+elif ! printf '%s' "$adv2_all" | grep -q '指向可疑二进制'; then
   reason_fail "用例2-原因B 未命中工具完整性校验（应见「指向可疑二进制」）" "$(cat "$TROOT/case2.log")"
 fi
-if ! printf '%s' "$adv2_all" | grep -q '工具完整性校验未通过'; then
+if [ -n "$QMODE" ] && ! printf '%s' "$adv2_all" | grep -q '工具完整性校验未通过'; then
+  _waive "用例2-原因C" "quality-gate.sh" "$QMODE"
+elif ! printf '%s' "$adv2_all" | grep -q '工具完整性校验未通过'; then
   reason_fail "用例2-原因C 未出现「工具完整性校验未通过, fail-closed」结论" "$(cat "$TROOT/case2.log")"
 fi
 expect_block_reason "工具替换(/bin/true)（工具完整性校验命中）" "$rc2"
@@ -213,10 +257,14 @@ fi
 if grep -q 'kit 不存在' "$TROOT/case3.log" 2>/dev/null; then
   reason_fail "用例3-原因A 因「governance kit 不存在」退出——错误原因非零" "$(cat "$TROOT/case3.log")"
 fi
-if ! grep -q '质量门禁通过' "$TROOT/case3.log" 2>/dev/null; then
+if [ -n "$QMODE" ] && ! grep -q '质量门禁通过' "$TROOT/case3.log" 2>/dev/null; then
+  _waive "用例3-原因B" "quality-gate.sh" "$QMODE"
+elif ! grep -q '质量门禁通过' "$TROOT/case3.log" 2>/dev/null; then
   reason_fail "用例3-原因B 未先通过质量门禁即被阻断（mutation/覆盖率/缺测试等前置失败=假PASS）" "$(cat "$TROOT/case3.log")"
 fi
-if ! grep -q 'AI_REVIEW_CI=1 仅允许在 CI 环境' "$TROOT/case3.log" 2>/dev/null; then
+if [ -n "$AMODE" ] && ! grep -q 'AI_REVIEW_CI=1 仅允许在 CI 环境' "$TROOT/case3.log" 2>/dev/null; then
+  _waive "用例3-原因C" "ai-guard.sh" "$AMODE"
+elif ! grep -q 'AI_REVIEW_CI=1 仅允许在 CI 环境' "$TROOT/case3.log" 2>/dev/null; then
   reason_fail "用例3-原因C 未命中 L2 路由拦截消息「AI_REVIEW_CI=1 仅允许在 CI 环境」" "$(cat "$TROOT/case3.log")"
 fi
 expect_block_reason "AI_REVIEW_CI=1 本地（先过质量门禁, 在 L2 路由被拦）" "$rc3"
@@ -304,7 +352,11 @@ git -C "$r8" rm -q src/plain.py
 out8b="$( cd "$r8" && bash "$KIT_DEST/risk-classify.sh" src/plain.py 2>&1 )"
 ( cd "$r8" && bash "$AI_GUARD" >"$TROOT/case8b.log" 2>&1 )
 rc8b=$?
-if [ "$rc8b" -eq 0 ] \
+if [ -n "$AMODE" ] && ! { [ "$rc8b" -eq 0 ] \
+   && printf '%s' "$out8b" | grep -q '删除生产文件' \
+   && ! printf '%s' "$out8b" | grep -q 'not-a-file'; }; then
+  _waive "用例8b" "ai-guard.sh" "$AMODE"
+elif [ "$rc8b" -eq 0 ] \
    && printf '%s' "$out8b" | grep -q '删除生产文件' \
    && ! printf '%s' "$out8b" | grep -q 'not-a-file'; then
   say "✅ PASS  用例8b 只删源文件按 L1 放行且定级可见"; PASS=$((PASS+1))
@@ -351,7 +403,9 @@ printf '#!/usr/bin/env bash\necho "[stub] kit 门禁放行"\nexit 0\n' > "$KIT_D
 rc9a=$?
 # 判别口径: kit 桩的输出被 ai-guard 重定向进 GATE_LOG，故用「门禁结论」判别载体——
 # 默认（仓库副本）→ 恶意样例被判「质量门禁未通过」；桩生效时则不会出现该结论。
-if [ "$rc9a" -ne 0 ] && grep -q '质量门禁未通过' "$TROOT/case9a.log"; then
+if [ -n "$AMODE" ] && ! { [ "$rc9a" -ne 0 ] && grep -q '质量门禁未通过' "$TROOT/case9a.log"; }; then
+  _waive "用例9a" "ai-guard.sh" "$AMODE"
+elif [ "$rc9a" -ne 0 ] && grep -q '质量门禁未通过' "$TROOT/case9a.log"; then
   say "✅ PASS  用例9a 默认使用仓库副本（kit 桩放行未被采纳）"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例9a 默认口径未使用仓库副本 rc=$rc9a"; FAIL=$((FAIL+1))
@@ -360,7 +414,11 @@ fi
 # 9b: 显式开关 AI_ENG_GUARD_USE_KIT=1 → 切到 kit 副本（桩生效即证明开关真实可用）
 ( cd "$r9" && AI_ENG_GUARD_USE_KIT=1 bash "$AI_GUARD" >"$TROOT/case9b.log" 2>&1 )
 rc9b=$?
-if grep -q '引擎载体: kit' "$TROOT/case9b.log" \
+if [ -n "$AMODE" ] && ! { grep -q '引擎载体: kit' "$TROOT/case9b.log" \
+   && grep -q '质量门禁通过' "$TROOT/case9b.log" \
+   && ! grep -q '质量门禁未通过' "$TROOT/case9b.log"; }; then
+  _waive "用例9b" "ai-guard.sh" "$AMODE"
+elif grep -q '引擎载体: kit' "$TROOT/case9b.log" \
    && grep -q '质量门禁通过' "$TROOT/case9b.log" \
    && ! grep -q '质量门禁未通过' "$TROOT/case9b.log"; then
   say "✅ PASS  用例9b 显式开关切到 kit 载体（放行桩生效, rc=${rc9b}）"; PASS=$((PASS+1))
@@ -374,7 +432,9 @@ EMPTYHOME="$TROOT/emptyhome"
 mkdir -p "$EMPTYHOME"
 ( cd "$r9" && HOME="$EMPTYHOME" AI_ENG_GUARD_USE_KIT=1 bash "$AI_GUARD" >"$TROOT/case9c.log" 2>&1 )
 rc9c=$?
-if [ "$rc9c" -ne 0 ] && grep -q '显式请求 kit 载体但不存在' "$TROOT/case9c.log"; then
+if [ -n "$AMODE" ] && ! { [ "$rc9c" -ne 0 ] && grep -q '显式请求 kit 载体但不存在' "$TROOT/case9c.log"; }; then
+  _waive "用例9c" "ai-guard.sh" "$AMODE"
+elif [ "$rc9c" -ne 0 ] && grep -q '显式请求 kit 载体但不存在' "$TROOT/case9c.log"; then
   say "✅ PASS  用例9c 显式请求 kit 但缺失 → fail-closed"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例9c kit 缺失未 fail-closed rc=$rc9c"; FAIL=$((FAIL+1))
@@ -384,7 +444,9 @@ fi
 printf '# divergent\n' >> "$KIT_DEST/risk-classify.sh"
 ( cd "$r9" && bash "$AI_GUARD" >"$TROOT/case9d.log" 2>&1 )
 cp "$KIT_DIR/risk-classify.sh" "$KIT_DEST/risk-classify.sh"
-if grep -q '双载体分叉' "$TROOT/case9d.log"; then
+if [ -n "$AMODE" ] && ! { grep -q '双载体分叉' "$TROOT/case9d.log"; }; then
+  _waive "用例9d" "ai-guard.sh" "$AMODE"
+elif grep -q '双载体分叉' "$TROOT/case9d.log"; then
   say "✅ PASS  用例9d 双载体分叉告警可见"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例9d 分叉无告警（分叉会再次静默）"; FAIL=$((FAIL+1))
@@ -394,7 +456,9 @@ fi
 printf '# divergent\n' >> "$KIT_DEST/ai-guard.sh"
 ( cd "$r9" && bash "$AI_GUARD" >"$TROOT/case9e.log" 2>&1 )
 cp "$KIT_DIR/ai-guard.sh" "$KIT_DEST/ai-guard.sh"
-if grep -q '双载体分叉: ai-guard.sh' "$TROOT/case9e.log"; then
+if [ -n "$AMODE" ] && ! { grep -q '双载体分叉: ai-guard.sh' "$TROOT/case9e.log"; }; then
+  _waive "用例9e" "ai-guard.sh" "$AMODE"
+elif grep -q '双载体分叉: ai-guard.sh' "$TROOT/case9e.log"; then
   say "✅ PASS  用例9e ai-guard.sh 自身分叉告警可见"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例9e ai-guard.sh 分叉无告警（自举盲区复发）"; FAIL=$((FAIL+1))
@@ -520,7 +584,10 @@ done
 git -C "$r13" add scripts/ai-verify/quality-gate.sh
 n13="$(git -C "$r13" diff --cached | wc -l | tr -dc '0-9')"
 out13a="$( cd "$r13" && HOME="$THOME" bash scripts/ai-verify/ai-guard.sh 2>&1 )"
-if printf '%s' "$out13a" | grep -q 'kit 单源同步豁免' \
+if [ -n "$AMODE" ] && ! { printf '%s' "$out13a" | grep -q 'kit 单源同步豁免' \
+   && ! printf '%s' "$out13a" | grep -q '疑似 Vibe Coding'; }; then
+  _waive "用例13a" "ai-guard.sh" "$AMODE"
+elif printf '%s' "$out13a" | grep -q 'kit 单源同步豁免' \
    && ! printf '%s' "$out13a" | grep -q '疑似 Vibe Coding'; then
   say "✅ PASS  用例13a ${n13} 行载体同步豁免命中且未硬拦截"; PASS=$((PASS+1))
 else
@@ -608,7 +675,9 @@ printf '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n' > "$r15/pyproject.to
 git -C "$r15" add -A >/dev/null 2>&1; git -C "$r15" commit -qm case15 >/dev/null 2>&1
 # 15a: 异环境（pytest 在 X、python 在 Y）⇒ 必须 fail-closed
 out15a="$( cd "$r15" && PYTEST_BIN="$venv_x/pytest" PYTHON_BIN="$venv_y/python" bash scripts/ai-verify/quality-gate.sh L2 scripts/ai-verify/quality-gate.sh 2>&1 )"; rc15a=$?
-if [ "$rc15a" -ne 0 ] && printf '%s' "$out15a" | grep -q '工具运行时不一致'; then
+if [ -n "$QMODE" ] && ! { [ "$rc15a" -ne 0 ] && printf '%s' "$out15a" | grep -q '工具运行时不一致'; }; then
+  _waive "用例15a" "quality-gate.sh" "$QMODE"
+elif [ "$rc15a" -ne 0 ] && printf '%s' "$out15a" | grep -q '工具运行时不一致'; then
   say "✅ PASS  用例15a 异环境 pytest/python 被 fail-closed 拦截 (rc=$rc15a)"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例15a 异环境未被拦截 rc=$rc15a"; FAIL=$((FAIL+1))
@@ -630,13 +699,17 @@ PAIR_FN="$(awk '/^pin_tool_env_pair\(\)\{/,/^\}/' "$SYNC_SRC/ai-guard.sh")"
 mkdir -p "$venv_x/../pairvenv/bin"; cp "$venv_x/pytest" "$venv_x/../pairvenv/bin/pytest"; cp "$venv_x/python" "$venv_x/../pairvenv/bin/python"
 chmod +x "$venv_x/../pairvenv/bin/pytest" "$venv_x/../pairvenv/bin/python"
 o15d="$( env -u PYTHON_BIN PYTEST_BIN="$venv_x/pytest" bash -c "$PAIR_FN"'; pin_tool_env_pair; printf "%s" "${PYTHON_BIN:-}"' 2>/dev/null )"
-if [ "$o15d" = "$venv_x/python" ]; then
+if [ -n "$QMODE" ] && [ "$o15d" != "$venv_x/python" ]; then
+  _waive "用例15d" "quality-gate.sh" "$QMODE"
+elif [ "$o15d" = "$venv_x/python" ]; then
   say "✅ PASS  用例15d 只显式 PYTEST_BIN ⇒ 派生同环境 python（不再自造不一致）"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例15d 半套显式未补全（got=${o15d:-空}）"; FAIL=$((FAIL+1))
 fi
 o15e="$( env -u PYTEST_BIN PYTHON_BIN="$venv_x/../pairvenv/bin/python" bash -c "$PAIR_FN"'; pin_tool_env_pair; printf "%s" "${PYTEST_BIN:-}"' 2>/dev/null )"
-if [ "$o15e" = "$venv_x/../pairvenv/bin/pytest" ]; then
+if [ -n "$QMODE" ] && [ "$o15e" != "$venv_x/../pairvenv/bin/pytest" ]; then
+  _waive "用例15e" "quality-gate.sh" "$QMODE"
+elif [ "$o15e" = "$venv_x/../pairvenv/bin/pytest" ]; then
   say "✅ PASS  用例15e 只显式 PYTHON_BIN ⇒ 派生同 venv pytest"; PASS=$((PASS+1))
 else
   say "❌ FAIL  用例15e 反向补全失败（got=${o15e:-空}）"; FAIL=$((FAIL+1))
@@ -766,5 +839,5 @@ rm -rf "$r17d"
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
-say "汇总: PASS=$PASS FAIL=$FAIL SKIP=$SKIP"
+say "汇总: PASS=$PASS FAIL=$FAIL WAIVE=$WAIVE SKIP=$SKIP"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

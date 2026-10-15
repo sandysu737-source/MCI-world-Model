@@ -232,14 +232,50 @@ say "风险定级: $LEVEL_TAG"
 # ---------- 3. venv 工具自动探测（多布局；与 M4 ③ 同一函数，显式环境变量优先） ----------
 # U1：本块原先无条件覆盖 RADON/RUFF/BANDIT/PYTEST，且**不含** PYTHON_BIN —— 既踩掉
 # 显式环境变量，又制造 pytest/python 半套注入。改为复用 pin_venv_tools（对称 + 显式优先）。
+# P1（2026-10-16 实证 · nutrition-system-hospital 开窗，台账 OODA-20261015-549/-551）：原探测表
+# 缺 `backend/.venv-sdk/bin`（AGENTS §4.2 规定的「与生产镜像同源」解释器），且**首个存在目录即 break**
+# ⇒ 该仓 `backend/.venv`（实测 0 个包的空壳 venv）排首位，把 PYTHON_BIN 钉到无依赖解释器，真正
+# 带 pytest/bandit 的 `.venv-sdk` 永不被探测。修法两条：
+#   ① 纳入 `.venv-sdk/bin` 并置首位（多布局并存时以「生产同源」优先）；
+#   ② 去掉 break：pin_venv_tools 只填空缺，逐目录遍历才能做到「缺某工具的空壳 venv 不挡住
+#      后一个 venv 提供该工具」；BANDIT_BIN 由 -z 守卫，不会被后序目录覆盖。
 pin_tool_env_pair
-for vd in "backend/.venv/bin" ".venv/bin" "venv/bin"; do
+for vd in "backend/.venv-sdk/bin" "backend/.venv/bin" ".venv/bin" "venv/bin"; do
   if [ -d "$ROOT/$vd" ]; then
     [ -x "$ROOT/$vd/bandit" ] && [ -z "${BANDIT_BIN:-}" ] && export BANDIT_BIN="$ROOT/$vd/bandit"
     pin_venv_tools "$ROOT/$vd"
-    break
   fi
 done
+
+# ---------- 3.1 工具口径自证（本次实际解析结果写入报告） ----------
+# 背景（OODA-20261015-549/-551）：A 轮「官方读数」实跑在 /Users/mac/miniforge3/bin/python
+# （上游 editable su_memory 4.4.1），与生产镜像口径（backend/.venv-sdk · 仓内快照 4.1.1）不同源，
+# 读数按 AGENTS §4.2 作废。环境变量优先是**有意设计**（U1），不可取消；那就必须让「这轮到底跑了
+# 哪个解释器」在报告里自证 —— 复核人据此一眼判定读数是否可用于生产，不靠事后翻日志考古。
+{
+  echo ""
+  echo "## 工具口径（本次实际解析）"
+  echo '```'
+  for _tv in PYTEST_BIN PYTHON_BIN RADON_BIN RUFF_BIN BANDIT_BIN; do
+    eval "_tval=\${$_tv:-}"
+    if [ -n "$_tval" ]; then echo "$_tv=$_tval"; else echo "$_tv=(未设置)"; fi
+  done
+  case "${PYTEST_BIN:-}" in
+    "") _src="未设置（留给 PATH 解析）" ;;
+    "$ROOT"/*) _src="仓内 venv/工具" ;;
+    *) _src="仓外路径 —— 须确认与生产同源（AGENTS §4.2）" ;;
+  esac
+  echo "PYTEST_BIN 来源: $_src"
+  if [ -n "${PYTHON_BIN:-}" ] && [ -x "${PYTHON_BIN}" ]; then
+    _exe="$("$PYTHON_BIN" -c 'import sys;print(sys.executable)' 2>/dev/null || true)"
+    [ -z "$_exe" ] && _exe="(探测失败)"
+    echo "sys.executable=$_exe"
+    _sdk="$("$PYTHON_BIN" -c 'import su_memory, mci_world_model as m; print("su_memory=" + su_memory.__version__ + " mci_world_model=" + m.__version__)' 2>/dev/null || true)"
+    [ -z "$_sdk" ] && _sdk="(未安装 su_memory/mci_world_model)"
+    echo "sdk=$_sdk"
+  fi
+  echo '```'
+} >> "$SUMMARY"
 
 # ---------- 3.5 内置提示词 ↔ DB active 漂移预检 ----------
 # 来源：nutrition-system-hospital 回灌（2026-10-10，台账 OODA-20261007-114 / OODA-20261009-043）。

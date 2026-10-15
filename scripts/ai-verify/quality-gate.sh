@@ -751,11 +751,31 @@ run_ai_eval() {
 run_ai_eval
 
 # ---------- 5. SAST（L2 强制；误报需闭环记录） ----------
+# P1（2026-10-16 实证 · nutrition-system-hospital 开窗）：重定向路径原写 `${QGATE_TMP_DIR:-/tmp}`
+# 且**不加引号** ⇒ QGATE_TMP_DIR 含空格时 bash 在解析阶段即报 ambiguous redirect，bandit
+# **根本没执行**；紧接着 grep 读不到日志得 `highs=0` ⇒ 落 warn（假绿），High 被静默掩盖。
+# 触发面定性（2026-10-16 更正）：原注释写「本仓当前不触发，属潜在缺陷」——**与事实相反**。
+# 该仓 A 轮（OODA-20261015-549）与 A2 轮（-552）以门禁自身形式调用，显式传
+# `QGATE_TMP_DIR="$PWD/$OUT/gate-A"`，而 `$PWD`（含空格的仓路径）**本身就是含空格值** ⇒ 两轮 SAST
+# 均未执行、判红被伪装成 warn（原始报错在案 docs/deployment/evidence/20261016-window-step1-hu2-01/
+# step1-A-gate.log.gz:10）。故本缺陷是**在途事故**，不是潜在缺陷；引用受影响的读数必须注明
+# 「SAST 面无证据」。未触发的只有**经 ai-guard.sh 的间接调用**（QGATE_TMP_DIR 由
+# `TMPDIR=/var/folders/…` 派生，无空格）与 CI（未设该变量 ⇒ `/tmp`）。修法两条：
+#   ① 复用脚本已定义的 GATE_TMP_DIR 并加引号（`-r -q "${FILES[@]}"` 早已引用，属同类漏改）；
+#   ② 加 fail-closed 判据「日志不存在或为空 ⇒ SAST 未执行」，把假绿变真红。
+# ③（2026-10-16 自身对抗测试补严）仅判「非空」仍有洞：日志路径被占为**目录**时 `test -s` 对目录
+#   恒真 ⇒ 跳过 fail-closed、bandit 未跑却仍落 warn（已实测复现）。改为**先显式截断**
+#   （`! : >"$BANDIT_LOG"` 失败即判红），既堵目录/不可写路径，也消灭「读到陈旧日志」的假绿。
 if [ "${LEVEL}" = "L2" ]; then
   if has "$BANDIT_BIN"; then
-    if "$BANDIT_BIN" -r -q "${FILES[@]}" >${QGATE_TMP_DIR:-/tmp}/qgate_bandit.log 2>&1; then pass "bandit SAST 通过";
+    BANDIT_LOG="$GATE_TMP_DIR/qgate_bandit.log"
+    if ! : >"$BANDIT_LOG" 2>/dev/null; then
+      fail "无法写入 SAST 日志（${BANDIT_LOG}）⇒ SAST 无法执行（fail-closed，禁止判通过）"
+    elif "$BANDIT_BIN" -r -q "${FILES[@]}" >"$BANDIT_LOG" 2>&1; then pass "bandit SAST 通过";
+    elif [ ! -s "$BANDIT_LOG" ]; then
+      fail "bandit 未产生日志（${BANDIT_LOG}）⇒ SAST 疑似未执行（fail-closed，禁止判通过）"
     else
-      highs=$(grep -ciE 'severity:[[:space:]]+high' ${QGATE_TMP_DIR:-/tmp}/qgate_bandit.log 2>/dev/null || true)
+      highs=$(grep -ciE 'severity:[[:space:]]+high' "$BANDIT_LOG" 2>/dev/null || true)
       highs=${highs:-0}
       if [ "$highs" -gt 0 ]; then fail "bandit 发现 $highs 个高危（误报须走豁免闭环: # nosec: TICKET-xxx 且写入 nosec-allowlist.tsv）";
       else warn "bandit 仅中低危告警，需人工确认"; fi
