@@ -29,7 +29,9 @@ MUT_KIT="$KIT_DIR/mutation-check.sh"
 # 2026-10-10（OODA-20261009-125 / -20261010-005）：跨仓载体对齐试点——由 kit 同步
 #   mutation-check.sh（294→323 行，33+/4-；新增注解跳过/范围限定合并与 N/A 原因码），
 #   引擎 hash 同步升级；本仓为首个试点仓，其余 5 仓在试点通过后分批放量。
-EXPECTED_MUTATION_ENGINE_SHA="8a15d9f401dcfa4dce5fb642733d0dc7c43d80278f67371375c85647f4cc6425"
+# 2026-10-15（M6c / OODA-20261015-058）：受控同步 kit `d4bb804` 的 mutation-check 引擎
+#   （多测试目标逗号分隔、波次基线 MUTATION_DIFF_BASE、存活点行号），期望 hash 随之升级。
+EXPECTED_MUTATION_ENGINE_SHA="1b81e3da23c673ef8e231889926ed0586bed4a2ba3cb54251049e9b6575d3beb"
 
 PASS=0; FAIL=0
 say(){ printf '\033[1m[parity]\033[0m %s\n' "$1"; }

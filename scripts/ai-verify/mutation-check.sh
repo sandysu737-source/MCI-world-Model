@@ -8,22 +8,39 @@
 #      只匹配 STRING 会漏排除其字面量里的运算符文本 → 同一文件在 3.11 与 3.13/3.14 落点不同。
 #   ② 语法破坏型变异不计分：`->` 变 `-<` 之类变异后无法 `ast.parse`，不构成"测试有效性"
 #      证据，计为杀死会虚高分数（apply_mut 退出码 3 = 跳过，汇总里单独计数）。
-# 用法: mutation-check.sh <源文件> <测试目标> [pytest前缀]
+# 用法: mutation-check.sh <源文件> <测试目标[,测试目标…]> [pytest前缀]
+# 多目标（OODA-20261013-227，源自 -224 §四提案）：测试目标可用**逗号**分隔多个
+#   —— 让「契约断言分散在多个测试文件」的模块也能被变异臂完整看见（旧版只认单目标，
+#   异名文件里的断言不在视野，表现为「有测试却仍判覆盖不足」）。
 # 退出码: 0=达标 1=不达标 2=环境错误
 set -o pipefail
 SRC="${1:?用法: mutation-check.sh <源文件> <测试> [pytest]}"
-TESTS="${2:?缺测试目标}"
+TESTS="${2:?缺测试目标（多个用逗号分隔）}"
 PYTEST="${3:-pytest}"
 PY="${PYTHON_BIN:-python3}"
 
 [ -f "$SRC" ] || { echo "ERROR: 源文件不存在: $SRC"; exit 2; }
 
+# 多测试目标：把 TESTS 按逗号拆开、逐个加引号（单目标时与旧版逐字等价）。
+# 为何**不用空白**作分隔符：本仓仓根含空格（`qoder m5pro`），而 quality-gate 传进来的是
+# 绝对路径 ⇒ 空白切分会把一个路径劈成两半。逗号在本仓路径里不出现，故取逗号。
+build_targets(){
+  _rest="$1"; _out=""
+  while [ -n "$_rest" ]; do
+    _one="${_rest%%,*}"
+    if [ "$_one" = "$_rest" ]; then _rest=""; else _rest="${_rest#*,}"; fi
+    [ -n "$_one" ] && _out="$_out '$(printf '%s' "$_one" | sed "s/'/'\\\\''/g")'"
+  done
+  printf '%s' "$_out"
+}
+TARGETS="$(build_targets "$TESTS")"
+
 # run_test: PYTEST 含空格时用 sh -c
-run_test(){ sh -c "PYTEST=\"$PYTEST\" TESTS=\"$TESTS\" \"\$PYTEST\" -x -q --no-header \"\$TESTS\"" >/dev/null 2>&1; }
+run_test(){ sh -c "PYTEST=\"$PYTEST\" TESTS=\"$TESTS\" \"\$PYTEST\" -x -q --no-header $TARGETS" >/dev/null 2>&1; }
 
 echo "[mut] 基准测试..."
-if ! sh -c "$PYTEST -x -q --no-header \"$TESTS\"" >/tmp/mut_base.log 2>&1; then
-  echo "ERROR: 基准测试未通过,先修测试:"; tail -5 /tmp/mut_base.log; exit 2
+if ! sh -c "$PYTEST -x -q --no-header $TARGETS" >${MUT_TMP_DIR:-/tmp}/mut_base.log 2>&1; then
+  echo "ERROR: 基准测试未通过,先修测试:"; tail -5 ${MUT_TMP_DIR:-/tmp}/mut_base.log; exit 2
 fi
 echo "[mut] 基准通过 ✓"
 
@@ -289,7 +306,7 @@ for m in "${MUTS[@]}"; do
   diff -q "$SRC.mutorig" "$SRC" >/dev/null 2>&1 && continue
   applied=$((applied+1))
   mut_line="$(cat "$CHANGED_LINES_FILE.point" 2>/dev/null || echo "?")"
-  if sh -c "$PYTEST -x -q --no-header \"$TESTS\"" >/tmp/mut_run.log 2>&1; then
+  if sh -c "$PYTEST -x -q --no-header $TARGETS" >${MUT_TMP_DIR:-/tmp}/mut_run.log 2>&1; then
     survived=$((survived+1)); surv_list="$surv_list\n  - 存活: $desc (行 $mut_line)"
   else
     killed=$((killed+1))
