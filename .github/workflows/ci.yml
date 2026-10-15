@@ -45,6 +45,17 @@ jobs:
           python scripts/ai-verify/sensitive_scan.py src README.md CHANGELOG.md docs \
             --report .ai-governance/reports/sensitive-term-scan.json
 
+      # 公开仓口径审计：入库即发布 ⇒ 发布面 = 受版本控制文件。
+      # continue-on-error：存量命中待负责人裁定（脱敏/白名单/收窄公开面），暂不阻断 PR；
+      # 但状态与命中数可见（明细不打印——类别名本身也是敏感面，只落 gitignore 的报告文件）。
+      - name: Sensitive Term Scan (repo-wide, public surface)
+        continue-on-error: true
+        run: |
+          python scripts/ai-verify/sensitive_scan.py --tracked \
+            --report .ai-governance/reports/sensitive-term-scan-repo.json \
+            && echo "全仓口径：通过" \
+            || echo "⚠️  全仓口径未通过（pending-owner，见台账 OODA-20261015-PUBSURFACE-016）"
+
   # ===================== Gate 2: mypy Strict =====================
   gate-2-types:
     name: "Gate 2 · mypy Strict"

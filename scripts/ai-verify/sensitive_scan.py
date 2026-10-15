@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""按受控词表扫描发布路径，输出可复现 JSON 报告。"""
+"""按受控词表扫描发布路径，输出可复现 JSON 报告。
+
+两种口径（2026-10-15，台账 OODA-20261015-PUBSURFACE-016）：
+- 显式 roots（默认）："发布面 = 交付路径"，适用于**私有仓**（只有被交付的路径会离开本机）。
+- `--tracked`："发布面 = 全部受版本控制文件"，适用于**公开仓**——公开仓里入库即发布，
+  只扫交付路径会给出**假绿**（实测 MCI-world-Model 公开仓：4 路径口径 pass，全仓口径 fail）。
+
+自排除：词表文件自身必然命中自己的词条，一律不计入命中并在报告 `self_excluded` 留痕
+（豁免必须可见，不得静默）。
+"""
 
 from __future__ import annotations
 
@@ -97,14 +106,34 @@ def _is_excluded(path: Path, root: Path, excludes: Iterable[str]) -> bool:
     return any(part in set(excludes) for part in relative_parts)
 
 
-def iter_files(root: Path, roots: Iterable[Path], excludes: Iterable[str]) -> list[Path]:
+def iter_files(
+    root: Path,
+    roots: Iterable[Path],
+    excludes: Iterable[str],
+    skip: Iterable[Path] = (),
+) -> list[Path]:
     files: set[Path] = set()
     for scan_root in roots:
         if scan_root.is_file():
             files.add(scan_root)
         elif scan_root.is_dir():
             files.update(path for path in scan_root.rglob("*") if path.is_file())
-    return sorted(path for path in files if not _is_excluded(path, root, excludes))
+    skip_set = {path.resolve() for path in skip}
+    return sorted(path for path in files if path.resolve() not in skip_set and not _is_excluded(path, root, excludes))
+
+
+def tracked_files(root: Path) -> list[Path]:
+    """公开仓口径：受版本控制文件即发布面（git ls-files）。"""
+    import subprocess
+
+    out = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+    names = [name for name in out.decode("utf-8").split("\0") if name]
+    return [root / name for name in names]
 
 
 def scan_file(
@@ -151,11 +180,22 @@ def scan(
     roots: Iterable[Path],
     wordlist_path: Path,
     excludes: Iterable[str],
+    scope: str = "roots",
+    use_tracked: bool = False,
 ) -> dict[str, object]:
     wordlist, wordlist_sha256 = load_wordlist(wordlist_path)
     term_categories = {term: category["name"] for category in _categories(wordlist_path) for term in category["terms"]}
     findings: list[Finding] = []
-    files = iter_files(root, roots, excludes)
+    files = tracked_files(root) if use_tracked else iter_files(root, roots, excludes)
+    self_excluded = []
+    wordlist_resolved = wordlist_path.resolve()
+    if any(path.resolve() == wordlist_resolved for path in files):
+        files = [path for path in files if path.resolve() != wordlist_resolved]
+        self_excluded.append(
+            str(Path(wordlist_resolved).relative_to(root.resolve()).as_posix())
+            if wordlist_resolved.is_relative_to(root.resolve())
+            else str(wordlist_resolved)
+        )
     for path in files:
         findings.extend(scan_file(path, root, wordlist, term_categories))
     return {
@@ -166,6 +206,8 @@ def scan(
         "roots": [
             path.relative_to(root).as_posix() if path.is_relative_to(root) else path.as_posix() for path in roots
         ],
+        "scope": scope,
+        "self_excluded": self_excluded,
         "files_scanned": len(files),
         "findings_count": len(findings),
         "status": "pass" if not findings else "fail",
@@ -180,7 +222,12 @@ def _categories(wordlist_path: Path):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("roots", nargs="+", type=Path, help="要扫描的文件或目录")
+    parser.add_argument("roots", nargs="*", type=Path, help="要扫描的文件或目录")
+    parser.add_argument(
+        "--tracked",
+        action="store_true",
+        help="公开仓口径：扫描全部受版本控制文件（git ls-files），忽略 roots",
+    )
     parser.add_argument(
         "--wordlist",
         type=Path,
@@ -199,11 +246,23 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if not args.roots and not args.tracked:
+        parser.error("需要 roots，或使用 --tracked 采用全仓口径")
     resolved_roots = [path.resolve() for path in args.roots]
-    root = Path(os.path.commonpath([str(Path.cwd().resolve()), *(str(path) for path in resolved_roots)]))
+    if args.tracked:
+        root = Path.cwd().resolve()
+    else:
+        root = Path(os.path.commonpath([str(Path.cwd().resolve()), *(str(path) for path in resolved_roots)]))
     excludes = (*DEFAULT_EXCLUDES, *args.exclude)
     try:
-        result = scan(root, resolved_roots, args.wordlist, excludes)
+        result = scan(
+            root,
+            resolved_roots,
+            args.wordlist,
+            excludes,
+            scope="tracked" if args.tracked else "roots",
+            use_tracked=args.tracked,
+        )
     except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
         print(f"fail-closed: {error}", file=sys.stderr)
         return 2
