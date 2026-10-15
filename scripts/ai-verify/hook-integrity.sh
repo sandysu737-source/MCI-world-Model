@@ -93,7 +93,11 @@ fi
 #   但真实门禁链是「git → husky shim → **入库的** web/.husky/pre-commit → ai-guard」。
 # 判据（fail-closed）：生效钩子不入库时，必须能在其父目录找到**入库**的用户钩子，且该钩子调用 ai-guard；
 #   找不到就报红——「红」与「门禁不在」是两件事，但两者都必须说清原因。
-if [ -f "$HOOK" ] && ! git -C "$ROOT" ls-files --error-unmatch "$HOOK_REL" >/dev/null 2>&1; then
+# 注意：仅在 **hooksPath 非空**时适用。hooksPath 为空＝框架模式，`.git/hooks/pre-commit`
+# 由 pre-commit 框架生成、本就不入库（回到下方框架分支判定）。首版漏此条件，
+# 使根仓（框架模式）被误判为「未找到委派钩子」而红——门禁误报与门禁失效同样有害。
+if [ -n "$HOOKS_SETTING" ] && [ -f "$HOOK" ] \
+   && ! git -C "$ROOT" ls-files --error-unmatch "$HOOK_REL" >/dev/null 2>&1; then
   _hp="${HOOKS_SETTING%/}"
   case "$_hp" in /*) _deleg_dir="$(dirname "$_hp")";; *) _deleg_dir="$ROOT/$(dirname "$_hp")";; esac
   DELEG="$_deleg_dir/pre-commit"
