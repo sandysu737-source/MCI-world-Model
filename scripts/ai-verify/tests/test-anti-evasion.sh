@@ -6,6 +6,7 @@
 # 用例7-13 见文内（含用例13 超大 diff 载体同步豁免的四向边界）
 # 用例14 摩擦预算回归 / 用例15 U1 工具运行时不变式（I-tools，同名变量不得异义/异环境）
 # 用例16 shell 可移植性：$VAR 紧邻非 ASCII（值会被吞字节，消息失真）
+# 用例17 mutation-check 双向合并接口（含 17c 含空格单目标整串生效）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 AI_GUARD_LEGACY=0
@@ -701,6 +702,47 @@ else
   printf '%s\n' "$out17" | tail -3
 fi
 rm -rf "$r17"
+
+# 用例17c: 单目标解析必须「整串即一个目标」——绝对路径含空格时不得按空白切分
+# 实证（2026-10-15 回归，OODA-20261015-AIGUARD-MUTMERGE-015 附带）：合并件把无逗号
+# 分支退回「shlex 空白切分」，而本仓仓根 `/Users/mac/qoder m5pro` 含空格 ⇒ 单目标
+# 绝对路径被劈成 `/Users/mac/qoder` 与 `m5pro/...` 两条，pytest 报
+# `file or directory not found`、门禁假红（`no tests ran in 0.00s` + 覆盖率 0%）。
+# 判据：含空格的单目标路径必须整串生效（基准通过且无 not found）。该路径不在 git 仓内，
+# 故显式 MUTATION_SCOPE=all；关锁避免与套件其它用例争用。
+r17c="$(mktemp -d)/dir with space"
+mkdir -p "$r17c/src" "$r17c/tests"
+cat > "$r17c/src/calc.py" <<'PYT17C'
+def is_over(x, cap):
+    return x >= cap
+
+
+def scaled(x, k):
+    return x + k
+PYT17C
+cat > "$r17c/tests/test_calc.py" <<'PYT17C'
+from src.calc import is_over, scaled
+
+
+def test_is_over():
+    assert is_over(5, 5) is True
+    assert is_over(4, 5) is False
+
+
+def test_scaled():
+    assert scaled(2, 3) == 5
+PYT17C
+: > "$r17c/src/__init__.py"; : > "$r17c/tests/__init__.py"
+out17c="$( cd "$r17c" && PYTHONPATH="$r17c" MUTATION_SCOPE=all MUTATION_LOCK=0 \
+  bash "$MC" "$r17c/src/calc.py" "$r17c/tests/test_calc.py" 2>&1 )"; rc17c=$?
+if [ "$rc17c" -eq 0 ] && printf '%s' "$out17c" | grep -q '基准通过' \
+   && ! printf '%s' "$out17c" | grep -q 'file or directory not found'; then
+  say "✅ PASS  用例17c 含空格单目标整串生效（rc=0，未被空白切分）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例17c 含空格单目标被切分（rc=${rc17c}）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out17c" | tail -5
+fi
+rm -rf "${r17c%/dir with space}"
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"

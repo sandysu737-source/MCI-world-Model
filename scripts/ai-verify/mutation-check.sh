@@ -188,9 +188,10 @@ for token in shlex.split(sys.stdin.read()):
 # 逗号优先（每段一个目标，允许段内空格；带引号时再 shlex）；无逗号时 shlex 空白切分。
 parse_selected_tests(){
   local parsed
-  parsed="$(printf '%s' "$TESTS" | "$PY" -c 'import shlex, sys
+  parsed="$(printf '%s' "$TESTS" | "$PY" -c 'import os, shlex, sys
 raw = sys.stdin.read()
 if "," in raw:
+    # 逗号优先：每段一个目标（允许段内空格；带引号时再 shlex 以支持段内参数）
     for piece in raw.split(","):
         piece = piece.strip()
         if not piece:
@@ -200,7 +201,12 @@ if "," in raw:
                 print(token)
         else:
             print(piece)
+elif os.path.exists(raw):
+    # 单目标且整串即一个存在的路径：**不得按空白切分**——本仓仓根含空格（`qoder m5pro`），
+    # 绝对路径按空白切开会把一条路径劈成两条（2026-10-15 实证：门禁报 `no tests ran in 0.00s`）。
+    print(raw)
 else:
+    # 多目标且非逗号形态：按空白（shlex）切分，保留 su-memory 原语义
     for token in shlex.split(raw):
         print(token)')" || return 1
   selected_tests=()
