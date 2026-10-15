@@ -654,7 +654,10 @@ fi
 # 本机 bash 下把变量名的解析越过多字节字符边界，**整个变量值被吞掉**——门禁报出
 # 「PYTHON_BIN=）」而看不到真实值，定位成本极高；且属静默失真（不报错、只错内容）。
 # 该缺陷此前只有 hospital 仓自查（其 pre-commit 有同名检查），属基础层应固化项。
-bad16="$(LC_ALL=C grep -n '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$SYNC_SRC"/*.sh 2>/dev/null \
+# 2026-10-15 扩围：只扫顶层 *.sh 会漏掉 tests/ 子目录——hospital 的更严口径当场抓出
+# 本套件自身一处同类写法（用例17b），故扫描范围并入 tests/*.sh（唯一实现＝
+# nutrition-system-hospital/scripts/ai-verify/shell_portability.py，本用例为其轻量同口径副本）。
+bad16="$(LC_ALL=C grep -n '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$SYNC_SRC"/*.sh "$SYNC_SRC"/tests/*.sh 2>/dev/null \
           | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' || true)"
 if [ -z "$bad16" ]; then
   say "✅ PASS  用例16 治理脚本无「\$VAR 紧邻非 ASCII」写法"; PASS=$((PASS+1))
@@ -662,6 +665,42 @@ else
   say "❌ FAIL  用例16 发现 \$VAR 紧邻非 ASCII（值会被吞字节）"; FAIL=$((FAIL+1))
   printf '%s\n' "$bad16" | head -10
 fi
+
+# ── 用例17: mutation-check 双向合并接口（§15.7-1，OODA-20261015-AIGUARD-MUTMERGE-015）──
+# 实证：kit 与 su-memory 的 mutation-check 是**双向分叉**（两侧都不是子集）——kit 独有
+# 逗号多目标/`git diff HEAD` 行号口径/MUTATION_SCOPE/语法破坏跳过；su 独有并发互斥/
+# shlex 前缀解析/证据链 JSON。硬覆盖任一方向都丢能力。合并后必须钉死「两侧能力同时在场」，
+# 否则下一次「从某一侧同步」会静默退回半套，且退回方向不同、症状也不同。
+MC="$SYNC_SRC/mutation-check.sh"
+miss17=""
+for needle in acquire_lock write_mutation_report MUTATION_SKIP_RES shlex \
+              MUTATION_SCOPE parse_selected_tests in_line_skip MUTATION_DIFF_BASE \
+              'sys.exit(3)' MUTATION_NA_REASON repo-scoped-mkdir-exclusive \
+              MUTATION_EVIDENCE_WORKSPACE skip_allowlist_approved; do
+  grep -qF -- "$needle" "$MC" || miss17="$miss17 $needle"
+done
+if [ -z "$miss17" ]; then
+  say "✅ PASS  用例17a 合并接口齐全（kit 骨架能力 + su 三块能力同时在场）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例17a 合并能力缺失:$miss17"; FAIL=$((FAIL+1))
+fi
+
+# 用例17b: 活锁并发必须 fail-closed（等待上限 0 ⇒ 立即 rc=2，不静默双跑）
+r17="$(mktemp -d)"
+mkdir -p "$r17/.ai-governance/reports/locks/mutation-check.lock"
+cat > "$r17/target.py" <<'PYT17'
+def f(x):
+    return x
+PYT17
+printf '%s\n' "$$" > "$r17/.ai-governance/reports/locks/mutation-check.lock/pid"
+out17="$( cd "$r17" && MUTATION_LOCK_WAIT=0 bash "$MC" "$r17/target.py" "$r17/target.py" 2>&1 )"; rc17=$?
+if [ "$rc17" -eq 2 ] && printf '%s' "$out17" | grep -q '禁止并发运行'; then
+  say "✅ PASS  用例17b 活锁并发被 fail-closed（rc=2，不静默双跑）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例17b 活锁未 fail-closed（rc=${rc17}）"; FAIL=$((FAIL+1))
+  printf '%s\n' "$out17" | tail -3
+fi
+rm -rf "$r17"
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
