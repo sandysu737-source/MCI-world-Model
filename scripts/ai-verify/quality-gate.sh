@@ -579,7 +579,12 @@ PYCOV
       done
     else warn "改动文件无对应单元测试，覆盖率门禁转人工确认（建议补 test_<mod>.py）"; return; fi
   fi
+  # 2026-10-16（并发假红修复）：pytest 的 tmp_path 根（pytest-of-$USER/pytest-N）是全局共享的，
+  # 并发跑两个 pytest（本仓 gate + 他线验收）会抢同一个 N，后启动方清理旧目录 ⇒ 正在运行的测试
+  # 目录被删、git commit 假红。实证：test_tracked_scope_scans_versioned_files_only 全量运行
+  # FAILED、单跑必过。故把 tmp 根钉进本 gate 的唯一目录。
   if (cd "$cfgdir" && "$PYTEST_BIN" "${pytest_args[@]}" -q --cov --cov-branch \
+    --basetemp="$GATE_TMP_DIR/pytest-basetemp" \
     --cov-report=term-missing --cov-report=json:"$COV_JSON" >"$PYTEST_LOG" 2>&1); then
     local cov; cov=$(grep -E '^TOTAL' "$PYTEST_LOG" | tail -1 | grep -oE '[0-9]+%' | head -1 | tr -d '%')
     # R1-3（A-1）：读数缺失时**不得**落进「通过」分支——「无数 → 绿」与「0% → 绿」同属静默降级。

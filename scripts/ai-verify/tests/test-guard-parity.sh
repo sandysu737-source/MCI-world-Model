@@ -117,6 +117,12 @@ PYTEST_PREFIX="'$PYTESTBIN' --override-ini=addopts= -p no:cacheprovider"
 if [ -z "$PYBIN" ] || [ -z "$PYTESTBIN" ]; then
   say "ℹ️  SKIP  缺少 python3/pytest，跳过行为回归"
 else
+  # 2026-10-16（pre-commit 假红修复）：kit 的 .githooks/pre-commit 会把 GIT_INDEX_FILE 指向
+  # 临时 index，且**子进程继承**。沙箱仓的 git add/commit/write-tree 于是误用 kit 的索引
+  # （对象库却是沙箱）⇒ "error: invalid object 100755 … for '.githooks/pre-commit'" +
+  # "Error building trees"，用例 A/B/C/E 连坐 FAIL（实测 pre-commit 下 PASS=3 FAIL=5，
+  # 干净环境 PASS=8 FAIL=0）。沙箱必须用自己的索引。
+  unset GIT_INDEX_FILE
   SANDBOX="$(mktemp -d /tmp/guard-parity.XXXXXX)" || { say "❌ ERROR 无法创建沙箱"; exit 2; }
   trap 'rm -rf "${SANDBOX:-}"' EXIT
   git -C "$SANDBOX" init -q
