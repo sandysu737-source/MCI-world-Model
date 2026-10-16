@@ -7,6 +7,9 @@
 # 用例14 摩擦预算回归 / 用例15 U1 工具运行时不变式（I-tools，同名变量不得异义/异环境）
 # 用例16 shell 可移植性：$VAR 紧邻非 ASCII（值会被吞字节，消息失真）
 # 用例17 mutation-check 双向合并接口（17c 整串生效 ／ 17d 歧义可见）
+# 用例18 环境净化：父进程的评审放行变量（AI_REVIEW_CONFIRMED/TOKEN/CI、AI_ENG_GUARD_USE_KIT）
+#        不得泄漏进攻击用例 —— 实证 2026-10-16：干净 37/0 ↔ AI_REVIEW_CONFIRMED=1 泄漏 35/3
+#        （kit 侧全额执行；仓内因例外面 WAIVE 遮罩 ⇒ 不复现，须在 kit 侧判）
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # 被测仓根：向上寻找 .git / .ai-governance。kit 内布局深度（governance/tests）与
@@ -67,6 +70,25 @@ if [ "$AI_GUARD_LEGACY" = "1" ]; then
   say "    ⇒ 本套件结论**不代表** kit 单源行为；请归档该残件后复跑（I3 载体唯一）"
 fi
 
+# ---------- 用例18: 环境净化（任何用例执行之前完成，含留痕告警） ----------
+# 动机（2026-10-16 实证，台账 OODA-20261016-559）：ai-guard 的 L2 路由按
+# AI_REVIEW_TOKEN → AI_REVIEW_CONFIRMED → AI_REVIEW_CI 依次放行；这些变量**由父进程导出**
+# 时会被子壳无条件继承 ⇒ 攻击样本被放行（rc=0），套件出现假红；更隐蔽的是用例9b 只断言
+# 「消息维度」，静默放行仍报 PASS（假绿）。套件必须自证环境干净，不得依赖调用者自觉。
+_env_leak=""
+for _v in AI_REVIEW_CONFIRMED AI_REVIEW_TOKEN AI_REVIEW_CI AI_ENG_GUARD_USE_KIT; do
+  eval "_cur=\${${_v}:-}"
+  if [ -n "$_cur" ]; then
+    _env_leak="${_env_leak} ${_v}=${_cur}"
+    unset "$_v"
+  fi
+done
+if [ -n "$_env_leak" ]; then
+  say "⚠️  已净化父进程泄漏的放行变量:${_env_leak}"
+  say "    （未净化时攻击用例会被 ai-guard 放行 —— 假红；用例9b 断言不含 rc 维度 ⇒ 假绿）"
+fi
+unset _env_leak _v _cur 2>/dev/null || true
+
 # R2.1: 临时资源统一放入本次运行独占的 TROOT（临时 HOME、kit 副本、测试仓库、用例日志）。
 # 顺序: TROOT 创建成功 → 立即注册 trap cleanup EXIT → 再执行 mkdir/复制/hash 校验,
 # 保证任何中途失败都被 trap 清理; cleanup 对未初始化变量安全（set -u）。
@@ -87,18 +109,27 @@ if ! mkdir -p "$KIT_DEST"; then
   exit 2
 fi
 kit_hash_ok=1
+# 哈希器探测（2026-10-16 实证）：macOS 无 sha256sum ⇒ 原先两侧各取到**空串**，
+# `[ "$h_src" != "$h_dst" ]` 恒假 ⇒ kit 副本完整性校验**静默失效**（假绿）。
+# 故先探测可用哈希器；二者皆无则 fail-closed 退出（不得静默跳过自证步骤）。
+if command -v sha256sum >/dev/null 2>&1; then HASHER="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then HASHER="shasum -a 256"
+else
+  say "ERROR: 缺 sha256sum／shasum —— 无法校验 kit 副本完整性（fail-closed，禁止静默跳过）"
+  exit 2
+fi
 for kit_s in ai-guard quality-gate risk-classify mutation-check review-token hook-integrity; do
   kit_src="$KIT_DIR/$kit_s.sh"
   if [ ! -f "$kit_src" ]; then
     say "ERROR: 待测仓库缺 kit 脚本: $kit_src"
     exit 2
   fi
-  h_src="$(sha256sum "$kit_src" | cut -d' ' -f1)"
+  h_src="$($HASHER "$kit_src" | cut -d' ' -f1)"
   if ! cp "$kit_src" "$KIT_DEST/"; then
     say "ERROR: kit 复制失败: $kit_s"
     exit 2
   fi
-  h_dst="$(sha256sum "$KIT_DEST/$kit_s.sh" | cut -d' ' -f1)"
+  h_dst="$($HASHER "$KIT_DEST/$kit_s.sh" | cut -d' ' -f1)"
   if [ "$h_src" != "$h_dst" ]; then
     say "🛑 kit 复制 hash 不一致: $kit_s (src=$h_src dst=$h_dst)"
     kit_hash_ok=0
@@ -418,7 +449,13 @@ if [ -n "$AMODE" ] && ! { grep -q '引擎载体: kit' "$TROOT/case9b.log" \
    && grep -q '质量门禁通过' "$TROOT/case9b.log" \
    && ! grep -q '质量门禁未通过' "$TROOT/case9b.log"; }; then
   _waive "用例9b" "ai-guard.sh" "$AMODE"
-elif grep -q '引擎载体: kit' "$TROOT/case9b.log" \
+elif [ "$rc9b" -eq 0 ]; then
+  # 载体切换生效 + 门禁桩放行 ≠ 攻击可放行。rc=0 说明恶意样例走完了 L2 路由未被拦
+  # （典型成因：父进程泄漏 AI_REVIEW_CONFIRMED/TOKEN/CI —— 见用例18 净化块）。
+  say "❌ FAIL  用例9b 恶意样例被放行 rc=0（载体切换生效但攻击未被拦截；查评审放行变量泄漏）"
+  FAIL=$((FAIL+1))
+  tail -8 "$TROOT/case9b.log"
+elif [ "$rc9b" -ne 0 ] && grep -q '引擎载体: kit' "$TROOT/case9b.log" \
    && grep -q '质量门禁通过' "$TROOT/case9b.log" \
    && ! grep -q '质量门禁未通过' "$TROOT/case9b.log"; then
   say "✅ PASS  用例9b 显式开关切到 kit 载体（放行桩生效, rc=${rc9b}）"; PASS=$((PASS+1))
