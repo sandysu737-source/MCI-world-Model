@@ -532,6 +532,7 @@ run_coverage() {
     local cov_args=() s
     for s in $sources; do cov_args+=("--cov=$s"); done
     if (cd "$cfgdir" && "$PYTEST_BIN" "$testdir" -q "${cov_args[@]}" --cov-branch \
+        --basetemp="$GATE_TMP_DIR/pytest-basetemp" \
         --cov-report=term-missing --cov-report=json:"$COV_JSON" \
         --cov-fail-under="$threshold" >"$PYTEST_LOG" 2>&1); then
       local branch
@@ -686,7 +687,8 @@ run_gov_cov() {
   # 阈值判定仍归上方 run_coverage，避免「换量尺」被误读为「换阈值」。
   if ! ( cd "$ROOT" && COVERAGE_PROCESS_START="$rcfile" COVERAGE_FILE="$data" \
         PYTHONPATH="$hook${PYTHONPATH:+:$PYTHONPATH}" \
-        "$PYTEST_BIN" -o addopts= -q -p no:cacheprovider "${targs[@]}" ) >"$clog" 2>&1; then
+        "$PYTEST_BIN" --basetemp="$GATE_TMP_DIR/pytest-basetemp-govcov" \
+        -o addopts= -q -p no:cacheprovider "${targs[@]}" ) >"$clog" 2>&1; then
     gov_say "未通过（映射用例失败，无读数：${targs[*]}）"
     fail "治理脚本映射用例未通过（${targs[*]}，日志 ${clog}）"
     return 0
@@ -745,7 +747,8 @@ run_ai_eval() {
     fi
     return
   fi
-  if (cd "$cfgdir" && "$PYTEST_BIN" tests/unit/test_ai_eval_rules.py -q >"$ai_eval_log" 2>&1); then
+  if (cd "$cfgdir" && "$PYTEST_BIN" --basetemp="$GATE_TMP_DIR/pytest-basetemp-aieval" \
+    tests/unit/test_ai_eval_rules.py -q >"$ai_eval_log" 2>&1); then
     local n
     n=$(grep -oE '[0-9]+ passed' "$ai_eval_log" | tail -1 | grep -oE '^[0-9]+' || true)
     pass "AI Eval 规则层回归通过（用例 ${n:-?} 条，明细 ${ai_eval_log}）"
