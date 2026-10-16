@@ -51,9 +51,16 @@ if [ "$#" -gt 0 ]; then
   FILES=("$@")
 else
   FILES=()
-  while IFS= read -r line; do [ -n "$line" ] && FILES+=("$line"); done < <(
-    { git diff --cached --name-only --diff-filter=ACMRD 2>/dev/null; \
-      git diff --name-only --diff-filter=ACMRD 2>/dev/null; } | sort -u)
+  # F-26（2026-10-09）路径枚举必须 NUL 分隔：`git diff --name-only` 默认
+  # core.quotePath=true，会把非 ASCII 路径写成带引号的八进制转义
+  # （如 "docs/\346\262\273…md"），随后所有 `[ -f "$f" ]` 落空 → 该类文件被判
+  # `SKIP not-a-file`；而 SKIP 在末段走 `*) continue` **不计入 MAX_LEVEL**，
+  # 于是「只改中文名文件的提交」会被判 L0（实测：clinical-nutrition-finance-prod
+  # 的 docs/ 中文名文档）。这既是漏判也是绕过面，故改 `-z` + `sort -zu`
+  # （`read -d ''` 兼容 bash 3.2，不用 mapfile）。
+  while IFS= read -r -d '' line; do FILES+=("$line"); done < <(
+    { git diff --cached --name-only -z --diff-filter=ACMRD 2>/dev/null; \
+      git diff --name-only -z --diff-filter=ACMRD 2>/dev/null; } | sort -zu)
 fi
 
 [ "${#FILES[@]}" -eq 0 ] && { echo "No files to classify"; exit 0; }
@@ -70,24 +77,35 @@ classify_one() {
   esac
 
   # 删除类改动「删除即放行」盲区修复（H-05-17）：文件不存在时不再直接 SKIP，
-  # 改为从 HEAD 取原内容参与符号判定，路径规则照常生效。否则删除迁移/测试/
-  # CI/生产文件可完全绕过定级与门禁（历史上 --diff-filter=ACMR 还会把 D 滤掉）。
-  local DELETED=0 REL=""
+  # 改为取原内容参与符号判定，路径规则照常生效。否则删除迁移/测试/CI/生产
+  # 文件可完全绕过定级与门禁（历史上 --diff-filter=ACMR 还会把 D 滤掉）。
+  # H-05-17b（2026-10-10 · OODA-20261010-012 路径 B）：**已提交删除**场景下 HEAD
+  # 侧本就不存在该路径（CI 的 PR/push diff 即此形态），只回看 `HEAD:$REL` 仍落
+  # SKIP ⇒ 删除类改动在 CI 恒判 L0（实测夹具 A1~A4 全 L0）。故追加回退：取
+  # 「最后一次改动该路径的提交」的**父提交**版本（＝被删前的内容）参与判定。
+  local DELETED=0 REL="" SRC_REF=""
   if [ ! -f "$f" ]; then
     REL="${f#"$ROOT"/}"
     case "$f" in "$CALLER_CWD"/*) REL="${f#"$CALLER_CWD"/}" ;; esac
     if git -C "$ROOT" cat-file -e "HEAD:$REL" 2>/dev/null; then
-      DELETED=1
+      DELETED=1; SRC_REF="HEAD"
       f="$ROOT/$REL"
     else
-      printf 'SKIP\t%s\tnot-a-file\n' "$f"; return
+      local _dsha=""
+      _dsha="$(git -C "$ROOT" log -1 --format=%H -- "$REL" 2>/dev/null || true)"
+      if [ -n "$_dsha" ] && git -C "$ROOT" cat-file -e "${_dsha}^:$REL" 2>/dev/null; then
+        DELETED=1; SRC_REF="${_dsha}^"
+        f="$ROOT/$REL"
+      else
+        printf 'SKIP\t%s\tnot-a-file\n' "$f"; return
+      fi
     fi
   fi
 
-  # 内容判定统一入口：已删除文件读 HEAD 版本，未删除读工作区版本
+  # 内容判定统一入口：已删除文件读原版本（$SRC_REF），未删除读工作区版本
   _match() {
     if [ "$DELETED" = 1 ]; then
-      git -C "$ROOT" show "HEAD:$REL" 2>/dev/null | grep -qiE "$1"
+      git -C "$ROOT" show "$SRC_REF:$REL" 2>/dev/null | grep -qiE "$1"
     else
       grep -qiE "$1" "$f" 2>/dev/null
     fi
@@ -100,13 +118,16 @@ classify_one() {
   if [[ "$low" =~ $L2_PATH_RE ]]; then
     printf 'L2\t%s\t路径命中高风险域: %s\n' "$f" "${BASH_REMATCH[1]}"; return; fi
 
-  # 文档类（.md/.txt/.rst/.docx）：描述性文本，无执行面；但真实密钥检测
+  # 文档/数据类（.md/.txt/.rst/.docx/.xlsx/.csv）：描述性文本或无执行面数据，均无执行面；
+  # 数据文件（.xlsx/.csv）与已列入的 .docx 同性质，此前漏列 ⇒ 生产分支下被「默认保守」
+  # 兜到 L2，而同类 .md 为 L1（口径不一致，且会随 -z 修复放大成「中文名数据文件提交即需
+  # 留痕」的噪声）。注意 .sql 不列入：含可执行语句，仍走 L2。但真实密钥检测
   # 保留拦截位（H-05-13 v4 C8 修正）：文档粘贴真实密钥/私钥仍须 L2 人工
   # 确认，不得静默放行；行文提及 token/auth 流程（非密钥形态）降 L1（避免
   # 8-27 EVAL-RUNBOOK/H-05-12 被硬词误定 L2 阻塞提交）。人工确认通道 =
   # L2 token 签发或 CI PR 双人复核（ai-guard.sh L2 分支）。
   case "$f" in
-    *.md|*.txt|*.rst|*.docx|LICENSE*|CHANGELOG*)
+    *.md|*.txt|*.rst|*.docx|*.xlsx|*.csv|LICENSE*|CHANGELOG*)
       if _match "$L2_DOC_SECRET_RE"; then
         printf 'L2\t%s\t文档疑似包含真实密钥(如为占位示例，人工确认后 token 放行)\n' "$f"
         return
@@ -148,7 +169,7 @@ classify_one() {
 
   # 文档/说明类: 即便生产分支也只到 L1(不强制双人Review文档)
   case "$f" in
-    *.md|*.txt|*.rst|*.json|*.yaml|*.yml|*.toml|*.docx|LICENSE*|CHANGELOG*)
+    *.md|*.txt|*.rst|*.json|*.yaml|*.yml|*.toml|*.docx|*.xlsx|*.csv|LICENSE*|CHANGELOG*)
       printf 'L1\t%s\t配置/文档类(生产分支L1)\n' "$f"; return;;
   esac
   if [ "$PROD_BRANCH" = "1" ]; then

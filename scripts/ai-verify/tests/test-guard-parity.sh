@@ -14,10 +14,22 @@
 set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-MUT_REPO="$ROOT/scripts/ai-verify/mutation-check.sh"
 KIT_DIR="${AI_ENG_KIT_GUARD_DIR:-$HOME/qoder m5pro/_ai-eng-kit/governance}"
+
+# ── 载体定位（K-10 修复，2026-10-15）──────────────────────────────────────────
+# 原实现写死 $ROOT/scripts/ai-verify/mutation-check.sh ⇒ 在 kit 内必报「缺少仓库副本」
+# 并 exit 2，使纪律「改 governance 脚本先跑本套件」在**权威源不可执行**（套件是仓锚定的）。
+# 现口径：仓副本优先；无 scripts/ai-verify/ 但存在 governance/ ⇒ kit 自检模式。
+KIT_SELF=0
+if [ -f "$ROOT/scripts/ai-verify/mutation-check.sh" ]; then
+  MUT_REPO="$ROOT/scripts/ai-verify/mutation-check.sh"
+elif [ -f "$ROOT/governance/mutation-check.sh" ]; then
+  MUT_REPO="$ROOT/governance/mutation-check.sh"
+  KIT_SELF=1
+  [ -n "${AI_ENG_KIT_GUARD_DIR:-}" ] || KIT_DIR="$ROOT/governance"
+fi
 MUT_KIT="$KIT_DIR/mutation-check.sh"
-# 期望值：以 kit 为源同步后的引擎 hash；引擎升级必须先改 kit 再同步并更新此值
+# 期望值：以 kit 为源同步后的引擎 hash 字面量（历史遗产，见下方断言③的口径订正）
 # 2026-10-07（OODA-20261007-124）：纯删除变更显式判 N/A，不再回退全文件（消假红）
 # 2026-10-08（kit 7e02432）：回灌 mci-world-model 三项修复（F-23 f-string/语法破坏跳过、
 #   RISK_BRANCH、F-20 阈值 env），引擎 hash 随之升级
@@ -26,32 +38,47 @@ MUT_KIT="$KIT_DIR/mutation-check.sh"
 # 2026-10-09（M5 / OODA-20261007-053）：mutation-check 输出 N/A 机器可读原因码
 #   （MUTATION_NA_REASON=pure-delete|no-operator-in-changed-lines），供 quality-gate
 #   区分「合法无可评变异」与「静默放行」并在严格模式转人工确认。引擎 hash 同步升级。
-# 2026-10-10（OODA-20261009-125 / -20261010-005）：跨仓载体对齐试点——由 kit 同步
-#   mutation-check.sh（294→323 行，33+/4-；新增注解跳过/范围限定合并与 N/A 原因码），
-#   引擎 hash 同步升级；本仓为首个试点仓，其余 5 仓在试点通过后分批放量。
-EXPECTED_MUTATION_ENGINE_SHA="8a15d9f401dcfa4dce5fb642733d0dc7c43d80278f67371375c85647f4cc6425"
+# 2026-10-09（M6 / OODA-20261009-WAVE1-348）：门禁认波次基线（GATE_DIFF_BASE /
+#   MUTATION_DIFF_BASE）+ 变异存活点带行号（kit 381345f）。该提交漏更新本期望值，
+#   致 parity 套件假红（期望 7712c58e ≠ 引擎 8a15d9f4），此处补钉为回灌后引擎 hash。
+# 2026-10-15（U6 订正）：本常量**不再是无条件硬断言**。它只在外层锚缺席（CI 无 kit）时兜底；
+#   历史问题＝它与用例名「双载体一致性（kit↔repo）」不符，kit 每次合法演进都造成各仓假红，
+#   已被人工补钉至少 3 次（a6c41e3 / 002cf84 / 337f9cc 一类）。真正的锚见断言①②。
+EXPECTED_MUTATION_ENGINE_SHA="f5b33b22f08d25d4ff8e619068548ea0e8863570bb9469456851838f6d23eb91"
+# 维护规则：本常量 = kit 单源**当前**引擎 hash（与 kit-baseline.tsv 同源同义），只服务
+# 「CI 无 kit」这一条通道；有 kit 时判定锚是 kit 本身（断言②），字面量陈旧仅告警（④）。
 
-PASS=0; FAIL=0
+PASS=0; FAIL=0; SKIP=0; WARN=0
 say(){ printf '\033[1m[parity]\033[0m %s\n' "$1"; }
 sha(){ (sha256sum "$1" 2>/dev/null || shasum -a 256 "$1") | cut -d' ' -f1; }
+pin_from_baseline(){
+  [ -f "$KIT_DIR/kit-baseline.tsv" ] || return 1
+  awk -F'\t' '$1=="mutation-check.sh"{print $2; exit}' "$KIT_DIR/kit-baseline.tsv"
+}
 
 if [ ! -f "$MUT_REPO" ]; then
-  say "❌ ERROR 缺少仓库副本: $MUT_REPO"
+  say "❌ ERROR 缺少载体（scripts/ai-verify/ 与 governance/ 均无 mutation-check.sh）: $ROOT"
   exit 2
 fi
-
-# 1) 仓库副本未被静默改动
 repo_sha="$(sha "$MUT_REPO")"
-if [ "$repo_sha" = "$EXPECTED_MUTATION_ENGINE_SHA" ]; then
-  say "✅ PASS  仓库副本 hash 与记录一致（$(printf '%s' "$repo_sha" | cut -c1-16)）"
-  PASS=$((PASS+1))
-else
-  say "❌ FAIL  仓库副本与记录 hash 不一致：$repo_sha ≠ $EXPECTED_MUTATION_ENGINE_SHA"
-  say "         引擎升级：先改 kit 源 → bash _ai-eng-kit/sync-governance.sh <项目> → 更新本常量"
-  FAIL=$((FAIL+1))
+
+# ① kit 自检模式的锚：kit 基线表。kit 载体的任何改动都必须**显式 re-anchor**，不得静默。
+if [ "$KIT_SELF" -eq 1 ]; then
+  pin="$(pin_from_baseline || true)"
+  if [ -z "$pin" ]; then
+    say "❌ FAIL  kit 自检模式缺基线锚: $KIT_DIR/kit-baseline.tsv（先跑 check-kit-parity.py --write-baseline）"
+    FAIL=$((FAIL+1))
+  elif [ "$repo_sha" = "$pin" ]; then
+    say "✅ PASS  kit 载体与基线一致（$(printf '%s' "$repo_sha" | cut -c1-16)）"
+    PASS=$((PASS+1))
+  else
+    say "❌ FAIL  kit 载体与基线不一致：$repo_sha ≠ $pin"
+    say "         若为有意升级：先改 kit 源 → 复算 → check-kit-parity.py --write-baseline → 再回灌各仓"
+    FAIL=$((FAIL+1))
+  fi
 fi
 
-# 2) kit↔repo 双载体一致（本地有 kit 才比对；CI 无 kit 跳过）
+# ② kit↔repo 双载体一致（本地有 kit 才比对）。这是用例名的本义，也是硬断言。
 if [ -f "$MUT_KIT" ]; then
   kit_sha="$(sha "$MUT_KIT")"
   if [ "$kit_sha" = "$repo_sha" ]; then
@@ -62,15 +89,40 @@ if [ -f "$MUT_KIT" ]; then
     FAIL=$((FAIL+1))
   fi
 else
-  say "ℹ️  SKIP  未发现 kit（CI 环境），跳过双载体字节比对"
+  # ③ 无 kit（CI）：字面量是唯一外部锚，保留硬断言——CI 仍能拦住「副本被静默改动」。
+  if [ "$repo_sha" = "$EXPECTED_MUTATION_ENGINE_SHA" ]; then
+    say "✅ PASS  仓库副本 hash 与记录一致（$(printf '%s' "$repo_sha" | cut -c1-16)）"
+    PASS=$((PASS+1))
+  else
+    say "❌ FAIL  仓库副本与记录 hash 不一致：$repo_sha ≠ $EXPECTED_MUTATION_ENGINE_SHA"
+    say "         引擎升级：先改 kit 源 → bash _ai-eng-kit/sync-governance.sh <项目> → 更新本常量"
+    FAIL=$((FAIL+1))
+  fi
+fi
+
+# ④ 钉值滞后只告警：有 kit 时锚已是 kit 本身，字面量陈旧不再制造假红（U6）。
+if [ -f "$MUT_KIT" ] && [ "$repo_sha" = "$(sha "$MUT_KIT")" ] \
+   && [ "$repo_sha" != "$EXPECTED_MUTATION_ENGINE_SHA" ]; then
+  say "⚠️  WARN  字面量钉值滞后（repo=$(printf '%s' "$repo_sha" | cut -c1-16) vs 常量=$(printf '%s' "$EXPECTED_MUTATION_ENGINE_SHA" | cut -c1-16)）；有 kit 时不影响判定，建议顺手更新"
+  WARN=$((WARN+1))
 fi
 
 # 3) 行为回归（沙箱 git 仓库，不触碰真实仓库）
 PYBIN="${PYTHON_BIN:-$(command -v python3 || true)}"
+# `command -v` 结果可能含空格（本工作区所有项目路径形如 `/Users/mac/qoder m5pro/<仓>/…`）。
+# 该值随后被**拼进一个字符串**交给 mutation-check（其内 shlex 二次切分）⇒ 必须显式单引号化，
+# 否则会被切成 `/Users/mac/qoder` 并当作命令执行（2026-10-16 实证：6 条行为判据连坐 FAIL）。
 PYTESTBIN="$(command -v pytest || true)"
+PYTEST_PREFIX="'$PYTESTBIN' --override-ini=addopts= -p no:cacheprovider"
 if [ -z "$PYBIN" ] || [ -z "$PYTESTBIN" ]; then
   say "ℹ️  SKIP  缺少 python3/pytest，跳过行为回归"
 else
+  # 2026-10-16（pre-commit 假红修复）：kit 的 .githooks/pre-commit 会把 GIT_INDEX_FILE 指向
+  # 临时 index，且**子进程继承**。沙箱仓的 git add/commit/write-tree 于是误用 kit 的索引
+  # （对象库却是沙箱）⇒ "error: invalid object 100755 … for '.githooks/pre-commit'" +
+  # "Error building trees"，用例 A/B/C/E 连坐 FAIL（实测 pre-commit 下 PASS=3 FAIL=5，
+  # 干净环境 PASS=8 FAIL=0）。沙箱必须用自己的索引。
+  unset GIT_INDEX_FILE
   SANDBOX="$(mktemp -d /tmp/guard-parity.XXXXXX)" || { say "❌ ERROR 无法创建沙箱"; exit 2; }
   trap 'rm -rf "${SANDBOX:-}"' EXIT
   git -C "$SANDBOX" init -q
@@ -106,7 +158,7 @@ EOF
 
   # 引擎固定走仓库副本；pytest 前缀显式清空 addopts，避免继承真实仓库配置
   run_engine(){ ( cd "$SANDBOX" && PYTHON_BIN="$PYBIN" MUTATION_MIN=80 \
-    bash "$MUT_REPO" sample.py test_sample.py "$PYTESTBIN --override-ini=addopts= -p no:cacheprovider" 2>&1 ); }
+    bash "$MUT_REPO" sample.py test_sample.py "$PYTEST_PREFIX" 2>&1 ); }
 
   # 用例A: 无任何差异（等价 CI 干净检出）→ 回退全文件，产出真实分数而非 N/A
   out_a="$(run_engine)"
@@ -122,7 +174,7 @@ EOF
 
   # 用例D: 显式 MUTATION_SCOPE=all → 全文件变异，不得因空白名单文件空转
   out_d="$( cd "$SANDBOX" && MUTATION_SCOPE=all PYTHON_BIN="$PYBIN" MUTATION_MIN=80 \
-    bash "$MUT_REPO" sample.py test_sample.py "$PYTESTBIN --override-ini=addopts= -p no:cacheprovider" 2>&1 )"
+    bash "$MUT_REPO" sample.py test_sample.py "$PYTEST_PREFIX" 2>&1 )"
   if printf '%s' "$out_d" | grep -q '全文件（显式 MUTATION_SCOPE=all）' \
     && printf '%s' "$out_d" | grep -q 'MUTATION_SCORE=100'; then
     say "✅ PASS  显式 all 模式全文件变异（未空转成 N/A）"
@@ -249,5 +301,5 @@ PYDEL
 fi
 
 echo
-say "汇总: PASS=$PASS FAIL=$FAIL"
+say "汇总: PASS=$PASS FAIL=$FAIL WARN=$WARN"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

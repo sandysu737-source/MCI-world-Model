@@ -19,6 +19,7 @@ from mci_world_model.sdk._energy_counterfactual_bridge import (
     EnergyCounterfactualBridge,
     EnergyWhatIfResult,
 )
+from tests._gov_terms import ENHANCE, SUPPRESS
 
 
 @pytest.fixture
@@ -148,7 +149,7 @@ class TestEnergyBridgeEdgeCases:
             baseline=0.2,
             counterfactual=0.3,
             delta=0.1,
-            mechanism="相生",
+            mechanism=ENHANCE,
         )
         assert r.direction == "增强"
         assert r.effect_ratio == 0.5
@@ -161,7 +162,7 @@ class TestEnergyBridgeEdgeCases:
             baseline=0.2,
             counterfactual=0.2,
             delta=0.0,
-            mechanism="相克",
+            mechanism=SUPPRESS,
         )
         assert r.direction == "无影响"
         assert r.effect_ratio == 0.0
@@ -174,6 +175,6 @@ class TestEnergyBridgeEdgeCases:
             baseline=0.2,
             counterfactual=0.15,
             delta=-0.05,
-            mechanism="相克",
+            mechanism=SUPPRESS,
         )
         assert r.direction == "减弱"

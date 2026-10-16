@@ -1,3 +1,5 @@
+from tests._gov_terms import WOOD
+
 """
 test_imports.py — 发布门禁：验证顶层包 + sdk 包的关键符号全部可导入。
 
@@ -247,7 +249,7 @@ class TestTemporalSymbolsFunctional:
         sim = ts.temporal_similarity(date(2024, 1, 1), date(2024, 1, 2))
         assert 0.0 <= sim <= 1.0
         # calculate_time_decay
-        decay = ts.calculate_time_decay(30, "木")
+        decay = ts.calculate_time_decay(30, WOOD)
         assert 0.0 <= decay <= 1.0
 
     def test_temporal_info_dataclass(self):
@@ -258,7 +260,7 @@ class TestTemporalSymbolsFunctional:
             tian_gan="甲",
             di_zhi="子",
             time_code="甲子",
-            energy_type="木",
+            energy_type=WOOD,
             yin_yang="阳",
             season="冬",
             is_birthday=False,
@@ -281,7 +283,7 @@ class TestTemporalSymbolsFunctional:
         assert tc is not None
 
     def test_spatial_data_tables(self):
-        """时空数据表（地支冲合刑、天干冲合）非空且类型正确。"""
+        """时空数据表（branch 冲合刑、stem 冲合）非空且类型正确。"""
         from mci_world_model.sdk import (
             BRANCH_CHONG,
             BRANCH_CHONG_MAP,
@@ -292,7 +294,7 @@ class TestTemporalSymbolsFunctional:
             STEM_HE_MAP,
         )
 
-        # BRANCH_CHONG/HE 是 dict 而非 set（地支枚举→地支枚举映射）
+        # BRANCH_CHONG/HE 是 dict 而非 set（branch 枚举 → branch 枚举映射）
         assert isinstance(BRANCH_CHONG, dict) and len(BRANCH_CHONG) > 0
         assert isinstance(BRANCH_HE, dict) and len(BRANCH_HE) > 0
         assert isinstance(BRANCH_XING, dict) and len(BRANCH_XING) > 0

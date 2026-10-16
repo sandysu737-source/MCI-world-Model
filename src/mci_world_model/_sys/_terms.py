@@ -71,11 +71,11 @@ SEMANTIC_CATEGORY_PROPERTIES = {
 
 # 能量类型枚举
 ENERGY_TYPE = {
-    "ELEM_SEMANTIC": "semantic",  # 语义维度 (原木)
-    "ELEM_CAUSAL": "causal",  # 因果维度 (原火)
-    "ELEM_SPACETIME": "spacetime",  # 时空维度 (原土)
-    "ELEM_GENERATIVE": "generative",  # 生成维度 (原金)
-    "ELEM_TRUST": "trust",  # 信任维度 (原水)
+    "ELEM_SEMANTIC": "semantic",  # 语义维度 (原 WOOD)
+    "ELEM_CAUSAL": "causal",  # 因果维度 (原 FIRE)
+    "ELEM_SPACETIME": "spacetime",  # 时空维度 (原 EARTH)
+    "ELEM_GENERATIVE": "generative",  # 生成维度 (原 METAL)
+    "ELEM_TRUST": "trust",  # 信任维度 (原 WATER)
 }
 
 # 能量类型常量

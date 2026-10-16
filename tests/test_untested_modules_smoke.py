@@ -12,7 +12,7 @@ pytestmark = pytest.mark.contract
 
 
 class TestPatternInference:
-    """天干地支模式推断。"""
+    """stem / branch 模式推断。"""
 
     def test_create_and_query(self):
         from mci_world_model._sys._pattern_inference import create_pattern, get_heavenly_stem

@@ -302,7 +302,7 @@ fi
 # T10c/T10d 门控层：严格（L0/L2 合入拦截点）必须转人工确认，非严格（push 审计）不阻断
 GATE="$KIT_DIR/quality-gate.sh"
 if [ ! -f "$GATE" ]; then
-  skip "T10c 缺 $GATE，跳过门控层行为验证"
+  skip "T10c 缺 ${GATE}，跳过门控层行为验证"
 elif ! command -v radon >/dev/null 2>&1 || ! command -v ruff >/dev/null 2>&1 \
   || ! command -v bandit >/dev/null 2>&1; then
   skip "T10c 缺 radon/ruff/bandit，跳过门控层行为验证"
@@ -368,6 +368,85 @@ EOF
     fi
   fi
 fi
+
+# ---------- M6(OODA-20261009-WAVE1-347): 波次基线口径（MUTATION_DIFF_BASE） ----------
+# 缺陷背景：门禁在「干净检出」（CI 与 local-ci 都是）下无 worktree/暂存 diff → 旧逻辑
+#   回退**全文件**取行号，于是「历史大文件里本次未改动逻辑」的覆盖盲区被记成本次分数
+#   （实测 backend/utils.py 0%、finance_modules_api.py 10%，而本波次真正新增代码 100%）
+#   → 属假红，且让波次门禁不可达。修复后：调用方给出基线时按 `基线..HEAD` 取改动行；
+#   未给出基线时行为不变。另：存活明细须带行号（旧输出只有「布尔 True→False」描述，
+#   9 个存活点里 6 个需人工反查才能定位源行）。
+say "T11: 波次基线口径（MUTATION_DIFF_BASE）与存活点行号"
+
+W="$T_REAL/wavefix"
+mkdir -p "$W"
+git -C "$W" init -q
+git -C "$W" config user.email wave@example.com
+git -C "$W" config user.name wave
+cat > "$W/wave_subject.py" <<'EOF'
+FLAG = False
+EOF
+cat > "$W/test_wave_subject.py" <<'EOF'
+from wave_subject import FLAG
+
+
+def test_flag():
+    assert FLAG is True
+EOF
+git -C "$W" add -A
+git -C "$W" commit -qm base
+WAVE_BASE="$(git -C "$W" rev-parse HEAD)"
+# 第二个提交：改 1 行（FLAG 有断言 → 被杀）+ 新增 1 行（LIMIT 无断言 → 必然存活，验行号）
+cat > "$W/wave_subject.py" <<'EOF'
+FLAG = True
+LIMIT = 3
+EOF
+git -C "$W" add -A
+git -C "$W" commit -qm wave
+
+run_wave_mut(){
+  ( cd "$W" && SRC_PATH="$W/wave_subject.py" SNAP_DIR="$t" PYTHONUTF8=1 \
+    PYTHON_BIN="${PYTHON_BIN:-}" MUTATION_SCOPE=changed \
+    env "$@" bash "$MUT" "$W/wave_subject.py" "$W/test_wave_subject.py" "$t/wpytest.sh" 2>&1 )
+}
+
+out11a="$( run_wave_mut "MUTATION_DIFF_BASE=$WAVE_BASE" )"
+if printf '%s' "$out11a" | grep -q "变异范围基线: $WAVE_BASE..HEAD"; then
+  ok "T11a 显式基线生效（按 基线..HEAD 取行号，不再回退全文件）"
+else
+  no "T11a 显式基线未生效（干净检出下会在历史大文件上产生假红）" "$out11a"
+fi
+if printf '%s' "$out11a" | grep -q '改动行' && ! printf '%s' "$out11a" | grep -q '回退全文件'; then
+  ok "T11a-2 取到改动行且未回退全文件"
+else
+  no "T11a-2 改动行口径异常（应为『改动行』且不得回退全文件）" "$out11a"
+fi
+if printf '%s' "$out11a" | grep -qF '(行 2)'; then
+  ok "T11a-3 存活点带行号（可直接定位源行）"
+else
+  no "T11a-3 存活点缺行号（盲区不可定位）" "$out11a"
+fi
+if printf '%s' "$out11a" | grep -q '^MUTATION_SCORE='; then
+  ok "T11a-4 波次口径仍输出可判定分数（非静默空转）"
+else
+  no "T11a-4 波次口径缺分数输出" "$out11a"
+fi
+
+out11b="$( run_wave_mut "MUTATION_DIFF_BASE=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" )"
+rc11b=$?
+if [ "$rc11b" -eq 2 ] && printf '%s' "$out11b" | grep -q '不是有效提交'; then
+  ok "T11b 无效基线 fail-closed（rc=2 + 明确报错，不得静默回退全文件）"
+else
+  no "T11b 无效基线未 fail-closed（rc=${rc11b}）" "$out11b"
+fi
+
+out11c="$( run_wave_mut )"
+if printf '%s' "$out11c" | grep -q '回退全文件'; then
+  ok "T11c 未给基线时行为不变（干净检出回退全文件）"
+else
+  no "T11c 未给基线时口径漂移" "$out11c"
+fi
+
 
 echo
 say "汇总: PASS=$PASS FAIL=$FAIL SKIP=$SKIP"

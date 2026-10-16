@@ -1,0 +1,2 @@
+# 显式变异映射（F-GOVP0）：源文件<TAB>测试目标（逗号分隔多目标）
+tests/_gov_terms.py	tests/test_gov_terms.py
