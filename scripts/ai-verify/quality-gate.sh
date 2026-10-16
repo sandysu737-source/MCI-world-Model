@@ -11,6 +11,12 @@ case "${LEVEL}" in L0|L1|L2) ;; *) LEVEL=L2;; esac
 
 REPORT_DIR=".ai-governance/reports"
 # 门禁临时文件目录：本机可能同时运行多个仓库的 governance 作业（共用 _ai-eng-kit），
+# 2026-10-16（GIT_INDEX_FILE 环境泄漏修复）：pre-commit 会把 GIT_INDEX_FILE（临时 index）传给
+# hook 及其**孙子进程**。本 gate 早期确实要用它读 staged（line 53/364），故**不能**在脚本顶部摘掉；
+# 但它对「pytest 及其内部建临时 git 仓的测试」是纯污染：临时仓的 `git add/commit/write-tree` 会误用
+# 本仓的临时 index（对象库却是临时仓）⇒ `error: invalid object 100644 … ` + `Error building trees`
+# ⇒ commit rc=1、门禁假红。实测复现：GIT_INDEX_FILE=$PWD/.git/index pytest …::test_tracked_scope_scans_versioned_files_only
+# ⇒ FAILED；`env -u GIT_INDEX_FILE pytest …` ⇒ PASSED。故在**调 pytest 的子 shell 内** unset。
 # 固定 /tmp 路径会被并发写坏（2026-10-02 实证：覆盖率 JSON 出现 "Extra data" 解析失败 → 假红）。
 # CI 传 runner.temp 获得每作业唯一目录；本地默认 /tmp 保持兼容（自测脚本仍写 /tmp/qgate_cov.json）。
 GATE_TMP_DIR="${QGATE_TMP_DIR:-/tmp}"
@@ -531,7 +537,7 @@ run_coverage() {
     echo "- 阈值(实际): 核心覆盖≥${threshold}% 分支≥${COV_BR}%（来源 .ai-coverage-threshold）" >> "$REPORT"
     local cov_args=() s
     for s in $sources; do cov_args+=("--cov=$s"); done
-    if (cd "$cfgdir" && "$PYTEST_BIN" "$testdir" -q "${cov_args[@]}" --cov-branch \
+    if (cd "$cfgdir" && unset GIT_INDEX_FILE && "$PYTEST_BIN" "$testdir" -q "${cov_args[@]}" --cov-branch \
         --basetemp="$GATE_TMP_DIR/pytest-basetemp" \
         --cov-report=term-missing --cov-report=json:"$COV_JSON" \
         --cov-fail-under="$threshold" >"$PYTEST_LOG" 2>&1); then
@@ -584,7 +590,7 @@ PYCOV
   # 并发跑两个 pytest（本仓 gate + 他线验收）会抢同一个 N，后启动方清理旧目录 ⇒ 正在运行的测试
   # 目录被删、git commit 假红。实证：test_tracked_scope_scans_versioned_files_only 全量运行
   # FAILED、单跑必过。故把 tmp 根钉进本 gate 的唯一目录。
-  if (cd "$cfgdir" && "$PYTEST_BIN" "${pytest_args[@]}" -q --cov --cov-branch \
+  if (cd "$cfgdir" && unset GIT_INDEX_FILE && "$PYTEST_BIN" "${pytest_args[@]}" -q --cov --cov-branch \
     --basetemp="$GATE_TMP_DIR/pytest-basetemp" \
     --cov-report=term-missing --cov-report=json:"$COV_JSON" >"$PYTEST_LOG" 2>&1); then
     local cov; cov=$(grep -E '^TOTAL' "$PYTEST_LOG" | tail -1 | grep -oE '[0-9]+%' | head -1 | tr -d '%')
@@ -685,7 +691,7 @@ run_gov_cov() {
   for t in "${tmods[@]}"; do targs+=("${t#"$ROOT/"}"); done
   # `-o addopts=`：多仓在 addopts 里写死全局 --cov-fail-under（只跑子集必假红）；本次只采数据，
   # 阈值判定仍归上方 run_coverage，避免「换量尺」被误读为「换阈值」。
-  if ! ( cd "$ROOT" && COVERAGE_PROCESS_START="$rcfile" COVERAGE_FILE="$data" \
+  if ! ( cd "$ROOT" && unset GIT_INDEX_FILE && COVERAGE_PROCESS_START="$rcfile" COVERAGE_FILE="$data" \
         PYTHONPATH="$hook${PYTHONPATH:+:$PYTHONPATH}" \
         "$PYTEST_BIN" --basetemp="$GATE_TMP_DIR/pytest-basetemp-govcov" \
         -o addopts= -q -p no:cacheprovider "${targs[@]}" ) >"$clog" 2>&1; then
@@ -747,7 +753,7 @@ run_ai_eval() {
     fi
     return
   fi
-  if (cd "$cfgdir" && "$PYTEST_BIN" --basetemp="$GATE_TMP_DIR/pytest-basetemp-aieval" \
+  if (cd "$cfgdir" && unset GIT_INDEX_FILE && "$PYTEST_BIN" --basetemp="$GATE_TMP_DIR/pytest-basetemp-aieval" \
     tests/unit/test_ai_eval_rules.py -q >"$ai_eval_log" 2>&1); then
     local n
     n=$(grep -oE '[0-9]+ passed' "$ai_eval_log" | tail -1 | grep -oE '^[0-9]+' || true)
