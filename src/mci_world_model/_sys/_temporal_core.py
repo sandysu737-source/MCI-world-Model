@@ -870,7 +870,7 @@ def _run_tests():
     logger.info("\n[6] San He (三合局) Trigram Tests")
     logger.info("-" * 40)
 
-    # 申子辰 - 水局
+    # 申子辰 - WATER 局
     code_sh = tc.create_code(6, 8)  # 庚申
     code_zi = tc.create_code(8, 0)  # 壬子
     code_ch = tc.create_code(4, 4)  # 戊辰
@@ -882,7 +882,7 @@ def _run_tests():
     is_tri, energy = tc.is_same_trigram(code_sh, code_zi)
     test("申子同属水局 (partial)", is_tri and energy == "water")
 
-    # 亥卯未 - 木局
+    # 亥卯未 - WOOD 局
     code_h = tc.create_code(8, 11)  # 壬亥
     code_m = tc.create_code(1, 3)  # 乙卯
     code_w = tc.create_code(5, 7)  # 己未
@@ -890,7 +890,7 @@ def _run_tests():
     is_tri, energy = tc.is_same_trigram(code_h, code_m, code_w)
     test("亥卯未合木局 (HAI-MAO-WEI)", is_tri and energy == "wood")
 
-    # 寅午戌 - 火局
+    # 寅午戌 - FIRE 局
     code_y = tc.create_code(0, 2)  # 甲寅
     code_w = tc.create_code(3, 6)  # 丁午
     code_x = tc.create_code(4, 10)  # 戊戌
@@ -898,7 +898,7 @@ def _run_tests():
     is_tri, energy = tc.is_same_trigram(code_y, code_w, code_x)
     test("寅午戌合火局 (YIN-WU-XU)", is_tri and energy == "fire")
 
-    # 巳酉丑 - 金局
+    # 巳酉丑 - METAL 局
     code_s = tc.create_code(2, 5)  # 丙巳
     code_y = tc.create_code(7, 9)  # 辛酉
     code_c = tc.create_code(5, 1)  # 己丑

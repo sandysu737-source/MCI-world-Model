@@ -89,7 +89,7 @@ TRIGRAM_THREE_POWERS: dict[TrigramType, tuple[str, str, str]] = {
     TrigramType.LI: ("TIAN", "REN", "DI"),  # 离: 天人地 (天地Duality)
     TrigramType.ZHEN: ("DI", "REN", "DI"),  # 震: 地人地
     TrigramType.XUN: ("TIAN", "REN", "DI"),  # 巽: 天人地 (天入阴)
-    TrigramType.KAN: ("DI", "REN", "DI"),  # 坎: 地中地 (水险)
+    TrigramType.KAN: ("DI", "REN", "DI"),  # 坎: 地中地 (WATER 险)
     TrigramType.GEN: ("TIAN", "REN", "DI"),  # 艮: 天人地 (山止)
     TrigramType.KUN: ("DI", "REN", "DI"),  # 坤: 地人地 (三阴)
 }
@@ -160,14 +160,14 @@ ORDER_TO_TRIGRAM_PRIOR: dict[int, TrigramType] = {v: k for k, v in PRIOR_ORDER.i
 # ============================================================
 
 POST_ORDER: dict[TrigramType, int] = {
-    TrigramType.KAN: 0,  # 坎 - 象1 (北方水)
-    TrigramType.KUN: 1,  # 坤 - 象2 (西南土)
-    TrigramType.ZHEN: 2,  # 震 - 象3 (东方木)
-    TrigramType.XUN: 3,  # 巽 - 象4 (东南木)
-    TrigramType.QIAN: 4,  # 乾 - 象6 (西北金)
-    TrigramType.DUI: 5,  # 兑 - 象7 (西方金)
-    TrigramType.GEN: 6,  # 艮 - 象8 (东北土)
-    TrigramType.LI: 7,  # 离 - 象9 (南方火)
+    TrigramType.KAN: 0,  # 坎 - 象1 (北方 WATER)
+    TrigramType.KUN: 1,  # 坤 - 象2 (西南 EARTH)
+    TrigramType.ZHEN: 2,  # 震 - 象3 (东方 WOOD)
+    TrigramType.XUN: 3,  # 巽 - 象4 (东南 WOOD)
+    TrigramType.QIAN: 4,  # 乾 - 象6 (西北 METAL)
+    TrigramType.DUI: 5,  # 兑 - 象7 (西方 METAL)
+    TrigramType.GEN: 6,  # 艮 - 象8 (东北 EARTH)
+    TrigramType.LI: 7,  # 离 - 象9 (南方 FIRE)
 }
 
 ORDER_TO_TRIGRAM_POST: dict[int, TrigramType] = {v: k for k, v in POST_ORDER.items()}
