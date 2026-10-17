@@ -3,9 +3,14 @@
 # 用法: risk-classify.sh [file1 file2 ...]   不传参则扫 git 暂存+工作区改动
 # 输出: 每文件一行 "LEVEL<TAB>path<TAB>reason"，末行 "---" 后一行 MAX_LEVEL
 # 退出码: 0=L0  1=L1  2=L2
+# 逻辑/物理路径归一（2026-10-16 对抗审计实测）：macOS 的 `/tmp`→`/private/tmp`、
+# `TMPDIR=/var/...`→`/private/var/...` 是软链；子进程若继承**逻辑** PWD，而 git 返回
+# **物理** toplevel，则 `f` 与 `"$ROOT"/` 前缀对不上 ⇒ 依赖「f 在 ROOT 下」的判据静默失效
+# （实测：用例19 的 7 项正控全灭，全部退化为默认档）。故两侧都取物理路径。
 set -o pipefail
-CALLER_CWD="$PWD"                                   # 保存调用方 cwd（路径 resolve 用）
+CALLER_CWD="$(cd "$PWD" 2>/dev/null && pwd -P)" || CALLER_CWD="$PWD"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd -P)" || :
 cd "$ROOT"
 
 # 路径硬域：词边界清晰，误报低
@@ -28,6 +33,24 @@ L0_PATH_RE='(^|/)(utils|helpers|scripts|tests|test|__tests__|spec)/|^.*(_test|\.
 # 不能与 utils/helpers/scripts 的 L0 同待遇，故单独一支用于删除类定级。
 TEST_PATH_RE='(^|/)(tests?|__tests__|spec)/|(_test|\.test|\.spec)\.(py|ts|tsx|js)$'
 DANGER_IMPORT_RE='\b(payment|order|auth|user|permission|crypto)\b|db\.session|db\.sessionmaker|\b(redis|httpx|requests|aiohttp|axios)\b|fetch\('
+# 证据件放宽（2026-10-17，owner 裁决 A：放宽面收窄为「仅读数件」；台账 -594，
+# 覆盖 -575 的 B 口径）。动机不变：证据件此前一律落「生产分支默认保守」= L2，
+# 与仓内 `.gitignore:155-157`「完整日志不入库、只收策展摘要」的策展口径相反 ——
+# 被策展入库的读数件反而把每次提交抬到双人 Review 门槛（实证 `-565`／`-567`）。
+# 证据域＝**仓根锚定的权威证据根**（不是任意深度的同名目录：审计实测
+# `backend/evidence/evil.py`、`frontend/src/evidence/evil2.sh` 曾被判 L1 =
+# 把代码挪进同名目录即可降级）：
+#   ① **仓根** `.ai-artifacts/`  ② `docs/<任意>/evidence/`
+#   ③ `.ai-ooda/evidence/`       ④ 仓根 `evidence/`
+# A 口径：**只有读数件放宽**。工具件（.sh/.bash/.py/.js/.mjs/.cjs/.mk）一律不放宽，
+# 因为可执行面无法用内容正则证明安全（引号／env 前缀／解释器中介／变量拼路径均可绕过；
+# 台账 OODA-20261016-575 的 6 条实测通道）。故本支不设任何工具件护栏正则。
+EVIDENCE_ROOT_RE='(^|/)docs/([^/]+/)*evidence/|(^|/)\.ai-ooda/evidence/'
+# 读数件：无执行面的日志／校验和／数据导出。**压缩件（.gz/.bz2/.xz/.zip/.zst）已排除**：
+# 内容不可扫 ⇒ 放宽等于撤掉「疑似密钥」这道唯一兜底（审计实测：gzip 内含
+# `PASSWORD=<19 字符>` 的 `.log.gz` 判 L1）。要恢复压缩件的放宽，前置条件是先有
+# 解压内容扫描（`zcat` ＋ 同一密钥形态正则），见台账 -570 待办。
+EVIDENCE_DATA_RE='\.(log|out|err|jsonl|csv|tsv|xml|sha256|sha512|sums)$|(^|/)(sha256sums|sha512sums|sha1sums)$'
 
 # F-25(治理 L) 回灌（2026-10-08，源自 mci-world-model 窗口）：CI 的 PR 事件 checkout
 # 出的是 detached HEAD（分支名 "HEAD"），只看 HEAD 名称会把业务代码按非生产分支定级（L1），
@@ -103,12 +126,41 @@ classify_one() {
   fi
 
   # 内容判定统一入口：已删除文件读原版本（$SRC_REF），未删除读工作区版本
+  # `-e` 不可省：以 `-` 开头的模式（如 `--no-verify`）会被
+  # grep 当**选项**解析 ⇒ 报错返回 2 ⇒ 该护栏静默失效（2026-10-16 对抗审计实测）。
   _match() {
     if [ "$DELETED" = 1 ]; then
-      git -C "$ROOT" show "$SRC_REF:$REL" 2>/dev/null | grep -qiE "$1"
+      git -C "$ROOT" show "$SRC_REF:$REL" 2>/dev/null | grep -qiE -e "$1"
     else
-      grep -qiE "$1" "$f" 2>/dev/null
+      grep -qiE -e "$1" "$f" 2>/dev/null
     fi
+  }
+
+  # 证据域＝权威证据根（审计 F3：任意 `/evidence/` 目录可自造 ⇒ 不能只按目录名判）。
+  # A 口径把 `.ai-artifacts/` 锚到**仓根**：任意深度的同名目录不再算证据域。
+  _is_evidence_domain() {
+    local rel="$f"
+    case "$rel" in "$ROOT"/*) rel="${rel#"$ROOT"/}";; esac
+    case "$rel" in
+      evidence/*|.ai-artifacts/*|.ai-ooda/evidence/*) return 0;;
+    esac
+    [[ "$rel" =~ $EVIDENCE_ROOT_RE ]]
+  }
+
+  # 放宽限定为**已在 index 中的件**（`git ls-files`）。确切语义（2026-10-16 对抗审计实测，
+  # 台账 OODA-20261016-575）：**`git add` 过的新建件同样受益**，只有未 `git add` 的未跟踪件
+  # 不受益；CI／PR 形态下新增件必然已入库 ⇒ 本限定**不构成**对「新增文件」的屏障。
+  # 惰性构建一次全仓清单（bash 3.2 无关联数组 ⇒ 排序清单 ＋ grep -Fxq）。
+  _is_tracked_evidence() {
+    local rel="${f#"$ROOT"/}"
+    [ "$rel" != "$f" ] || return 1
+    if [ -z "${TRACKED_LIST:-}" ]; then
+      TRACKED_LIST="${TMPDIR:-/tmp}/risk-classify-tracked.$$"
+      git -C "$ROOT" ls-files -z 2>/dev/null | tr '\0' '\n' | LC_ALL=C sort -u > "$TRACKED_LIST" \
+        || : > "$TRACKED_LIST"
+      trap 'rm -f "$TRACKED_LIST"' EXIT
+    fi
+    grep -Fxq -- "$rel" "$TRACKED_LIST" 2>/dev/null
   }
 
   if [[ "$f" =~ $L2_CONFIG_RE ]]; then
@@ -172,6 +224,26 @@ classify_one() {
     *.md|*.txt|*.rst|*.json|*.yaml|*.yml|*.toml|*.docx|*.xlsx|*.csv|LICENSE*|CHANGELOG*)
       printf 'L1\t%s\t配置/文档类(生产分支L1)\n' "$f"; return;;
   esac
+
+  # 证据域读数件白名单（2026-10-17 owner 裁决 A；台账 -594，覆盖 -575 的 B 口径）。
+  # 位置经刻意选择：**置于全部硬词/软词/路径/文档规则之后**（同 dsh_poc 白名单先例），
+  # 因此本支只能改变「原本落 `生产分支默认保守定级`」的那批件——命中密钥形态、凭据硬词、
+  # 危险依赖者仍按上游规则判 L2，不会被本支回退。
+  # 保障：① 上游硬词/软词规则优先；② **仅生产分支**生效；③ **仓根锚定的权威证据根**；
+  # ④ **限定已在 index 的件**（`git ls-files`；未跟踪件不受益，CI／PR 形态下新增件已入库）；
+  # ⑤ **仅读数件**（`.log/.out/.err/.jsonl/.csv/.tsv/.xml/.sha256/.sha512/.sums`／
+  # `SHA256SUMS` 等）放宽；工具件与压缩件一律不放宽 —— 放宽面本身无执行面，不依赖任何
+  # 「命令位/import 位」正则，故不存在 B 口径的 6 条间接构造通道。
+  # 未放宽：.patch/.diff（内含可落地生产代码）、**压缩件**、无扩展名件、.b64/.sig/.bak-*、
+  # 证据域外同名扩展名、未跟踪新增件、全部工具件。
+  if [ "$PROD_BRANCH" = "1" ] && _is_evidence_domain && _is_tracked_evidence; then
+    if _match "$L2_DOC_SECRET_RE"; then
+      printf 'L2\t%s\t证据域件疑似包含真实密钥(放宽被拦；如为占位示例，人工确认后 token 放行)\n' "$f"; return
+    fi
+    if [[ "$low" =~ $EVIDENCE_DATA_RE ]]; then
+      printf 'L1\t%s\t证据域读数件(无执行面/非生产行为)\n' "$f"; return
+    fi
+  fi
   if [ "$PROD_BRANCH" = "1" ]; then
     printf 'L2\t%s\t生产分支默认保守定级\n' "$f"; return; fi
   printf 'L1\t%s\t普通业务代码默认定级\n' "$f"

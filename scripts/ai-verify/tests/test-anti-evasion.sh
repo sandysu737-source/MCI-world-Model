@@ -10,6 +10,10 @@
 # 用例18 环境净化：父进程的评审放行变量（AI_REVIEW_CONFIRMED/TOKEN/CI、AI_ENG_GUARD_USE_KIT）
 #        不得泄漏进攻击用例 —— 实证 2026-10-16：干净 37/0 ↔ AI_REVIEW_CONFIRMED=1 泄漏 35/3
 #        （kit 侧全额执行；仓内因例外面 WAIVE 遮罩 ⇒ 不复现，须在 kit 侧判）
+# 用例19 读数件放宽的单向边界（2026-10-17 owner 裁决 A；台账 -594，覆盖 -575 的 B 口径）
+#        正控=证据域读数件 ⇒ L1（理由必须来自本白名单）；负控=工具件（10 项）/密钥/压缩件/
+#        域外/任意深度 .ai-artifacts//.patch/未跟踪/写入受保护载体/绕过词 ⇒ 仍 L2；
+#        非生产分支不得套用
 set -u
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # 被测仓根：向上寻找 .git / .ai-governance。kit 内布局深度（governance/tests）与
@@ -873,6 +877,93 @@ else
   printf '%s\n' "$out17d" | tail -5
 fi
 rm -rf "$r17d"
+
+# 用例19: 读数件放宽的单向边界（2026-10-17 owner 裁决 A；台账 -594，覆盖 -575 的 B 口径）。
+# 设计要点：
+#   ① 放宽是**单向**的：只允许 L2→L1，任何 L1→L2 的副作用都要被抓出来；
+#   ② 正控必须校验**理由来自本白名单**（「证据域」字样）——只比级别会与旧规则给的 L1
+#      混淆，等于没有断言到真正的分支（同「判据须自证不是别的规则给的分」）；
+#   ③ A 口径**只放宽读数件**：全部工具件（10 项）改判 L2；负控保留压缩件/密钥/
+#      非权威目录（含任意深度 `.ai-artifacts/` 的仓根锚定）/未跟踪/`.patch`/域外；
+#   ④ 夹具必须落在**临时 git 仓且已 add**（新口径只放宽存量跟踪件），分类器须以该仓为 cwd
+#      运行（否则 `git rev-parse --show-toplevel` 取到的是外层仓，跟踪判定失真）。
+RMODE="$(_exc_mode scripts/ai-verify/risk-classify.sh)"
+if [ -n "$RMODE" ]; then
+  _waive "用例19 证据件放宽边界" "scripts/ai-verify/risk-classify.sh" "$RMODE"
+else
+r19="$(mktemp -d)"; mkdir -p "$r19/.ai-artifacts/probe" "$r19/backend/.ai-artifacts/probe" "$r19/backend/evidence" "$r19/frontend/src/evidence"
+printf 'level=info ok\n'                                   > "$r19/.ai-artifacts/probe/plain.log"
+printf 'ok\n'                                              > "$r19/.ai-artifacts/probe/run.out"
+printf '1234  f\n'                                         > "$r19/.ai-artifacts/probe/SHA256SUMS"
+printf '#!/bin/sh\necho ok\n'                              > "$r19/.ai-artifacts/probe/tool.sh"
+printf '#!/bin/sh\nrsync -a a/ b/\n'                        > "$r19/.ai-artifacts/probe/tool-rsync.sh"
+printf '#!/bin/sh\n: "SELECT 1 ORDER BY type"\n'           > "$r19/.ai-artifacts/probe/tool-orderby.sh"
+printf '# 提到 curl 的注释\nimport sys\n'                   > "$r19/.ai-artifacts/probe/tool-mention.py"
+printf 'PASSWORD=Sup3rSecretValue12345\n'                    > "$r19/.ai-artifacts/probe/secret.log"
+printf 'ok\n' | gzip -c                                    > "$r19/.ai-artifacts/probe/plain.log.gz"
+printf 'PASSWORD=Sup3rSecretValue12345\n' | gzip -c          > "$r19/.ai-artifacts/probe/secret.log.gz"
+printf '#!/bin/sh\ncat > scripts/ai-verify/risk-classify.sh <<EOF\nEOF\n' > "$r19/.ai-artifacts/probe/writegate.sh"
+printf '#!/bin/sh\ncp /tmp/evil .github/workflows/governance.yml\n'       > "$r19/.ai-artifacts/probe/cici.sh"
+printf '#!/bin/sh\ngit commit --no-verify -m x\n'          > "$r19/.ai-artifacts/probe/noverify.sh"
+printf '#!/bin/sh\ncurl https://example.com/x\n'           > "$r19/.ai-artifacts/probe/tool-curl.sh"
+printf '#!/bin/sh\nsudo systemctl restart app\n'           > "$r19/.ai-artifacts/probe/tool-sudo.sh"
+printf 'import requests\n'                                  > "$r19/.ai-artifacts/probe/tool-net.py"
+printf 'diff --git a/x b/x\n+SECRET=1\n'                   > "$r19/.ai-artifacts/probe/code.patch"
+printf 'def compute(x):\n    return x + 1\n'                > "$r19/backend/evidence/evil.py"
+printf '#!/bin/sh\necho hi\n'                              > "$r19/frontend/src/evidence/evil2.sh"
+printf 'level=info nested\n'                                > "$r19/backend/.ai-artifacts/probe/nested.log"
+printf 'plain log outside evidence domain\n'                > "$r19/backend/app.log"
+( cd "$r19" && git init -q . && git add -A ) >/dev/null 2>&1
+printf 'level=info\n'                                      > "$r19/.ai-artifacts/probe/untracked.log"
+r19fail=0
+_rc_assert(){  # $1=夹具内相对路径 $2=期望级别 $3=是否须理由含「证据域」 $4=标签
+  got="$( ( cd "$r19" && RISK_BRANCH=main bash "$KIT_DIR/risk-classify.sh" "$1" 2>/dev/null ) | head -1 )"
+  lvl="${got%%	*}"; why="${got#*	}"; why="${why#*	}"
+  if [ "$lvl" = "$2" ] && { [ "$3" = 0 ] || printf '%s' "$why" | grep -q '证据域'; }; then
+    say "      · $4: $lvl ✓"
+  else
+    say "      ❌ $4: 期望 $2（理由含证据域=$3）实得「${got}」"; r19fail=$((r19fail+1))
+  fi
+}
+say "  正控（仅读数件放宽，理由须来自本白名单）："
+_rc_assert .ai-artifacts/probe/plain.log      L1 1 ".log 读数件"
+_rc_assert .ai-artifacts/probe/run.out        L1 1 ".out 读数件"
+_rc_assert .ai-artifacts/probe/SHA256SUMS     L1 1 "SHA256SUMS 读数件"
+say "  负控（fail-closed，仍须 L2）："
+_rc_assert .ai-artifacts/probe/secret.log     L2 0 "密钥形态的读数件"
+_rc_assert .ai-artifacts/probe/plain.log.gz   L2 0 "压缩件不放宽（内容不可扫）"
+_rc_assert .ai-artifacts/probe/secret.log.gz  L2 0 "压缩件含密钥"
+_rc_assert backend/evidence/evil.py           L2 0 "非权威 evidence 目录（后端业务码）"
+_rc_assert frontend/src/evidence/evil2.sh     L2 0 "非权威 evidence 目录（前端脚本）"
+_rc_assert backend/.ai-artifacts/probe/nested.log L2 0 "任意深度 .ai-artifacts/ 不放宽（仓根锚定）"
+_rc_assert .ai-artifacts/probe/untracked.log  L2 0 "未跟踪新增件不放宽"
+_rc_assert .ai-artifacts/probe/tool.sh        L2 0 "工具件 .sh 不放宽"
+_rc_assert .ai-artifacts/probe/tool-rsync.sh  L2 0 "工具件（本机 rsync）不放宽"
+_rc_assert .ai-artifacts/probe/tool-orderby.sh L2 0 "工具件（正文 ORDER BY）不放宽"
+_rc_assert .ai-artifacts/probe/tool-mention.py L2 0 "工具件（注释提及 curl）不放宽"
+_rc_assert .ai-artifacts/probe/writegate.sh   L2 0 "写入受保护载体(scripts/ai-verify/)"
+_rc_assert .ai-artifacts/probe/cici.sh        L2 0 "写入 CI 工作流"
+_rc_assert .ai-artifacts/probe/noverify.sh    L2 0 "绕过词 --no-verify"
+_rc_assert .ai-artifacts/probe/tool-curl.sh   L2 0 "命令位 curl 出站"
+_rc_assert .ai-artifacts/probe/tool-sudo.sh   L2 0 "特权/生产控制命令"
+_rc_assert .ai-artifacts/probe/tool-net.py    L2 0 "危险 import(requests)"
+_rc_assert .ai-artifacts/probe/code.patch     L2 0 "证据域内 .patch"
+_rc_assert backend/app.log                    L2 0 "证据域外的 .log"
+say "  非生产分支（不得套用本白名单）："
+r19dev="$( ( cd "$r19" && RISK_BRANCH=dev bash "$KIT_DIR/risk-classify.sh" .ai-artifacts/probe/plain.log 2>/dev/null ) | head -1 )"
+if printf '%s' "$r19dev" | grep -q '证据域'; then
+  say "      ❌ 非生产分支被套用白名单：「${r19dev}」"; r19fail=$((r19fail+1))
+else
+  say "      · RISK_BRANCH=dev 仍走原默认档: ✓"
+fi
+if [ "$r19fail" -eq 0 ]; then
+  say "✅ PASS  用例19 读数件放宽单向边界（3 正控 ＋ 19 负控 ＋ 1 分支控制全中）"; PASS=$((PASS+1))
+else
+  say "❌ FAIL  用例19 读数件放宽边界有 $r19fail 项不符（工具件/压缩件/域外不得放宽，读数件不得反向收严）"
+  FAIL=$((FAIL+1))
+fi
+rm -rf "$r19"
+fi
 
 echo
 [ "$SKIP" -gt 0 ] && say "（SKIP=阶段2待修项, 不阻断阶段0合入）"
