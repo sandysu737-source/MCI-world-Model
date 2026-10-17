@@ -33,6 +33,15 @@ L0_PATH_RE='(^|/)(utils|helpers|scripts|tests|test|__tests__|spec)/|^.*(_test|\.
 # 不能与 utils/helpers/scripts 的 L0 同待遇，故单独一支用于删除类定级。
 TEST_PATH_RE='(^|/)(tests?|__tests__|spec)/|(_test|\.test|\.spec)\.(py|ts|tsx|js)$'
 DANGER_IMPORT_RE='\b(payment|order|auth|user|permission|crypto)\b|db\.session|db\.sessionmaker|\b(redis|httpx|requests|aiohttp|axios)\b|fetch\('
+# 运维脚本生产写护栏（2026-10-17，OODA-20261015-RISKL0GAP-452 二次复发）：
+# `scripts/` 曾整体按「纯工具/测试」放行 L0，但 `backend/scripts/*` 是一次性运维脚本族，
+# 会直写生产库。L0 的语义是「无执行面」，故只要「DB 入口 + 写动作」或「--execute + psql」
+# 成立，执行面即成立 ⇒ 不得 L0。判据只看路径 + 内容，不看文件名（改名不能绕过）。
+OPS_SCRIPT_PATH_RE='(^|/)scripts/'
+# DB 入口与写动词分开判定：只有「确实拿到数据库会话」且「确实存在写动作」才升级。
+# 不能泛化匹配 `.add(`，否则 set/list 的 add 会把只读导出脚本误判为生产写脚本。
+OPS_DB_ENTRY_RE='(SessionLocal[[:space:]]*\(|sessionmaker[[:space:]]*\(|create_engine[[:space:]]*\(|from[[:space:]]+database[[:space:]]+import[[:space:]]+get_db|get_db[[:space:]]*\(|psycopg2\.connect[[:space:]]*\(|sqlite3\.connect[[:space:]]*\()'
+OPS_DB_WRITE_RE='(\.commit[[:space:]]*\(|\.flush[[:space:]]*\(|\b(db|session|conn|cursor|cur)\.(add|add_all|delete|merge|bulk_save_objects|bulk_insert_mappings|bulk_update_mappings)[[:space:]]*\()'
 # 证据件放宽（2026-10-17，owner 裁决 A：放宽面收窄为「仅读数件」；台账 -594，
 # 覆盖 -575 的 B 口径）。动机不变：证据件此前一律落「生产分支默认保守」= L2，
 # 与仓内 `.gitignore:155-157`「完整日志不入库、只收策展摘要」的策展口径相反 ——
@@ -200,6 +209,13 @@ classify_one() {
   fi
 
   # L0 路径优先放行（测试/工具），仅当无危险 import
+  if [[ "$f" =~ $OPS_SCRIPT_PATH_RE ]]; then
+    if { _match "$OPS_DB_ENTRY_RE" && _match "$OPS_DB_WRITE_RE"; } \
+       || { _match '(^|[^A-Za-z])--execute([^A-Za-z]|$)' \
+            && _match '(psql|SessionLocal\()'; }; then
+      printf 'L2\t%s\t运维脚本含生产写入口(DB会话+写动词/--execute+psql)\n' "$f"; return
+    fi
+  fi
   if [[ "$f" =~ $L0_PATH_RE ]] && ! _match "$DANGER_IMPORT_RE"; then
     printf 'L0\t%s\t纯工具/测试路径且无危险依赖\n' "$f"; return; fi
 
