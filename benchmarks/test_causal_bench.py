@@ -102,7 +102,7 @@ class TestP1DirectInference:
         assert result["relation"] == "same"
 
     def test_infer_generates(self, benchmark, causal_inference):
-        """语义相生推理 (score=0.8)。"""
+        """语义 enhance 推理 (score=0.8)。"""
         result = benchmark(
             causal_inference.infer_relation,
             "creative",
@@ -113,7 +113,7 @@ class TestP1DirectInference:
         assert result["relation"] == "generates"
 
     def test_infer_contradicts(self, benchmark, causal_inference):
-        """语义相克推理 (score=0.3)。"""
+        """语义 suppress 推理 (score=0.3)。"""
         result = benchmark(
             causal_inference.infer_relation,
             "creative",
@@ -124,7 +124,7 @@ class TestP1DirectInference:
         assert result["relation"] == "contradicts"
 
     def test_infer_energy_enhance(self, benchmark, causal_inference):
-        """能量相生推理 (score=0.7)。"""
+        """能量 enhance 推理 (score=0.7)。"""
         result = benchmark(
             causal_inference.infer_relation,
             "abyss",

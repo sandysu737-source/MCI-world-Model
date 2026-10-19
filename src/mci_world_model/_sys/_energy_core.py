@@ -1021,11 +1021,11 @@ def test_energy_core():
     logger.info("\n[TEST 2] Suppression Relations")
     test_cases = [
         ("wood", "earth", True),  # wood suppresses earth
-        ("earth", "wood", True),  # 土克木 (bidirectional)
+        ("earth", "wood", True),  # EARTH 克 WOOD (bidirectional)
         ("earth", "water", True),  # earth suppresses water
-        ("water", "earth", True),  # 水克土 (bidirectional)
+        ("water", "earth", True),  # WATER 克 EARTH (bidirectional)
         ("water", "fire", True),  # water suppresses fire
-        ("fire", "water", True),  # 火克水 (bidirectional)
+        ("fire", "water", True),  # FIRE 克 WATER (bidirectional)
     ]
 
     for e1, e2, expected in test_cases:
@@ -1040,16 +1040,18 @@ def test_energy_core():
     # Test 3: Energy states (旺相休囚死)
     logger.info("\n[TEST 3] Energy States by Month (旺相休囚死)")
     state_cases: list[tuple[str, int, StrengthState]] = [
-        ("wood", 2, StrengthState.WANG),  # 寅月木旺
-        ("wood", 3, StrengthState.WANG),  # 卯月木旺
-        ("fire", 5, StrengthState.WANG),  # 巳月火旺
-        ("fire", 6, StrengthState.WANG),  # 午月火旺
-        ("earth", 4, StrengthState.WANG),  # 辰月土旺
-        ("metal", 8, StrengthState.WANG),  # 申月金旺
-        ("metal", 9, StrengthState.WANG),  # 酉月金旺
-        ("water", 0, StrengthState.WANG),  # 子月水旺
-        ("water", 11, StrengthState.WANG),  # 亥月水旺
+        ("wood", 2, StrengthState.WANG),  # 寅月 WOOD 旺
+        ("wood", 3, StrengthState.WANG),  # 卯月 WOOD 旺
+        ("fire", 5, StrengthState.WANG),  # 巳月 FIRE 旺
+        ("fire", 6, StrengthState.WANG),  # 午月 FIRE 旺
+        ("earth", 4, StrengthState.WANG),  # 辰月 EARTH 旺
+        ("metal", 8, StrengthState.WANG),  # 申月 METAL 旺
+        ("metal", 9, StrengthState.WANG),  # 酉月 METAL 旺
+        ("water", 0, StrengthState.WANG),  # 子月 WATER 旺
+        ("water", 11, StrengthState.WANG),  # 亥月 WATER 旺
     ]
+    # 自检表必须覆盖互不重复的月份；重复项会静默丢失一个分支的覆盖。
+    assert len({month for _, month, _ in state_cases}) == len(state_cases), "月份用例必须唯一"
 
     for energy_name, month_branch, expected_strength in state_cases:
         month_state = ec.get_energy_state(energy_name, month_branch)

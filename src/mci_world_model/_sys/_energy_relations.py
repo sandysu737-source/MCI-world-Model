@@ -43,11 +43,11 @@ from typing import Any
 class EnergyType(Enum):
     """Five Elements energy types"""
 
-    WOOD = "semantic"  # 语义维度 (原木)
-    FIRE = "causal"  # 因果维度 (原火)
-    EARTH = "spacetime"  # 时空维度 (原土)
-    METAL = "generative"  # 生成维度 (原金)
-    WATER = "trust"  # 信任维度 (原水)
+    WOOD = "semantic"  # 语义维度 (原 WOOD)
+    FIRE = "causal"  # 因果维度 (原 FIRE)
+    EARTH = "spacetime"  # 时空维度 (原 EARTH)
+    METAL = "generative"  # 生成维度 (原 METAL)
+    WATER = "trust"  # 信任维度 (原 WATER)
 
     @classmethod
     def from_string(cls, value: str) -> "EnergyType":
@@ -104,11 +104,11 @@ ENERGY_ENHANCE: dict[str, str] = {
 
 # Reverse enhance: element -> what generates it
 ENERGY_ENHANCED_BY: dict[str, str] = {
-    "fire": "wood",  # 火被木生
-    "earth": "fire",  # 土被火生
-    "metal": "earth",  # 金被土生
-    "water": "metal",  # 水被金生
-    "wood": "water",  # 木被水生
+    "fire": "wood",  # FIRE 被 WOOD 生
+    "earth": "fire",  # EARTH 被 FIRE 生
+    "metal": "earth",  # METAL 被 EARTH 生
+    "water": "metal",  # WATER 被 METAL 生
+    "wood": "water",  # WOOD 被 WATER 生
 }
 
 
@@ -168,11 +168,11 @@ ENERGY_SUPPRESS: dict[str, str] = {
 
 # Reverse suppress: element -> what controls it
 ENERGY_SUPPRESSED_BY: dict[str, str] = {
-    "earth": "wood",  # 土被木克
-    "water": "earth",  # 水被土克
-    "fire": "water",  # 火被水克
-    "metal": "fire",  # 金被火克
-    "wood": "metal",  # 木被金克
+    "earth": "wood",  # EARTH 被 WOOD 克
+    "water": "earth",  # WATER 被 EARTH 克
+    "fire": "water",  # FIRE 被 WATER 克
+    "metal": "fire",  # METAL 被 FIRE 克
+    "wood": "metal",  # WOOD 被 METAL 克
 }
 
 
@@ -648,8 +648,8 @@ def test_energy_relations():
         ("earth", "metal", True),  # earth generates metal
         ("metal", "water", True),  # metal generates water
         ("water", "wood", True),  # water generates wood
-        ("fire", "wood", False),  # 火不生木
-        ("wood", "earth", False),  # 木不生土
+        ("fire", "wood", False),  # 火不生 WOOD
+        ("wood", "earth", False),  # 木不生 EARTH
     ]
 
     all_passed = True
@@ -668,8 +668,8 @@ def test_energy_relations():
         ("water", "fire", True),  # water suppresses fire
         ("fire", "metal", True),  # fire suppresses metal
         ("metal", "wood", True),  # metal suppresses wood
-        ("fire", "earth", False),  # 火不克土
-        ("earth", "wood", False),  # 土不克木 (wood suppresses earth是其反向)
+        ("fire", "earth", False),  # 火不克 EARTH
+        ("earth", "wood", False),  # 土不克 WOOD (wood suppresses earth是其反向)
     ]
 
     for source, target, expected in test_cases:
@@ -684,7 +684,7 @@ def test_energy_relations():
     test_cases_rel = [
         ("wood", "fire", RelationType.ENHANCE, 1.2),  # wood generates fire
         ("wood", "earth", RelationType.SUPPRESS, 0.8),  # wood suppresses earth
-        ("fire", "fire", RelationType.SAME, 1.1),  # 火同火
+        ("fire", "fire", RelationType.SAME, 1.1),  # FIRE 同 FIRE
         ("wood", "metal", RelationType.REVERSE, 0.4),  # metal suppresses wood (相侮)
     ]
 
@@ -717,11 +717,11 @@ def test_energy_relations():
     # Test 5: Cycle sequences
     logger.info("\n[Test 5] Cycle Sequences")
     enhance_seq = get_cycle_sequence("wood", 5)
-    logger.info(f"  Enhance cycle from wood: {' -> '.join(enhance_seq)}")
+    logger.info(f"  Enhance cycle starting at wood: {' -> '.join(enhance_seq)}")
     assert enhance_seq == ["wood", "fire", "earth", "metal", "water"]
 
     suppress_seq = get_suppress_chain("wood", 5)
-    logger.info(f"  Suppress chain from wood: {' -> '.join(suppress_seq)}")
+    logger.info(f"  Suppress chain starting at wood: {' -> '.join(suppress_seq)}")
     assert suppress_seq == ["wood", "earth", "water", "fire", "metal"]
 
     # Test 6: Balance analysis

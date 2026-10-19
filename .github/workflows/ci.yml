@@ -45,6 +45,16 @@ jobs:
           python scripts/ai-verify/sensitive_scan.py src README.md CHANGELOG.md docs \
             --report .ai-governance/reports/sensitive-term-scan.json
 
+      # 公开仓口径审计（入库即发布 ⇒ 发布面 = 受版本控制文件）+ **棘轮**：
+      # 基线（现 0，登记于 .ai-ooda/evidence/public-surface-baseline.txt）不阻断存量；
+      # 命中数**上升即阻断**（新增泄漏不得入库）；下降只提示、不自动改基线。
+      # 计数会打印（数字不敏感）；类别名与词条原文只落报告文件（不进日志）。
+      - name: Sensitive Term Scan (repo-wide, ratchet)
+        run: |
+          python scripts/ai-verify/sensitive_scan.py --tracked \
+            --baseline .ai-ooda/evidence/public-surface-baseline.txt \
+            --report .ai-governance/reports/sensitive-term-scan-repo.json
+
   # ===================== Gate 2: mypy Strict =====================
   gate-2-types:
     name: "Gate 2 · mypy Strict"

@@ -46,7 +46,8 @@ class TestEnergyRelationsSelfTest:
     def test_energy_relations(self):
         from mci_world_model._sys._energy_relations import test_energy_relations
 
-        test_energy_relations()
+        # 自检必须断言返回值：只调用不断言 = 空转测试（变异测试无法捕获任何缺陷）。
+        assert test_energy_relations() is True
 
 
 class TestCategoryCoreSelfTest:
@@ -55,7 +56,7 @@ class TestCategoryCoreSelfTest:
     def test_category_core(self):
         from mci_world_model._sys._category_core import test_trigram_core
 
-        test_trigram_core()
+        assert test_trigram_core() is True
 
 
 class TestUnifiedUnitSelfTest:
@@ -77,6 +78,16 @@ class TestDimensionMapSelfTest:
         result = _run_tests()
         assert result is True
 
+    def test_trigram_order_tables_exact(self):
+        """先天/后天序数表是领域契约，必须逐项精确匹配。"""
+        from mci_world_model._sys._dimension_map import (
+            POST_TRIGRAM_ORDER,
+            PRIOR_TRIGRAM_ORDER,
+        )
+
+        assert PRIOR_TRIGRAM_ORDER == {0: 1, 7: 2, 5: 3, 2: 4, 3: 5, 4: 6, 6: 7, 1: 8}
+        assert POST_TRIGRAM_ORDER == {4: 1, 1: 2, 2: 3, 3: 4, 0: 6, 7: 7, 6: 8, 5: 9}
+
 
 class TestCausalEngineSelfTest:
     """_causal_engine.py 内置测试。"""
@@ -84,4 +95,4 @@ class TestCausalEngineSelfTest:
     def test_causal_engine_sys(self):
         from mci_world_model._sys._causal_engine import test_causal_engine
 
-        test_causal_engine()
+        assert test_causal_engine() is True

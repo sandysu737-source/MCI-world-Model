@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""按受控词表扫描发布路径，输出可复现 JSON 报告。"""
+"""按受控词表扫描发布路径，输出可复现 JSON 报告。
+
+两种口径（2026-10-15，台账 OODA-20261015-PUBSURFACE-016）：
+- 显式 roots（默认）："发布面 = 交付路径"，适用于**私有仓**（只有被交付的路径会离开本机）。
+- `--tracked`："发布面 = 全部受版本控制文件"，适用于**公开仓**——公开仓里入库即发布，
+  只扫交付路径会给出**假绿**（实测 MCI-world-Model 公开仓：4 路径口径 pass，全仓口径 fail）。
+
+自排除：词表文件自身必然命中自己的词条，一律不计入命中并在报告 `self_excluded` 留痕
+（豁免必须可见，不得静默）。
+"""
 
 from __future__ import annotations
 
@@ -97,14 +106,34 @@ def _is_excluded(path: Path, root: Path, excludes: Iterable[str]) -> bool:
     return any(part in set(excludes) for part in relative_parts)
 
 
-def iter_files(root: Path, roots: Iterable[Path], excludes: Iterable[str]) -> list[Path]:
+def iter_files(
+    root: Path,
+    roots: Iterable[Path],
+    excludes: Iterable[str],
+    skip: Iterable[Path] = (),
+) -> list[Path]:
     files: set[Path] = set()
     for scan_root in roots:
         if scan_root.is_file():
             files.add(scan_root)
         elif scan_root.is_dir():
             files.update(path for path in scan_root.rglob("*") if path.is_file())
-    return sorted(path for path in files if not _is_excluded(path, root, excludes))
+    skip_set = {path.resolve() for path in skip}
+    return sorted(path for path in files if path.resolve() not in skip_set and not _is_excluded(path, root, excludes))
+
+
+def tracked_files(root: Path) -> list[Path]:
+    """公开仓口径：受版本控制文件即发布面（git ls-files）。"""
+    import subprocess
+
+    out = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+    names = [name for name in out.decode("utf-8").split("\0") if name]
+    return [root / name for name in names]
 
 
 def scan_file(
@@ -151,11 +180,22 @@ def scan(
     roots: Iterable[Path],
     wordlist_path: Path,
     excludes: Iterable[str],
+    scope: str = "roots",
+    use_tracked: bool = False,
 ) -> dict[str, object]:
     wordlist, wordlist_sha256 = load_wordlist(wordlist_path)
     term_categories = {term: category["name"] for category in _categories(wordlist_path) for term in category["terms"]}
     findings: list[Finding] = []
-    files = iter_files(root, roots, excludes)
+    files = tracked_files(root) if use_tracked else iter_files(root, roots, excludes)
+    self_excluded = []
+    wordlist_resolved = wordlist_path.resolve()
+    if any(path.resolve() == wordlist_resolved for path in files):
+        files = [path for path in files if path.resolve() != wordlist_resolved]
+        self_excluded.append(
+            str(Path(wordlist_resolved).relative_to(root.resolve()).as_posix())
+            if wordlist_resolved.is_relative_to(root.resolve())
+            else str(wordlist_resolved)
+        )
     for path in files:
         findings.extend(scan_file(path, root, wordlist, term_categories))
     return {
@@ -166,6 +206,8 @@ def scan(
         "roots": [
             path.relative_to(root).as_posix() if path.is_relative_to(root) else path.as_posix() for path in roots
         ],
+        "scope": scope,
+        "self_excluded": self_excluded,
         "files_scanned": len(files),
         "findings_count": len(findings),
         "status": "pass" if not findings else "fail",
@@ -178,15 +220,48 @@ def _categories(wordlist_path: Path):
     return data["categories"]
 
 
+def read_baseline(path: Path) -> int:
+    """基线件只允许「注释行 + 恰一个整数」；缺失、多值或非整数一律 fail-closed。
+
+    动机（A-2 棘轮）：非阻断的审计没有基线就无法区分「存量债」与「新增泄漏」，
+    也就永远不会下降。基线只记一个数——数字本身不是敏感面，故可入库。
+    """
+    values = [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    if len(values) != 1:
+        raise ValueError(f"基线件须恰有一个整数（当前 {len(values)} 个非注释行）")
+    try:
+        number = int(values[0])
+    except ValueError as exc:
+        raise ValueError(f"基线值非整数: {values[0]!r}") from exc
+    if number < 0:
+        raise ValueError(f"基线值不可为负: {number}")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("roots", nargs="+", type=Path, help="要扫描的文件或目录")
+    parser.add_argument("roots", nargs="*", type=Path, help="要扫描的文件或目录")
+    parser.add_argument(
+        "--tracked",
+        action="store_true",
+        help="公开仓口径：扫描全部受版本控制文件（git ls-files），忽略 roots",
+    )
     parser.add_argument(
         "--wordlist",
         type=Path,
         default=Path(__file__).with_name("sensitive-terms.toml"),
     )
     parser.add_argument("--report", type=Path, help="JSON 报告输出路径")
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        help="棘轮基线件（只允许「注释 + 一个整数」，现 52）。"
+        "findings > 基线 ⇒ rc=1（新增泄漏，阻断）；findings < 基线 ⇒ rc=0 且提示下调；相等 ⇒ rc=0。",
+    )
     parser.add_argument(
         "--exclude",
         action="append",
@@ -199,22 +274,63 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if not args.roots and not args.tracked:
+        parser.error("需要 roots，或使用 --tracked 采用全仓口径")
     resolved_roots = [path.resolve() for path in args.roots]
-    root = Path(os.path.commonpath([str(Path.cwd().resolve()), *(str(path) for path in resolved_roots)]))
+    if args.tracked:
+        root = Path.cwd().resolve()
+    else:
+        root = Path(os.path.commonpath([str(Path.cwd().resolve()), *(str(path) for path in resolved_roots)]))
     excludes = (*DEFAULT_EXCLUDES, *args.exclude)
     try:
-        result = scan(root, resolved_roots, args.wordlist, excludes)
+        result = scan(
+            root,
+            resolved_roots,
+            args.wordlist,
+            excludes,
+            scope="tracked" if args.tracked else "roots",
+            use_tracked=args.tracked,
+        )
     except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
         print(f"fail-closed: {error}", file=sys.stderr)
         return 2
+    baseline: int | None = None
+    if args.baseline is not None:
+        try:
+            baseline = read_baseline(args.baseline)
+        except (OSError, ValueError) as error:
+            print(f"fail-closed: 基线不可读: {error}", file=sys.stderr)
+            return 2
+        result["baseline"] = baseline
     if args.report is not None:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(
             json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    print(f"status={result['status']} files={result['files_scanned']} findings={result['findings_count']}")
-    return 0 if result["status"] == "pass" else 1
+    summary = f"status={result['status']} files={result['files_scanned']} findings={result['findings_count']}"
+    if baseline is None:
+        print(summary)
+        return 0 if result["status"] == "pass" else 1
+    # 棘轮（A-2）：存量债不阻断，新增泄漏阻断，下降必须人工下调基线（不自动改文件）
+    count = int(result["findings_count"])
+    if count > baseline:
+        print(f"{summary} baseline={baseline} ratchet=increase")
+        print(
+            f"新增敏感面命中 {count - baseline} 条（{count} > 基线 {baseline}）："
+            "请脱敏，或在白名单件中显式登记（含 reason/owner/过期日）",
+            file=sys.stderr,
+        )
+        return 1
+    if count < baseline:
+        print(f"{summary} baseline={baseline} ratchet=decrease")
+        print(
+            f"存量已降低（{count} < 基线 {baseline}）：请下调基线件并在提交信息留痕",
+            file=sys.stderr,
+        )
+        return 0
+    print(f"{summary} baseline={baseline} ratchet=hold")
+    return 0
 
 
 if __name__ == "__main__":

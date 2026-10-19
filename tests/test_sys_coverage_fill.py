@@ -11,6 +11,8 @@ import time
 
 import pytest
 
+from tests._gov_terms import EARTH, FIRE, WOOD
+
 # =============================================================================
 # meta_cognition.py — 元认知模块
 # =============================================================================
@@ -339,8 +341,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
         success, rel = engine.link_with_energy_relation("n1", "n2")
         assert success is True
         assert rel is not None
@@ -349,8 +351,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
 
         rel = engine.get_relation("n1", "n2")
         assert rel is not None
@@ -366,8 +368,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
         engine.link("n1", "n2")
 
         neighbors = engine.get_neighbors_by_relation("n1")
@@ -377,7 +379,7 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
+        engine.add_node("n1", WOOD, "wood")
         neighbors = engine.get_neighbors_by_relation("n1")
         assert neighbors == []
 
@@ -385,8 +387,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
         engine.link("n1", "n2")
 
         result = engine.propagate("n1", delta=0.1)
@@ -411,8 +413,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
         engine.link("n1", "n2")
 
         result = engine.analyze_memory_graph()
@@ -422,8 +424,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
         engine.link("n1", "n2")
 
         ench = engine.get_enhancing_neighbors("n1")
@@ -433,8 +435,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "土", "earth")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", EARTH, "earth")
         engine.link("n1", "n2")
 
         supp = engine.get_suppressing_neighbors("n1")
@@ -444,8 +446,8 @@ class TestCategoryCausalEngine:
         from mci_world_model._sys._causal_engine import CategoryCausalEngine
 
         engine = CategoryCausalEngine()
-        engine.add_node("n1", "木", "wood")
-        engine.add_node("n2", "火", "fire")
+        engine.add_node("n1", WOOD, "wood")
+        engine.add_node("n2", FIRE, "fire")
         engine.link("n1", "n2")
 
         result = engine.query_with_energy_boost("n1", candidates=["n2"], base_scores={"n2": 0.5})
