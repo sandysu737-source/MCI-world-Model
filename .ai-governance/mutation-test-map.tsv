@@ -1,2 +1,9 @@
 # 显式变异映射（F-GOVP0）：源文件<TAB>测试目标（逗号分隔多目标）
 tests/_gov_terms.py	tests/test_gov_terms.py
+src/mci_world_model/_sys/_category_core.py	tests/test_sys_self_tests.py
+src/mci_world_model/_sys/_dimension_map.py	tests/test_sys_self_tests.py
+src/mci_world_model/_sys/_energy_core.py	tests/test__sys_energy_core.py,tests/test_sys_self_tests.py
+src/mci_world_model/_sys/_energy_relations.py	tests/test_sys_coverage_fill.py,tests/test_sys_self_tests.py
+src/mci_world_model/_sys/_temporal_core.py	tests/test_temporal_core.py
+src/mci_world_model/_sys/_terms.py	tests/test_foundation_types.py
+src/mci_world_model/_sys/chrono.py	tests/test_imports.py

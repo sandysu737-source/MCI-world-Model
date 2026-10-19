@@ -275,6 +275,13 @@ class TestTemporalSymbolsFunctional:
         assert len(DiZhi.NAMES) == 12
         assert len(TianGan.NAMES) == 10
 
+    def test_dizhi_yin_yang_exact(self):
+        """十二 time_branch 的 yin_yang 序列是时空推演契约，必须逐位精确。"""
+        from mci_world_model.sdk import DiZhi, TianGan
+
+        assert DiZhi.YIN_YANG == [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+        assert TianGan.YIN_YANG == [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+
     def test_time_code_factory(self):
         """create_time_code 工厂函数可用。"""
         from mci_world_model.sdk import create_time_code

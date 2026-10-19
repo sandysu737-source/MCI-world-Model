@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -13,6 +15,43 @@ from tests._gov_terms import WATER
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/ai-verify/sensitive_scan.py"
 WORDLIST = ROOT / "scripts/ai-verify/sensitive-terms.toml"
+
+
+def _load_scan_module():
+    """按文件路径加载扫描器模块（它不在 import path 上）。
+
+    注意：`@dataclass` 在 Python 3.13 会回查 `sys.modules[cls.__module__]`，
+    故必须先注册再 exec，否则抛 AttributeError（与扫描器本身无关）。
+    """
+    spec = importlib.util.spec_from_file_location("sensitive_scan_under_test", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_wordlist_is_frozen() -> None:
+    """变异点 `@dataclass(frozen=True)`：词表对象必须不可变（防运行期篡改）。"""
+    mod = _load_scan_module()
+    wordlist, _digest = mod.load_wordlist(WORDLIST)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        wordlist.version = "tampered"
+
+
+def test_single_cjk_boundaries_keep_concept_semantics() -> None:
+    """变异点 `一 <= term <= 鿿`：单字 CJK 的**两个边界**都必须走「概念边界」分支。
+
+    若任一侧退化为 `<`，边界字会被当成普通子串匹配 → 失去前后边界护栏，
+    在更长的词内部误报（例如「统一」里的「一」）。
+    """
+    mod = _load_scan_module()
+    first, last = "\u4e00", "\u9fff"
+    patterns = mod._compiled_patterns((first, last))
+    assert patterns[first].search(f"{first}属性") is not None
+    assert patterns[first].search(f"统{first}") is None
+    assert patterns[last].search(f"{last}行") is not None
+    assert patterns[last].search(f"龘{last}") is None
 
 
 def _run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:

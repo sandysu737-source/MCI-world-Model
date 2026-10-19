@@ -1050,6 +1050,8 @@ def test_energy_core():
         ("water", 0, StrengthState.WANG),  # 子月 WATER 旺
         ("water", 11, StrengthState.WANG),  # 亥月 WATER 旺
     ]
+    # 自检表必须覆盖互不重复的月份；重复项会静默丢失一个分支的覆盖。
+    assert len({month for _, month, _ in state_cases}) == len(state_cases), "月份用例必须唯一"
 
     for energy_name, month_branch, expected_strength in state_cases:
         month_state = ec.get_energy_state(energy_name, month_branch)
