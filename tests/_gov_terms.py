@@ -14,7 +14,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 兼容（依赖已声明 tomli）
+    import tomli as tomllib
 
 WORDLIST = Path(__file__).resolve().parents[1] / "scripts" / "ai-verify" / "sensitive-terms.toml"
 

@@ -8,7 +8,11 @@
 from __future__ import annotations
 
 import pytest
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 兼容（依赖已声明 tomli）
+    import tomli as tomllib
 
 from tests import _gov_terms as gt
 
