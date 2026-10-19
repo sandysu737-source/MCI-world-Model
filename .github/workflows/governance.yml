@@ -105,6 +105,9 @@ jobs:
           COV_CORE_THRESHOLD: "77"
           COV_BR_THRESHOLD: "61"
           MUTATION_STRICT: ${{ steps.quality_scope.outputs.mutation_strict }}
+          # 波次基线：干净检出下让复杂度/变异门禁只检查本次改动行。
+          # PR 用 base commit，push 用事件前一个 commit；缺失会回退全文件扫描（历史盲区误记本次 PR）。
+          GATE_DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           if [ -s changed-files.txt ]; then
             mapfile -t FILES < changed-files.txt
