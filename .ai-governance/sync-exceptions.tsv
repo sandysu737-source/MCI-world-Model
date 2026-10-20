@@ -1,0 +1,4 @@
+# 项目级同步例外（M6e）——只登记本仓有意保留的本地差异。
+# 格式：target<TAB>mode<TAB>fingerprint16<TAB>expiry<TAB>reason
+# 任何指纹漂移或逾期都会由 sync-governance.sh 回落为 CONFLICT（fail-closed）。
+.github/workflows/governance.yml	repo-superset	0e56df099e756067	2027-10-31	本仓 CI 超集：benchmarks 硬门禁、RISK_BRANCH/GATE_DIFF_BASE 波次基线、单人 owner 指纹与项目专属覆盖率阈值；kit 模板不携带项目 extras/阈值上下文

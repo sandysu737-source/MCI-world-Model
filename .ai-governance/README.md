@@ -41,6 +41,13 @@ bash "/Users/mac/qoder m5pro/_ai-eng-kit/sync-governance.sh"
 bash "/Users/mac/qoder m5pro/_ai-eng-kit/sync-governance.sh" "/项目路径"
 ```
 
+### 治理资产单源与同步纪律（M6）
+- **单源**：编辑源是 `_ai-eng-kit/governance/` + `base/`；项目副本是同步产物，不得作为唯一真源私自演进。
+- **唯一通道**：只走 `sync-governance.sh` 三态非破坏语义；禁止 `cp` 覆盖式同步。
+- **本地改动可回灌**：项目副本的本地修复必须登记台账并回灌 kit；采用 kit 版必须显式 `--adopt-kit`。项目级超集须在 `.ai-governance/sync-exceptions.tsv` 登记指纹与期限，漂移或逾期即回落冲突。
+- **parity 校验**：`test-guard-parity.sh` 本地必须绿；CI 无 kit 只能证明副本未被静默改动。
+- **漂移核查**：每次治理合并后或每周至少一次跑 `sync-governance.sh --check`；漂移未清账前不开新的治理环。
+
 ## 给 AI 助手的开场补充提示
 ```
 本项目已注入 governance 规则包（.ai-governance/AI-CODE-SPEC.md）。
