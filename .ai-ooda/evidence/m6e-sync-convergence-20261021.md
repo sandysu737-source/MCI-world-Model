@@ -67,3 +67,10 @@ kit 提交 `afb6993`：
 - `.github/workflows/governance.yml` 的 `repo-superset` 例外期限为 `2027-10-31`。到期前应评估把通用部分上游化到 kit，或重新登记并说明理由。
 - `ai-weight-management-platform` 与 `clinical-nutrition-finance-prod` 已各自持有项目专属的 `test-quality-gate-project-context.sh`；本次只停止向其它仓继续安装，不代改这两个项目。
 - 本报告不替代 CI：PR 合并前仍以 governance gate 与 4-Gate 结果为准。
+
+## 合并结果
+
+- PR #47：squash 合并为 `18ff9a7`，工作分支已删除。
+- governance `gate`：run `39481907001` success（写入负责人指纹 `OWNER-APPROVED:PR47:2026-10-21` 后重跑）。
+- CI 4-Gate：run `39481906835` 全 pass。`Gate 4 · SIGReg Bench Smoke` 首跑被平台 `cancelled`，重跑 `43s` pass；不是基准断言失败。
+- 台账 `OODA-20261015-058` 已转 `verified`。
