@@ -4,7 +4,7 @@
 
 MCI World Model 达到可收口状态：`main` 基线为 `968bd60`，无开放 PR、无开放 Issue、远端仅 `main` 一条分支、无 `codex/*` 残留；M6d/M6e 已合并并取证，M6f 治理文档已按单源通道同步，`sync-governance.sh --check` 收敛为「0 写入 / 0 冲突 / 1 登记例外」，本地全量与 CI 均绿。
 
-收口动作本身仍走 PR：取得负责人当日 `OWNER-APPROVED` 指纹、PR gate 绿后 squash 合并，台账条目由 `written` 转 `verified`。
+收口动作本身仍走 PR：负责人已于 2026-10-21 明确确认（`OWNER-APPROVED:PR49:2026-10-21`），台账条目转 `verified`；PR gate 与 4-Gate 全绿后 squash 合并。
 
 ## 仓库基线
 
@@ -63,4 +63,4 @@ kit 单源 HEAD 为 `7e91854`（`feat(governance): 固化工单合同与执行�
 
 ## 收口判定
 
-功能、治理、同步、CI、台账五项均已具备证据。剩余动作只有本次收口 PR 的负责人指纹、PR gate 复跑与 squash 合并；完成后本报告即为项目收口基线。
+功能、治理、同步、CI、台账五项均已具备证据，负责人指纹已取得。剩余动作只有 PR #49 的 gate / 4-Gate 复跑与 squash 合并；完成后本报告即为项目收口基线。
