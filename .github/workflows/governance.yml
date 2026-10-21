@@ -49,6 +49,8 @@ jobs:
           # 分叉即变红（CI 无 kit 时仍校验副本 hash 与行为回归）
           bash scripts/ai-verify/tests/test-guard-parity.sh
           bash scripts/ai-verify/tests/test-mutation-check-annotations.sh
+      - name: 台账结构校验（L-13）
+        run: bash scripts/ai-verify/ledger-lint.sh .ai-ooda/ledger.md
       - name: 跑 risk-classify（风险定级）
         id: classify
         env:

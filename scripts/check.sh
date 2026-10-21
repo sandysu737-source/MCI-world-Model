@@ -26,4 +26,8 @@ fi
   echo "❌ 全仓口径命中数高于基线：新增敏感面已入库。请脱敏，或在白名单件中显式登记（reason/owner/过期日）。"
   exit 1
 }
+
+# L-13：台账是审计证据源，结构完整性必须与代码门禁同源；结构异常即阻断。
+bash scripts/ai-verify/ledger-lint.sh .ai-ooda/ledger.md
+
 AI_REVIEW_CI=1 bash scripts/ai-verify/ai-guard.sh
