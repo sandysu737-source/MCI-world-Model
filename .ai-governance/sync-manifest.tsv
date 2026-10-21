@@ -1,6 +1,6 @@
 # 由 sync-governance.sh 维护：<项目内相对路径>\t<上次同步时的 kit 源 sha256>
-.ai-governance/AI-CODE-SPEC.md	2127759a72d73a227168569fa6db3559cfa56735f28415e191fda25d183f9930
-.ai-governance/README.md	266881109e2267a127acc58d9a7e693881b5c7f61089b299964fa1e8ef5bdf44
+.ai-governance/AI-CODE-SPEC.md	c52748796cc89a7d53f5a81db379e23bfb99b0b0df305f20b3ddce693b3ada48
+.ai-governance/README.md	1e6fbfe85d43cf018b719aa7aae45377e98e243159dbe08ad78f14dc08219c8b
 .ai-governance/eslint.governance.config.mjs	ebef0d519fb640a03e07586c988fd54ef1dd5b12d7ea5de026e6ebb477f0a84d
 scripts/ai-verify/ai-guard.sh	e22468eb42692c8a51bbc29b55a67e764bfdcf43b21fd73f1b26e3d47bf75df5
 scripts/ai-verify/commit-audit.sh	6d79fba18528c5a6f69121541acf2b6979565e795a9fbdf172d9bd02b1d9a2fa
